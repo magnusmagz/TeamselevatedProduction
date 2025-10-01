@@ -10,7 +10,7 @@ export default function Home() {
             The Complete Team Management Platform
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Transform how your sports team connects, collaborates, and grows together with professional branding, seamless communication, and enterprise-grade management tools
+            Elevate your sports league with professional branding, effortless communication, and powerful management tools, helping your teams connect, collaborate, and grow together.
           </p>
 
           <div className="space-y-4">
