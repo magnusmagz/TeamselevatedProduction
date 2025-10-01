@@ -28,9 +28,6 @@ export default function Home() {
                 Sign In
               </Link>
             </div>
-            <p className="text-sm text-gray-500">
-              No sign-up required! Get started with magic link authentication.
-            </p>
           </div>
         </div>
 
