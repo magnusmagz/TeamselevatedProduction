@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 export default function GetStarted() {
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
   const [step, setStep] = useState<'roles' | 'details' | 'success'>('roles');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,32 @@ export default function GetStarted() {
       }
 
       setCreatedData(data);
+
+      // Automatically verify the magic link to log the user in
+      if (data.magicLink) {
+        // Extract token from magic link URL
+        const url = new URL(data.magicLink);
+        const token = url.searchParams.get('token');
+
+        if (token) {
+          // Verify the magic link to create the session
+          const verifyResponse = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-magic-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ token }),
+          });
+
+          if (verifyResponse.ok) {
+            // Successfully logged in, refresh auth state and redirect to dashboard
+            await refreshAuth();
+            navigate('/dashboard');
+            return;
+          }
+        }
+      }
+
+      // Fallback: show success screen if auto-login failed
       setStep('success');
 
       // Redirect to dashboard after 3 seconds
