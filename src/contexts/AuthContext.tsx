@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      console.log('[AuthContext] checkAuth - Starting...');
       setIsLoading(true);
       setError(null);
 
@@ -35,22 +36,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
+      console.log('[AuthContext] checkAuth - Response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('[AuthContext] checkAuth - Response data:', data);
         if (data.authenticated && data.user) {
+          console.log('[AuthContext] checkAuth - User authenticated:', data.user);
           setUser(data.user);
         } else {
+          console.log('[AuthContext] checkAuth - Not authenticated');
           setUser(null);
         }
       } else {
+        console.log('[AuthContext] checkAuth - Response not OK');
         setUser(null);
       }
     } catch (err) {
-      console.error('Auth check failed:', err);
+      console.error('[AuthContext] checkAuth - Error:', err);
       setError(err instanceof Error ? err : new Error('Authentication check failed'));
       setUser(null);
     } finally {
       setIsLoading(false);
+      console.log('[AuthContext] checkAuth - Finished');
     }
   };
 

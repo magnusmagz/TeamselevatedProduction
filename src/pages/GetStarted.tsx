@@ -83,12 +83,15 @@ export default function GetStarted() {
 
       // Automatically verify the magic link to log the user in
       if (data.magicLink) {
+        console.log('[GetStarted] Magic link received:', data.magicLink);
         // Extract token from magic link URL
         const url = new URL(data.magicLink);
         const token = url.searchParams.get('token');
+        console.log('[GetStarted] Extracted token:', token);
 
         if (token) {
           // Verify the magic link to create the session
+          console.log('[GetStarted] Verifying magic link...');
           const verifyResponse = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-magic-link`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -96,11 +99,19 @@ export default function GetStarted() {
             body: JSON.stringify({ token }),
           });
 
+          console.log('[GetStarted] Verify response status:', verifyResponse.status);
+          const verifyData = await verifyResponse.json();
+          console.log('[GetStarted] Verify response data:', verifyData);
+
           if (verifyResponse.ok) {
             // Successfully logged in, refresh auth state and redirect to dashboard
+            console.log('[GetStarted] Verification successful, refreshing auth...');
             await refreshAuth();
+            console.log('[GetStarted] Auth refreshed, navigating to dashboard');
             navigate('/dashboard');
             return;
+          } else {
+            console.error('[GetStarted] Verification failed:', verifyData);
           }
         }
       }
