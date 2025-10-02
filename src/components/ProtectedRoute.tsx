@@ -9,7 +9,10 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
+  console.log('[ProtectedRoute] Checking auth - isLoading:', isLoading, 'user:', user);
+
   if (isLoading) {
+    console.log('[ProtectedRoute] Still loading, showing spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -27,8 +30,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     // Redirect to login if not authenticated
+    console.log('[ProtectedRoute] No user, redirecting to /login');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('[ProtectedRoute] User authenticated, rendering protected content');
   return <>{children}</>;
 }
