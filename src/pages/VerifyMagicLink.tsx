@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/teamselevated-backend';
+const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
 export default function VerifyMagicLink() {
   const navigate = useNavigate();
@@ -43,7 +43,10 @@ export default function VerifyMagicLink() {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && data.token) {
+        // Store JWT token
+        localStorage.setItem('auth_token', data.token);
+
         setStatus('success');
         setMessage('Authentication successful! Redirecting...');
 

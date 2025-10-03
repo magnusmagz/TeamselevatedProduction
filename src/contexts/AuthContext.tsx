@@ -16,7 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/teamselevated-backend';
+const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -29,10 +29,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       setError(null);
 
+      // Get token from localStorage
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) {
+        console.log('[AuthContext] checkAuth - No token found');
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-session`, {
-        credentials: 'include', // Important: send cookies
         headers: {
           'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -47,10 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.log('[AuthContext] checkAuth - Not authenticated');
           setUser(null);
+          localStorage.removeItem('auth_token'); // Clear invalid token
         }
       } else {
         console.log('[AuthContext] checkAuth - Response not OK');
         setUser(null);
+        localStorage.removeItem('auth_token'); // Clear invalid token
       }
     } catch (err) {
       console.error('[AuthContext] checkAuth - Error:', err);
@@ -64,19 +76,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=logout`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
+      // Clear token from localStorage
+      localStorage.removeItem('auth_token');
+      setUser(null);
 
-      if (response.ok) {
-        setUser(null);
+      // Optional: notify backend (though token is already removed locally)
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        await fetch(`${API_URL}/api/auth-gateway.php?action=logout`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
       }
     } catch (err) {
       console.error('Logout failed:', err);
+      // Still clear local state even if API call fails
+      localStorage.removeItem('auth_token');
+      setUser(null);
     }
   };
 

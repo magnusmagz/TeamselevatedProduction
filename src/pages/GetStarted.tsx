@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
 export default function GetStarted() {
   const navigate = useNavigate();
@@ -103,11 +103,16 @@ export default function GetStarted() {
           const verifyData = await verifyResponse.json();
           console.log('[GetStarted] Verify response data:', verifyData);
 
-          if (verifyResponse.ok) {
-            // Successfully logged in, refresh auth state and redirect to dashboard
-            console.log('[GetStarted] Verification successful, refreshing auth...');
+          if (verifyResponse.ok && verifyData.token) {
+            // Successfully logged in - store JWT token
+            console.log('[GetStarted] Verification successful, storing token...');
+            localStorage.setItem('auth_token', verifyData.token);
+
+            // Refresh auth state to load user data
             await refreshAuth();
             console.log('[GetStarted] Auth refreshed, navigating to dashboard');
+
+            // Navigate to dashboard
             navigate('/dashboard');
             return;
           } else {
@@ -119,9 +124,9 @@ export default function GetStarted() {
       // Fallback: show success screen if auto-login failed
       setStep('success');
 
-      // Redirect to dashboard after 3 seconds
+      // Redirect to login page to complete authentication
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/login');
       }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
