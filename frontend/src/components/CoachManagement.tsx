@@ -131,7 +131,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   if (onClose) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Coach Management</h3>
             <button
@@ -166,7 +166,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-forest-200 w-full max-w-2xl">
+                <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
                   <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
                     <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
                     <button
@@ -184,7 +184,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.first_name}
                           onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                           required
@@ -197,7 +197,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.last_name}
                           onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                           required
@@ -210,7 +210,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="email"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
@@ -223,7 +223,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="tel"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.phone}
                           onChange={(e) => {
                             // Remove non-digits and format
@@ -369,7 +369,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         {/* Practice Scheduler Modal */}
         {showScheduler && schedulerCoach && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white border border-forest-200 w-full max-w-7xl max-h-[90vh] overflow-auto">
+            <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
               <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                   Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
@@ -439,7 +439,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-forest-200 w-full max-w-2xl">
+                <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
                   <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
                     <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
                     <button
@@ -457,7 +457,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.first_name}
                           onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                           required
@@ -470,7 +470,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.last_name}
                           onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                           required
@@ -483,7 +483,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="email"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
@@ -496,7 +496,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </label>
                         <input
                           type="tel"
-                          className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.phone}
                           onChange={(e) => {
                             // Remove non-digits and format
@@ -639,7 +639,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       {/* Practice Scheduler Modal */}
       {showScheduler && schedulerCoach && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 w-full max-w-7xl max-h-[90vh] overflow-auto">
+          <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
             <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}

@@ -180,7 +180,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     // Modal view
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Venue Management</h3>
             <button
@@ -399,7 +399,7 @@ const VenueForm: React.FC<{
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             {selectedVenue ? 'Edit Venue' : 'Create New Venue'}
@@ -424,7 +424,7 @@ const VenueForm: React.FC<{
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -468,7 +468,7 @@ const VenueForm: React.FC<{
                     Google Maps URL
                   </label>
                   <textarea
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.map_url || ''}
                     onChange={(e) => setFormData({ ...formData, map_url: e.target.value })}
                     placeholder="Paste Google Maps link here (e.g., https://maps.google.com/...)"
@@ -485,7 +485,7 @@ const VenueForm: React.FC<{
                   </label>
                   <input
                     type="url"
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.website || ''}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                     placeholder="https://example.com"
@@ -505,7 +505,7 @@ const VenueForm: React.FC<{
                     <label className="block text-forest-800 text-sm font-medium mb-1">Field Name</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.name}
                       onChange={(e) => setNewField({ ...newField, name: e.target.value })}
                       placeholder="e.g., Field 1"
@@ -515,7 +515,7 @@ const VenueForm: React.FC<{
                   <div>
                     <label className="block text-forest-800 text-sm font-medium mb-1">Type</label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.field_type}
                       onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
                     >
@@ -530,7 +530,7 @@ const VenueForm: React.FC<{
                   <div>
                     <label className="block text-forest-800 text-sm font-medium mb-1">Surface</label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.surface}
                       onChange={(e) => setNewField({ ...newField, surface: e.target.value })}
                     >
@@ -545,7 +545,7 @@ const VenueForm: React.FC<{
                     <label className="block text-forest-800 text-sm font-medium mb-1">Size</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.size}
                       onChange={(e) => setNewField({ ...newField, size: e.target.value })}
                       placeholder="e.g., Full, U12"
