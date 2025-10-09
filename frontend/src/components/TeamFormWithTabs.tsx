@@ -136,7 +136,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b-2 border-forest-800 px-6 py-4">
+        <div className="px-6 py-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
               {team ? 'Edit Team' : 'Create New Team'}
@@ -150,7 +150,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-8 border-b-2 border-forest-800 -mb-0.5">
+          <div className="flex space-x-8">
             <button
               onClick={() => setActiveTab('info')}
               className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${

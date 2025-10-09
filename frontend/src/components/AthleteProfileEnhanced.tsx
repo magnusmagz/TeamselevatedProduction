@@ -175,7 +175,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="border-b-2 border-forest-800 pb-6 mb-6">
+      <div className="pb-6 mb-6">
         <div className="mb-4">
           <button onClick={() => window.history.back()} className="text-sm text-forest-800 hover:underline">
             ← Back to Athletes
@@ -449,7 +449,7 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       {/* Tabs Section */}
       <div className="border border-forest-200 mb-6">
-        <div className="flex border-b-2 border-forest-800">
+        <div className="flex">
           {[
             { id: 'profile', label: 'Extended Profile' },
             { id: 'medical', label: 'Medical Info' },

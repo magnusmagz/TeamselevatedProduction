@@ -247,7 +247,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl my-8">
-        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center bg-forest-50">
+        <div className="px-6 py-4 flex justify-between items-center bg-forest-50">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             Smart Scheduler (Beta) - {team.name}
           </h3>

@@ -336,7 +336,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+        <div className="px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             Practice Schedule Builder - {team.name}
           </h3>

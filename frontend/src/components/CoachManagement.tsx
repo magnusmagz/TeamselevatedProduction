@@ -132,7 +132,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+          <div className="px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Coach Management</h3>
             <button
               onClick={onClose}
@@ -167,7 +167,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-                  <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+                  <div className="px-6 py-4 flex justify-between items-center">
                     <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
                     <button
                       onClick={() => setShowForm(false)}
@@ -370,7 +370,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         {showScheduler && schedulerCoach && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
-              <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+              <div className="px-6 py-4 flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                   Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
                 </h3>
@@ -440,7 +440,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-                  <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+                  <div className="px-6 py-4 flex justify-between items-center">
                     <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
                     <button
                       onClick={() => setShowForm(false)}
@@ -640,7 +640,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       {showScheduler && schedulerCoach && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
-            <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+            <div className="px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
               </h3>
