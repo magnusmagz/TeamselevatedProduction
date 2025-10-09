@@ -148,7 +148,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-forest-200 focus:outline-none focus:border-forest-600"
+                  className="px-4 py-2 border border-forest-200 rounded-md focus:outline-none focus:border-forest-600"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -246,7 +246,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
                       <div className="col-span-2">
                         <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 px-2 py-1">password123</span>
+                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 rounded-md px-2 py-1">password123</span>
                         </p>
                         <p className="text-gray-500 text-xs mt-1">
                           The coach should change this password on first login
@@ -291,7 +291,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 )}
               </div>
             ) : (
-              <div className="border border-forest-200 overflow-hidden bg-white">
+              <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
                 <table className="min-w-full border-collapse">
                   <thead>
                     <tr className="border-b-2 border-forest-800 bg-white">
@@ -342,7 +342,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 border border-forest-800 text-forest-800 text-xs uppercase">
+                          <span className="px-2 py-1 border border-forest-800 rounded-md text-forest-800 text-xs uppercase">
                             Active
                           </span>
                         </td>
@@ -421,7 +421,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-forest-200 focus:outline-none focus:border-forest-600 w-64"
+                  className="px-4 py-2 border border-forest-200 rounded-md focus:outline-none focus:border-forest-600 w-64"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -519,7 +519,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
                       <div className="col-span-2">
                         <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 px-2 py-1">password123</span>
+                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 rounded-md px-2 py-1">password123</span>
                         </p>
                         <p className="text-gray-500 text-xs mt-1">
                           The coach should change this password on first login
@@ -564,7 +564,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto border border-forest-200 bg-white">
+              <div className="overflow-x-auto border border-forest-200 rounded-md bg-white">
                 <table className="min-w-full border-collapse">
                   <thead>
                     <tr className="border-b-2 border-forest-800 bg-white">
@@ -609,7 +609,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           {coach.team_count > 0 ? coach.team_count : '0'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
+                          <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800 rounded-md">
                             Active
                           </span>
                         </td>

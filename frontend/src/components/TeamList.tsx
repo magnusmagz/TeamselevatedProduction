@@ -42,7 +42,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
   }
 
   return (
-    <div className="border border-forest-200 overflow-hidden bg-white">
+    <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
       <table className="min-w-full border-collapse">
         <thead>
           <tr className="border-b-2 border-forest-800 bg-white">
@@ -84,12 +84,12 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                 </button>
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
+                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800 rounded-md">
                   {team.age_group}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
+                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800 rounded-md">
                   {team.division}
                 </span>
               </td>

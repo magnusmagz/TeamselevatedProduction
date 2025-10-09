@@ -325,7 +325,7 @@ const AthleteListContent: React.FC<{
 }) => {
   return (
     <>
-      <div className="border border-forest-200 bg-white p-6 mb-6">
+      <div className="border border-forest-200 rounded-md bg-white p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
@@ -377,7 +377,7 @@ const AthleteListContent: React.FC<{
       {loading ? (
         <div className="text-center text-forest-800 py-12">Loading athletes...</div>
       ) : (
-        <div className="border border-forest-200 overflow-hidden">
+        <div className="border border-forest-200 rounded-md overflow-hidden">
           <table className="min-w-full bg-white">
             <thead>
               <tr className="border-b-2 border-forest-800">
@@ -465,7 +465,7 @@ const AthleteListContent: React.FC<{
                       {showTeamSelector === athlete.id ? (
                         <div className="flex items-center space-x-1">
                           <select
-                            className="text-xs border border-forest-800 px-2 py-1 focus:outline-none"
+                            className="text-xs border border-forest-800 rounded-md px-2 py-1 focus:outline-none"
                             onChange={(e) => {
                               if (e.target.value) {
                                 handleAddToTeam(athlete.id, parseInt(e.target.value));

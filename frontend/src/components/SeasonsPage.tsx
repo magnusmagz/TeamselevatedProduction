@@ -166,7 +166,7 @@ const SeasonsPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="border border-forest-200 overflow-hidden bg-white">
+      <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
         {loading ? (
           <div className="p-12 text-center text-forest-800">Loading seasons...</div>
         ) : filteredSeasons.length === 0 ? (
@@ -208,11 +208,11 @@ const SeasonsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     {season.is_active ? (
-                      <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
+                      <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800 rounded-md">
                         ACTIVE
                       </span>
                     ) : (
-                      <span className="px-2 py-1 text-xs text-gray-600 border border-gray-600">
+                      <span className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded-md">
                         INACTIVE
                       </span>
                     )}
@@ -249,7 +249,7 @@ const SeasonsPage: React.FC = () => {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white border border-forest-200 p-6 w-full max-w-md">
+          <div className="bg-white border border-forest-200 rounded-md p-6 w-full max-w-md">
             <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase">
               {editingSeason ? 'Edit Season' : 'Create New Season'}
             </h3>

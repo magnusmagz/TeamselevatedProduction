@@ -177,7 +177,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
       </div>
 
       {/* Upload Section */}
-      <div className="mb-5 p-4 border border-gray-300">
+      <div className="mb-5 p-4 border border-gray-300 rounded-md">
         <h3 className="font-bold mb-3">Upload New Document</h3>
         <div className="space-y-3">
           <input
@@ -194,13 +194,13 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                 placeholder="Expiration date (if applicable)"
                 value={expiresDate}
                 onChange={(e) => setExpiresDate(e.target.value)}
-                className="mt-2 p-2 border border-gray-300"
+                className="mt-2 p-2 border border-gray-300 rounded-md"
               />
               <textarea
                 placeholder="Notes (optional)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mt-2 w-full p-2 border border-gray-300"
+                className="mt-2 w-full p-2 border border-gray-300 rounded-md"
                 rows={2}
               />
             </div>
@@ -213,7 +213,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
         <h3 className="font-bold mb-3 text-lg">Required Documents</h3>
         <div className="space-y-2">
           {requiredDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-300 p-3">
+            <div key={doc.type_id} className="border border-gray-300 rounded-md p-3">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -284,7 +284,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
         <h3 className="font-bold mb-3 text-lg">Optional Documents</h3>
         <div className="space-y-2">
           {optionalDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-200 p-3 bg-gray-50">
+            <div key={doc.type_id} className="border border-gray-200 rounded-md p-3 bg-gray-50">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">

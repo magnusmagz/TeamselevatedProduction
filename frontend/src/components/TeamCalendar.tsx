@@ -445,7 +445,7 @@ const TeamCalendar: React.FC = () => {
       <div className="bg-white border border-forest-200 rounded-md p-6 mb-6">
         {/* View Mode Selector */}
         <div className="flex justify-center mb-4">
-          <div className="inline-flex border border-forest-200">
+          <div className="inline-flex border border-forest-200 rounded-md">
             <button
               onClick={() => setViewMode('month')}
               className={`px-6 py-2 uppercase font-medium ${

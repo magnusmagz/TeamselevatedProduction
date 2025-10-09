@@ -183,12 +183,12 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                   return Object.entries(emailGroups).map(([email, guardiansWithEmail]) => (
                     <div key={email} className="space-y-2">
                       {guardiansWithEmail.length > 1 && (
-                        <div className="text-xs text-gray-600 px-4 py-1 bg-gray-100 border border-gray-300">
+                        <div className="text-xs text-gray-600 px-4 py-1 bg-gray-100 border border-gray-300 rounded-md">
                           Shared Email: {email} ({guardiansWithEmail.map(g => g.first_name).join(' & ')})
                         </div>
                       )}
                       {guardiansWithEmail.map(guardian => (
-                  <div key={guardian.id} className="bg-white border border-forest-200 p-4">
+                  <div key={guardian.id} className="bg-white border border-forest-200 rounded-md p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="mb-2">
@@ -372,7 +372,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
           {/* Add Guardian Form */}
           {showAddForm && (
-            <div className="bg-white border border-forest-200 p-6">
+            <div className="bg-white border border-forest-200 rounded-md p-6">
               <h4 className="text-lg font-semibold text-forest-800 mb-4">Add New Guardian</h4>
               <form onSubmit={handleAddGuardian}>
                 <div className="grid grid-cols-2 gap-4 mb-4">

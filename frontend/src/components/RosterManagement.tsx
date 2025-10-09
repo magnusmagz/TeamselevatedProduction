@@ -159,7 +159,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       ) : (
         <div className="grid grid-cols-2 gap-6">
           {/* Available Athletes */}
-          <div className="bg-white border border-forest-200 p-4">
+          <div className="bg-white border border-forest-200 rounded-md p-4">
             <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase tracking-wide">
               Available Athletes
             </h3>
@@ -169,7 +169,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                   key={athlete.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, athlete)}
-                  className="bg-gray-50 border border-gray-300 p-3 cursor-move hover:bg-gray-100 transition-colors"
+                  className="bg-gray-50 border border-gray-300 rounded-md p-3 cursor-move hover:bg-gray-100 transition-colors"
                 >
                   <div className="font-medium text-forest-800">
                     {athlete.first_name} {athlete.last_name}
@@ -205,7 +205,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               {roster.map((athlete) => (
                 <div
                   key={athlete.id}
-                  className="bg-forest-50 border border-forest-300 p-3"
+                  className="bg-forest-50 border border-forest-300 rounded-md p-3"
                 >
                   <div className="flex justify-between items-start">
                     <div>

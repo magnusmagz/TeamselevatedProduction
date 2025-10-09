@@ -355,7 +355,7 @@ const AthleteProfileEnhanced: React.FC = () => {
             )}
 
             {medical?.insurance_provider && (
-              <div className="mt-3 p-3 border border-gray-300">
+              <div className="mt-3 p-3 border border-gray-300 rounded-md">
                 <div className="font-bold text-sm">Insurance</div>
                 <div className="text-sm">{medical.insurance_provider}</div>
                 {medical.insurance_policy_number && (

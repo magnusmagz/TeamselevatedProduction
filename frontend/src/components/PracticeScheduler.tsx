@@ -482,7 +482,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
           {step === 'review' && (
             <div className="space-y-6">
-              <div className="bg-white p-4 border border-forest-200">
+              <div className="bg-white p-4 border border-forest-200 rounded-md">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-forest-800 font-bold uppercase">
                     Generated Schedule ({generatedPractices.length} practices)
@@ -499,7 +499,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border border-forest-200">
+                  <table className="min-w-full border border-forest-200 rounded-md">
                     <thead>
                       <tr className="border-b-2 border-forest-800">
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">✓</th>
@@ -556,7 +556,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                               type="text"
                               value={practice.notes || ''}
                               onChange={(e) => handleUpdatePractice(index, 'notes', e.target.value)}
-                              className="w-full bg-white text-forest-800 border border-gray-300 px-2 py-1 text-sm"
+                              className="w-full bg-white text-forest-800 border border-gray-300 rounded-md px-2 py-1 text-sm"
                               placeholder="Optional notes..."
                             />
                           </td>

@@ -231,7 +231,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
               {seasons.map(season => (
                 <div
                   key={season.id}
-                  className={`bg-white border border-forest-200 p-4 flex justify-between items-center ${
+                  className={`bg-white border border-forest-200 rounded-md p-4 flex justify-between items-center ${
                     isCurrentSeason(season) ? 'border-3 border-green-600' : ''
                   }`}
                 >
@@ -244,7 +244,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                         </span>
                       )}
                       {!season.is_active && (
-                        <span className="px-2 py-1 border border-forest-800 text-forest-800 text-xs uppercase">
+                        <span className="px-2 py-1 border border-forest-800 rounded-md text-forest-800 text-xs uppercase">
                           INACTIVE
                         </span>
                       )}

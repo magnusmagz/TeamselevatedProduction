@@ -66,7 +66,7 @@ const ExpirationDashboard: React.FC = () => {
       <div className="mb-6 flex gap-2">
         <button
           onClick={() => setDaysFilter(7)}
-          className={`px-4 py-2 border border-forest-200 uppercase font-medium ${
+          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
             daysFilter === 7
               ? 'bg-forest-800 text-white'
               : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
@@ -76,7 +76,7 @@ const ExpirationDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setDaysFilter(30)}
-          className={`px-4 py-2 border border-forest-200 uppercase font-medium ${
+          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
             daysFilter === 30
               ? 'bg-forest-800 text-white'
               : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
@@ -86,7 +86,7 @@ const ExpirationDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setDaysFilter(60)}
-          className={`px-4 py-2 border border-forest-200 uppercase font-medium ${
+          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
             daysFilter === 60
               ? 'bg-forest-800 text-white'
               : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
@@ -96,7 +96,7 @@ const ExpirationDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setDaysFilter(90)}
-          className={`px-4 py-2 border border-forest-200 uppercase font-medium ${
+          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
             daysFilter === 90
               ? 'bg-forest-800 text-white'
               : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
@@ -138,7 +138,7 @@ const ExpirationDashboard: React.FC = () => {
           </div>
           <div className="text-sm uppercase tracking-wide text-forest-800">Next 2 Weeks</div>
         </div>
-        <div className="p-6 border border-forest-200 bg-white">
+        <div className="p-6 border border-forest-200 rounded-md bg-white">
           <div className="text-4xl font-bold text-forest-800 mb-1">{groups.thisMonth.length}</div>
           <div className="text-sm uppercase tracking-wide text-forest-800">This Month</div>
         </div>
@@ -177,7 +177,7 @@ const ExpirationDashboard: React.FC = () => {
 
       {/* Expiring Soon Table */}
       {expiringDocs.filter(d => d.days_until_expiry >= 0).length > 0 && (
-        <div className="border border-forest-200 bg-white">
+        <div className="border border-forest-200 rounded-md bg-white">
           <div className="bg-forest-800 p-4 border-b-2 border-forest-800">
             <h3 className="font-bold text-white uppercase tracking-wide">Expiring Documents</h3>
           </div>
@@ -239,7 +239,7 @@ const ExpirationDashboard: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="mt-6 p-6 bg-gray-50 border border-forest-200">
+      <div className="mt-6 p-6 bg-gray-50 border border-forest-200 rounded-md">
         <h4 className="font-bold mb-4 text-forest-800 uppercase tracking-wide">Quick Actions</h4>
         <ul className="space-y-2">
           <li className="flex items-center text-forest-800">
