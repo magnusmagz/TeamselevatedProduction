@@ -256,7 +256,7 @@ const ProgramManagement: React.FC = () => {
       {/* Program Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 {selectedProgram ? 'Edit Program' : 'Add New Program'}
@@ -404,7 +404,7 @@ const ProgramManagement: React.FC = () => {
       {/* Teams Management Modal */}
       {showTeams && selectedProgramForTeams && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-forest-200 rounded-md max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 Teams for {selectedProgramForTeams.name}
