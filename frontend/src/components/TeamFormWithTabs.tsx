@@ -184,7 +184,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                 </label>
                 <input
                   type="text"
-                  className={`w-full bg-white text-forest-800 border-2 ${
+                  className={`w-full bg-white text-forest-800 border-2 rounded-md ${
                     errors.name ? 'border-red-500' : 'border-forest-800'
                   } px-4 py-2 focus:outline-none focus:border-forest-600`}
                   value={formData.name}
@@ -200,7 +200,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   Age Group *
                 </label>
                 <select
-                  className={`w-full bg-white text-forest-800 border-2 ${
+                  className={`w-full bg-white text-forest-800 border-2 rounded-md ${
                     errors.age_group ? 'border-red-500' : 'border-forest-800'
                   } px-4 py-2 focus:outline-none focus:border-forest-600`}
                   value={formData.age_group}
@@ -224,7 +224,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   Division *
                 </label>
                 <select
-                  className={`w-full bg-white text-forest-800 border-2 ${
+                  className={`w-full bg-white text-forest-800 border-2 rounded-md ${
                     errors.division ? 'border-red-500' : 'border-forest-800'
                   } px-4 py-2 focus:outline-none focus:border-forest-600`}
                   value={formData.division}
