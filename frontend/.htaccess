@@ -1,0 +1,15 @@
+# Heroku-compatible .htaccess
+# Note: php_value directives are not supported on Heroku
+
+RewriteEngine On
+
+# Let PHP files handle OPTIONS requests for proper CORS headers
+# DO NOT intercept OPTIONS at Apache level
+
+# Route for athlete full profile
+RewriteRule ^api/athletes/([0-9]+)/full-profile$ api/athletes-profile.php/$1 [L]
+
+# Default fallback
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

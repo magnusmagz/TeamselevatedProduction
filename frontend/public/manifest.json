@@ -1,0 +1,10 @@
+{
+  "short_name": "Teams Elevated",
+  "name": "Teams Elevated Sports Club Management",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#234F1E",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}
