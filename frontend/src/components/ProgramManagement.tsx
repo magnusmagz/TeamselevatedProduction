@@ -257,13 +257,23 @@ const ProgramManagement: React.FC = () => {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4">
+            <div className="px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 {selectedProgram ? 'Edit Program' : 'Add New Program'}
               </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setSelectedProgram(null);
+                }}
+                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              >
+                ×
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
+            <form onSubmit={handleSubmit} className="p-6 pt-0">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
