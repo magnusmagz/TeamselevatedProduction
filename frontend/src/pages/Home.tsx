@@ -9,7 +9,7 @@ export default function Home() {
           <h1 className="text-5xl font-bold text-gray-900 mb-6">
             The Complete Team Management Platform
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
             Elevate your sports league with professional branding, effortless communication, and powerful management tools, helping your teams connect, collaborate, and grow together.
           </p>
 
