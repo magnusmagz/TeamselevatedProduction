@@ -185,7 +185,7 @@ const CoachDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowPracticeScheduler(true)}
-                className="bg-forest-800 text-white border border-forest-200 px-4 py-2 hover:bg-forest-700 uppercase"
+                className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 uppercase"
               >
                 + Schedule Practices
               </button>

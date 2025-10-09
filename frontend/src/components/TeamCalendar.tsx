@@ -922,7 +922,7 @@ const TeamCalendar: React.FC = () => {
                       const selectedIds = Array.from(e.target.selectedOptions, option => Number(option.value));
                       setEventFormData({ ...eventFormData, team_ids: selectedIds });
                     }}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600 min-h-[120px]"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 min-h-[120px]"
                   >
                     {allTeams.map(team => (
                       <option key={team.id} value={team.id}>{team.name}</option>
@@ -973,7 +973,7 @@ const TeamCalendar: React.FC = () => {
                 <textarea
                   value={eventFormData.description || ''}
                   onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   rows={3}
                 />
               </div>

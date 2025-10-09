@@ -326,7 +326,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             {athlete ? 'Edit Athlete' : 'Create New Athlete'}
@@ -774,7 +774,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                           {formData.medical?.has_epipen && (
                             <input
                               type="text"
-                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                               placeholder="EpiPen location (e.g., backpack, coach)"
                               value={formData.medical?.epipen_location}
                               onChange={(e) => handleMedicalChange('epipen_location', e.target.value)}
@@ -829,7 +829,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                           {formData.medical?.has_asthma && (
                             <input
                               type="text"
-                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                               placeholder="Inhaler location (e.g., backpack, coach)"
                               value={formData.medical?.inhaler_location}
                               onChange={(e) => handleMedicalChange('inhaler_location', e.target.value)}

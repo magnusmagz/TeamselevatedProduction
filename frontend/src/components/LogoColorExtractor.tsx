@@ -230,7 +230,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
                   placeholder="#000000"
                 />
               </div>
@@ -251,7 +251,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="text"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
                   placeholder="#000000"
                 />
               </div>
@@ -272,7 +272,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="text"
                   value={accentColor}
                   onChange={(e) => setAccentColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
                   placeholder="#000000"
                 />
               </div>

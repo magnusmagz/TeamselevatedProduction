@@ -144,7 +144,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Manage Guardians/Household Members</h3>
           <button onClick={onClose} className="text-forest-800 hover:bg-gray-100 px-2 text-2xl">
@@ -159,7 +159,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
               <h4 className="text-lg font-semibold text-forest-800">Current Guardians</h4>
               <button
                 onClick={() => setShowAddForm(true)}
-                className="bg-forest-800 text-white border border-forest-200 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+                className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
               >
                 + Add Guardian
               </button>
@@ -332,13 +332,13 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                             <div className="flex space-x-2 mt-4">
                               <button
                                 onClick={() => handleUpdatePermissions(editingGuardian)}
-                                className="bg-forest-800 text-white border border-forest-200 px-3 py-1 text-sm hover:bg-forest-700 font-semibold uppercase"
+                                className="bg-forest-800 text-white border border-forest-200 rounded-md px-3 py-1 text-sm hover:bg-forest-700 font-semibold uppercase"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => setEditingGuardian(null)}
-                                className="bg-white text-forest-800 border border-forest-200 px-3 py-1 text-sm hover:bg-gray-100 font-semibold uppercase"
+                                className="bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 text-sm hover:bg-gray-100 font-semibold uppercase"
                               >
                                 Cancel
                               </button>
@@ -382,7 +382,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.first_name}
                       onChange={(e) => handleChange('first_name', e.target.value)}
                       required
@@ -395,7 +395,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.last_name}
                       onChange={(e) => handleChange('last_name', e.target.value)}
                       required
@@ -408,7 +408,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     </label>
                     <input
                       type="email"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.email}
                       onChange={(e) => handleChange('email', e.target.value)}
                       required
@@ -424,7 +424,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     </label>
                     <input
                       type="tel"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.mobile_phone}
                       onChange={(e) => handleChange('mobile_phone', e.target.value)}
                       required
@@ -437,7 +437,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     </label>
                     <input
                       type="tel"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.work_phone}
                       onChange={(e) => handleChange('work_phone', e.target.value)}
                     />
@@ -448,7 +448,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                       Relationship *
                     </label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.relationship_type}
                       onChange={(e) => handleChange('relationship_type', e.target.value)}
                       required
@@ -527,13 +527,13 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowAddForm(false)}
-                    className="bg-white text-forest-800 border border-forest-200 px-6 py-2 hover:bg-gray-100 font-semibold uppercase"
+                    className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 font-semibold uppercase"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-forest-800 text-white border border-forest-200 px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
                   >
                     Add Guardian
                   </button>

@@ -153,7 +153,7 @@ const GooglePlacePickerV3: React.FC<GooglePlacePickerV3Props> = ({
         ref={inputRef}
         type="text"
         placeholder={placeholder}
-        className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
       />
 
       {showMap && (

@@ -143,7 +143,7 @@ const ProgramManagement: React.FC = () => {
         </div>
         <button
           onClick={handleAddProgram}
-          className="bg-forest-800 text-white border border-forest-200 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
         >
           + Add New Program
         </button>
@@ -155,7 +155,7 @@ const ProgramManagement: React.FC = () => {
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
           >
             {years.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -165,7 +165,7 @@ const ProgramManagement: React.FC = () => {
           <select
             value={filterSeason}
             onChange={(e) => setFilterSeason(e.target.value)}
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
           >
             <option value="">All Seasons</option>
             <option value="Spring">Spring</option>
@@ -273,7 +273,7 @@ const ProgramManagement: React.FC = () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -285,7 +285,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   >
                     <option value="league">League</option>
@@ -305,7 +305,7 @@ const ProgramManagement: React.FC = () => {
                     type="number"
                     value={formData.season_year}
                     onChange={(e) => setFormData({ ...formData, season_year: Number(e.target.value) })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -317,7 +317,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.season_type}
                     onChange={(e) => setFormData({ ...formData, season_type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   >
                     <option value="Spring">Spring</option>
@@ -336,7 +336,7 @@ const ProgramManagement: React.FC = () => {
                     type="date"
                     value={formData.start_date || ''}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -348,7 +348,7 @@ const ProgramManagement: React.FC = () => {
                     type="date"
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -359,7 +359,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
@@ -376,7 +376,7 @@ const ProgramManagement: React.FC = () => {
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   rows={3}
                 />
               </div>

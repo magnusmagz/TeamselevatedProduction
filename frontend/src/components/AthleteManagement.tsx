@@ -173,7 +173,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     // Modal view for when opened from another component
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Athlete Management</h3>
             <button
@@ -330,13 +330,13 @@ const AthleteListContent: React.FC<{
           <input
             type="text"
             placeholder="Search athletes..."
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGender}
             onChange={(e) => setFilterGender(e.target.value)}
           >
@@ -347,7 +347,7 @@ const AthleteListContent: React.FC<{
           </select>
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
           >
@@ -363,7 +363,7 @@ const AthleteListContent: React.FC<{
               setFilterGender('');
               setFilterGrade('');
             }}
-            className="bg-white text-forest-800 border border-forest-200 px-4 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>

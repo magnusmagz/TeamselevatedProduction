@@ -218,7 +218,7 @@ const ExpirationDashboard: React.FC = () => {
                     <td className="p-4">
                       <button
                         onClick={() => window.location.href = `/athlete/${doc.athlete_id}/documents`}
-                        className="bg-forest-800 text-white border border-forest-200 px-3 py-1 text-sm uppercase hover:bg-forest-700"
+                        className="bg-forest-800 text-white border border-forest-200 rounded-md px-3 py-1 text-sm uppercase hover:bg-forest-700"
                       >
                         Update →
                       </button>

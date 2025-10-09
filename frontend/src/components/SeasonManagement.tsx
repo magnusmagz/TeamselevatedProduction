@@ -122,7 +122,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Season Management</h3>
           <button onClick={onClose} className="text-forest-800 hover:bg-gray-100 px-2 text-2xl">
@@ -139,7 +139,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                 setEditingSeason(null);
                 setFormData({ name: '', start_date: '', end_date: '' });
               }}
-              className="bg-white text-forest-800 border border-forest-200 px-4 py-2 hover:bg-forest-800 hover:text-white font-semibold uppercase"
+              className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-800 hover:text-white font-semibold uppercase"
             >
               + Create Season
             </button>
@@ -158,7 +158,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Spring 2024, Fall 2024"
@@ -173,7 +173,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                     </label>
                     <input
                       type="date"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.start_date}
                       onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                       required
@@ -186,7 +186,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                     </label>
                     <input
                       type="date"
-                      className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                       value={formData.end_date}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                       min={formData.start_date}
@@ -203,13 +203,13 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                       setEditingSeason(null);
                       setFormData({ name: '', start_date: '', end_date: '' });
                     }}
-                    className="bg-white text-forest-800 border border-forest-200 px-6 py-2 hover:bg-gray-100 uppercase"
+                    className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-forest-800 text-white border border-forest-200 px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
                   >
                     {editingSeason ? 'Update Season' : 'Create Season'}
                   </button>

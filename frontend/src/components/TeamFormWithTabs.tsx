@@ -135,7 +135,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b-2 border-forest-800 px-6 py-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
@@ -243,7 +243,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   Season
                 </label>
                 <select
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.season_id}
                   onChange={(e) => setFormData({ ...formData, season_id: e.target.value })}
                 >
@@ -262,7 +262,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   Primary Coach
                 </label>
                 <select
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.primary_coach_id}
                   onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
                 >
@@ -281,7 +281,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   Home Field
                 </label>
                 <select
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.home_field_id}
                   onChange={(e) => setFormData({ ...formData, home_field_id: e.target.value })}
                 >
@@ -301,7 +301,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-white text-forest-800 border border-forest-200 px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.max_players}
                   onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) || 20 })}
                   min="1"
