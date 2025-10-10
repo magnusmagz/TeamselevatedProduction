@@ -1,16 +1,51 @@
-# Getting Started with Create React App
+# Teams Elevated
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack application for managing sports teams and clubs.
+
+## Local Development Setup
+
+### Prerequisites
+- Node.js and npm installed
+- PHP installed (for backend server)
+
+### Quick Start (Run Both Frontend & Backend)
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Configure environment:
+   - Ensure `frontend/.env.local` exists with your API keys
+   - Backend should be in `../teamselevated-backend-folder`
+
+3. Start both servers with one command:
+```bash
+npm start
+```
+
+This will start:
+- **Frontend** at [http://localhost:5173](http://localhost:5173)
+- **Backend** at [http://localhost:3000](http://localhost:3000)
+
+### Individual Server Setup
+
+**Frontend only:**
+```bash
+npm run start:frontend
+```
+
+**Backend only:**
+```bash
+npm run start:backend
+```
 
 ## Available Scripts
-
-In the project directory, you can run:
 
 ### `npm start`
 
 Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
+Use `PORT=5173 npm start` to run on port 5173.\
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
