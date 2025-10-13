@@ -10,3 +10,4 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyBxWyLOa2xG7nlRouty5V-JHG9jxRFxFOk"
