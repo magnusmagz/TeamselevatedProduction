@@ -48,24 +48,13 @@ const GooglePlacePicker: React.FC<GooglePlacePickerProps> = ({
   const markerRef = useRef<any>(null);
   const placePickerRef = useRef<any>(null);
 
-  // Initialize Google Maps API loader once globally
+  // Log API key status for debugging
   useEffect(() => {
     console.log('GooglePlacePicker mounted with API Key:', apiKey ? 'Key provided' : 'No key provided');
     if (!apiKey) {
-      console.error('Google Maps API key is missing! Check your .env.local file');
-      return;
+      console.error('Google Maps API key is missing! Check your environment variables');
     }
-
-    // Check if loader already exists
-    if (!document.querySelector('gmpx-api-loader')) {
-      const loader = document.createElement('gmpx-api-loader');
-      loader.setAttribute('api-key', apiKey);
-      loader.setAttribute('solution-channel', 'GMP_GE_mapsandplacesautocomplete_v2');
-      document.body.appendChild(loader);
-      console.log('Google Maps API loader added');
-    } else {
-      console.log('Google Maps API loader already exists');
-    }
+    // API loader is now in index.html, so we don't need to create it here
   }, [apiKey]);
 
   useEffect(() => {
