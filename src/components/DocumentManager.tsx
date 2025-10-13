@@ -23,6 +23,7 @@ interface DocumentManagerProps {
 }
 
 const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteName }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [documents, setDocuments] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -37,7 +38,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`http://localhost:3003/api/athletes/${athleteId}/documents`);
+      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`);
       const data = await response.json();
       if (data.success) {
         setDocuments(data.documents);
@@ -73,7 +74,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
     }
 
     try {
-      const response = await fetch(`http://localhost:3003/api/athletes/${athleteId}/documents`, {
+      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`, {
         method: 'POST',
         body: formData
       });
@@ -102,7 +103,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
     }
 
     try {
-      const response = await fetch(`http://localhost:3003/api/documents/${documentId}`, {
+      const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
         method: 'DELETE'
       });
 
