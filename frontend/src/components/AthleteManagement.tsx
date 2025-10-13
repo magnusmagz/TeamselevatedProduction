@@ -473,9 +473,11 @@ const AthleteListContent: React.FC<{
                             onChange={(e) => {
                               if (e.target.value) {
                                 handleAddToTeam(athlete.id, parseInt(e.target.value));
+                                setShowTeamSelector(null);
                               }
                             }}
-                            defaultValue=""
+                            value=""
+                            autoFocus
                           >
                             <option value="">Select team...</option>
                             {availableTeams
