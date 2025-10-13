@@ -3,8 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Athlete {
   id: number;
   first_name: string;
@@ -29,6 +27,7 @@ interface AthleteManagementProps {
 }
 
 const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -65,11 +64,14 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         const teamsByAthlete: { [key: number]: string[] } = {};
 
         teamPlayersData.team_players.forEach((tp: any) => {
-          if (!teamsByAthlete[tp.user_id]) {
-            teamsByAthlete[tp.user_id] = [];
-          }
-          if (tp.team_name && !teamsByAthlete[tp.user_id].includes(tp.team_name)) {
-            teamsByAthlete[tp.user_id].push(tp.team_name);
+          const memberId = tp.athlete_id || tp.user_id || tp.member_id;
+          if (memberId) {
+            if (!teamsByAthlete[memberId]) {
+              teamsByAthlete[memberId] = [];
+            }
+            if (tp.team_name && !teamsByAthlete[memberId].includes(tp.team_name)) {
+              teamsByAthlete[memberId].push(tp.team_name);
+            }
           }
         });
 
@@ -175,8 +177,8 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     // Modal view for when opened from another component
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-          <div className="px-6 py-4 flex justify-between items-center">
+        <div className="bg-white border-2 border-forest-800 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Athlete Management</h3>
             <button
               onClick={onClose}
@@ -233,7 +235,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         </div>
         <button
           onClick={handleAddAthlete}
-          className="bg-forest-800 text-white border border-forest-800 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
         >
           + Add New Athlete
         </button>
@@ -327,18 +329,18 @@ const AthleteListContent: React.FC<{
 }) => {
   return (
     <>
-      <div className="border border-forest-200 rounded-md bg-white p-6 mb-6">
+      <div className="border-2 border-forest-800 bg-white p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             placeholder="Search athletes..."
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGender}
             onChange={(e) => setFilterGender(e.target.value)}
           >
@@ -349,7 +351,7 @@ const AthleteListContent: React.FC<{
           </select>
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
           >
@@ -365,7 +367,7 @@ const AthleteListContent: React.FC<{
               setFilterGender('');
               setFilterGrade('');
             }}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>
@@ -379,7 +381,7 @@ const AthleteListContent: React.FC<{
       {loading ? (
         <div className="text-center text-forest-800 py-12">Loading athletes...</div>
       ) : (
-        <div className="border border-forest-200 rounded-md overflow-hidden">
+        <div className="border-2 border-forest-800 overflow-hidden">
           <table className="min-w-full bg-white">
             <thead>
               <tr className="border-b-2 border-forest-800">
@@ -467,7 +469,7 @@ const AthleteListContent: React.FC<{
                       {showTeamSelector === athlete.id ? (
                         <div className="flex items-center space-x-1">
                           <select
-                            className="text-xs border border-forest-800 rounded-md px-2 py-1 focus:outline-none"
+                            className="text-xs border border-forest-800 px-2 py-1 focus:outline-none"
                             onChange={(e) => {
                               if (e.target.value) {
                                 handleAddToTeam(athlete.id, parseInt(e.target.value));
