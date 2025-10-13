@@ -7,6 +7,7 @@ interface PublicRegistrationFormProps {
 }
 
 const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCode, embedded = false }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [program, setProgram] = useState<Program | null>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -22,7 +23,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   const fetchProgramDetails = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8889/registration/programs-api.php?path=by-embed&code=${embedCode}`
+        `${API_URL}/registration/programs-api.php?path=by-embed&code=${embedCode}`
       );
       const data = await response.json();
 
@@ -80,7 +81,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     setSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:8889/registration/registrations-api.php', {
+      const response = await fetch(`${API_URL}/registration/registrations-api.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

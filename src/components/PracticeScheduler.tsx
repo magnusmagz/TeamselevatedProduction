@@ -43,6 +43,7 @@ interface PracticeSchedulerProps {
 }
 
 const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [step, setStep] = useState<'pattern' | 'review' | 'complete'>('pattern');
 
   // Pattern settings
@@ -95,13 +96,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch('http://localhost:8889/venues-gateway.php');
+      const response = await fetch(`${API_URL}/venues-gateway.php`);
       const venueData = await response.json();
 
       // Fetch fields for each venue
       const venuesWithFields = await Promise.all(
         venueData.map(async (venue: Venue) => {
-          const fieldResponse = await fetch(`http://localhost:8889/venues-gateway.php?id=${venue.id}`);
+          const fieldResponse = await fetch(`${API_URL}/venues-gateway.php?id=${venue.id}`);
           const venueDetails = await fieldResponse.json();
           return venueDetails;
         })

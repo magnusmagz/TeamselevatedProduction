@@ -8,6 +8,7 @@ interface ProgramFormBuilderProps {
 }
 
 const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [activeTab, setActiveTab] = useState<'details' | 'fields'>('details');
   const [savedProgramId, setSavedProgramId] = useState<number | undefined>(program?.id);
   const [formData, setFormData] = useState<Program>({
@@ -38,8 +39,8 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
     setSaving(true);
     try {
       const url = savedProgramId
-        ? `http://localhost:8889/registration/programs-api.php?id=${savedProgramId}`
-        : 'http://localhost:8889/registration/programs-api.php?path=create';
+        ? `${API_URL}/registration/programs-api.php?id=${savedProgramId}`
+        : `${API_URL}/registration/programs-api.php?path=create`;
 
       const method = savedProgramId ? 'PUT' : 'POST';
 

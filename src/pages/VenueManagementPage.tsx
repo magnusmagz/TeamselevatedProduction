@@ -23,6 +23,7 @@ interface Venue {
 }
 
 const VenueManagementPage: React.FC = () => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -54,7 +55,7 @@ const VenueManagementPage: React.FC = () => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch('http://localhost:8889/venues-gateway.php');
+      const response = await fetch(`${API_URL}/venues-gateway.php`);
       const data = await response.json();
       setVenues(data);
     } catch (error) {
@@ -81,7 +82,7 @@ const VenueManagementPage: React.FC = () => {
 
   const handleEditVenue = async (venue: Venue) => {
     try {
-      const response = await fetch(`http://localhost:8889/venues-gateway.php?id=${venue.id}`);
+      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venue.id}`);
       const data = await response.json();
       setSelectedVenue(data);
       setFormData(data);
@@ -97,7 +98,7 @@ const VenueManagementPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8889/venues-gateway.php?id=${venueId}`, {
+      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venueId}`, {
         method: 'DELETE'
       });
 
@@ -135,8 +136,8 @@ const VenueManagementPage: React.FC = () => {
 
     try {
       const url = selectedVenue
-        ? `http://localhost:8889/venues-gateway.php?id=${selectedVenue.id}`
-        : 'http://localhost:8889/venues-gateway.php';
+        ? `${API_URL}/venues-gateway.php?id=${selectedVenue.id}`
+        : `${API_URL}/venues-gateway.php`;
 
       const response = await fetch(url, {
         method: selectedVenue ? 'PUT' : 'POST',

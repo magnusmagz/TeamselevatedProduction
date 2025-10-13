@@ -26,6 +26,7 @@ import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const { teamId } = useParams<{ teamId: string }>();
   const [team, setTeam] = React.useState<{ id: number; name: string } | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -33,7 +34,7 @@ const TeamRosterPage: React.FC = () => {
   React.useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await fetch(`http://localhost:8889/teams-gateway.php?id=${teamId}`);
+        const response = await fetch(`${API_URL}/teams-gateway.php?id=${teamId}`);
         const data = await response.json();
         if (data.id && data.name) {
           setTeam({ id: data.id, name: data.name });

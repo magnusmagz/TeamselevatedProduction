@@ -14,6 +14,7 @@ interface SeasonManagementProps {
 }
 
 const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
@@ -30,7 +31,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
 
   const fetchSeasons = async () => {
     try {
-      const response = await fetch('http://localhost:8889/seasons-gateway.php?action=list');
+      const response = await fetch(`${API_URL}/seasons-gateway.php?action=list`);
       const data = await response.json();
       if (data.success) {
         setSeasons(data.seasons);
@@ -46,8 +47,8 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
     e.preventDefault();
 
     const url = editingSeason
-      ? `http://localhost:8889/api/seasons/${editingSeason.id}`
-      : 'http://localhost:8889/seasons-gateway.php?action=create';
+      ? `${API_URL}/api/seasons/${editingSeason.id}`
+      : `${API_URL}/seasons-gateway.php?action=create`;
 
     const method = editingSeason ? 'PUT' : 'POST';
 
@@ -88,7 +89,7 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
     if (!window.confirm('Are you sure you want to delete this season?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/api/seasons/${id}`, {
+      const response = await fetch(`${API_URL}/api/seasons/${id}`, {
         method: 'DELETE'
       });
 

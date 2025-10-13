@@ -78,6 +78,7 @@ interface AthleteFormProps {
 }
 
 const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<AthleteFormData>({
     first_name: '',
@@ -231,8 +232,8 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
       }
 
       const url = athlete
-        ? `http://localhost:8889/athletes-gateway.php?id=${athlete.id}`
-        : 'http://localhost:8889/athletes-gateway.php';
+        ? `${API_URL}/athletes-gateway.php?id=${athlete.id}`
+        : `${API_URL}/athletes-gateway.php`;
       const response = await fetch(url, {
         method: athlete ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,7 +257,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             financial_responsible: 1
           };
 
-          await fetch('http://localhost:8889/guardian-gateway.php', {
+          await fetch(`${API_URL}/guardian-gateway.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(guardianData)
@@ -273,7 +274,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             weight_lbs: formData.medical.weight_lbs || null
           };
 
-          await fetch('http://localhost:8889/medical-gateway.php', {
+          await fetch(`${API_URL}/medical-gateway.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(medicalData)

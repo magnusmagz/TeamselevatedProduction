@@ -18,6 +18,7 @@ interface RosterManagementProps {
 }
 
 const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [roster, setRoster] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableAthletes, setAvailableAthletes] = useState<Athlete[]>([]);
@@ -28,7 +29,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchRoster = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php?team_id=${team.id}`);
+      const response = await fetch(`${API_URL}/team-players-gateway.php?team_id=${team.id}`);
       const data = await response.json();
       if (data.success && data.team_players) {
         // Transform team_players data to athlete format
@@ -50,7 +51,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchAllAthletes = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/athletes-gateway.php`);
+      const response = await fetch(`${API_URL}/athletes-gateway.php`);
       const data = await response.json();
       const athletes = data.athletes || [];
       setAllAthletes(athletes);
@@ -79,7 +80,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     if (!window.confirm('Are you sure you want to remove this athlete from the team?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php?team_id=${team.id}&player_id=${athleteId}`, {
+      const response = await fetch(`${API_URL}/team-players-gateway.php?team_id=${team.id}&player_id=${athleteId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -123,7 +124,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const addAthleteToTeam = async (athlete: Athlete) => {
     try {
       // Create team_player relationship
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php`, {
+      const response = await fetch(`${API_URL}/team-players-gateway.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,6 +4,7 @@ import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
 
 const ProgramManagement: React.FC = () => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -16,7 +17,7 @@ const ProgramManagement: React.FC = () => {
 
   const fetchPrograms = async () => {
     try {
-      const response = await fetch('http://localhost:8889/registration/programs-api.php?path=list&club_id=1');
+      const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=1`);
       const data = await response.json();
       setPrograms(data);
     } catch (error) {
@@ -40,7 +41,7 @@ const ProgramManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this program?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/registration/programs-api.php?id=${id}`, {
+      const response = await fetch(`${API_URL}/registration/programs-api.php?id=${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {

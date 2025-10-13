@@ -30,6 +30,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
   onUpdate,
   onClose
 }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
   const [formData, setFormData] = useState<Guardian>({
@@ -59,7 +60,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php`,
+        `${API_URL}/guardian-gateway.php`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,7 +101,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php?id=${guardianId}`,
+        `${API_URL}/guardian-gateway.php?id=${guardianId}`,
         {
           method: 'DELETE'
         }
@@ -121,7 +122,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
   const handleUpdatePermissions = async (guardian: Guardian) => {
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php`,
+        `${API_URL}/guardian-gateway.php`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

@@ -8,6 +8,7 @@ interface TeamFormProps {
 }
 
 const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [activeTab, setActiveTab] = useState<'info' | 'branding'>('info');
   const [formData, setFormData] = useState({
     name: '',
@@ -53,7 +54,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
     try {
       // Fetch coaches
       try {
-        const coachesRes = await fetch('http://localhost:8889/coaches-gateway.php?action=available');
+        const coachesRes = await fetch(`${API_URL}/coaches-gateway.php?action=available`);
         if (coachesRes.ok) {
           const coachesData = await coachesRes.json();
           setCoaches(coachesData || []);
@@ -65,7 +66,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
       // Fetch seasons
       try {
-        const seasonsRes = await fetch('http://localhost:8889/seasons-gateway.php?action=list');
+        const seasonsRes = await fetch(`${API_URL}/seasons-gateway.php?action=list`);
         if (seasonsRes.ok) {
           const seasonsData = await seasonsRes.json();
           setSeasons(seasonsData.success ? seasonsData.seasons : []);
@@ -77,7 +78,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
       // Fetch fields
       try {
-        const fieldsRes = await fetch('http://localhost:8889/fields-gateway.php');
+        const fieldsRes = await fetch(`${API_URL}/fields-gateway.php`);
         if (fieldsRes.ok) {
           const fieldsData = await fieldsRes.json();
           setFields(fieldsData || []);

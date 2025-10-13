@@ -7,6 +7,7 @@ interface FormFieldBuilderProps {
 }
 
 const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }) => {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
   const [fields, setFields] = useState<DragDropField[]>([]);
   const [draggedField, setDraggedField] = useState<DragDropField | null>(null);
   const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
@@ -106,7 +107,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
 
   const loadExistingFields = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/registration/programs-api.php?path=details&id=${programId}`);
+      const response = await fetch(`${API_URL}/registration/programs-api.php?path=details&id=${programId}`);
       const data = await response.json();
       if (data.form_fields) {
         setFields(data.form_fields.map((f: FormField, i: number) => ({
@@ -207,7 +208,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
     if (!programId) return;
 
     try {
-      const response = await fetch('http://localhost:8889/registration/programs-api.php?path=update-fields', {
+      const response = await fetch(`${API_URL}/registration/programs-api.php?path=update-fields`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
