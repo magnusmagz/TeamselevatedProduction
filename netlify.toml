@@ -11,3 +11,4 @@
 [build.environment]
   NODE_VERSION = "18"
   SECRETS_SCAN_OMIT_KEYS = "REACT_APP_GOOGLE_MAPS_API_KEY"
+  REACT_APP_API_URL = "https://teamselevated-backend-0485388bd66e.herokuapp.com"

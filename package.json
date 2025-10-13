@@ -23,7 +23,7 @@
   "scripts": {
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "start:frontend": "cd frontend && PORT=5173 react-scripts start",
-    "start:backend": "cd ../teamselevated-backend-folder && php -S localhost:3000",
+    "start:backend": "cd ../teamselevated-backend-folder && php -S localhost:8889",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

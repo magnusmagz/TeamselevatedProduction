@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Practice {
   id: number;
   team_id: number;
@@ -134,7 +136,7 @@ const TeamCalendar: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('http://localhost:8889/events-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/events-gateway.php`);
       const data = await response.json();
       if (data.events) {
         setEvents(data.events);
@@ -146,7 +148,7 @@ const TeamCalendar: React.FC = () => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch('http://localhost:8889/venues-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
       const data = await response.json();
       if (data.venues) {
         setVenues(data.venues);
@@ -158,7 +160,7 @@ const TeamCalendar: React.FC = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch('http://localhost:8889/teams-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`);
       const data = await response.json();
       if (data.teams) {
         setAllTeams(data.teams);
@@ -170,7 +172,7 @@ const TeamCalendar: React.FC = () => {
 
   const fetchPrograms = async () => {
     try {
-      const response = await fetch('http://localhost:8889/programs-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/programs-gateway.php`);
       const data = await response.json();
       if (data.programs) {
         setPrograms(data.programs);
@@ -347,8 +349,8 @@ const TeamCalendar: React.FC = () => {
 
     try {
       const url = selectedEvent
-        ? `http://localhost:8889/events-gateway.php?id=${selectedEvent.id}`
-        : 'http://localhost:8889/events-gateway.php';
+        ? `${API_URL}/legacy/events-gateway.php?id=${selectedEvent.id}`
+        : `${API_URL}/legacy/events-gateway.php`;
 
       console.log('Sending request to:', url);
       console.log('Request method:', selectedEvent ? 'PUT' : 'POST');
@@ -412,7 +414,7 @@ const TeamCalendar: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this event?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/events-gateway.php?id=${eventId}`, {
+      const response = await fetch(`${API_URL}/legacy/events-gateway.php?id=${eventId}`, {
         method: 'DELETE'
       });
 
