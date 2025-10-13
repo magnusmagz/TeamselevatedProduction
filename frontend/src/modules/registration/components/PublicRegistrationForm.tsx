@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Program, FormField } from '../types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface PublicRegistrationFormProps {
   embedCode: string;
   embedded?: boolean;
 }
 
 const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCode, embedded = false }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [program, setProgram] = useState<Program | null>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -24,7 +23,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   const fetchProgramDetails = async () => {
     try {
       const response = await fetch(
-        `${API_URL}/legacy/registration/programs-api.php?path=by-embed&code=${embedCode}`
+        `${API_URL}/registration/programs-api.php?path=by-embed&code=${embedCode}`
       );
       const data = await response.json();
 
@@ -82,7 +81,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     setSubmitting(true);
 
     try {
-      const response = await fetch(`${API_URL}/legacy/registration/registrations-api.php`, {
+      const response = await fetch(`${API_URL}/registration/registrations-api.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -124,8 +123,8 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     const fieldId = `field-${field.field_name}`;
     const hasError = !!errors[field.field_name];
 
-    const inputClasses = `w-full bg-white text-forest-800 border rounded-md ${
-      hasError ? 'border-red-500' : 'border-forest-200'
+    const inputClasses = `w-full bg-white text-forest-800 border-2 ${
+      hasError ? 'border-red-500' : 'border-forest-800'
     } px-4 py-2 focus:outline-none focus:border-forest-600`;
 
     switch (field.field_type) {
@@ -247,7 +246,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
   if (submitted) {
     return (
-      <div className="bg-white border border-forest-200 rounded-md p-8 text-center">
+      <div className="bg-white border-2 border-forest-800 p-8 text-center">
         <h2 className="text-2xl font-bold text-forest-800 mb-4">Registration Submitted!</h2>
         <p className="text-gray-600">
           Thank you for registering for {program.name}.
@@ -260,7 +259,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   return (
     <div className={embedded ? '' : 'min-h-screen bg-gray-50 py-8'}>
       <div className={embedded ? '' : 'max-w-2xl mx-auto px-4'}>
-        <div className="bg-white border border-forest-200 rounded-md">
+        <div className="bg-white border-2 border-forest-800">
           {/* Header */}
           <div className="bg-forest-800 text-white p-6">
             <h1 className="text-2xl font-bold uppercase">{program.name}</h1>
@@ -312,7 +311,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-forest-800 text-white border border-forest-800 rounded-md px-8 py-3 hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
+                className="bg-forest-800 text-white px-8 py-3 hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Submit Registration'}
               </button>
