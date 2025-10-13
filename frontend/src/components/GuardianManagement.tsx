@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 // Updated layout for guardian actions
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Guardian {
   id?: number;
   first_name: string;

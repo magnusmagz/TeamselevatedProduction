@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FormField, FieldType, DragDropField } from '../types';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface FormFieldBuilderProps {
   programId?: number;
   onSave?: (fields: FormField[]) => void;

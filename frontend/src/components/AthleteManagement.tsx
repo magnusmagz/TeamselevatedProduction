@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Athlete {
   id: number;
   first_name: string;

@@ -3,6 +3,8 @@ import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 const ProgramManagement: React.FC = () => {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);

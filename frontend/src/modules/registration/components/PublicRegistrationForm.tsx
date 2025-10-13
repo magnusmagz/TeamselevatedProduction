@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Program, FormField } from '../types';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface PublicRegistrationFormProps {
   embedCode: string;
   embedded?: boolean;

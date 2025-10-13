@@ -6,6 +6,8 @@ import AthleteManagement from './AthleteManagement';
 import SeasonManagement from './SeasonManagement';
 import VenueManagement from './VenueManagement';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Team {
   id: number;
   name: string;

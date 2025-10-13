@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Program, FormField, FieldType } from '../types';
 import FormFieldBuilder from './FormFieldBuilder';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface ProgramFormBuilderProps {
   program: Program | null;
   onClose: () => void;
