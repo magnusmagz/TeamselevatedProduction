@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LogoColorExtractor } from './LogoColorExtractor';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface TeamFormProps {
   team: any | null;
   onSubmit: (data: any) => void;
@@ -53,7 +55,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
     try {
       // Fetch coaches
       try {
-        const coachesRes = await fetch('http://localhost:8889/coaches-gateway.php?action=available');
+        const coachesRes = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`);
         if (coachesRes.ok) {
           const coachesData = await coachesRes.json();
           setCoaches(coachesData || []);
@@ -65,7 +67,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
       // Fetch seasons
       try {
-        const seasonsRes = await fetch('http://localhost:8889/seasons-gateway.php?action=list');
+        const seasonsRes = await fetch(`${API_URL}/legacy/seasons-gateway.php?action=list`);
         if (seasonsRes.ok) {
           const seasonsData = await seasonsRes.json();
           setSeasons(seasonsData.success ? seasonsData.seasons : []);
@@ -77,7 +79,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
       // Fetch fields
       try {
-        const fieldsRes = await fetch('http://localhost:8889/fields-gateway.php');
+        const fieldsRes = await fetch(`${API_URL}/legacy/fields-gateway.php`);
         if (fieldsRes.ok) {
           const fieldsData = await fieldsRes.json();
           setFields(fieldsData || []);

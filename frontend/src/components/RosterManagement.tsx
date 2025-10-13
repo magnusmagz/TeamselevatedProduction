@@ -28,7 +28,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchRoster = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php?team_id=${team.id}`);
+      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}`);
       const data = await response.json();
       if (data.success && data.team_players) {
         // Transform team_players data to athlete format
@@ -50,7 +50,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchAllAthletes = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/athletes-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`);
       const data = await response.json();
       const athletes = data.athletes || [];
       setAllAthletes(athletes);
@@ -79,7 +79,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     if (!window.confirm('Are you sure you want to remove this athlete from the team?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php?team_id=${team.id}&player_id=${athleteId}`, {
+      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}&player_id=${athleteId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -123,7 +123,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const addAthleteToTeam = async (athlete: Athlete) => {
     try {
       // Create team_player relationship
-      const response = await fetch(`http://localhost:8889/team-players-gateway.php`, {
+      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

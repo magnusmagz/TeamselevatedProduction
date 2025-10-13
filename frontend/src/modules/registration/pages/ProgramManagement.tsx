@@ -16,7 +16,7 @@ const ProgramManagement: React.FC = () => {
 
   const fetchPrograms = async () => {
     try {
-      const response = await fetch('http://localhost:8889/registration/programs-api.php?path=list&club_id=1');
+      const response = await fetch(`${API_URL}/legacy/registration/programs-api.php?path=list&club_id=1`);
       const data = await response.json();
       setPrograms(data);
     } catch (error) {
@@ -40,7 +40,7 @@ const ProgramManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this program?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/registration/programs-api.php?id=${id}`, {
+      const response = await fetch(`${API_URL}/legacy/registration/programs-api.php?id=${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {

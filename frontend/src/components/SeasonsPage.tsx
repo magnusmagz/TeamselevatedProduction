@@ -29,7 +29,7 @@ const SeasonsPage: React.FC = () => {
 
   const fetchSeasons = async () => {
     try {
-      const response = await fetch('http://localhost:8889/seasons-gateway.php?action=list');
+      const response = await fetch(`${API_URL}/legacy/seasons-gateway.php?action=list`);
       const data = await response.json();
       if (data.success) {
         setSeasons(data.seasons);
@@ -45,8 +45,8 @@ const SeasonsPage: React.FC = () => {
     e.preventDefault();
 
     const url = editingSeason
-      ? `http://localhost:8889/api/seasons/${editingSeason.id}`
-      : 'http://localhost:8889/seasons-gateway.php?action=create';
+      ? `${API_URL}/legacy/api/seasons/${editingSeason.id}`
+      : `${API_URL}/legacy/seasons-gateway.php?action=create`;
 
     const method = editingSeason ? 'PUT' : 'POST';
 
@@ -87,7 +87,7 @@ const SeasonsPage: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this season?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/api/seasons/${id}`, {
+      const response = await fetch(`${API_URL}/legacy/api/seasons/${id}`, {
         method: 'DELETE'
       });
 
@@ -106,7 +106,7 @@ const SeasonsPage: React.FC = () => {
 
   const handleActivate = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:8889/api/seasons/${id}/activate`, {
+      const response = await fetch(`${API_URL}/legacy/api/seasons/${id}/activate`, {
         method: 'POST'
       });
 

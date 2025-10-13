@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Team {
   id: number;
   name: string;
@@ -95,13 +97,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch('http://localhost:8889/venues-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
       const venueData = await response.json();
 
       // Fetch fields for each venue
       const venuesWithFields = await Promise.all(
         venueData.map(async (venue: Venue) => {
-          const fieldResponse = await fetch(`http://localhost:8889/venues-gateway.php?id=${venue.id}`);
+          const fieldResponse = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
           const venueDetails = await fieldResponse.json();
           return venueDetails;
         })

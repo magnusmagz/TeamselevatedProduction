@@ -59,7 +59,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php`,
+        `${API_URL}/legacy/guardian-gateway.php`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php?id=${guardianId}`,
+        `${API_URL}/legacy/guardian-gateway.php?id=${guardianId}`,
         {
           method: 'DELETE'
         }
@@ -121,7 +121,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
   const handleUpdatePermissions = async (guardian: Guardian) => {
     try {
       const response = await fetch(
-        `http://localhost:8889/guardian-gateway.php`,
+        `${API_URL}/legacy/guardian-gateway.php`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

@@ -38,8 +38,8 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
     setSaving(true);
     try {
       const url = savedProgramId
-        ? `http://localhost:8889/registration/programs-api.php?id=${savedProgramId}`
-        : 'http://localhost:8889/registration/programs-api.php?path=create';
+        ? `${API_URL}/legacy/registration/programs-api.php?id=${savedProgramId}`
+        : `${API_URL}/legacy/registration/programs-api.php?path=create`;
 
       const method = savedProgramId ? 'PUT' : 'POST';
 

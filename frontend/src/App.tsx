@@ -24,6 +24,8 @@ import DocumentManager from './components/DocumentManager';
 import ExpirationDashboard from './components/ExpirationDashboard';
 import { useParams } from 'react-router-dom';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -33,7 +35,7 @@ const TeamRosterPage: React.FC = () => {
   React.useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await fetch(`http://localhost:8889/teams-gateway.php?id=${teamId}`);
+        const response = await fetch(`${API_URL}/legacy/teams-gateway.php?id=${teamId}`);
         const data = await response.json();
         if (data.id && data.name) {
           setTeam({ id: data.id, name: data.name });

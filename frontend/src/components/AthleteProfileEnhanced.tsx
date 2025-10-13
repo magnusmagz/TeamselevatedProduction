@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Guardian {
   id: number;
   first_name: string;
@@ -95,7 +97,7 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       try {
         // Fetch athlete with guardian data
-        const athleteResponse = await fetch(`http://localhost:8889/athletes-gateway.php?id=${athleteId}`);
+        const athleteResponse = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athleteId}`);
         const athleteData = await athleteResponse.json();
 
         if (athleteData.id) {
@@ -103,7 +105,7 @@ const AthleteProfileEnhanced: React.FC = () => {
         }
 
         // Fetch team assignments
-        const teamsResponse = await fetch(`http://localhost:8889/team-players-gateway.php`);
+        const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
         const teamsData = await teamsResponse.json();
 
         if (teamsData.success) {
@@ -112,7 +114,7 @@ const AthleteProfileEnhanced: React.FC = () => {
         }
 
         // Fetch medical information
-        const medicalResponse = await fetch(`http://localhost:8889/medical-gateway.php?athlete_id=${athleteId}`);
+        const medicalResponse = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`);
         const medicalData = await medicalResponse.json();
 
         if (medicalData.success && medicalData.medical) {

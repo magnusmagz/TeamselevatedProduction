@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import TeamList from './TeamList';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Program {
   id?: number;
   name: string;
@@ -49,7 +51,7 @@ const ProgramManagement: React.FC = () => {
       if (filterYear) params.append('season_year', filterYear.toString());
       if (filterSeason) params.append('season_type', filterSeason);
 
-      const response = await fetch(`http://localhost:8889/programs-gateway.php?${params}`);
+      const response = await fetch(`${API_URL}/legacy/programs-gateway.php?${params}`);
       const data = await response.json();
       setPrograms(data.programs || []);
     } catch (error) {
@@ -81,7 +83,7 @@ const ProgramManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this program?')) return;
 
     try {
-      const response = await fetch(`http://localhost:8889/programs-gateway.php?id=${programId}`, {
+      const response = await fetch(`${API_URL}/legacy/programs-gateway.php?id=${programId}`, {
         method: 'DELETE'
       });
 
@@ -102,8 +104,8 @@ const ProgramManagement: React.FC = () => {
 
     try {
       const url = selectedProgram
-        ? `http://localhost:8889/programs-gateway.php?id=${selectedProgram.id}`
-        : 'http://localhost:8889/programs-gateway.php';
+        ? `${API_URL}/legacy/programs-gateway.php?id=${selectedProgram.id}`
+        : `${API_URL}/legacy/programs-gateway.php`;
 
       const response = await fetch(url, {
         method: selectedProgram ? 'PUT' : 'POST',

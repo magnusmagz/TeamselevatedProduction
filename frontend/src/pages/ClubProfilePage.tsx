@@ -43,7 +43,7 @@ const ClubProfilePage: React.FC = () => {
 
   const fetchClubProfile = async () => {
     try {
-      const response = await fetch('http://localhost:8889/club-profile-gateway.php');
+      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`);
       const data = await response.json();
       if (data.id) {
         setFormData(data);
@@ -60,7 +60,7 @@ const ClubProfilePage: React.FC = () => {
     setSaving(true);
 
     try {
-      const response = await fetch('http://localhost:8889/club-profile-gateway.php', {
+      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -277,7 +277,7 @@ const ClubProfilePage: React.FC = () => {
                     accent_color: data.accentColor
                   };
 
-                  const response = await fetch('http://localhost:8889/club-profile-gateway.php', {
+                  const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)

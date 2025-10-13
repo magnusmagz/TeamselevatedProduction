@@ -22,7 +22,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   const fetchProgramDetails = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8889/registration/programs-api.php?path=by-embed&code=${embedCode}`
+        `${API_URL}/legacy/registration/programs-api.php?path=by-embed&code=${embedCode}`
       );
       const data = await response.json();
 
@@ -80,7 +80,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     setSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:8889/registration/registrations-api.php', {
+      const response = await fetch(`${API_URL}/legacy/registration/registrations-api.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

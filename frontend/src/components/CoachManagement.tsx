@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 interface Coach {
   id: number;
   first_name: string;
@@ -41,7 +43,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
   const fetchCoaches = async () => {
     try {
-      const response = await fetch('http://localhost:8889/coaches-gateway.php?action=available');
+      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`);
       const data = await response.json();
       setCoaches(data);
     } catch (error) {
@@ -53,7 +55,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
   const fetchCoachTeams = async (coachId: number) => {
     try {
-      const response = await fetch(`http://localhost:8889/teams-gateway.php?primary_coach_id=${coachId}`);
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?primary_coach_id=${coachId}`);
       const data = await response.json();
       if (data.teams && data.teams.length > 0) {
         return data.teams[0]; // Return the first team
@@ -93,7 +95,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     e.preventDefault();
 
     try {
-      const response = await fetch('http://localhost:8889/coaches-gateway.php?action=create', {
+      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
