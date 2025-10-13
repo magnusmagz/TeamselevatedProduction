@@ -27,7 +27,7 @@ interface AthleteManagementProps {
 }
 
 const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const navigate = useNavigate();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [showForm, setShowForm] = useState(false);
