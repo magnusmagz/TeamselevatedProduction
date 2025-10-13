@@ -453,60 +453,25 @@ const AthleteListContent: React.FC<{
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     <div className="flex items-center space-x-2">
-                      <div className="text-sm text-forest-800">
-                        {athleteTeams[athlete.id] && athleteTeams[athlete.id].length > 0 && (
-                          <div>
-                            {athleteTeams[athlete.id].map((team, idx) => (
-                              <span key={idx}>
-                                {team}
-                                {idx < athleteTeams[athlete.id].length - 1 && ', '}
-                              </span>
-                            ))}
-                          </div>
+                      <div className="text-sm text-forest-800 flex flex-wrap gap-1">
+                        {athleteTeams[athlete.id] && athleteTeams[athlete.id].length > 0 ? (
+                          athleteTeams[athlete.id].map((team, idx) => (
+                            <span key={idx} className="bg-forest-100 border border-forest-800 px-2 py-1 text-xs">
+                              {team}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">No teams</span>
                         )}
                       </div>
 
-                      {showTeamSelector === athlete.id ? (
-                        <div className="flex items-center space-x-1">
-                          <select
-                            className="text-xs border border-forest-800 px-2 py-1 focus:outline-none"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleAddToTeam(athlete.id, parseInt(e.target.value));
-                                setShowTeamSelector(null);
-                              }
-                            }}
-                            value=""
-                            autoFocus
-                          >
-                            <option value="">Select team...</option>
-                            {availableTeams
-                              .filter(team =>
-                                !athleteTeams[athlete.id] ||
-                                !athleteTeams[athlete.id].includes(team.name)
-                              )
-                              .map(team => (
-                                <option key={team.id} value={team.id}>
-                                  {team.name}
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            onClick={() => setShowTeamSelector(null)}
-                            className="text-gray-500 hover:text-gray-700 text-sm"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setShowTeamSelector(athlete.id)}
-                          className="text-forest-800 hover:text-forest-600 font-bold text-lg"
-                          title="Add to team"
-                        >
-                          +
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setShowTeamSelector(athlete.id)}
+                        className="text-forest-800 hover:text-forest-600 font-bold text-lg flex-shrink-0"
+                        title="Add to team"
+                      >
+                        +
+                      </button>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
@@ -559,6 +524,67 @@ const AthleteListContent: React.FC<{
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Team Selection Modal */}
+      {showTeamSelector !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border-2 border-forest-800 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+                Add to Team
+              </h3>
+              <button
+                onClick={() => setShowTeamSelector(null)}
+                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid gap-3">
+                {availableTeams
+                  .filter(team =>
+                    !athleteTeams[showTeamSelector] ||
+                    !athleteTeams[showTeamSelector].includes(team.name)
+                  )
+                  .map(team => (
+                    <button
+                      key={team.id}
+                      onClick={() => {
+                        handleAddToTeam(showTeamSelector, team.id);
+                        setShowTeamSelector(null);
+                      }}
+                      className="border-2 border-forest-800 bg-white hover:bg-forest-50 p-4 text-left transition-colors"
+                    >
+                      <div className="font-semibold text-forest-800 text-lg">
+                        {team.name}
+                      </div>
+                      {team.age_group && (
+                        <div className="text-sm text-gray-600 mt-1">
+                          Age Group: {team.age_group}
+                        </div>
+                      )}
+                      {team.program_name && (
+                        <div className="text-sm text-gray-600">
+                          Program: {team.program_name}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                {availableTeams.filter(team =>
+                  !athleteTeams[showTeamSelector] ||
+                  !athleteTeams[showTeamSelector].includes(team.name)
+                ).length === 0 && (
+                  <div className="text-center text-gray-600 py-8">
+                    All available teams have been assigned
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>
