@@ -8,9 +8,9 @@
   to = "/index.html"
   status = 200
 
-[build]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ."
-
 [build.environment]
   NODE_VERSION = "18"
+  # Disable secrets scanning because Google Maps API keys are client-side
+  # and must be bundled into the JavaScript. Protected by domain restrictions
+  # on Google Cloud Console instead.
   SECRETS_SCAN_ENABLED = "false"
