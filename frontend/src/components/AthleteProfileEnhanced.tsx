@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Guardian {
   id: number;
   first_name: string;
@@ -83,6 +81,7 @@ interface Athlete {
 }
 
 const AthleteProfileEnhanced: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { athleteId } = useParams<{ athleteId: string }>();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -177,7 +176,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="pb-6 mb-6">
+      <div className="border-b-2 border-forest-800 pb-6 mb-6">
         <div className="mb-4">
           <button onClick={() => window.history.back()} className="text-sm text-forest-800 hover:underline">
             ← Back to Athletes
@@ -190,13 +189,13 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       {/* Team Selector */}
       {teams.length > 0 && (
-        <div className="border border-forest-200 rounded-md p-4 mb-6">
+        <div className="border-2 border-forest-800 p-4 mb-6">
           <div className="flex gap-3 flex-wrap">
             {teams.map((team, index) => (
               <button
                 key={team.id}
                 onClick={() => setSelectedTeamIndex(index)}
-                className={`flex-1 min-w-60 p-4 border border-forest-200 text-center ${
+                className={`flex-1 min-w-60 p-4 border-2 border-forest-800 text-center ${
                   selectedTeamIndex === index
                     ? 'bg-forest-800 text-white'
                     : 'bg-white text-forest-800 hover:bg-gray-50'
@@ -214,7 +213,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       )}
 
       {/* Quick Info Bar */}
-      <div className="border border-forest-200 rounded-md p-6 mb-6">
+      <div className="border-2 border-forest-800 p-6 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Jersey</div>
@@ -251,7 +250,7 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       {/* All Teams Overview */}
       {teams.length > 1 && (
-        <div className="border border-forest-200 rounded-md p-6 mb-6">
+        <div className="border-2 border-forest-800 p-6 mb-6">
           <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
             ALL TEAM ASSIGNMENTS
           </div>
@@ -357,7 +356,7 @@ const AthleteProfileEnhanced: React.FC = () => {
             )}
 
             {medical?.insurance_provider && (
-              <div className="mt-3 p-3 border border-gray-300 rounded-md">
+              <div className="mt-3 p-3 border border-gray-300">
                 <div className="font-bold text-sm">Insurance</div>
                 <div className="text-sm">{medical.insurance_provider}</div>
                 {medical.insurance_policy_number && (
@@ -372,7 +371,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       {/* Main Content Grid */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
         {/* Player Details */}
-        <div className="border border-forest-200 rounded-md p-6">
+        <div className="border-2 border-forest-800 p-6">
           <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
             Player Details
           </div>
@@ -405,7 +404,7 @@ const AthleteProfileEnhanced: React.FC = () => {
         </div>
 
         {/* Family Information */}
-        <div className="border border-forest-200 rounded-md p-6">
+        <div className="border-2 border-forest-800 p-6">
           <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
             Family & Contacts
           </div>
@@ -450,8 +449,8 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       {/* Tabs Section */}
-      <div className="border border-forest-200 mb-6">
-        <div className="flex">
+      <div className="border-2 border-forest-800 mb-6">
+        <div className="flex border-b-2 border-forest-800">
           {[
             { id: 'profile', label: 'Extended Profile' },
             { id: 'medical', label: 'Medical Info' },
@@ -608,7 +607,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       {/* Contact Button */}
-      <button className="w-full bg-white border border-forest-200 text-forest-800 py-3 px-6 font-bold uppercase hover:bg-forest-800 hover:text-white transition-colors">
+      <button className="w-full bg-white border-2 border-forest-800 text-forest-800 py-3 px-6 font-bold uppercase hover:bg-forest-800 hover:text-white transition-colors">
         Contact Family
       </button>
     </div>

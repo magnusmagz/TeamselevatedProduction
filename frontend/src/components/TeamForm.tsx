@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface TeamFormProps {
   team: any | null;
   onSubmit: (data: any) => void;
@@ -9,6 +7,7 @@ interface TeamFormProps {
 }
 
 const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [formData, setFormData] = useState({
     name: '',
     age_group: 'U10',
@@ -114,8 +113,8 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-        <div className="px-6 py-4 flex justify-between items-center">
+      <div className="bg-white border-2 border-forest-800 w-full max-w-2xl">
+        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             {team ? 'Edit Team' : 'Create New Team'}
           </h3>
@@ -135,7 +134,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
               </label>
               <input
                 type="text"
-                className={`w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 ${
+                className={`w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600 ${
                   errors.name ? 'border-2 border-red-500' : ''
                 }`}
                 value={formData.name}
@@ -152,7 +151,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Age Group *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.age_group}
                 onChange={(e) => setFormData({ ...formData, age_group: e.target.value })}
               >
@@ -172,7 +171,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Division *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.division}
                 onChange={(e) => setFormData({ ...formData, division: e.target.value })}
               >
@@ -187,7 +186,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Season *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.season_id}
                 onChange={(e) => setFormData({ ...formData, season_id: e.target.value })}
               >
@@ -209,7 +208,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Head Coach
               </label>
               <select
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.primary_coach_id}
                 onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
               >
@@ -228,7 +227,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Home Field
               </label>
               <select
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.home_field_id}
                 onChange={(e) => setFormData({ ...formData, home_field_id: e.target.value })}
               >
@@ -247,7 +246,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
               </label>
               <input
                 type="number"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.max_players}
                 onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) })}
                 min="1"
@@ -260,13 +259,13 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+              className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 hover:bg-gray-100 uppercase"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+              className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
             >
               {team ? 'Update Team' : 'Create Team'}
             </button>

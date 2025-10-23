@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Season {
   id: number;
   name: string;
@@ -13,6 +11,7 @@ interface Season {
 }
 
 const SeasonsPage: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -47,7 +46,7 @@ const SeasonsPage: React.FC = () => {
     e.preventDefault();
 
     const url = editingSeason
-      ? `${API_URL}/legacy/api/seasons/${editingSeason.id}`
+      ? `${API_URL}/api/seasons/${editingSeason.id}`
       : `${API_URL}/legacy/seasons-gateway.php?action=create`;
 
     const method = editingSeason ? 'PUT' : 'POST';
@@ -89,7 +88,7 @@ const SeasonsPage: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this season?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/legacy/api/seasons/${id}`, {
+      const response = await fetch(`${API_URL}/api/seasons/${id}`, {
         method: 'DELETE'
       });
 
@@ -108,7 +107,7 @@ const SeasonsPage: React.FC = () => {
 
   const handleActivate = async (id: number) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/api/seasons/${id}/activate`, {
+      const response = await fetch(`${API_URL}/api/seasons/${id}/activate`, {
         method: 'POST'
       });
 
@@ -151,7 +150,7 @@ const SeasonsPage: React.FC = () => {
         <input
           type="text"
           placeholder="Search seasons..."
-          className="w-64 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+          className="w-64 bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -161,14 +160,14 @@ const SeasonsPage: React.FC = () => {
             setFormData({ name: '', start_date: '', end_date: '' });
             setShowForm(true);
           }}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-bold"
+          className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 uppercase font-bold"
         >
           + Add Season
         </button>
       </div>
 
       {/* Table */}
-      <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
+      <div className="border-2 border-forest-800 overflow-hidden bg-white">
         {loading ? (
           <div className="p-12 text-center text-forest-800">Loading seasons...</div>
         ) : filteredSeasons.length === 0 ? (
@@ -210,11 +209,11 @@ const SeasonsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     {season.is_active ? (
-                      <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800 rounded-md">
+                      <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
                         ACTIVE
                       </span>
                     ) : (
-                      <span className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded-md">
+                      <span className="px-2 py-1 text-xs text-gray-600 border border-gray-600">
                         INACTIVE
                       </span>
                     )}
@@ -251,7 +250,7 @@ const SeasonsPage: React.FC = () => {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white border border-forest-200 rounded-md p-6 w-full max-w-md">
+          <div className="bg-white border-2 border-forest-800 p-6 w-full max-w-md">
             <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase">
               {editingSeason ? 'Edit Season' : 'Create New Season'}
             </h3>
@@ -263,7 +262,7 @@ const SeasonsPage: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Spring 2024"
@@ -277,7 +276,7 @@ const SeasonsPage: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   required
@@ -290,7 +289,7 @@ const SeasonsPage: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                   min={formData.start_date}
@@ -306,13 +305,13 @@ const SeasonsPage: React.FC = () => {
                     setEditingSeason(null);
                     setFormData({ name: '', start_date: '', end_date: '' });
                   }}
-                  className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100"
+                  className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 hover:bg-gray-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700"
+                  className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700"
                 >
                   {editingSeason ? 'Update Season' : 'Create Season'}
                 </button>

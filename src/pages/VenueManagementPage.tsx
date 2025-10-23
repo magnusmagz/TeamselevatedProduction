@@ -55,7 +55,7 @@ const VenueManagementPage: React.FC = () => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
       const data = await response.json();
       setVenues(data);
     } catch (error) {
@@ -82,7 +82,7 @@ const VenueManagementPage: React.FC = () => {
 
   const handleEditVenue = async (venue: Venue) => {
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venue.id}`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
       const data = await response.json();
       setSelectedVenue(data);
       setFormData(data);
@@ -98,7 +98,7 @@ const VenueManagementPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venueId}`, {
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venueId}`, {
         method: 'DELETE'
       });
 
@@ -136,8 +136,8 @@ const VenueManagementPage: React.FC = () => {
 
     try {
       const url = selectedVenue
-        ? `${API_URL}/venues-gateway.php?id=${selectedVenue.id}`
-        : `${API_URL}/venues-gateway.php`;
+        ? `${API_URL}/legacy/venues-gateway.php?id=${selectedVenue.id}`
+        : `${API_URL}/legacy/venues-gateway.php`;
 
       const response = await fetch(url, {
         method: selectedVenue ? 'PUT' : 'POST',

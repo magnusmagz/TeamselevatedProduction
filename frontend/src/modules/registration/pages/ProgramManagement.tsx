@@ -63,6 +63,7 @@ const ProgramManagement: React.FC = () => {
   };
 
   const getProgramTypeLabel = (type: ProgramType) => {
+    if (!type) return 'Unknown';
     return type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
   };
 

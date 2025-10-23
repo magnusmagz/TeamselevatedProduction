@@ -50,13 +50,13 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   const fetchAthletes = async () => {
     try {
       // Fetch athletes
-      const response = await fetch(`${API_URL}/athletes-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`);
       const data = await response.json();
       const athleteList = data.athletes || [];
       setAthletes(athleteList);
 
       // Fetch team-player relationships
-      const teamPlayersResponse = await fetch(`${API_URL}/team-players-gateway.php`);
+      const teamPlayersResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
       const teamPlayersData = await teamPlayersResponse.json();
 
       if (teamPlayersData.success && teamPlayersData.team_players) {
@@ -83,7 +83,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const fetchAvailableTeams = async () => {
     try {
-      const response = await fetch(`${API_URL}/teams-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`);
       const data = await response.json();
       if (data.teams) {
         setAvailableTeams(data.teams);
@@ -95,7 +95,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const handleAddToTeam = async (athleteId: number, teamId: number) => {
     try {
-      const response = await fetch(`${API_URL}/team-players-gateway.php`, {
+      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +125,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const handleEditAthlete = async (athlete: Athlete) => {
     try {
-      const response = await fetch(`${API_URL}/athletes-gateway.php?id=${athlete.id}`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`);
       const fullAthlete = await response.json();
       setSelectedAthlete(fullAthlete);
       setShowForm(true);
@@ -136,7 +136,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const handleManageGuardians = async (athlete: Athlete) => {
     try {
-      const response = await fetch(`${API_URL}/athletes-gateway.php?id=${athlete.id}`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`);
       const fullAthlete = await response.json();
       setSelectedAthleteForGuardians(fullAthlete);
       setShowGuardianManagement(true);

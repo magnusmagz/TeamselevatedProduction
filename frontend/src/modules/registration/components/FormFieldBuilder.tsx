@@ -50,8 +50,8 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
     return [
       {
         tempId: '1',
-        field_name: 'athlete_first_name',
-        field_label: 'Athlete First Name',
+        field_name: 'athlete_first',
+        field_label: 'Athlete First',
         field_type: 'text',
         required: true,
         section: 'athlete_info',
@@ -59,8 +59,8 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       },
       {
         tempId: '2',
-        field_name: 'athlete_last_name',
-        field_label: 'Athlete Last Name',
+        field_name: 'athlete_last',
+        field_label: 'Athlete Last',
         field_type: 'text',
         required: true,
         section: 'athlete_info',
@@ -68,8 +68,8 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       },
       {
         tempId: '3',
-        field_name: 'athlete_dob',
-        field_label: 'Date of Birth',
+        field_name: 'athlete_birthday',
+        field_label: 'Athlete Birthday',
         field_type: 'date',
         required: true,
         section: 'athlete_info',
@@ -77,30 +77,59 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       },
       {
         tempId: '4',
-        field_name: 'parent_name',
-        field_label: 'Parent/Guardian Name',
-        field_type: 'text',
+        field_name: 'athlete_gender',
+        field_label: 'Athlete Gender',
+        field_type: 'select',
         required: true,
-        section: 'parent_info',
-        display_order: 3
+        section: 'athlete_info',
+        display_order: 3,
+        options: ['Male', 'Female', 'Non-binary', 'Prefer not to say']
       },
       {
         tempId: '5',
-        field_name: 'parent_email',
-        field_label: 'Email',
-        field_type: 'email',
+        field_name: 'athlete_grade',
+        field_label: 'Athlete Grade',
+        field_type: 'select',
         required: true,
-        section: 'parent_info',
-        display_order: 4
+        section: 'athlete_info',
+        display_order: 4,
+        options: ['Pre-K', 'Kindergarten', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th']
       },
       {
         tempId: '6',
-        field_name: 'parent_phone',
-        field_label: 'Phone',
-        field_type: 'tel',
+        field_name: 'guardian_first',
+        field_label: 'Guardian First',
+        field_type: 'text',
         required: true,
         section: 'parent_info',
         display_order: 5
+      },
+      {
+        tempId: '7',
+        field_name: 'guardian_last',
+        field_label: 'Guardian Last',
+        field_type: 'text',
+        required: true,
+        section: 'parent_info',
+        display_order: 6
+      },
+      {
+        tempId: '8',
+        field_name: 'guardian_email',
+        field_label: 'Guardian Email',
+        field_type: 'email',
+        required: true,
+        section: 'parent_info',
+        display_order: 7
+      },
+      {
+        tempId: '9',
+        field_name: 'mobile_phone',
+        field_label: 'Mobile Phone',
+        field_type: 'tel',
+        required: true,
+        section: 'parent_info',
+        display_order: 8
       }
     ];
   };
@@ -109,15 +138,40 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
     try {
       const response = await fetch(`${API_URL}/registration/programs-api.php?path=details&id=${programId}`);
       const data = await response.json();
-      if (data.form_fields) {
+      if (data.form_fields && data.form_fields.length > 0) {
         setFields(data.form_fields.map((f: FormField, i: number) => ({
           ...f,
           tempId: `existing-${i}`
         })));
+      } else {
+        // No existing fields, load defaults
+        setFields(getDefaultFields());
       }
     } catch (error) {
       console.error('Error loading fields:', error);
+      // On error, load defaults
+      setFields(getDefaultFields());
     }
+  };
+
+  const generateFieldName = (fieldType: FieldType): string => {
+    // Create base name from field type
+    const baseName = fieldType === 'tel' ? 'phone_field' : `${fieldType}_field`;
+
+    // Check if this name already exists
+    const existingNames = fields.map(f => f.field_name);
+
+    // If base name doesn't exist, use it
+    if (!existingNames.includes(baseName)) {
+      return baseName;
+    }
+
+    // Otherwise, find the next available number
+    let counter = 1;
+    while (existingNames.includes(`${baseName}_${counter}`)) {
+      counter++;
+    }
+    return `${baseName}_${counter}`;
   };
 
   const handleDragStart = (e: React.DragEvent, field: DragDropField | { type: FieldType; label: string }) => {
@@ -128,7 +182,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       // Dragging new field type from palette
       const newField: DragDropField = {
         tempId: `new-${Date.now()}`,
-        field_name: `field_${Date.now()}`,
+        field_name: generateFieldName(field.type),
         field_label: field.label,
         field_type: field.type,
         required: false,
@@ -205,25 +259,44 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
   };
 
   const handleSaveFields = async () => {
-    if (!programId) return;
+    if (!programId) {
+      alert('No program ID found. Please save the program details first.');
+      return;
+    }
+
+    console.log('Saving fields for program:', programId);
+    console.log('Fields to save:', fields);
 
     try {
+      const payload = {
+        program_id: programId,
+        fields: fields.map(({ tempId, ...field }) => field)
+      };
+
+      console.log('Sending payload:', payload);
+
       const response = await fetch(`${API_URL}/registration/programs-api.php?path=update-fields`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          program_id: programId,
-          fields: fields.map(({ tempId, ...field }) => field)
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (response.ok) {
+        alert('Form configuration saved successfully!');
         if (onSave) {
           onSave(fields);
         }
+      } else {
+        console.error('Server error:', data);
+        alert(`Failed to save: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error saving fields:', error);
+      alert('An error occurred while saving. Please check the console for details.');
     }
   };
 

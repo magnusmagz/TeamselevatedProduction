@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Practice {
   id: number;
   team_id: number;
@@ -46,6 +44,7 @@ interface CalendarDay {
 type ViewMode = 'month' | 'week' | 'schedule';
 
 const TeamCalendar: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [practices, setPractices] = useState<Practice[]>([]);
@@ -437,17 +436,17 @@ const TeamCalendar: React.FC = () => {
         </div>
         <button
           onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-          className="bg-forest-800 text-white border border-forest-800 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
         >
           + Add Event
         </button>
       </div>
 
       {/* Controls */}
-      <div className="bg-white border border-forest-200 rounded-md p-6 mb-6">
+      <div className="bg-white border-2 border-forest-800 p-6 mb-6">
         {/* View Mode Selector */}
         <div className="flex justify-center mb-4">
-          <div className="inline-flex border border-forest-200 rounded-md">
+          <div className="inline-flex border-2 border-forest-800">
             <button
               onClick={() => setViewMode('month')}
               className={`px-6 py-2 uppercase font-medium ${
@@ -504,7 +503,7 @@ const TeamCalendar: React.FC = () => {
             )}
             <button
               onClick={handleToday}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+              className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-1 hover:bg-gray-100 uppercase text-sm"
             >
               Today
             </button>
@@ -515,7 +514,7 @@ const TeamCalendar: React.FC = () => {
             <select
               value={selectedTeamFilter}
               onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 focus:outline-none focus:border-forest-600"
+              className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-1 focus:outline-none focus:border-forest-600"
             >
               <option value="all">All Teams</option>
               {teams.map(team => (
@@ -527,7 +526,7 @@ const TeamCalendar: React.FC = () => {
 
         {/* Calendar Views */}
         {viewMode === 'month' && (
-          <div className="border border-forest-200 rounded-md">
+          <div className="border-2 border-forest-800">
             {/* Day Headers */}
             <div className="grid grid-cols-7 bg-forest-800 text-white">
               {dayNames.map(day => (
@@ -591,7 +590,7 @@ const TeamCalendar: React.FC = () => {
         )}
 
         {viewMode === 'week' && (
-          <div className="border border-forest-200 rounded-md">
+          <div className="border-2 border-forest-800">
             {/* Day Headers */}
             <div className="grid grid-cols-7 bg-forest-800 text-white">
               {weekDays.map((day, index) => (
@@ -654,7 +653,7 @@ const TeamCalendar: React.FC = () => {
         )}
 
         {viewMode === 'schedule' && (
-          <div className="border border-forest-200 bg-white">
+          <div className="border-2 border-forest-800 bg-white">
             <div className="p-4">
               <div className="max-h-[600px] overflow-y-auto">
                 {(() => {
@@ -798,8 +797,8 @@ const TeamCalendar: React.FC = () => {
       {/* Event Form Modal */}
       {showEventForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4">
+          <div className="bg-white border-2 border-forest-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="border-b-2 border-forest-800 px-6 py-4">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 {selectedEvent ? 'Edit Event' : 'Add New Event'}
               </h3>
@@ -815,7 +814,7 @@ const TeamCalendar: React.FC = () => {
                     type="text"
                     value={eventFormData.name}
                     onChange={(e) => setEventFormData({ ...eventFormData, name: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -827,7 +826,7 @@ const TeamCalendar: React.FC = () => {
                   <select
                     value={eventFormData.type}
                     onChange={(e) => setEventFormData({ ...eventFormData, type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   >
                     <option value="event">Event</option>
@@ -847,7 +846,7 @@ const TeamCalendar: React.FC = () => {
                     type="date"
                     value={eventFormData.event_date}
                     onChange={(e) => setEventFormData({ ...eventFormData, event_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -859,7 +858,7 @@ const TeamCalendar: React.FC = () => {
                   <select
                     value={eventFormData.status}
                     onChange={(e) => setEventFormData({ ...eventFormData, status: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   >
                     <option value="scheduled">Scheduled</option>
                     <option value="cancelled">Cancelled</option>
@@ -876,7 +875,7 @@ const TeamCalendar: React.FC = () => {
                     type="time"
                     value={eventFormData.start_time || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, start_time: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -888,7 +887,7 @@ const TeamCalendar: React.FC = () => {
                     type="time"
                     value={eventFormData.end_time || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, end_time: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -903,7 +902,7 @@ const TeamCalendar: React.FC = () => {
                         const allTeamIds = allTeams.map(team => team.id);
                         setEventFormData({ ...eventFormData, team_ids: allTeamIds });
                       }}
-                      className="px-3 py-1 text-xs bg-forest-800 text-white rounded-md hover:bg-forest-700 uppercase font-medium"
+                      className="px-3 py-1 text-xs bg-forest-800 text-white hover:bg-forest-700 uppercase font-medium"
                     >
                       Choose All
                     </button>
@@ -912,7 +911,7 @@ const TeamCalendar: React.FC = () => {
                       onClick={() => {
                         setEventFormData({ ...eventFormData, team_ids: [] });
                       }}
-                      className="px-3 py-1 text-xs border border-forest-200 rounded-md text-forest-800 hover:bg-gray-100 uppercase font-medium"
+                      className="px-3 py-1 text-xs border-2 border-forest-800 text-forest-800 hover:bg-gray-100 uppercase font-medium"
                     >
                       Clear All
                     </button>
@@ -924,7 +923,7 @@ const TeamCalendar: React.FC = () => {
                       const selectedIds = Array.from(e.target.selectedOptions, option => Number(option.value));
                       setEventFormData({ ...eventFormData, team_ids: selectedIds });
                     }}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 min-h-[120px]"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600 min-h-[120px]"
                   >
                     {allTeams.map(team => (
                       <option key={team.id} value={team.id}>{team.name}</option>
@@ -945,7 +944,7 @@ const TeamCalendar: React.FC = () => {
                   <select
                     value={eventFormData.venue_id || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, venue_id: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   >
                     <option value="">No Venue</option>
                     {venues.map(venue => (
@@ -962,7 +961,7 @@ const TeamCalendar: React.FC = () => {
                     type="text"
                     value={eventFormData.location || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, location: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     placeholder="e.g., Away game at opponent's field"
                   />
                 </div>
@@ -975,7 +974,7 @@ const TeamCalendar: React.FC = () => {
                 <textarea
                   value={eventFormData.description || ''}
                   onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   rows={3}
                 />
               </div>
@@ -998,7 +997,7 @@ const TeamCalendar: React.FC = () => {
                       type="checkbox"
                       checked={sendInvites}
                       onChange={(e) => setSendInvites(e.target.checked)}
-                      className="w-4 h-4 text-forest-800 border border-forest-200 focus:ring-forest-600"
+                      className="w-4 h-4 text-forest-800 border-2 border-forest-800 focus:ring-forest-600"
                     />
                     <span className="text-forest-800">Send calendar invites to all team members</span>
                   </label>
@@ -1011,7 +1010,7 @@ const TeamCalendar: React.FC = () => {
                       type="checkbox"
                       checked={sendUpdates}
                       onChange={(e) => setSendUpdates(e.target.checked)}
-                      className="w-4 h-4 text-forest-800 border border-forest-200 focus:ring-forest-600"
+                      className="w-4 h-4 text-forest-800 border-2 border-forest-800 focus:ring-forest-600"
                     />
                     <span className="text-forest-800">Send update notifications to all invitees</span>
                   </label>
@@ -1030,7 +1029,7 @@ const TeamCalendar: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleDeleteEvent(selectedEvent.id!)}
-                      className="px-4 py-2 border-2 border-red-600 rounded-md text-red-600 hover:bg-red-50 font-semibold uppercase"
+                      className="px-4 py-2 border-2 border-red-600 text-red-600 hover:bg-red-50 font-semibold uppercase"
                     >
                       Delete
                     </button>
@@ -1049,13 +1048,13 @@ const TeamCalendar: React.FC = () => {
                         status: 'scheduled'
                       });
                     }}
-                    className="px-4 py-2 border border-forest-200 rounded-md text-forest-800 hover:bg-gray-100 font-semibold uppercase"
+                    className="px-4 py-2 border-2 border-forest-800 text-forest-800 hover:bg-gray-100 font-semibold uppercase"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-forest-800 text-white border border-forest-800 rounded-md hover:bg-forest-700 font-semibold uppercase"
+                    className="px-4 py-2 bg-forest-800 text-white border-2 border-forest-800 hover:bg-forest-700 font-semibold uppercase"
                   >
                     {selectedEvent ? 'Update' : 'Create'} Event
                   </button>

@@ -44,7 +44,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
 
       // Fetch coaches
       try {
-        const coachesRes = await fetch(`${API_URL}/coaches-gateway.php?action=available`);
+        const coachesRes = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`);
         if (coachesRes.ok) {
           const coachesData = await coachesRes.json();
           setCoaches(coachesData || []);
@@ -56,7 +56,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
 
       // Fetch seasons
       try {
-        const seasonsRes = await fetch(`${API_URL}/seasons-gateway.php?action=list`);
+        const seasonsRes = await fetch(`${API_URL}/legacy/seasons-gateway.php?action=list`);
         if (seasonsRes.ok) {
           const seasonsData = await seasonsRes.json();
           console.log('Seasons data received:', seasonsData);
@@ -69,7 +69,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
 
       // Fetch fields
       try {
-        const fieldsRes = await fetch(`${API_URL}/fields-gateway.php`);
+        const fieldsRes = await fetch(`${API_URL}/legacy/fields-gateway.php`);
         if (fieldsRes.ok) {
           const fieldsData = await fieldsRes.json();
           setFields(fieldsData || []);

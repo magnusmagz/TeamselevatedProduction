@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface ClubProfile {
   id?: number;
   club_name: string;
@@ -24,6 +22,7 @@ interface ClubProfile {
 }
 
 const ClubProfilePage: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'info' | 'branding'>('info');
   const [loading, setLoading] = useState(true);
@@ -45,7 +44,7 @@ const ClubProfilePage: React.FC = () => {
 
   const fetchClubProfile = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`);
+      const response = await fetch(`${API_URL}/club-profile-gateway.php`);
       const data = await response.json();
       if (data.id) {
         setFormData(data);
@@ -62,7 +61,7 @@ const ClubProfilePage: React.FC = () => {
     setSaving(true);
 
     try {
-      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
+      const response = await fetch(`${API_URL}/club-profile-gateway.php`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -123,7 +122,7 @@ const ClubProfilePage: React.FC = () => {
           <>
             {activeTab === 'info' && (
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="bg-white border border-forest-200 rounded-md p-6">
+                <div className="bg-white border-2 border-forest-800 p-6">
                   <h2 className="text-xl font-semibold text-forest-800 mb-6 uppercase">Basic Information</h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -133,7 +132,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.club_name}
                         onChange={(e) => setFormData({ ...formData, club_name: e.target.value })}
                         required
@@ -147,7 +146,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="email"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.email || ''}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
@@ -161,7 +160,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="tel"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.phone || ''}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="(555) 123-4567"
@@ -174,7 +173,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="url"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.website || ''}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                         placeholder="https://www.yourclub.com"
@@ -183,7 +182,7 @@ const ClubProfilePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white border border-forest-200 rounded-md p-6">
+                <div className="bg-white border-2 border-forest-800 p-6">
                   <h2 className="text-xl font-semibold text-forest-800 mb-6 uppercase">Location</h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -193,7 +192,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         required
@@ -207,7 +206,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         required
@@ -222,7 +221,7 @@ const ClubProfilePage: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.state}
                           onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                           required
@@ -237,7 +236,7 @@ const ClubProfilePage: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.zip}
                           onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                           required
@@ -252,7 +251,7 @@ const ClubProfilePage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="bg-forest-800 text-white border border-forest-800 rounded-md px-6 py-3 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+                    className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-3 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -279,7 +278,7 @@ const ClubProfilePage: React.FC = () => {
                     accent_color: data.accentColor
                   };
 
-                  const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
+                  const response = await fetch(`${API_URL}/club-profile-gateway.php`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)

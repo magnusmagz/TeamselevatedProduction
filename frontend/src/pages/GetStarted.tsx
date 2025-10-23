@@ -138,7 +138,7 @@ export default function GetStarted() {
   // Step 1: Role Selection
   if (step === 'roles') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-forest-50 to-white flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
         <div className="max-w-2xl w-full">
           <div className="bg-white border-2 border-gray-200 p-8">
             <div className="text-center mb-8">
@@ -196,7 +196,7 @@ export default function GetStarted() {
   // Step 2: Details Form
   if (step === 'details') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-forest-50 to-white flex items-center justify-center px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4 py-8">
         <div className="max-w-2xl w-full">
           <div className="bg-white border-2 border-gray-200 p-8">
             <div className="text-center mb-8">
@@ -295,12 +295,12 @@ export default function GetStarted() {
 
   // Step 3: Success
   return (
-    <div className="min-h-screen bg-gradient-to-b from-forest-50 to-white flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
         <div className="bg-white border-2 border-gray-200 p-8">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-forest-100 flex items-center justify-center mb-4">
-              <svg className="h-8 w-8 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto h-16 w-16 bg-green-100 flex items-center justify-center mb-4">
+              <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>

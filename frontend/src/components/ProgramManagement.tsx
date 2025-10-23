@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TeamList from './TeamList';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Program {
   id?: number;
   name: string;
@@ -24,6 +22,7 @@ interface Program {
 }
 
 const ProgramManagement: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -145,19 +144,19 @@ const ProgramManagement: React.FC = () => {
         </div>
         <button
           onClick={handleAddProgram}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
         >
           + Add New Program
         </button>
       </div>
 
       {/* Filters */}
-      <div className="border border-forest-200 bg-white p-4 mb-6">
+      <div className="border-2 border-forest-800 bg-white p-4 mb-6">
         <div className="flex gap-4 items-center">
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
           >
             {years.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -167,7 +166,7 @@ const ProgramManagement: React.FC = () => {
           <select
             value={filterSeason}
             onChange={(e) => setFilterSeason(e.target.value)}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
           >
             <option value="">All Seasons</option>
             <option value="Spring">Spring</option>
@@ -186,7 +185,7 @@ const ProgramManagement: React.FC = () => {
       {/* Programs Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {programs.map(program => (
-          <div key={program.id} className="border border-forest-200 bg-white p-6">
+          <div key={program.id} className="border-2 border-forest-800 bg-white p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-xl font-bold text-forest-800">{program.name}</h3>
@@ -258,24 +257,14 @@ const ProgramManagement: React.FC = () => {
       {/* Program Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 flex justify-between items-center">
+          <div className="bg-white border-2 border-forest-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="border-b-2 border-forest-800 px-6 py-4">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 {selectedProgram ? 'Edit Program' : 'Add New Program'}
               </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setSelectedProgram(null);
-                }}
-                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
-              >
-                ×
-              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 pt-0">
+            <form onSubmit={handleSubmit} className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
@@ -285,7 +274,7 @@ const ProgramManagement: React.FC = () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -297,7 +286,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   >
                     <option value="league">League</option>
@@ -317,7 +306,7 @@ const ProgramManagement: React.FC = () => {
                     type="number"
                     value={formData.season_year}
                     onChange={(e) => setFormData({ ...formData, season_year: Number(e.target.value) })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   />
                 </div>
@@ -329,7 +318,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.season_type}
                     onChange={(e) => setFormData({ ...formData, season_type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     required
                   >
                     <option value="Spring">Spring</option>
@@ -348,7 +337,7 @@ const ProgramManagement: React.FC = () => {
                     type="date"
                     value={formData.start_date || ''}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -360,7 +349,7 @@ const ProgramManagement: React.FC = () => {
                     type="date"
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   />
                 </div>
 
@@ -371,7 +360,7 @@ const ProgramManagement: React.FC = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
@@ -388,7 +377,7 @@ const ProgramManagement: React.FC = () => {
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                   rows={3}
                 />
               </div>
@@ -397,13 +386,13 @@ const ProgramManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border border-forest-200 text-forest-800 hover:bg-gray-100 font-semibold uppercase"
+                  className="px-4 py-2 border-2 border-forest-800 text-forest-800 hover:bg-gray-100 font-semibold uppercase"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-forest-800 text-white border border-forest-200 hover:bg-forest-700 font-semibold uppercase"
+                  className="px-4 py-2 bg-forest-800 text-white border-2 border-forest-800 hover:bg-forest-700 font-semibold uppercase"
                 >
                   {selectedProgram ? 'Update' : 'Create'} Program
                 </button>
@@ -416,8 +405,8 @@ const ProgramManagement: React.FC = () => {
       {/* Teams Management Modal */}
       {showTeams && selectedProgramForTeams && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 flex justify-between items-center">
+          <div className="bg-white border-2 border-forest-800 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 Teams for {selectedProgramForTeams.name}
               </h3>

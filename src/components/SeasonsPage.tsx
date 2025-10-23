@@ -30,7 +30,7 @@ const SeasonsPage: React.FC = () => {
 
   const fetchSeasons = async () => {
     try {
-      const response = await fetch(`${API_URL}/seasons-gateway.php?action=list`);
+      const response = await fetch(`${API_URL}/legacy/seasons-gateway.php?action=list`);
       const data = await response.json();
       if (data.success) {
         setSeasons(data.seasons);
@@ -47,7 +47,7 @@ const SeasonsPage: React.FC = () => {
 
     const url = editingSeason
       ? `${API_URL}/api/seasons/${editingSeason.id}`
-      : `${API_URL}/seasons-gateway.php?action=create`;
+      : `${API_URL}/legacy/seasons-gateway.php?action=create`;
 
     const method = editingSeason ? 'PUT' : 'POST';
 

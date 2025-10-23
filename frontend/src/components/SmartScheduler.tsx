@@ -246,8 +246,8 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl my-8">
-        <div className="px-6 py-4 flex justify-between items-center bg-forest-50">
+      <div className="bg-white border-2 border-forest-800 w-full max-w-7xl my-8">
+        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center bg-forest-50">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             Smart Scheduler (Beta) - {team.name}
           </h3>
@@ -261,7 +261,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
         <div className="p-6">
           {/* Step 1: Setup */}
-          <div className="bg-gray-50 border border-forest-200 rounded-md p-4 mb-6">
+          <div className="bg-gray-50 border-2 border-forest-800 p-4 mb-6">
             <h4 className="text-forest-800 font-bold mb-4 uppercase">Step 1: Select Venue & Date Range</h4>
 
             <div className="grid grid-cols-3 gap-4">
@@ -272,7 +272,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                 <select
                   value={selectedVenue || ''}
                   onChange={(e) => setSelectedVenue(Number(e.target.value))}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none"
                 >
                   <option value="">Select venue...</option>
                   {venues.map(venue => (
@@ -291,7 +291,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none"
                 />
               </div>
 
@@ -303,7 +303,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none"
+                  className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none"
                 />
               </div>
             </div>
@@ -311,7 +311,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
           {/* Step 2: Availability Grid */}
           {showAvailability && (
-            <div className="border border-forest-200 rounded-md mb-6">
+            <div className="border-2 border-forest-800 mb-6">
               <div className="bg-forest-800 text-white p-4">
                 <h4 className="font-bold uppercase">Step 2: Select Available Time Slots</h4>
                 <p className="text-sm mt-1">Click individual slots or use pattern selection</p>
@@ -336,23 +336,23 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
                 {/* Grid */}
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border border-forest-200 rounded-md">
+                  <table className="min-w-full border-2 border-forest-800">
                     <thead>
                       <tr className="bg-forest-100">
-                        <th className="border border-gray-300 rounded-md px-2 py-2 text-forest-800 text-sm font-bold uppercase">
+                        <th className="border border-gray-300 px-2 py-2 text-forest-800 text-sm font-bold uppercase">
                           Date/Time
                         </th>
                         {fields.map(field => (
-                          <th key={field.id} className="border border-gray-300 rounded-md px-2 py-2 text-forest-800 text-sm font-bold uppercase" colSpan={timeSlots.length}>
+                          <th key={field.id} className="border border-gray-300 px-2 py-2 text-forest-800 text-sm font-bold uppercase" colSpan={timeSlots.length}>
                             {field.name}
                           </th>
                         ))}
                       </tr>
                       <tr className="bg-forest-50">
-                        <th className="border border-gray-300 rounded-md px-2 py-1"></th>
+                        <th className="border border-gray-300 px-2 py-1"></th>
                         {fields.map(field =>
                           timeLabels.map((label, idx) => (
-                            <th key={`${field.id}-${idx}`} className="border border-gray-300 rounded-md px-2 py-1 text-xs text-forest-800">
+                            <th key={`${field.id}-${idx}`} className="border border-gray-300 px-2 py-1 text-xs text-forest-800">
                               {label}
                             </th>
                           ))
@@ -370,7 +370,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
                         return (
                           <tr key={dateStr}>
-                            <td className="border border-gray-300 rounded-md px-2 py-2 font-medium text-forest-800 bg-gray-50">
+                            <td className="border border-gray-300 px-2 py-2 font-medium text-forest-800 bg-gray-50">
                               {dayLabel}
                             </td>
                             {fields.map(field =>
@@ -381,7 +381,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                                 return (
                                   <td
                                     key={`${field.id}-${time}`}
-                                    className="border border-gray-300 rounded-md p-1"
+                                    className="border border-gray-300 p-1"
                                   >
                                     <button
                                       onClick={() => status === 'available' || status === 'selected'
@@ -406,7 +406,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="mt-4 p-4 bg-gray-50 border border-gray-300 rounded-md">
+                <div className="mt-4 p-4 bg-gray-50 border border-gray-300">
                   <h5 className="font-bold text-forest-800 mb-2 uppercase text-sm">Quick Pattern Selection</h5>
                   <div className="flex flex-wrap gap-2">
                     {fields.map(field => (
@@ -416,7 +416,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                           <button
                             key={day}
                             onClick={() => selectPattern(day, '17:00', field.id)}
-                            className="px-2 py-1 text-xs bg-white border border-forest-800 rounded-md hover:bg-forest-100"
+                            className="px-2 py-1 text-xs bg-white border border-forest-800 hover:bg-forest-100"
                           >
                             {['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'][day]} 5pm
                           </button>
@@ -437,14 +437,14 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
             <div className="flex gap-4">
               <button
                 onClick={onClose}
-                className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 hover:bg-gray-100 uppercase"
               >
                 Cancel
               </button>
               <button
                 onClick={publishSchedule}
                 disabled={selectedSlots.size === 0}
-                className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-bold disabled:opacity-50"
+                className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 uppercase font-bold disabled:opacity-50"
               >
                 Publish Schedule ({selectedSlots.size} Practices)
               </button>

@@ -44,23 +44,31 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
 
       const method = savedProgramId ? 'PUT' : 'POST';
 
+      console.log('Saving program:', formData);
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, club_id: 1 })
       });
 
+      const data = await response.json();
+      console.log('Save response:', data);
+
       if (response.ok) {
-        const data = await response.json();
         if (!savedProgramId && data.id) {
           setSavedProgramId(data.id);
-          alert('Program saved! You can now configure the registration form.');
+          alert('Program created! You can now configure the registration form.');
         } else {
+          alert('Program updated successfully!');
           onClose();
         }
+      } else {
+        alert(`Error saving program: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error saving program:', error);
+      alert('An error occurred while saving. Please try again.');
     } finally {
       setSaving(false);
     }

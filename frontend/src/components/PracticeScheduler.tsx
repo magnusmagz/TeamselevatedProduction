@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Team {
   id: number;
   name: string;
@@ -45,6 +43,7 @@ interface PracticeSchedulerProps {
 }
 
 const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [step, setStep] = useState<'pattern' | 'review' | 'complete'>('pattern');
 
   // Pattern settings
@@ -319,14 +318,14 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
   if (step === 'complete') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl p-8 text-center">
+        <div className="bg-white border-2 border-forest-800 w-full max-w-2xl p-8 text-center">
           <h2 className="text-2xl font-bold text-forest-800 mb-4 uppercase">Schedule Published!</h2>
           <p className="text-gray-600 mb-6">
             {generatedPractices.filter(p => !p.skip).length} practices have been added to your calendar.
           </p>
           <button
             onClick={onClose}
-            className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase"
+            className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 uppercase"
           >
             Done
           </button>
@@ -337,8 +336,8 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 flex justify-between items-center">
+      <div className="bg-white border-2 border-forest-800 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             Practice Schedule Builder - {team.name}
           </h3>
@@ -353,7 +352,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
         <div className="p-6">
           {step === 'pattern' && (
             <div className="space-y-6">
-              <div className="border border-forest-200 rounded-md p-6">
+              <div className="border-2 border-forest-800 p-6">
                 <h4 className="text-forest-800 font-bold mb-4 uppercase">Quick Pattern Setup</h4>
 
                 {/* Days Selection */}
@@ -388,7 +387,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     />
                   </div>
                   <div>
@@ -399,7 +398,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     />
                   </div>
                 </div>
@@ -413,7 +412,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                     <select
                       value={selectedVenue || ''}
                       onChange={(e) => setSelectedVenue(Number(e.target.value))}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     >
                       <option value="">Select a venue...</option>
                       {venues.map(venue => (
@@ -430,7 +429,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                     <select
                       value={selectedField || ''}
                       onChange={(e) => setSelectedField(Number(e.target.value))}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                       disabled={!selectedVenue}
                     >
                       <option value="">Select a field...</option>
@@ -453,7 +452,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     />
                   </div>
                   <div>
@@ -464,7 +463,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
                     />
                   </div>
                 </div>
@@ -473,7 +472,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                   <button
                     onClick={handleGenerateSchedule}
                     disabled={loading || selectedDays.length === 0 || !selectedField}
-                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase disabled:opacity-50"
+                    className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 uppercase disabled:opacity-50"
                   >
                     {loading ? 'Generating...' : 'Generate Schedule →'}
                   </button>
@@ -484,7 +483,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
           {step === 'review' && (
             <div className="space-y-6">
-              <div className="bg-white p-4 border border-forest-200 rounded-md">
+              <div className="bg-white p-4 border-2 border-forest-800">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-forest-800 font-bold uppercase">
                     Generated Schedule ({generatedPractices.length} practices)
@@ -501,7 +500,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border border-forest-200 rounded-md">
+                  <table className="min-w-full border-2 border-forest-800">
                     <thead>
                       <tr className="border-b-2 border-forest-800">
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">✓</th>
@@ -526,7 +525,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                               type="checkbox"
                               checked={!practice.skip}
                               onChange={() => handleTogglePractice(index)}
-                              className="border border-forest-200 rounded-md"
+                              className="border-2 border-forest-800"
                             />
                           </td>
                           <td className="px-4 py-2 text-forest-800">
@@ -558,7 +557,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                               type="text"
                               value={practice.notes || ''}
                               onChange={(e) => handleUpdatePractice(index, 'notes', e.target.value)}
-                              className="w-full bg-white text-forest-800 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                              className="w-full bg-white text-forest-800 border border-gray-300 px-2 py-1 text-sm"
                               placeholder="Optional notes..."
                             />
                           </td>
@@ -571,7 +570,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 <div className="flex justify-between items-center mt-6">
                   <button
                     onClick={() => setStep('pattern')}
-                    className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                    className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 hover:bg-gray-100 uppercase"
                   >
                     Edit Pattern
                   </button>
@@ -583,7 +582,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                     <button
                       onClick={handlePublishSchedule}
                       disabled={saving}
-                      className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-semibold"
+                      className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 uppercase font-semibold"
                     >
                       {saving ? 'Publishing...' : 'Publish Schedule'}
                     </button>

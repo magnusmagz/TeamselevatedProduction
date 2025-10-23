@@ -232,8 +232,8 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
       }
 
       const url = athlete
-        ? `${API_URL}/athletes-gateway.php?id=${athlete.id}`
-        : `${API_URL}/athletes-gateway.php`;
+        ? `${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`
+        : `${API_URL}/legacy/athletes-gateway.php`;
       const response = await fetch(url, {
         method: athlete ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -257,7 +257,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             financial_responsible: 1
           };
 
-          await fetch(`${API_URL}/guardian-gateway.php`, {
+          await fetch(`${API_URL}/legacy/guardian-gateway.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(guardianData)
@@ -274,7 +274,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             weight_lbs: formData.medical.weight_lbs || null
           };
 
-          await fetch(`${API_URL}/medical-gateway.php`, {
+          await fetch(`${API_URL}/legacy/medical-gateway.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(medicalData)

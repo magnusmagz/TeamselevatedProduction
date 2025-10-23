@@ -6,8 +6,6 @@ import AthleteManagement from './AthleteManagement';
 import SeasonManagement from './SeasonManagement';
 import VenueManagement from './VenueManagement';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
 interface Team {
   id: number;
   name: string;
@@ -20,6 +18,7 @@ interface Team {
 }
 
 const TeamManagement: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const [teams, setTeams] = useState<Team[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -121,25 +120,25 @@ const TeamManagement: React.FC = () => {
         <div className="flex space-x-2">
           <button
             onClick={handleCreateTeam}
-            className="bg-forest-800 text-white border border-forest-800 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+            className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
           >
             + Create Team
           </button>
         </div>
       </div>
 
-      <div className="border border-forest-200 rounded-md p-6 mb-6 bg-white">
+      <div className="border-2 border-forest-800 p-6 mb-6 bg-white">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             placeholder="Search teams..."
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
           />
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filters.age_group}
             onChange={(e) => setFilters({ ...filters, age_group: e.target.value })}
           >
@@ -155,7 +154,7 @@ const TeamManagement: React.FC = () => {
           </select>
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filters.division}
             onChange={(e) => setFilters({ ...filters, division: e.target.value })}
           >
@@ -167,7 +166,7 @@ const TeamManagement: React.FC = () => {
 
           <button
             onClick={() => setFilters({ search: '', season_id: '', age_group: '', division: '' })}
-            className="bg-white text-forest-800 border border-forest-300 rounded-md px-4 py-2 hover:bg-forest-50 uppercase"
+            className="bg-white text-black border-2 border-black px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>

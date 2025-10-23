@@ -66,7 +66,7 @@ export default function Login() {
                   setSuccess(false);
                   setEmail('');
                 }}
-                className="bg-white text-forest-600 font-semibold py-2 px-4 border-2 border-forest-600 rounded-md hover:bg-gray-50 transition-colors duration-200 w-full"
+                className="bg-white text-forest-600 font-semibold py-2 px-4 border-2 border-forest-600 hover:bg-gray-50 transition-colors duration-200 w-full"
               >
                 SEND ANOTHER LINK
               </button>
@@ -96,7 +96,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-md focus:border-forest-600 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
                 required
                 autoFocus
               />
@@ -111,7 +111,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
             </button>

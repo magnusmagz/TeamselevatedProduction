@@ -43,7 +43,7 @@ const TeamManagement: React.FC = () => {
       const queryParams = new URLSearchParams(
         Object.entries(filters).filter(([_, v]) => v !== '')
       );
-      const response = await fetch(`${API_URL}/teams-gateway.php?${queryParams}`);
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?${queryParams}`);
       const data = await response.json();
       setTeams(data.teams || []);
     } catch (error) {
@@ -67,7 +67,7 @@ const TeamManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to archive this team?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/teams-gateway.php?id=${teamId}`, {
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?id=${teamId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Manual archive' })
@@ -83,8 +83,8 @@ const TeamManagement: React.FC = () => {
 
   const handleFormSubmit = async (teamData: any) => {
     const url = selectedTeam
-      ? `${API_URL}/teams-gateway.php?id=${selectedTeam.id}`
-      : `${API_URL}/teams-gateway.php`;
+      ? `${API_URL}/legacy/teams-gateway.php?id=${selectedTeam.id}`
+      : `${API_URL}/legacy/teams-gateway.php`;
 
     const method = selectedTeam ? 'PUT' : 'POST';
 

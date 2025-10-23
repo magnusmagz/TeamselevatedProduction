@@ -58,7 +58,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
       const data = await response.json();
       setVenues(data);
     } catch (error) {
@@ -87,7 +87,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
   const handleEditVenue = async (venue: Venue) => {
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venue.id}`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
       const data = await response.json();
       setSelectedVenue(data);
       setFormData(data);
@@ -103,7 +103,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/venues-gateway.php?id=${venueId}`, {
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venueId}`, {
         method: 'DELETE'
       });
 
@@ -141,8 +141,8 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
     try {
       const url = selectedVenue
-        ? `${API_URL}/venues-gateway.php?id=${selectedVenue.id}`
-        : `${API_URL}/venues-gateway.php`;
+        ? `${API_URL}/legacy/venues-gateway.php?id=${selectedVenue.id}`
+        : `${API_URL}/legacy/venues-gateway.php`;
 
       // Clean up the data to send - remove undefined/empty fields array
       const dataToSend = {

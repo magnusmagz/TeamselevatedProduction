@@ -87,8 +87,8 @@ export default function VerifyMagicLink() {
 
             {status === 'success' && (
               <>
-                <div className="mx-auto h-16 w-16 bg-forest-100 flex items-center justify-center mb-4">
-                  <svg className="h-8 w-8 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="mx-auto h-16 w-16 bg-green-100 flex items-center justify-center mb-4">
+                  <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>

@@ -23,6 +23,7 @@ interface DocumentManagerProps {
 }
 
 const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteName }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [documents, setDocuments] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -37,7 +38,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`http://localhost:3003/api/athletes/${athleteId}/documents`);
+      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`);
       const data = await response.json();
       if (data.success) {
         setDocuments(data.documents);
@@ -73,7 +74,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
     }
 
     try {
-      const response = await fetch(`http://localhost:3003/api/athletes/${athleteId}/documents`, {
+      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`, {
         method: 'POST',
         body: formData
       });
@@ -102,7 +103,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
     }
 
     try {
-      const response = await fetch(`http://localhost:3003/api/documents/${documentId}`, {
+      const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
         method: 'DELETE'
       });
 
@@ -177,7 +178,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
       </div>
 
       {/* Upload Section */}
-      <div className="mb-5 p-4 border border-gray-300 rounded-md">
+      <div className="mb-5 p-4 border border-gray-300">
         <h3 className="font-bold mb-3">Upload New Document</h3>
         <div className="space-y-3">
           <input
@@ -194,13 +195,13 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                 placeholder="Expiration date (if applicable)"
                 value={expiresDate}
                 onChange={(e) => setExpiresDate(e.target.value)}
-                className="mt-2 p-2 border border-gray-300 rounded-md"
+                className="mt-2 p-2 border border-gray-300"
               />
               <textarea
                 placeholder="Notes (optional)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mt-2 w-full p-2 border border-gray-300 rounded-md"
+                className="mt-2 w-full p-2 border border-gray-300"
                 rows={2}
               />
             </div>
@@ -213,7 +214,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
         <h3 className="font-bold mb-3 text-lg">Required Documents</h3>
         <div className="space-y-2">
           {requiredDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-300 rounded-md p-3">
+            <div key={doc.type_id} className="border border-gray-300 p-3">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -242,13 +243,13 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => handleUpload(doc.type_id)}
                         disabled={uploading}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-green-600 text-white text-sm hover:bg-green-700 disabled:bg-gray-400"
                       >
                         {uploading ? 'Uploading...' : 'Confirm'}
                       </button>
                       <button
                         onClick={() => setSelectedType(null)}
-                        className="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                        className="px-3 py-1 bg-gray-600 text-white text-sm hover:bg-gray-700"
                       >
                         Cancel
                       </button>
@@ -258,14 +259,14 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => setSelectedType(doc.type_id)}
                         disabled={!selectedFile}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400"
                       >
                         {doc.document_id ? 'Replace' : 'Upload'}
                       </button>
                       {doc.document_id && (
                         <button
                           onClick={() => handleDelete(doc.document_id!)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+                          className="px-3 py-1 bg-red-600 text-white text-sm hover:bg-red-700"
                         >
                           Delete
                         </button>
@@ -284,7 +285,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
         <h3 className="font-bold mb-3 text-lg">Optional Documents</h3>
         <div className="space-y-2">
           {optionalDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-200 rounded-md p-3 bg-gray-50">
+            <div key={doc.type_id} className="border border-gray-200 p-3 bg-gray-50">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -314,13 +315,13 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => handleUpload(doc.type_id)}
                         disabled={uploading}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-green-600 text-white text-sm hover:bg-green-700 disabled:bg-gray-400"
                       >
                         {uploading ? 'Uploading...' : 'Confirm'}
                       </button>
                       <button
                         onClick={() => setSelectedType(null)}
-                        className="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                        className="px-3 py-1 bg-gray-600 text-white text-sm hover:bg-gray-700"
                       >
                         Cancel
                       </button>
@@ -330,14 +331,14 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => setSelectedType(doc.type_id)}
                         disabled={!selectedFile}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400"
                       >
                         {doc.document_id ? 'Replace' : 'Upload'}
                       </button>
                       {doc.document_id && (
                         <button
                           onClick={() => handleDelete(doc.document_id!)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+                          className="px-3 py-1 bg-red-600 text-white text-sm hover:bg-red-700"
                         >
                           Delete
                         </button>

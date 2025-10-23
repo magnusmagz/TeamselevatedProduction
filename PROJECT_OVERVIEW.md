@@ -31,8 +31,8 @@
 
 | Component | URL |
 |-----------|-----|
-| **Frontend** | http://localhost:3003 |
-| **Backend** | http://localhost:8888/teamselevated-backend |
+| **Frontend** |  |
+| **Backend** |  |
 
 ---
 
@@ -311,12 +311,10 @@ JWT_EXPIRY=86400
 # Email (SendGrid)
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=<key>
-EMAIL_FROM=noreply@teamselevated.com
+EMAIL_FROM=maggie@eyeinteam.com
 EMAIL_FROM_NAME=Teams Elevated
 
 # App
-APP_URL=http://localhost:3003
-API_URL=http://localhost:8888/teamselevated-backend
 APP_ENV=development
 APP_DEBUG=true
 ```
@@ -332,8 +330,6 @@ APP_DEBUG=true
 cd frontend
 npm install
 npm start
-```
-Runs on http://localhost:3003
 
 **Backend:**
 - Deployed on Heroku
