@@ -1,16 +1,53 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+
+type LoginMethod = 'password' | 'magic-link';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Login failed');
+      }
+
+      // Store the token and update auth context
+      localStorage.setItem('auth_token', data.token);
+      login(data.token, data.user);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMagicLinkLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -34,7 +71,7 @@ export default function Login() {
 
       // In development, show the magic link
       if (data.debug && data.debug.link) {
-        console.log('🔗 Magic link (dev only):', data.debug.link);
+        console.log('Magic link (dev only):', data.debug.link);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -86,49 +123,129 @@ export default function Login() {
             <p className="text-gray-600 mt-2">Sign in to access your teams</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.email@example.com"
-                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
-                required
-                autoFocus
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
+          {/* Login Method Toggle */}
+          <div className="flex mb-6 border-2 border-gray-200">
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              type="button"
+              onClick={() => setLoginMethod('password')}
+              className={`flex-1 py-2 text-sm font-semibold uppercase transition-colors ${
+                loginMethod === 'password'
+                  ? 'bg-forest-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
             >
-              {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
+              Password
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => setLoginMethod('magic-link')}
+              className={`flex-1 py-2 text-sm font-semibold uppercase transition-colors ${
+                loginMethod === 'magic-link'
+                  ? 'bg-forest-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Magic Link
+            </button>
+          </div>
+
+          {loginMethod === 'password' ? (
+            <form onSubmit={handlePasswordLogin} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.email@example.com"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-forest-600 hover:text-forest-700 font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              >
+                {loading ? 'SIGNING IN...' : 'SIGN IN'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleMagicLinkLogin} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.email@example.com"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              >
+                {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
+              </button>
+
+              <p className="text-xs text-gray-500 text-center">
+                We'll send you a secure login link via email. No password needed!
+              </p>
+            </form>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <span className="text-forest-600 hover:text-forest-700 font-semibold cursor-pointer">
-                Contact your coach
-              </span>
-            </p>
-          </div>
-
-          <div className="mt-8 pt-6 border-t-2 border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              We'll send you a secure login link via email. No passwords needed!
+              <Link to="/signup" className="text-forest-600 hover:text-forest-700 font-semibold">
+                Sign up
+              </Link>
             </p>
           </div>
         </div>

@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import SignUp from './pages/SignUp';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
 import TeamManagement from './components/TeamManagement';
@@ -166,6 +169,9 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
 
