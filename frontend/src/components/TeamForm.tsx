@@ -22,6 +22,12 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
   const [seasons, setSeasons] = useState<any[]>([]);
   const [fields, setFields] = useState<any[]>([]);
   const [errors, setErrors] = useState<any>({});
+  const [showSeasonForm, setShowSeasonForm] = useState(false);
+  const [seasonFormData, setSeasonFormData] = useState({
+    name: '',
+    start_date: '',
+    end_date: ''
+  });
 
   useEffect(() => {
     if (team) {
@@ -111,10 +117,67 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
     onSubmit(formData);
   };
 
+  const handleCreateSeason = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling to parent form
+
+    // Validate required fields
+    if (!seasonFormData.name || !seasonFormData.name.trim()) {
+      alert('Season name is required');
+      return;
+    }
+
+    if (!seasonFormData.start_date) {
+      alert('Start date is required');
+      return;
+    }
+
+    if (!seasonFormData.end_date) {
+      alert('End date is required');
+      return;
+    }
+
+    if (seasonFormData.end_date < seasonFormData.start_date) {
+      alert('End date must be after start date');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/legacy/seasons-gateway.php?action=create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seasonFormData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert('Season created successfully!');
+
+        // Refresh seasons list
+        await fetchDropdownData();
+
+        // Auto-select the newly created season
+        if (result.season && result.season.id) {
+          setFormData({ ...formData, season_id: result.season.id.toString() });
+        }
+
+        // Reset and hide form
+        setSeasonFormData({ name: '', start_date: '', end_date: '' });
+        setShowSeasonForm(false);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create season');
+      }
+    } catch (error) {
+      console.error('Error creating season:', error);
+      alert('Failed to create season');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border-2 border-forest-800 w-full max-w-2xl">
-        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
+        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             {team ? 'Edit Team' : 'Create New Team'}
           </h3>
@@ -134,8 +197,8 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
               </label>
               <input
                 type="text"
-                className={`w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600 ${
-                  errors.name ? 'border-2 border-red-500' : ''
+                className={`w-full bg-white text-forest-800 border rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 ${
+                  errors.name ? 'border-red-500' : 'border-forest-200'
                 }`}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -151,7 +214,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Age Group *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.age_group}
                 onChange={(e) => setFormData({ ...formData, age_group: e.target.value })}
               >
@@ -171,7 +234,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Division *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.division}
                 onChange={(e) => setFormData({ ...formData, division: e.target.value })}
               >
@@ -186,7 +249,9 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Season *
               </label>
               <select
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className={`w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 ${
+                  errors.season_id ? 'border-red-500' : ''
+                }`}
                 value={formData.season_id}
                 onChange={(e) => setFormData({ ...formData, season_id: e.target.value })}
               >
@@ -201,6 +266,89 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                   <option disabled>No seasons available</option>
                 )}
               </select>
+              {errors.season_id && (
+                <p className="text-red-400 text-sm mt-1">{errors.season_id}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowSeasonForm(!showSeasonForm)}
+                className="text-forest-800 hover:underline text-sm mt-2"
+              >
+                + Create New Season
+              </button>
+
+              {/* Inline Season Creation Form */}
+              {showSeasonForm && (
+                <div className="border border-forest-200 rounded-md p-4 mt-3 bg-gray-50">
+                  <h4 className="text-sm font-semibold text-forest-800 mb-3 uppercase">
+                    Create New Season
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                        Season Name *
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                        value={seasonFormData.name}
+                        onChange={(e) => setSeasonFormData({ ...seasonFormData, name: e.target.value })}
+                        placeholder="e.g., Spring 2024"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                          Start Date *
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                          value={seasonFormData.start_date}
+                          onChange={(e) => setSeasonFormData({ ...seasonFormData, start_date: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                          End Date *
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                          value={seasonFormData.end_date}
+                          onChange={(e) => setSeasonFormData({ ...seasonFormData, end_date: e.target.value })}
+                          min={seasonFormData.start_date}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSeasonForm(false);
+                          setSeasonFormData({ name: '', start_date: '', end_date: '' });
+                        }}
+                        className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCreateSeason(e as any)}
+                        className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-1 hover:bg-forest-700 font-semibold uppercase text-sm"
+                      >
+                        Save Season
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -208,7 +356,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Head Coach
               </label>
               <select
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.primary_coach_id}
                 onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
               >
@@ -227,7 +375,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
                 Home Field
               </label>
               <select
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.home_field_id}
                 onChange={(e) => setFormData({ ...formData, home_field_id: e.target.value })}
               >
@@ -246,7 +394,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
               </label>
               <input
                 type="number"
-                className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 value={formData.max_players}
                 onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) })}
                 min="1"
@@ -259,13 +407,13 @@ const TeamForm: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 hover:bg-gray-100 uppercase"
+              className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
             >
               {team ? 'Update Team' : 'Create Team'}
             </button>
