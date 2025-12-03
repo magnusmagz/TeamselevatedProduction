@@ -160,7 +160,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       ) : (
         <div className="grid grid-cols-2 gap-6">
           {/* Available Athletes */}
-          <div className="bg-white border-2 border-forest-800 p-4">
+          <div className="bg-white border border-forest-200 rounded-md p-4">
             <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase tracking-wide">
               Available Athletes
             </h3>

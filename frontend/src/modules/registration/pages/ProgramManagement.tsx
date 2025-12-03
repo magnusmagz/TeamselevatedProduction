@@ -87,7 +87,7 @@ const ProgramManagement: React.FC = () => {
           </div>
           <button
             onClick={handleCreateProgram}
-            className="bg-forest-800 text-white px-6 py-3 hover:bg-forest-700 uppercase font-semibold"
+            className="bg-forest-800 text-white px-6 py-3 rounded-md hover:bg-forest-700 uppercase font-semibold"
           >
             + Create New Program
           </button>
@@ -97,17 +97,17 @@ const ProgramManagement: React.FC = () => {
         {loading ? (
           <div className="text-center py-12 text-forest-800">Loading programs...</div>
         ) : programs.length === 0 ? (
-          <div className="border-2 border-forest-800 p-12 text-center bg-white">
+          <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
             <p className="text-gray-600 text-lg">No programs yet.</p>
             <p className="text-gray-500 mt-2">Create your first program to start accepting registrations.</p>
           </div>
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block border-2 border-forest-800">
+            <div className="hidden md:block border border-forest-200 rounded-md">
               <table className="min-w-full bg-white">
                 <thead>
-                  <tr className="border-b-2 border-forest-800">
+                  <tr className="border-b border-forest-200">
                     <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
                       Program Name
                     </th>
@@ -217,7 +217,7 @@ const ProgramManagement: React.FC = () => {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
               {programs.map((program) => (
-                <div key={program.id} className="border-2 border-forest-800 bg-white p-4">
+                <div key={program.id} className="border border-forest-200 rounded-md bg-white p-4">
                   {/* Program Header */}
                   <div className="mb-3">
                     <h3 className="text-lg font-bold text-forest-800">{program.name}</h3>
@@ -268,7 +268,7 @@ const ProgramManagement: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleEditProgram(program)}
-                      className="border-2 border-forest-800 text-forest-800 hover:bg-forest-50 py-2 uppercase text-xs font-semibold"
+                      className="border border-forest-200 rounded-md text-forest-800 hover:bg-forest-50 py-2 uppercase text-xs font-semibold"
                     >
                       Edit
                     </button>
@@ -276,7 +276,7 @@ const ProgramManagement: React.FC = () => {
                       <>
                         <button
                           onClick={() => setEmbedProgram(program)}
-                          className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
+                          className="border border-blue-200 rounded-md text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
                         >
                           Embed
                         </button>
@@ -287,7 +287,7 @@ const ProgramManagement: React.FC = () => {
                             );
                             alert('Registration link copied to clipboard!');
                           }}
-                          className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
+                          className="border border-blue-200 rounded-md text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
                         >
                           Copy Link
                         </button>
@@ -295,7 +295,7 @@ const ProgramManagement: React.FC = () => {
                     )}
                     <button
                       onClick={() => program.id && handleDeleteProgram(program.id)}
-                      className="border-2 border-red-600 text-red-600 hover:bg-red-50 py-2 uppercase text-xs font-semibold"
+                      className="border border-red-200 rounded-md text-red-600 hover:bg-red-50 py-2 uppercase text-xs font-semibold"
                     >
                       Delete
                     </button>

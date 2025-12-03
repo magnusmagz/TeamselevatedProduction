@@ -207,7 +207,7 @@ const GooglePlacePickerV2: React.FC<GooglePlacePickerV2Props> = ({
         ref={inputRef}
         type="text"
         placeholder={placeholder}
-        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
       />
 
       {showMap && (

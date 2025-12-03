@@ -308,7 +308,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
   return (
     <div className="flex space-x-6">
       {/* Left Panel - Available Fields */}
-      <div className="w-64 bg-gray-50 border-2 border-forest-800 p-4">
+      <div className="w-64 bg-gray-50 border border-forest-200 rounded-md p-4">
         <h3 className="text-forest-800 font-semibold mb-4 uppercase">Available Fields</h3>
         <div className="space-y-2">
           {availableFieldTypes.map((fieldType) => (
@@ -316,7 +316,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
               key={fieldType.type}
               draggable
               onDragStart={(e) => handleDragStart(e, fieldType)}
-              className="bg-white border border-forest-800 p-3 cursor-move hover:bg-gray-100"
+              className="bg-white border border-forest-200 rounded-md p-3 cursor-move hover:bg-gray-100"
             >
               <span className="text-forest-800">{fieldType.label}</span>
             </div>
@@ -325,7 +325,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       </div>
 
       {/* Middle Panel - Form Canvas */}
-      <div className="flex-1 bg-white border-2 border-forest-800 p-6">
+      <div className="flex-1 bg-white border border-forest-200 rounded-md p-6">
         <h3 className="text-forest-800 font-semibold mb-4 uppercase">Registration Form</h3>
 
         <div
@@ -351,8 +351,8 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
-                className={`bg-gray-50 border-2 ${
-                  field.required ? 'border-forest-800' : 'border-gray-400'
+                className={`bg-gray-50 border rounded-md ${
+                  field.required ? 'border-forest-400' : 'border-forest-200'
                 } p-4 cursor-move hover:border-forest-600 flex items-center justify-between`}
               >
                 <div>
@@ -392,7 +392,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
           <div className="mt-6 flex justify-end">
             <button
               onClick={handleSaveFields}
-              className="bg-forest-800 text-white px-6 py-2 hover:bg-forest-700 uppercase font-semibold"
+              className="bg-forest-800 text-white px-6 py-2 rounded-md hover:bg-forest-700 uppercase font-semibold"
             >
               Save Form Configuration
             </button>
@@ -426,7 +426,7 @@ const FieldEditor: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white border-2 border-forest-800 p-6 w-96">
+      <div className="bg-white border border-forest-200 rounded-md p-6 w-96">
         <h3 className="text-forest-800 font-semibold mb-4 uppercase">Edit Field</h3>
 
         <div className="space-y-4">
@@ -434,7 +434,7 @@ const FieldEditor: React.FC<{
             <label className="block text-forest-800 text-sm font-medium mb-1">Field Label</label>
             <input
               type="text"
-              className="w-full border-2 border-forest-800 px-3 py-2"
+              className="w-full border border-forest-200 rounded-md px-3 py-2"
               value={editedField.field_label}
               onChange={(e) => setEditedField({ ...editedField, field_label: e.target.value })}
             />
@@ -444,7 +444,7 @@ const FieldEditor: React.FC<{
             <label className="block text-forest-800 text-sm font-medium mb-1">Field Name</label>
             <input
               type="text"
-              className="w-full border-2 border-forest-800 px-3 py-2"
+              className="w-full border border-forest-200 rounded-md px-3 py-2"
               value={editedField.field_name}
               onChange={(e) => setEditedField({ ...editedField, field_name: e.target.value })}
             />
@@ -453,7 +453,7 @@ const FieldEditor: React.FC<{
           <div>
             <label className="block text-forest-800 text-sm font-medium mb-1">Section</label>
             <select
-              className="w-full border-2 border-forest-800 px-3 py-2"
+              className="w-full border border-forest-200 rounded-md px-3 py-2"
               value={editedField.section || 'general'}
               onChange={(e) => setEditedField({ ...editedField, section: e.target.value })}
             >
@@ -481,7 +481,7 @@ const FieldEditor: React.FC<{
             <div>
               <label className="block text-forest-800 text-sm font-medium mb-1">Options (one per line)</label>
               <textarea
-                className="w-full border-2 border-forest-800 px-3 py-2"
+                className="w-full border border-forest-200 rounded-md px-3 py-2"
                 rows={3}
                 placeholder="Option 1&#10;Option 2&#10;Option 3"
                 value={Array.isArray(editedField.options) ? editedField.options.join('\n') : ''}
@@ -497,13 +497,13 @@ const FieldEditor: React.FC<{
         <div className="flex justify-end space-x-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 border-2 border-forest-800 text-forest-800 hover:bg-gray-100"
+            className="px-4 py-2 border border-forest-200 rounded-md text-forest-800 hover:bg-gray-100"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-forest-800 text-white hover:bg-forest-700"
+            className="px-4 py-2 bg-forest-800 text-white rounded-md hover:bg-forest-700"
           >
             Save
           </button>

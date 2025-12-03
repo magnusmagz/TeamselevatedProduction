@@ -29,11 +29,19 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
       if (data && data.id) {
         setProgram(data);
-        setFormFields(data.form_fields || []);
+
+        // Parse options field from JSON string to array
+        const parsedFields = (data.form_fields || []).map((field: any) => ({
+          ...field,
+          options: field.options && typeof field.options === 'string'
+            ? JSON.parse(field.options)
+            : field.options
+        }));
+        setFormFields(parsedFields);
 
         // Initialize form data with empty values
         const initialData: Record<string, any> = {};
-        data.form_fields?.forEach((field: FormField) => {
+        parsedFields.forEach((field: FormField) => {
           initialData[field.field_name] = field.field_type === 'checkbox' ? false : '';
         });
         setFormData(initialData);
@@ -80,20 +88,25 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
     setSubmitting(true);
 
+    const payload = {
+      program_id: program?.id,
+      form_data: formData
+    };
+    console.log('Submitting registration:', payload);
+
     try {
       const response = await fetch(`${API_URL}/registration/registrations-api.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          program_id: program?.id,
-          form_data: formData
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         setSubmitted(true);
       } else {
-        alert('An error occurred. Please try again.');
+        const errorData = await response.json();
+        console.error('Registration error:', errorData);
+        alert(`Error: ${errorData.error || 'An error occurred. Please try again.'}`);
       }
     } catch (error) {
       console.error('Error submitting registration:', error);
@@ -123,8 +136,8 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     const fieldId = `field-${field.field_name}`;
     const hasError = !!errors[field.field_name];
 
-    const inputClasses = `w-full bg-white text-forest-800 border-2 ${
-      hasError ? 'border-red-500' : 'border-forest-800'
+    const inputClasses = `w-full bg-white text-forest-800 border rounded-md ${
+      hasError ? 'border-red-500' : 'border-forest-200'
     } px-4 py-2 focus:outline-none focus:border-forest-600`;
 
     switch (field.field_type) {
@@ -246,7 +259,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
   if (submitted) {
     return (
-      <div className="bg-white border-2 border-forest-800 p-8 text-center">
+      <div className="bg-white border border-forest-200 rounded-md p-8 text-center">
         <h2 className="text-2xl font-bold text-forest-800 mb-4">Registration Submitted!</h2>
         <p className="text-gray-600">
           Thank you for registering for {program.name}.
@@ -259,7 +272,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   return (
     <div className={embedded ? '' : 'min-h-screen bg-gray-50 py-8'}>
       <div className={embedded ? '' : 'max-w-2xl mx-auto px-4'}>
-        <div className="bg-white border-2 border-forest-800">
+        <div className="bg-white border border-forest-200 rounded-md">
           {/* Header */}
           <div className="bg-forest-800 text-white p-6">
             <h1 className="text-2xl font-bold uppercase">{program.name}</h1>
@@ -285,7 +298,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
           <form onSubmit={handleSubmit} className="p-6">
             {Object.entries(fieldsBySection).map(([section, fields]) => (
               <div key={section} className="mb-8">
-                <h3 className="text-lg font-semibold text-forest-800 uppercase mb-4 border-b-2 border-forest-800 pb-2">
+                <h3 className="text-lg font-semibold text-forest-800 uppercase mb-4 border-b border-forest-200 pb-2">
                   {getSectionLabel(section)}
                 </h3>
                 <div className="space-y-4">
@@ -311,7 +324,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-forest-800 text-white px-8 py-3 hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
+                className="bg-forest-800 text-white px-8 py-3 rounded-md hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Submit Registration'}
               </button>

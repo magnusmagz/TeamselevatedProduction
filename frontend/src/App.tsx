@@ -84,7 +84,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white">
         {user && (
-          <nav className="bg-white border-b-2 border-forest-800">
+          <nav className="bg-white border-b border-forest-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center space-x-8">
@@ -113,7 +113,7 @@ function AppContent() {
                 <div className="flex items-center">
                   <div className="relative">
                     <select
-                      className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 pr-8 uppercase focus:outline-none appearance-none cursor-pointer"
+                      className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 pr-8 uppercase focus:outline-none appearance-none cursor-pointer"
                       value={userRole}
                       onChange={async (e) => {
                         const value = e.target.value;
@@ -145,7 +145,7 @@ function AppContent() {
         )}
 
         {!user && window.location.pathname === '/' && (
-          <nav className="bg-white border-b-2 border-forest-800">
+          <nav className="bg-white border-b border-forest-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">

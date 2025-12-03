@@ -45,7 +45,7 @@ const CoachDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="bg-white border-b-2 border-forest-800">
+      <nav className="bg-white border-b border-forest-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-8">
@@ -112,7 +112,7 @@ const CoachDashboard: React.FC = () => {
             {loading ? (
               <div className="text-center text-forest-800 py-12">Loading teams...</div>
             ) : teams.length === 0 ? (
-              <div className="border-2 border-forest-800 p-12 text-center bg-white">
+              <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
                 <p className="text-gray-600 text-lg">No teams assigned yet.</p>
               </div>
             ) : (
@@ -120,7 +120,7 @@ const CoachDashboard: React.FC = () => {
                 {teams.map((team) => (
                   <div
                     key={team.id}
-                    className="bg-white border-2 border-forest-800 p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="bg-white border border-forest-200 rounded-md p-6 hover:bg-gray-50 cursor-pointer transition-colors"
                     onClick={() => handleTeamSelect(team)}
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -156,7 +156,7 @@ const CoachDashboard: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <button className="w-full mt-4 bg-forest-800 text-white border-2 border-forest-800 py-2 hover:bg-forest-700 uppercase">
+                    <button className="w-full mt-4 bg-forest-800 text-white border border-forest-200 rounded-md py-2 hover:bg-forest-700 uppercase">
                       Manage Roster →
                     </button>
                   </div>
@@ -185,12 +185,12 @@ const CoachDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowPracticeScheduler(true)}
-                className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 uppercase"
+                className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 uppercase"
               >
                 + Schedule Practices
               </button>
             </div>
-            <div className="border-2 border-forest-800 p-8 text-center">
+            <div className="border border-forest-200 rounded-md p-8 text-center">
               <p className="text-gray-600">Calendar view coming soon...</p>
               <p className="text-gray-500 mt-2">Use "Schedule Practices" to bulk create practice sessions</p>
             </div>

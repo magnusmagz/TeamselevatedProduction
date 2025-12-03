@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import GooglePlacePicker from './GooglePlacePicker';
+// VenueManagement component with address search
 
 interface Field {
   name: string;
   field_type: string;
-  surface: string;
-  size: string;
-  lights: boolean;
+  surface_type: string;
+  dimensions: string;
+  has_lights: boolean;
+  status: 'available' | 'maintenance' | 'closed';
 }
 
 interface Venue {
@@ -28,10 +29,13 @@ interface VenueManagementProps {
 
 const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
   const [venues, setVenues] = useState<Venue[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addressSearch, setAddressSearch] = useState('');
+  const [searchingAddress, setSearchingAddress] = useState(false);
 
   const [formData, setFormData] = useState<Venue>({
     name: '',
@@ -47,9 +51,10 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   const [newField, setNewField] = useState<Field>({
     name: '',
     field_type: 'Soccer',
-    surface: 'Grass',
-    size: '',
-    lights: false
+    surface_type: 'Grass',
+    dimensions: '',
+    has_lights: false,
+    status: 'available'
   });
 
   useEffect(() => {
@@ -124,9 +129,10 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
       setNewField({
         name: '',
         field_type: 'Soccer',
-        surface: 'Grass',
-        size: '',
-        lights: false
+        surface_type: 'Grass',
+        dimensions: '',
+        has_lights: false,
+        status: 'available'
       });
     }
   };
@@ -134,6 +140,63 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   const handleRemoveField = (index: number) => {
     const updatedFields = formData.fields?.filter((_, i) => i !== index) || [];
     setFormData({ ...formData, fields: updatedFields });
+  };
+
+  const handleAddressSearch = async () => {
+    if (!addressSearch.trim()) return;
+
+    setSearchingAddress(true);
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressSearch)}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.results.length > 0) {
+        const result = data.results[0];
+        const components = result.address_components;
+
+        let streetNumber = '';
+        let route = '';
+        let city = '';
+        let state = '';
+        let zip = '';
+
+        components.forEach((component: any) => {
+          if (component.types.includes('street_number')) {
+            streetNumber = component.long_name;
+          }
+          if (component.types.includes('route')) {
+            route = component.long_name;
+          }
+          if (component.types.includes('locality')) {
+            city = component.long_name;
+          }
+          if (component.types.includes('administrative_area_level_1')) {
+            state = component.short_name;
+          }
+          if (component.types.includes('postal_code')) {
+            zip = component.long_name;
+          }
+        });
+
+        setFormData({
+          ...formData,
+          address: `${streetNumber} ${route}`.trim(),
+          city,
+          state,
+          zip
+        });
+        setAddressSearch(''); // Clear search after success
+      } else {
+        alert('Address not found. Please try a different search or enter manually.');
+      }
+    } catch (error) {
+      console.error('Error searching address:', error);
+      alert('Error searching address. Please enter manually.');
+    } finally {
+      setSearchingAddress(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,8 +244,8 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     // Modal view
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border-2 border-forest-800 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-          <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Venue Management</h3>
             <button
               onClick={onClose}
@@ -214,6 +277,10 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
             handleRemoveField={handleRemoveField}
             handleSubmit={handleSubmit}
             onClose={() => setShowForm(false)}
+            addressSearch={addressSearch}
+            setAddressSearch={setAddressSearch}
+            searchingAddress={searchingAddress}
+            handleAddressSearch={handleAddressSearch}
           />
         )}
       </div>
@@ -242,6 +309,10 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
           handleRemoveField={handleRemoveField}
           handleSubmit={handleSubmit}
           onClose={() => setShowForm(false)}
+          addressSearch={addressSearch}
+          setAddressSearch={setAddressSearch}
+          searchingAddress={searchingAddress}
+          handleAddressSearch={handleAddressSearch}
         />
       )}
     </div>
@@ -264,7 +335,7 @@ const VenueListContent: React.FC<{
         </div>
         <button
           onClick={handleAddVenue}
-          className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 uppercase"
+          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 uppercase"
         >
           + Add Venue
         </button>
@@ -273,15 +344,15 @@ const VenueListContent: React.FC<{
       {loading ? (
         <div className="text-center text-forest-800 py-12">Loading venues...</div>
       ) : venues.length === 0 ? (
-        <div className="border-2 border-forest-800 p-12 text-center bg-white">
+        <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
           <p className="text-gray-600 text-lg">No venues yet.</p>
           <p className="text-gray-500 mt-2">Click "Add Venue" to create your first venue.</p>
         </div>
       ) : (
-        <div className="border-2 border-forest-800">
+        <div className="border border-forest-200 rounded-md">
           <table className="min-w-full bg-white">
             <thead>
-              <tr className="border-b-2 border-forest-800">
+              <tr className="border-b border-forest-200">
                 <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
                   Venue Name
                 </th>
@@ -387,6 +458,10 @@ const VenueForm: React.FC<{
   handleRemoveField: (index: number) => void;
   handleSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  addressSearch: string;
+  setAddressSearch: (value: string) => void;
+  searchingAddress: boolean;
+  handleAddressSearch: () => void;
 }> = ({
   formData,
   setFormData,
@@ -396,12 +471,16 @@ const VenueForm: React.FC<{
   handleAddField,
   handleRemoveField,
   handleSubmit,
-  onClose
+  onClose,
+  addressSearch,
+  setAddressSearch,
+  searchingAddress,
+  handleAddressSearch
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border-2 border-forest-800 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
             {selectedVenue ? 'Edit Venue' : 'Create New Venue'}
           </h3>
@@ -425,7 +504,7 @@ const VenueForm: React.FC<{
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -434,32 +513,67 @@ const VenueForm: React.FC<{
 
                 <div className="col-span-2">
                   <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
-                    Venue Address * (Start typing and select from suggestions)
+                    Search Address (Optional)
                   </label>
-                  <GooglePlacePicker
-                    apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY || ''}
-                    placeholder="Enter venue address..."
-                    onPlaceSelect={(place) => {
-                      setFormData({
-                        ...formData,
-                        address: place.address,
-                        city: place.city,
-                        state: place.state,
-                        zip: place.zip
-                        // Note: lat/lng stored in place object if needed later
-                      });
-                    }}
-                    showMap={false}
-                  />
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <div className="text-xs text-gray-600">
-                      <span className="font-semibold">City:</span> {formData.city || 'Not set'}
+                  <div className="flex gap-2 mb-4">
+                    <input
+                      type="text"
+                      className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      value={addressSearch}
+                      onChange={(e) => setAddressSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddressSearch())}
+                      placeholder="Type address and click Search..."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddressSearch}
+                      disabled={searchingAddress || !addressSearch.trim()}
+                      className="bg-forest-800 text-white px-4 py-2 hover:bg-forest-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {searchingAddress ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+
+                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    Venue Address *
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <input
+                        type="text"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Street Address"
+                        required
+                      />
                     </div>
-                    <div className="text-xs text-gray-600">
-                      <span className="font-semibold">State:</span> {formData.state || 'Not set'}
+                    <div>
+                      <input
+                        type="text"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        placeholder="City"
+                      />
                     </div>
-                    <div className="text-xs text-gray-600">
-                      <span className="font-semibold">Zip:</span> {formData.zip || 'Not set'}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        placeholder="State"
+                        maxLength={2}
+                      />
+                      <input
+                        type="text"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        value={formData.zip}
+                        onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+                        placeholder="Zip"
+                        maxLength={10}
+                      />
                     </div>
                   </div>
                 </div>
@@ -469,7 +583,7 @@ const VenueForm: React.FC<{
                     Google Maps URL
                   </label>
                   <textarea
-                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.map_url || ''}
                     onChange={(e) => setFormData({ ...formData, map_url: e.target.value })}
                     placeholder="Paste Google Maps link here (e.g., https://maps.google.com/...)"
@@ -486,7 +600,7 @@ const VenueForm: React.FC<{
                   </label>
                   <input
                     type="url"
-                    className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                     value={formData.website || ''}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                     placeholder="https://example.com"
@@ -500,13 +614,13 @@ const VenueForm: React.FC<{
               <h4 className="text-forest-800 font-semibold mb-4 uppercase">Fields</h4>
 
               {/* Add New Field Form */}
-              <div className="border-2 border-forest-800 p-4 mb-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="border border-forest-200 rounded-md p-4 mb-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-forest-800 text-sm font-medium mb-1">Field Name</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.name}
                       onChange={(e) => setNewField({ ...newField, name: e.target.value })}
                       placeholder="e.g., Field 1"
@@ -516,7 +630,7 @@ const VenueForm: React.FC<{
                   <div>
                     <label className="block text-forest-800 text-sm font-medium mb-1">Type</label>
                     <select
-                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
                       value={newField.field_type}
                       onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
                     >
@@ -531,45 +645,59 @@ const VenueForm: React.FC<{
                   <div>
                     <label className="block text-forest-800 text-sm font-medium mb-1">Surface</label>
                     <select
-                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-3 py-1 focus:outline-none focus:border-forest-600"
-                      value={newField.surface}
-                      onChange={(e) => setNewField({ ...newField, surface: e.target.value })}
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      value={newField.surface_type}
+                      onChange={(e) => setNewField({ ...newField, surface_type: e.target.value })}
                     >
                       <option value="Grass">Grass</option>
                       <option value="Turf">Turf</option>
-                      <option value="Dirt">Dirt</option>
                       <option value="Indoor">Indoor</option>
+                      <option value="Sand">Sand</option>
+                      <option value="Court">Court</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Size</label>
+                    <label className="block text-forest-800 text-sm font-medium mb-1">Dimensions</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border-2 border-forest-800 px-3 py-1 focus:outline-none focus:border-forest-600"
-                      value={newField.size}
-                      onChange={(e) => setNewField({ ...newField, size: e.target.value })}
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      value={newField.dimensions}
+                      onChange={(e) => setNewField({ ...newField, dimensions: e.target.value })}
                       placeholder="e.g., Full, U12"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-forest-800 text-sm font-medium mb-1">Status</label>
+                    <select
+                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      value={newField.status}
+                      onChange={(e) => setNewField({ ...newField, status: e.target.value as 'available' | 'maintenance' | 'closed' })}
+                    >
+                      <option value="available">Available</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="closed">Closed</option>
+                    </select>
                   </div>
 
                   <div className="flex items-end">
                     <label className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        className="border-2 border-forest-800"
-                        checked={newField.lights}
-                        onChange={(e) => setNewField({ ...newField, lights: e.target.checked })}
+                        className="border border-forest-200 rounded-md"
+                        checked={newField.has_lights}
+                        onChange={(e) => setNewField({ ...newField, has_lights: e.target.checked })}
                       />
                       <span className="text-forest-800 text-sm">Has Lights</span>
                     </label>
                   </div>
 
-                  <div className="flex items-end">
+                  <div className="flex items-end col-span-2">
                     <button
                       type="button"
                       onClick={handleAddField}
-                      className="w-full bg-forest-800 text-white border-2 border-forest-800 px-4 py-1 hover:bg-forest-700 uppercase text-sm"
+                      className="w-full bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-1 hover:bg-forest-700 uppercase text-sm"
                     >
                       + Add Field
                     </button>
@@ -579,7 +707,7 @@ const VenueForm: React.FC<{
 
               {/* Fields List */}
               {formData.fields && formData.fields.length > 0 && (
-                <div className="border-2 border-forest-800">
+                <div className="border border-forest-200 rounded-md">
                   <table className="min-w-full bg-white">
                     <thead>
                       <tr className="border-b border-forest-800">
@@ -588,6 +716,7 @@ const VenueForm: React.FC<{
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Surface</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Size</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Lights</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Status</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Actions</th>
                       </tr>
                     </thead>
@@ -596,9 +725,18 @@ const VenueForm: React.FC<{
                         <tr key={index} className="border-b border-gray-300">
                           <td className="px-4 py-2 text-forest-800">{field.name}</td>
                           <td className="px-4 py-2 text-forest-800">{field.field_type}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.surface}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.size || '-'}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.lights ? 'Yes' : 'No'}</td>
+                          <td className="px-4 py-2 text-forest-800">{field.surface_type}</td>
+                          <td className="px-4 py-2 text-forest-800">{field.dimensions || '-'}</td>
+                          <td className="px-4 py-2 text-forest-800">{field.has_lights ? 'Yes' : 'No'}</td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-1 text-xs font-semibold uppercase ${
+                              field.status === 'available' ? 'bg-green-100 text-green-800' :
+                              field.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {field.status || 'available'}
+                            </span>
+                          </td>
                           <td className="px-4 py-2">
                             <button
                               type="button"
@@ -625,13 +763,13 @@ const VenueForm: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 hover:bg-gray-100 uppercase"
+              className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
             >
               {selectedVenue ? 'Update Venue' : 'Create Venue'}
             </button>

@@ -91,7 +91,7 @@ const ClubProfilePage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b-2 border-forest-800 mb-6">
+        <div className="border-b border-forest-200 mb-6">
           <nav className="-mb-0.5 flex space-x-8">
             <button
               onClick={() => setActiveTab('info')}
@@ -122,7 +122,7 @@ const ClubProfilePage: React.FC = () => {
           <>
             {activeTab === 'info' && (
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="bg-white border-2 border-forest-800 p-6">
+                <div className="bg-white border border-forest-200 rounded-md p-6">
                   <h2 className="text-xl font-semibold text-forest-800 mb-6 uppercase">Basic Information</h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -132,7 +132,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.club_name}
                         onChange={(e) => setFormData({ ...formData, club_name: e.target.value })}
                         required
@@ -146,7 +146,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="email"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.email || ''}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
@@ -160,7 +160,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="tel"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.phone || ''}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="(555) 123-4567"
@@ -173,7 +173,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="url"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.website || ''}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                         placeholder="https://www.yourclub.com"
@@ -182,7 +182,7 @@ const ClubProfilePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white border-2 border-forest-800 p-6">
+                <div className="bg-white border border-forest-200 rounded-md p-6">
                   <h2 className="text-xl font-semibold text-forest-800 mb-6 uppercase">Location</h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -192,7 +192,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         required
@@ -206,7 +206,7 @@ const ClubProfilePage: React.FC = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         required
@@ -221,7 +221,7 @@ const ClubProfilePage: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.state}
                           onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                           required
@@ -236,7 +236,7 @@ const ClubProfilePage: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.zip}
                           onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                           required
@@ -251,7 +251,7 @@ const ClubProfilePage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="bg-forest-800 text-white border-2 border-forest-800 px-6 py-3 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-3 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>

@@ -177,8 +177,8 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     // Modal view for when opened from another component
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border-2 border-forest-800 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-          <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Athlete Management</h3>
             <button
               onClick={onClose}
@@ -235,7 +235,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         </div>
         <button
           onClick={handleAddAthlete}
-          className="bg-forest-800 text-white border-2 border-forest-800 px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
         >
           + Add New Athlete
         </button>
@@ -329,18 +329,18 @@ const AthleteListContent: React.FC<{
 }) => {
   return (
     <>
-      <div className="border-2 border-forest-800 bg-white p-6 mb-6">
+      <div className="border border-forest-200 rounded-md bg-white p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             placeholder="Search athletes..."
-            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <select
-            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGender}
             onChange={(e) => setFilterGender(e.target.value)}
           >
@@ -351,7 +351,7 @@ const AthleteListContent: React.FC<{
           </select>
 
           <select
-            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
           >
@@ -367,7 +367,7 @@ const AthleteListContent: React.FC<{
               setFilterGender('');
               setFilterGrade('');
             }}
-            className="bg-white text-forest-800 border-2 border-forest-800 px-4 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>
@@ -381,10 +381,10 @@ const AthleteListContent: React.FC<{
       {loading ? (
         <div className="text-center text-forest-800 py-12">Loading athletes...</div>
       ) : (
-        <div className="border-2 border-forest-800 overflow-hidden">
+        <div className="border border-forest-200 rounded-md overflow-hidden">
           <table className="min-w-full bg-white">
             <thead>
-              <tr className="border-b-2 border-forest-800">
+              <tr className="border-b border-forest-200">
                 <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
                   Name
                 </th>
@@ -530,8 +530,8 @@ const AthleteListContent: React.FC<{
       {/* Team Selection Modal */}
       {showTeamSelector !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border-2 border-forest-800 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="border-b-2 border-forest-800 px-6 py-4 flex justify-between items-center">
+          <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
                 Add to Team
               </h3>
@@ -557,7 +557,7 @@ const AthleteListContent: React.FC<{
                         handleAddToTeam(showTeamSelector, team.id);
                         setShowTeamSelector(null);
                       }}
-                      className="border-2 border-forest-800 bg-white hover:bg-forest-50 p-4 text-left transition-colors"
+                      className="border border-forest-200 rounded-md bg-white hover:bg-forest-50 p-4 text-left transition-colors"
                     >
                       <div className="font-semibold text-forest-800 text-lg">
                         {team.name}
