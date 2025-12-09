@@ -23,7 +23,7 @@ interface OrgContextType {
 const OrgContext = createContext<OrgContextType | undefined>(undefined);
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
-  const { user, switchContext } = useAuth();
+  const { user } = useAuth();
   const [activeContext, setActiveContext] = useState<RoleContext | null>(null);
   const [availableContexts, setAvailableContexts] = useState<RoleContext[]>([]);
 
@@ -45,8 +45,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const switchToContext = async (scopeId: number, scopeType: 'league' | 'club') => {
-    await switchContext(scopeId, scopeType);
-    // User state will be updated via AuthContext, which will trigger the useEffect above
+    // TODO: Implement context switching via API
+    console.log('Context switch not yet implemented:', scopeId, scopeType);
   };
 
   // Helper: Check if user is league admin in active context
