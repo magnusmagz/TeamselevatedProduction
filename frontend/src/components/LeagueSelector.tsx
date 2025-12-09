@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
 const LeagueSelector: React.FC = () => {
-  const { user, isSuperAdmin } = useAuth();
+  const { user } = useAuth();
   const { activeContext, availableContexts, switchToContext } = useOrg();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
