@@ -27,6 +27,8 @@ import ProgramManagement from './modules/registration/pages/ProgramManagement';
 import PublicRegistration from './modules/registration/pages/PublicRegistration';
 import DocumentManager from './components/DocumentManager';
 import ExpirationDashboard from './components/ExpirationDashboard';
+import Invitations from './pages/Invitations';
+import AcceptInvitation from './pages/AcceptInvitation';
 import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
@@ -163,6 +165,7 @@ function AppContent() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
+          <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
           {/* Protected routes */}
           <Route path="/dashboard" element={
@@ -196,6 +199,11 @@ function AppContent() {
             </main>
           } />
           <Route path="/coaches" element={<CoachManagement />} />
+          <Route path="/invitations" element={
+            <ProtectedRoute>
+              <Invitations />
+            </ProtectedRoute>
+          } />
           <Route path="/seasons" element={
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <UnifiedProgramManagement />

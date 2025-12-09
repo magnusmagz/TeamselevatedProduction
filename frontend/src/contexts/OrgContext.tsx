@@ -30,10 +30,20 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   // Sync with user's active role from AuthContext
   useEffect(() => {
     if (user) {
-      // TODO: Get activeRole and roles from user when implemented in AuthContext
-      // For now, use empty values
-      setActiveContext(null);
-      setAvailableContexts([]);
+      // Get roles and activeRole from user (populated by backend JWT)
+      const userRoles = user.roles || [];
+      const userActiveRole = user.activeRole || null;
+
+      // If user has roles but no active role set, use the first available role
+      const active = userActiveRole || (userRoles.length > 0 ? userRoles[0] : null);
+
+      setActiveContext(active);
+      setAvailableContexts(userRoles);
+
+      // Store in localStorage for persistence
+      if (active) {
+        localStorage.setItem('active_org_context', JSON.stringify(active));
+      }
     } else {
       setActiveContext(null);
       setAvailableContexts([]);

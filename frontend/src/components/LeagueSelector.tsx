@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
 const LeagueSelector: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeContext, availableContexts, switchToContext } = useOrg();
+  const { activeContext, availableContexts, switchToContext, isLeagueAdmin, isClubAdmin } = useOrg();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -194,6 +196,44 @@ const LeagueSelector: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Invitations Link (for admins only) */}
+            {(isLeagueAdmin || isClubAdmin) && (
+              <>
+                <div className="border-t border-forest-200 my-2"></div>
+                <button
+                  onClick={() => {
+                    navigate('/invitations');
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-forest-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg
+                      className="w-4 h-4 text-forest-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-forest-800">
+                        Manage Invitations
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Invite users to your organization
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
