@@ -30,13 +30,10 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   // Sync with user's active role from AuthContext
   useEffect(() => {
     if (user) {
-      setActiveContext(user.activeRole || null);
-      setAvailableContexts(user.roles || []);
-
-      // Store active context in localStorage for persistence
-      if (user.activeRole) {
-        localStorage.setItem('active_org_context', JSON.stringify(user.activeRole));
-      }
+      // TODO: Get activeRole and roles from user when implemented in AuthContext
+      // For now, use empty values
+      setActiveContext(null);
+      setAvailableContexts([]);
     } else {
       setActiveContext(null);
       setAvailableContexts([]);
