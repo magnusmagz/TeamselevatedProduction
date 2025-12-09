@@ -193,19 +193,6 @@ const LeagueSelector: React.FC = () => {
                   )}
                 </div>
               ))}
-
-              {isSuperAdmin() && (
-                <div className="border-t border-forest-200 mt-2 pt-2">
-                  <div className="px-4 py-2">
-                    <p className="text-xs text-gray-600 uppercase font-semibold">
-                      Super Admin
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      You have system-wide access to all organizations
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </>
