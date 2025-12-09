@@ -20,6 +20,10 @@ export default function GetStarted() {
     yourName: '',
     email: '',
     phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
   });
 
   // Success data
@@ -63,10 +67,46 @@ export default function GetStarted() {
     setError(null);
 
     try {
+      // If creating a league, use the dedicated league setup endpoint
+      if (selectedRoles.includes('league')) {
+        const response = await fetch(`${API_URL}/api/league-setup.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            leagueName: formData.organizationName,
+            userName: formData.yourName,
+            userEmail: formData.email,
+            userPhone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create league');
+        }
+
+        // Store the JWT token for immediate login
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+          await refreshAuth();
+          navigate('/dashboard');
+          return;
+        }
+
+        setCreatedData(data);
+        setStep('success');
+        return;
+      }
+
+      // For other organization types, use the original endpoint
       const response = await fetch(`${API_URL}/api/organization-gateway.php?action=create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           ...formData,
           roles: selectedRoles,
@@ -95,7 +135,6 @@ export default function GetStarted() {
           const verifyResponse = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-magic-link`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({ token }),
           });
 
@@ -140,7 +179,7 @@ export default function GetStarted() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
         <div className="max-w-2xl w-full">
-          <div className="bg-white border-2 border-gray-200 p-8">
+          <div className="bg-white border border-forest-200 rounded-md p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Get Started</h1>
               <p className="text-gray-600">Tell us about yourself (select all that apply)</p>
@@ -150,10 +189,10 @@ export default function GetStarted() {
               {roles.map((role) => (
                 <label
                   key={role.id}
-                  className={`flex items-center p-4 border-2 cursor-pointer transition-colors ${
+                  className={`flex items-center p-4 border rounded-md cursor-pointer transition-colors ${
                     selectedRoles.includes(role.id)
-                      ? 'border-forest-600 bg-forest-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'bg-forest-50 border-forest-600'
+                      : 'border-forest-200 bg-white hover:bg-gray-50'
                   }`}
                 >
                   <input
@@ -168,7 +207,7 @@ export default function GetStarted() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm mb-6">
                 {error}
               </div>
             )}
@@ -176,13 +215,13 @@ export default function GetStarted() {
             <div className="space-y-3">
               <button
                 onClick={handleContinueToDetails}
-                className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 uppercase"
+                className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
               >
                 Continue
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="w-full bg-white hover:bg-gray-50 text-forest-600 font-semibold py-3 px-4 border-2 border-forest-600 transition-colors duration-200 uppercase"
+                className="w-full bg-white hover:bg-gray-50 text-forest-800 font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
               >
                 Back to Home
               </button>
@@ -198,7 +237,7 @@ export default function GetStarted() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4 py-8">
         <div className="max-w-2xl w-full">
-          <div className="bg-white border-2 border-gray-200 p-8">
+          <div className="bg-white border border-forest-200 rounded-md p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Create Your Organization</h1>
               <p className="text-gray-600">Provide your organization details</p>
@@ -216,7 +255,7 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="Enter your organization, team, or league name"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 />
               </div>
 
@@ -231,7 +270,7 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="Enter your full name"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 />
               </div>
 
@@ -246,13 +285,13 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="your.email@example.com"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  Phone Number (Optional)
+                  Phone Number {selectedRoles.includes('league') ? '(Optional but helpful)' : '(Optional)'}
                 </label>
                 <input
                   type="tel"
@@ -260,12 +299,79 @@ export default function GetStarted() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="(555) 123-4567"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                 />
               </div>
 
+              {selectedRoles.includes('league') && (
+                <>
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase">League Address (Optional but helpful)</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                          Street Address
+                        </label>
+                        <input
+                          type="text"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          placeholder="123 Main Street"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            placeholder="City"
+                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                            State
+                          </label>
+                          <input
+                            type="text"
+                            name="state"
+                            value={formData.state}
+                            onChange={handleInputChange}
+                            placeholder="State"
+                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
+                          ZIP Code
+                        </label>
+                        <input
+                          type="text"
+                          name="zipCode"
+                          value={formData.zipCode}
+                          onChange={handleInputChange}
+                          placeholder="12345"
+                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {error && (
-                <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm">
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm">
                   {error}
                 </div>
               )}
@@ -274,14 +380,14 @@ export default function GetStarted() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                  className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
                 >
                   {loading ? 'Creating...' : 'Create Organization'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep('roles')}
-                  className="w-full bg-white hover:bg-gray-50 text-forest-600 font-semibold py-3 px-4 border-2 border-forest-600 transition-colors duration-200 uppercase"
+                  className="w-full bg-white hover:bg-gray-50 text-forest-800 font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
                 >
                   Back
                 </button>
@@ -297,9 +403,9 @@ export default function GetStarted() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
-        <div className="bg-white border-2 border-gray-200 p-8">
+        <div className="bg-white border border-forest-200 rounded-md p-8">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-green-100 flex items-center justify-center mb-4">
+            <div className="mx-auto h-16 w-16 bg-green-100 rounded-md flex items-center justify-center mb-4">
               <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -313,7 +419,7 @@ export default function GetStarted() {
             </p>
 
             {createdData?.magicLink && (
-              <div className="bg-forest-50 border-2 border-forest-200 p-4 text-sm text-forest-800 mb-6">
+              <div className="bg-forest-50 border border-forest-200 rounded-md p-4 text-sm text-forest-800 mb-6">
                 <p className="font-semibold mb-2">Check your email!</p>
                 <p>We've sent you a magic link to complete your setup.</p>
               </div>
@@ -321,7 +427,7 @@ export default function GetStarted() {
 
             <button
               onClick={() => navigate('/dashboard')}
-              className="bg-forest-600 hover:bg-forest-700 text-white font-semibold py-2 px-6 transition-colors duration-200 uppercase"
+              className="bg-forest-800 hover:bg-forest-700 text-white font-semibold py-2 px-6 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
             >
               Go to Dashboard Now
             </button>

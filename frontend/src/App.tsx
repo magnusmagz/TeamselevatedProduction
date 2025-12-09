@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { OrgProvider, useOrg } from './contexts/OrgContext';
+import LeagueSelector from './components/LeagueSelector';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -78,67 +80,54 @@ const TeamRosterPage: React.FC = () => {
 };
 
 function AppContent() {
-  const [userRole, setUserRole] = useState<'club_manager' | 'coach'>('club_manager');
   const { user, logout } = useAuth();
+  const { activeContext, isLeagueAdmin, isClubAdmin } = useOrg();
+
+  // Determine if user has admin capabilities (league or club admin)
+  const isAdmin = isLeagueAdmin || isClubAdmin;
 
   return (
     <div className="min-h-screen bg-white">
         {user && (
           <nav className="bg-white border-b border-forest-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between h-16">
-                <div className="flex items-center space-x-8">
-                  <Link to="/dashboard" className="text-2xl font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
-                  <div className="flex space-x-4">
-                    {userRole === 'club_manager' ? (
-                      <>
-                        <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Teams</Link>
-                        <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Athletes</Link>
-                        <Link to="/coaches" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Coaches</Link>
-                        <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Calendar</Link>
-                        <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Documents</Link>
-                        <Link to="/venues" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Venues</Link>
-                        <Link to="/program-management" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Programs</Link>
-                      </>
-                    ) : (
-                      <>
-                        <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium">My Teams</Link>
-                        <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Athletes</Link>
-                        <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Calendar</Link>
-                        <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium">Documents</Link>
-                      </>
-                    )}
-                  </div>
+              {/* Top row: Logo and user controls */}
+              <div className="flex justify-between items-center h-12 border-b border-forest-100">
+                <Link to="/dashboard" className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
+                <div className="flex items-center space-x-4">
+                  <LeagueSelector />
+                  <button
+                    onClick={async () => {
+                      await logout();
+                      window.location.href = '/';
+                    }}
+                    className="px-4 py-2 text-forest-800 hover:text-forest-600 uppercase font-medium text-sm"
+                  >
+                    Sign Out
+                  </button>
                 </div>
-                <div className="flex items-center">
-                  <div className="relative">
-                    <select
-                      className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 pr-8 uppercase focus:outline-none appearance-none cursor-pointer"
-                      value={userRole}
-                      onChange={async (e) => {
-                        const value = e.target.value;
-                        if (value === 'sign_out') {
-                          await logout();
-                          window.location.href = '/';
-                        } else if (value === 'club_profile') {
-                          window.location.href = '/club-profile';
-                        } else {
-                          setUserRole(value as any);
-                        }
-                      }}
-                    >
-                      <option value="club_manager">Club Manager</option>
-                      {userRole === 'club_manager' && <option value="club_profile" style={{paddingLeft: '20px'}}>⤷ Club Profile</option>}
-                      <option value="coach">Coach</option>
-                      <option value="sign_out">Sign Out</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-forest-800">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+              </div>
+
+              {/* Bottom row: Navigation menu */}
+              <div className="flex space-x-6 h-12 items-center">
+                {isAdmin ? (
+                  <>
+                    <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Teams</Link>
+                    <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Athletes</Link>
+                    <Link to="/coaches" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Coaches</Link>
+                    <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Calendar</Link>
+                    <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Documents</Link>
+                    <Link to="/venues" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Venues</Link>
+                    <Link to="/program-management" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Programs</Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">My Teams</Link>
+                    <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Athletes</Link>
+                    <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Calendar</Link>
+                    <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Documents</Link>
+                  </>
+                )}
               </div>
             </div>
           </nav>
@@ -149,7 +138,7 @@ function AppContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">
-                  <Link to="/" className="text-2xl font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
+                  <Link to="/" className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
                 </div>
                 <div className="flex items-center">
                   <Link
@@ -178,7 +167,7 @@ function AppContent() {
           {/* Protected routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              {userRole === 'club_manager' ? (
+              {isAdmin ? (
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <TeamManagement />
                 </main>
@@ -220,10 +209,11 @@ function AppContent() {
           <Route path="/club-profile" element={<ClubProfilePage />} />
           <Route path="/program-management" element={<ProgramManagement />} />
           <Route path="/roster" element={
-            userRole === 'coach' ? <CoachDashboard /> :
+            isAdmin ?
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <TeamManagement />
-            </main>
+            </main> :
+            <CoachDashboard />
           } />
         </Routes>
       </div>
@@ -234,7 +224,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <OrgProvider>
+          <AppContent />
+        </OrgProvider>
       </AuthProvider>
     </Router>
   );

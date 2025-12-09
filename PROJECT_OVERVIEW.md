@@ -397,18 +397,34 @@ npm run build         # Production build
 
 **Color Scheme:**
 - Primary: "Forest" green theme
+  - `bg-forest-800`: Primary buttons and backgrounds
+  - `text-forest-800`: Primary text
+  - `border-forest-200`: Borders and dividers
+  - `bg-forest-50`: Subtle highlights
 - Custom Tailwind colors configured in `tailwind.config.js`
 
 **Typography:**
-- Uppercase headings
+- Uppercase headings and buttons
 - Bold, clean navigation
 - Accessible font sizes
+
+**Borders & Spacing:**
+- Border width: `border` (1px, not border-2)
+- Border color: `border-forest-200` for standard borders
+- Border radius: `rounded-md` (moderate rounding, not rounded-lg)
+- **No shadows** - use borders for depth instead
+
+**Form Elements:**
+- Inputs: `bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2`
+- Focus state: `focus:outline-none focus:border-forest-600`
+- Buttons: `border border-forest-200 rounded-md` with appropriate bg color
 
 **UI Patterns:**
 - Tab-based forms
 - Modal dialogs
 - Responsive tables
-- Card-based layouts
+- Card-based layouts: `border border-forest-200 rounded-md` with `bg-white`
+- Selection states: Change border to `border-forest-600` and add `bg-forest-50`
 
 ---
 
