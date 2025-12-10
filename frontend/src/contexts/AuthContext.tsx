@@ -1,9 +1,27 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
+interface RoleContext {
+  role: 'league_admin' | 'club_admin' | 'coach' | 'parent' | 'player';
+  scope_type: 'league' | 'club' | 'team';
+  scope_id: number;
+  scope_name: string;
+  league_id?: number;
+}
+
+interface Organization {
+  orgId: number | null;
+  orgType: 'league' | 'club' | null;
+  orgName: string | null;
+}
+
 interface User {
   id: number;
   email: string;
   name: string;
+  system_role?: 'super_admin' | 'user';
+  organization?: Organization;
+  roles?: RoleContext[];
+  activeRole?: RoleContext | null;
 }
 
 interface AuthContextType {
@@ -13,6 +31,9 @@ interface AuthContextType {
   login: (token: string, user: User) => void;
   refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
+  switchContext: (scopeId: number, scopeType: 'league' | 'club') => Promise<void>;
+  hasPermission: (permission: string) => boolean;
+  isSuperAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,6 +126,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const switchContext = async (scopeId: number, scopeType: 'league' | 'club') => {
+    try {
+      console.log('[AuthContext] switchContext - Switching to:', { scopeId, scopeType });
+      setIsLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=switch-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          scope_id: scopeId,
+          scope_type: scopeType
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Context switch failed');
+      }
+
+      const data = await response.json();
+      console.log('[AuthContext] switchContext - Success:', data);
+
+      // Update token and user
+      if (data.token && data.user) {
+        localStorage.setItem('auth_token', data.token);
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error('[AuthContext] switchContext - Error:', err);
+      setError(err instanceof Error ? err : new Error('Context switch failed'));
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    if (!user) return false;
+
+    // Super admins have all permissions
+    if (user.system_role === 'super_admin') return true;
+
+    // Check if user has the required role
+    const activeRole = user.activeRole?.role;
+
+    // Permission mapping (simplified - can be expanded)
+    const permissionRoleMap: { [key: string]: string[] } = {
+      'create_league': ['super_admin'],
+      'manage_league': ['super_admin', 'league_admin'],
+      'create_club': ['super_admin', 'league_admin'],
+      'manage_club': ['super_admin', 'league_admin', 'club_admin'],
+      'create_team': ['super_admin', 'league_admin', 'club_admin'],
+      'manage_team': ['super_admin', 'league_admin', 'club_admin', 'coach'],
+      'view_team': ['super_admin', 'league_admin', 'club_admin', 'coach', 'parent'],
+    };
+
+    const requiredRoles = permissionRoleMap[permission] || [];
+    return activeRole ? requiredRoles.includes(activeRole) : false;
+  };
+
+  const isSuperAdmin = (): boolean => {
+    return user?.system_role === 'super_admin';
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -114,7 +209,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, error, login, refreshAuth, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      isLoading,
+      error,
+      login,
+      refreshAuth,
+      logout,
+      switchContext,
+      hasPermission,
+      isSuperAdmin
+    }}>
       {children}
     </AuthContext.Provider>
   );
