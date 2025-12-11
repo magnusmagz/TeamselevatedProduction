@@ -29,6 +29,7 @@ import DocumentManager from './components/DocumentManager';
 import ExpirationDashboard from './components/ExpirationDashboard';
 import Invitations from './pages/Invitations';
 import AcceptInvitation from './pages/AcceptInvitation';
+import LeagueSettings from './pages/LeagueSettings';
 import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
@@ -216,6 +217,11 @@ function AppContent() {
           } />
           <Route path="/club-profile" element={<ClubProfilePage />} />
           <Route path="/program-management" element={<ProgramManagement />} />
+          <Route path="/league-settings" element={
+            <ProtectedRoute>
+              <LeagueSettings />
+            </ProtectedRoute>
+          } />
           <Route path="/roster" element={
             isAdmin ?
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
