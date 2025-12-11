@@ -90,18 +90,40 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     setShowForm(true);
   };
 
+  const handleEditCoach = (coach: Coach) => {
+    setSelectedCoach(coach);
+    setFormData({
+      first_name: coach.first_name,
+      last_name: coach.last_name,
+      email: coach.email,
+      phone: coach.phone || '',
+      password: '',
+      role: 'coach'
+    });
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=create`, {
-        method: 'POST',
+      const isEditing = selectedCoach !== null;
+      const url = isEditing
+        ? `${API_URL}/legacy/coaches-gateway.php?action=update&id=${selectedCoach.id}`
+        : `${API_URL}/legacy/coaches-gateway.php?action=create`;
+
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        alert('Coach created successfully! Default password is: password123');
+        if (isEditing) {
+          alert('Coach updated successfully!');
+        } else {
+          alert('Coach created successfully! Default password is: password123');
+        }
         setFormData({
           first_name: '',
           last_name: '',
@@ -110,15 +132,16 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
           password: 'password123',
           role: 'coach'
         });
+        setSelectedCoach(null);
         setShowForm(false);
         fetchCoaches();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create coach');
+        alert(error.error || `Failed to ${isEditing ? 'update' : 'create'} coach`);
       }
     } catch (error) {
-      console.error('Error creating coach:', error);
-      alert('Failed to create coach');
+      console.error(`Error ${selectedCoach ? 'updating' : 'creating'} coach:`, error);
+      alert(`Failed to ${selectedCoach ? 'update' : 'create'} coach`);
     }
   };
 
@@ -169,9 +192,14 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
                   <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
+                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">
+                      {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
+                    </h4>
                     <button
-                      onClick={() => setShowForm(false)}
+                      onClick={() => {
+                        setShowForm(false);
+                        setSelectedCoach(null);
+                      }}
                       className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
                     >
                       ×
@@ -266,7 +294,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           type="submit"
                           className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
                         >
-                          Create Coach
+                          {selectedCoach ? 'Update Coach' : 'Create Coach'}
                         </button>
                       </div>
                     </div>
@@ -348,7 +376,10 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button className="text-forest-800 hover:underline mr-4 uppercase text-xs">
+                          <button
+                            onClick={() => handleEditCoach(coach)}
+                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                          >
                             Edit
                           </button>
                           <button
@@ -442,9 +473,14 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
                   <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">Add New Coach</h4>
+                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">
+                      {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
+                    </h4>
                     <button
-                      onClick={() => setShowForm(false)}
+                      onClick={() => {
+                        setShowForm(false);
+                        setSelectedCoach(null);
+                      }}
                       className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
                     >
                       ×
@@ -539,7 +575,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           type="submit"
                           className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
                         >
-                          Create Coach
+                          {selectedCoach ? 'Update Coach' : 'Create Coach'}
                         </button>
                       </div>
                     </div>
@@ -615,7 +651,10 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-forest-800 hover:underline mr-4 uppercase text-xs">
+                          <button
+                            onClick={() => handleEditCoach(coach)}
+                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                          >
                             Edit
                           </button>
                           <button
