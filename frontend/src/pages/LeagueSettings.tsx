@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import LeagueInfoForm from '../components/LeagueInfoForm';
 import LeagueUserManagement from '../components/LeagueUserManagement';
+import LeagueDocuments from '../components/LeagueDocuments';
 
 const LeagueSettings: React.FC = () => {
   const { activeContext, isLeagueAdmin, currentLeagueId } = useOrg();
-  const [activeTab, setActiveTab] = useState<'info' | 'users'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'users' | 'documents'>('info');
 
   // Only league admins can access this page
   if (!isLeagueAdmin || !currentLeagueId) {
@@ -65,6 +66,18 @@ const LeagueSettings: React.FC = () => {
           >
             User Management
           </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`
+              py-4 px-1 border-b-2 font-medium text-sm uppercase
+              ${activeTab === 'documents'
+                ? 'border-forest-600 text-forest-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+            `}
+          >
+            Document Hub
+          </button>
         </nav>
       </div>
 
@@ -75,6 +88,9 @@ const LeagueSettings: React.FC = () => {
         )}
         {activeTab === 'users' && (
           <LeagueUserManagement leagueId={currentLeagueId} />
+        )}
+        {activeTab === 'documents' && (
+          <LeagueDocuments leagueId={currentLeagueId} />
         )}
       </div>
     </main>
