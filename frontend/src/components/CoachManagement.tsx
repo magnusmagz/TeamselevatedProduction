@@ -7,7 +7,6 @@ interface Coach {
   first_name: string;
   last_name: string;
   email: string;
-  phone: string;
   team_count: number;
   teams?: { id: number; name: string }[];
 }
@@ -29,7 +28,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     first_name: '',
     last_name: '',
     email: '',
-    phone: '',
     password: 'password123',
     role: 'coach'
   });
@@ -83,7 +81,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       first_name: '',
       last_name: '',
       email: '',
-      phone: '',
       password: 'password123',
       role: 'coach'
     });
@@ -96,7 +93,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       first_name: coach.first_name,
       last_name: coach.last_name,
       email: coach.email,
-      phone: coach.phone || '',
       password: '',
       role: 'coach'
     });
@@ -128,7 +124,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
           first_name: '',
           last_name: '',
           email: '',
-          phone: '',
           password: 'password123',
           role: 'coach'
         });
@@ -233,7 +228,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         />
                       </div>
 
-                      <div>
+                      <div className="col-span-2">
                         <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
                           Email *
                         </label>
@@ -243,33 +238,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
-                          Phone
-                        </label>
-                        <input
-                          type="tel"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
-                          value={formData.phone}
-                          onChange={(e) => {
-                            // Remove non-digits and format
-                            const digits = e.target.value.replace(/\D/g, '');
-                            if (digits.length <= 10) {
-                              // Format as (XXX) XXX-XXXX
-                              let formatted = digits;
-                              if (digits.length >= 6) {
-                                formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-                              } else if (digits.length >= 3) {
-                                formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-                              }
-                              setFormData({ ...formData, phone: formatted });
-                            }
-                          }}
-                          placeholder="(555) 555-5555"
-                          maxLength={14}
                         />
                       </div>
 
@@ -331,9 +299,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         Email
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
-                        Phone
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
                         Teams
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
@@ -357,9 +322,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-forest-800">{coach.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-forest-800">{coach.phone || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-forest-800">
@@ -514,7 +476,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         />
                       </div>
 
-                      <div>
+                      <div className="col-span-2">
                         <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
                           Email *
                         </label>
@@ -524,33 +486,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
-                          Phone
-                        </label>
-                        <input
-                          type="tel"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
-                          value={formData.phone}
-                          onChange={(e) => {
-                            // Remove non-digits and format
-                            const digits = e.target.value.replace(/\D/g, '');
-                            if (digits.length <= 10) {
-                              // Format as (XXX) XXX-XXXX
-                              let formatted = digits;
-                              if (digits.length >= 6) {
-                                formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-                              } else if (digits.length >= 3) {
-                                formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-                              }
-                              setFormData({ ...formData, phone: formatted });
-                            }
-                          }}
-                          placeholder="(555) 555-5555"
-                          maxLength={14}
                         />
                       </div>
 
@@ -612,9 +547,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         Email
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
-                        Phone
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
                         Teams
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
@@ -638,9 +570,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
                           {coach.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
-                          {coach.phone || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
                           {coach.team_count > 0 ? coach.team_count : '0'}
