@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
 import LeagueSelector from './components/LeagueSelector';
+import BrandingLogo from './components/BrandingLogo';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -96,7 +97,9 @@ function AppContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {/* Top row: Logo and user controls */}
               <div className="flex justify-between items-center h-12 border-b border-forest-100">
-                <Link to="/dashboard" className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
+                <Link to="/dashboard" className="flex items-center">
+                  <BrandingLogo size="md" fallbackToText={true} />
+                </Link>
                 <div className="flex items-center space-x-4">
                   <LeagueSelector />
                   <button
@@ -141,7 +144,9 @@ function AppContent() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">
-                  <Link to="/" className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</Link>
+                  <Link to="/" className="flex items-center">
+                    <span className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</span>
+                  </Link>
                 </div>
                 <div className="flex items-center">
                   <Link
