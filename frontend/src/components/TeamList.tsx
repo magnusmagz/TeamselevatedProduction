@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import SmartScheduler from './SmartScheduler';
 
@@ -9,6 +10,7 @@ interface Team {
   division: string;
   season_name: string;
   coach_name: string;
+  primary_coach_id: number | null;
   player_count: number;
   home_field_name: string;
 }
@@ -94,7 +96,16 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
-                {team.coach_name || 'Unassigned'}
+                {team.primary_coach_id ? (
+                  <Link
+                    to={`/coach/${team.primary_coach_id}`}
+                    className="text-forest-800 font-medium hover:underline hover:text-forest-600"
+                  >
+                    {team.coach_name}
+                  </Link>
+                ) : (
+                  <span className="text-gray-500">Unassigned</span>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
                 {team.player_count}

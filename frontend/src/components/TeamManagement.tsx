@@ -13,6 +13,7 @@ interface Team {
   division: string;
   season_name: string;
   coach_name: string;
+  primary_coach_id: number | null;
   player_count: number;
   home_field_name: string;
 }

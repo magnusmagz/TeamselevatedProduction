@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 
 interface Coach {
@@ -316,9 +316,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         className="border-b border-gray-300 hover:bg-gray-50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-forest-800 font-medium">
+                          <Link
+                            to={`/coach/${coach.id}`}
+                            className="text-forest-800 font-medium hover:underline hover:text-forest-600"
+                          >
                             {coach.first_name} {coach.last_name}
-                          </div>
+                          </Link>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-forest-800">{coach.email}</div>
