@@ -33,6 +33,7 @@ import Invitations from './pages/Invitations';
 import AcceptInvitation from './pages/AcceptInvitation';
 import LeagueSettings from './pages/LeagueSettings';
 import UserProfile from './pages/UserProfile';
+import CoachProfile from './pages/CoachProfile';
 import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
@@ -199,6 +200,13 @@ function AppContent() {
             </main>
           } />
           <Route path="/coaches" element={<CoachManagement />} />
+          <Route path="/coach/:id" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <CoachProfile />
+              </main>
+            </ProtectedRoute>
+          } />
           <Route path="/invitations" element={
             <ProtectedRoute>
               <Invitations />
