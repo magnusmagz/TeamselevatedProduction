@@ -8,6 +8,8 @@ interface CoachProfileData {
   phone: string | null;
   profile_image_url: string | null;
   coaching_background: string | null;
+  archived: boolean;
+  created_at: string;
 }
 
 interface CoachProfileEditProps {

@@ -7,6 +7,7 @@ interface Coach {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string | null;
   team_count: number;
   teams?: { id: number; name: string }[];
 }
@@ -28,6 +29,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     first_name: '',
     last_name: '',
     email: '',
+    phone: '',
     password: 'password123',
     role: 'coach'
   });
@@ -341,6 +343,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => navigate(`/coach/${coach.id}`)}
+                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                          >
+                            View Profile
+                          </button>
                           <button
                             onClick={() => handleEditCoach(coach)}
                             className="text-forest-800 hover:underline mr-4 uppercase text-xs"
