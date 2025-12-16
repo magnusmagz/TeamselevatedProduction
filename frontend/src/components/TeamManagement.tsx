@@ -143,12 +143,19 @@ const TeamManagement: React.FC = () => {
             onChange={(e) => setFilters({ ...filters, age_group: e.target.value })}
           >
             <option value="">All Age Groups</option>
+            <option value="U5">U5</option>
             <option value="U6">U6</option>
+            <option value="U7">U7</option>
             <option value="U8">U8</option>
+            <option value="U9">U9</option>
             <option value="U10">U10</option>
+            <option value="U11">U11</option>
             <option value="U12">U12</option>
+            <option value="U13">U13</option>
             <option value="U14">U14</option>
+            <option value="U15">U15</option>
             <option value="U16">U16</option>
+            <option value="U17">U17</option>
             <option value="U18">U18</option>
             <option value="Adult">Adult</option>
           </select>
