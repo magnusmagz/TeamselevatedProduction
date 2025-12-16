@@ -83,7 +83,7 @@ const LeagueBranding: React.FC<LeagueBrandingProps> = ({ leagueId }) => {
       <LogoColorExtractor
         initialData={initialData}
         onSave={handleSave}
-        maxFileSize={500 * 1024}
+        maxFileSize={2 * 1024 * 1024}
       />
     </div>
   );

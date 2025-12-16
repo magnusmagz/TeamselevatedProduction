@@ -24,7 +24,7 @@ interface LogoColorExtractorProps {
 export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
   initialData = {},
   onSave,
-  maxFileSize = 500 * 1024 // 500KB default
+  maxFileSize = 2 * 1024 * 1024 // 2MB default
 }) => {
   const [logoData, setLogoData] = useState<string | undefined>(initialData.logoData);
   const [logoFilename, setLogoFilename] = useState<string | undefined>(initialData.logoFilename);
@@ -74,7 +74,11 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
     }
 
     if (file.size > maxFileSize) {
-      setError(`File size must be less than ${Math.round(maxFileSize / 1024)}KB`);
+      const sizeMB = maxFileSize / (1024 * 1024);
+      const sizeDisplay = sizeMB >= 1
+        ? `${sizeMB}MB`
+        : `${Math.round(maxFileSize / 1024)}KB`;
+      setError(`File size must be less than ${sizeDisplay}`);
       return;
     }
 
@@ -195,7 +199,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                 <p className="mt-2 text-sm text-gray-600">or drag and drop</p>
               </div>
               <p className="text-xs text-gray-500">
-                PNG, JPG, GIF up to {Math.round(maxFileSize / 1024)}KB
+                PNG, JPG, GIF up to {maxFileSize >= 1024 * 1024 ? `${maxFileSize / (1024 * 1024)}MB` : `${Math.round(maxFileSize / 1024)}KB`}
               </p>
             </div>
           )}
