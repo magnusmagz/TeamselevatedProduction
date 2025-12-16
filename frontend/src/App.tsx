@@ -96,9 +96,9 @@ function AppContent() {
           <nav className="bg-white border-b border-forest-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {/* Top row: Logo and user controls */}
-              <div className="flex justify-between items-center h-12 border-b border-forest-100">
+              <div className="flex justify-between items-center h-20 border-b border-forest-100">
                 <Link to="/dashboard" className="flex items-center">
-                  <BrandingLogo size="md" fallbackToText={true} />
+                  <BrandingLogo size="xl" fallbackToText={true} />
                 </Link>
                 <div className="flex items-center space-x-4">
                   <LeagueSelector />

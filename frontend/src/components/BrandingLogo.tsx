@@ -15,7 +15,7 @@ interface BrandingLogoProps {
   contextType?: 'league' | 'club' | 'team';
   contextId?: number;
   fallbackToText?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -54,13 +54,15 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
   const sizeClasses = {
     sm: 'h-6',
     md: 'h-8',
-    lg: 'h-12'
+    lg: 'h-12',
+    xl: 'h-16'
   };
 
   const textSizeClasses = {
     sm: 'text-sm',
     md: 'text-lg',
-    lg: 'text-2xl'
+    lg: 'text-2xl',
+    xl: 'text-3xl'
   };
 
   const fetchBranding = useCallback(async (type: string, id: number | null) => {
