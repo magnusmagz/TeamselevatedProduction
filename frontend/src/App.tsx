@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
 import LeagueSelector from './components/LeagueSelector';
 import BrandingLogo from './components/BrandingLogo';
+import ProfileMenu from './components/ProfileMenu';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -31,6 +32,7 @@ import ExpirationDashboard from './components/ExpirationDashboard';
 import Invitations from './pages/Invitations';
 import AcceptInvitation from './pages/AcceptInvitation';
 import LeagueSettings from './pages/LeagueSettings';
+import UserProfile from './pages/UserProfile';
 import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
@@ -102,15 +104,7 @@ function AppContent() {
                 </Link>
                 <div className="flex items-center space-x-4">
                   <LeagueSelector />
-                  <button
-                    onClick={async () => {
-                      await logout();
-                      window.location.href = '/';
-                    }}
-                    className="px-4 py-2 text-forest-800 hover:text-forest-600 uppercase font-medium text-sm"
-                  >
-                    Sign Out
-                  </button>
+                  <ProfileMenu />
                 </div>
               </div>
 
@@ -225,6 +219,13 @@ function AppContent() {
           <Route path="/league-settings" element={
             <ProtectedRoute>
               <LeagueSettings />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <UserProfile />
+              </main>
             </ProtectedRoute>
           } />
           <Route path="/roster" element={

@@ -29,6 +29,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: Error | null;
   login: (token: string, user: User) => void;
+  updateUser: (userData: Partial<User>) => void;
   refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
   switchContext: (scopeId: number, scopeType: 'league' | 'club') => Promise<void>;
@@ -99,6 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (token: string, userData: User) => {
     localStorage.setItem('auth_token', token);
     setUser(userData);
+  };
+
+  const updateUser = (userData: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null;
+      return { ...prevUser, ...userData };
+    });
   };
 
   const logout = async () => {
@@ -214,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       error,
       login,
+      updateUser,
       refreshAuth,
       logout,
       switchContext,
