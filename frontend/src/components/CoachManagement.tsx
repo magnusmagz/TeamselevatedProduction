@@ -83,6 +83,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       first_name: '',
       last_name: '',
       email: '',
+      phone: '',
       password: 'password123',
       role: 'coach'
     });
@@ -95,6 +96,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       first_name: coach.first_name,
       last_name: coach.last_name,
       email: coach.email,
+      phone: coach.phone || '',
       password: '',
       role: 'coach'
     });
@@ -126,6 +128,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
           first_name: '',
           last_name: '',
           email: '',
+          phone: '',
           password: 'password123',
           role: 'coach'
         });
