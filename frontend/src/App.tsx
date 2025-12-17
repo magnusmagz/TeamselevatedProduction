@@ -199,7 +199,11 @@ function AppContent() {
               <AthleteManagement />
             </main>
           } />
-          <Route path="/coaches" element={<CoachManagement />} />
+          <Route path="/coaches" element={
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <CoachManagement />
+            </main>
+          } />
           <Route path="/coach/:id" element={
             <ProtectedRoute>
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
