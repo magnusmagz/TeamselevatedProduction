@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import SmartScheduler from './SmartScheduler';
 
@@ -22,6 +22,7 @@ interface TeamListProps {
 }
 
 const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
+  const navigate = useNavigate();
   const [showScheduler, setShowScheduler] = useState(false);
   const [showSmartScheduler, setShowSmartScheduler] = useState(false);
   const [selectedTeamForSchedule, setSelectedTeamForSchedule] = useState<Team | null>(null);
@@ -96,16 +97,18 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
-                {team.primary_coach_id ? (
-                  <Link
-                    to={`/coach/${team.primary_coach_id}`}
-                    className="text-forest-800 font-medium hover:underline hover:text-forest-600"
-                  >
-                    {team.coach_name}
-                  </Link>
-                ) : (
-                  <span className="text-gray-500">Unassigned</span>
-                )}
+                <div>
+                  {team.primary_coach_id ? (
+                    <Link
+                      to={`/coach/${team.primary_coach_id}`}
+                      className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                    >
+                      {team.coach_name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-500">Unassigned</span>
+                  )}
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
                 {team.player_count}

@@ -321,12 +321,14 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         className="border-b border-gray-300 hover:bg-gray-50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Link
-                            to={`/coach/${coach.id}`}
-                            className="text-forest-800 font-medium hover:underline hover:text-forest-600"
-                          >
-                            {coach.first_name} {coach.last_name}
-                          </Link>
+                          <div>
+                            <Link
+                              to={`/coach/${coach.id}`}
+                              className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                            >
+                              {coach.first_name} {coach.last_name}
+                            </Link>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-forest-800">{coach.email}</div>
@@ -346,12 +348,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => navigate(`/coach/${coach.id}`)}
-                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
-                          >
-                            View Profile
-                          </button>
                           <button
                             onClick={() => handleEditCoach(coach)}
                             className="text-forest-800 hover:underline mr-4 uppercase text-xs"
@@ -578,8 +574,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         className="border-b border-gray-300 hover:bg-gray-50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          <div className="text-sm font-medium text-forest-800">
-                            {coach.first_name} {coach.last_name}
+                          <div>
+                            <Link
+                              to={`/coach/${coach.id}`}
+                              className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                            >
+                              {coach.first_name} {coach.last_name}
+                            </Link>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
