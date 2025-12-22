@@ -38,7 +38,7 @@ interface Stats {
 type TabType = 'about' | 'teams' | 'forms' | 'activities' | 'resources';
 
 const CoachProfile: React.FC = () => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/teamselevated-backend';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();

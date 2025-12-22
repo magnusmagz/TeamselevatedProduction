@@ -19,7 +19,7 @@ interface CoachProfileEditProps {
 }
 
 const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onSave }) => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/teamselevated-backend';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
   const [formData, setFormData] = useState({
     first_name: coach.first_name,
