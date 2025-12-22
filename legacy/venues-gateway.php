@@ -83,7 +83,7 @@ try {
             try {
                 // Insert venue
                 $stmt = $connection->prepare("
-                    INSERT INTO venues (name, address, city, state, zip, map_url, website)
+                    INSERT INTO venues (name, address, city, state, zip_code, map_url, website)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
@@ -91,7 +91,7 @@ try {
                     $data['address'],
                     $data['city'] ?? null,
                     $data['state'] ?? null,
-                    $data['zip'] ?? null,
+                    $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
                     $data['website'] ?? null
                 ]);
@@ -144,7 +144,7 @@ try {
                 // Update venue
                 $stmt = $connection->prepare("
                     UPDATE venues
-                    SET name = ?, address = ?, city = ?, state = ?, zip = ?, map_url = ?, website = ?
+                    SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?
                     WHERE id = ?
                 ");
                 $stmt->execute([
@@ -152,7 +152,7 @@ try {
                     $data['address'],
                     $data['city'] ?? null,
                     $data['state'] ?? null,
-                    $data['zip'] ?? null,
+                    $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
                     $data['website'] ?? null,
                     $venue_id
