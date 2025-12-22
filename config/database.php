@@ -24,14 +24,12 @@ class Database {
 
         try {
             // PostgreSQL connection with SSL (required by Neon)
-            error_log("DEBUG DB CONFIG - host: '{$this->host}' port: '{$this->port}' dbname: '{$this->db_name}'");
             $dsn = sprintf(
                 "pgsql:host=%s;port=%d;dbname=%s;sslmode=require",
                 $this->host,
                 $this->port,
                 $this->db_name
             );
-            error_log("DEBUG DSN: {$dsn}");
 
             $this->connection = new PDO(
                 $dsn,
