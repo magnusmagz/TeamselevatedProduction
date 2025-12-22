@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LeagueInfoFormProps {
   leagueId: number;
@@ -21,6 +22,7 @@ interface LeagueData {
 
 const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const { refreshAuth } = useAuth();
   const [league, setLeague] = useState<LeagueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,6 +83,10 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
       }
 
       setSuccess('League information updated successfully!');
+
+      // Refresh auth context to update the league name in the dropdown
+      await refreshAuth();
+
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update league');

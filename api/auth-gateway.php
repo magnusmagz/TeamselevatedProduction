@@ -242,6 +242,8 @@ function handleVerifyMagicLink($db, $input) {
  * Verify current session (check if user is authenticated)
  */
 function handleVerifySession() {
+    global $db;
+
     // Check for JWT in Authorization header first, then fall back to cookie
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     $jwt = null;
@@ -273,21 +275,47 @@ function handleVerifySession() {
         return;
     }
 
-    // Token is valid - return full organizational context
+    // Regenerate JWT with fresh database data (including updated league/club names)
+    $userId = $payload->user_id;
+    $stmt = $db->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        echo json_encode([
+            'authenticated' => false,
+            'user' => null
+        ]);
+        return;
+    }
+
+    // Get active context from current token (to maintain user's context selection)
+    $activeContextScopeId = $payload->active_context->scope_id ?? null;
+    $activeContextType = $payload->active_context->scope_type ?? null;
+
+    // Generate fresh JWT with updated data from database
+    $userName = trim($user['first_name'] . ' ' . $user['last_name']);
+    $freshJwt = JWT::generateEnhanced($db, $user['id'], $user['email'], $userName, $activeContextScopeId, $activeContextType);
+
+    // Decode the fresh token to get updated payload
+    $freshPayload = JWT::decode($freshJwt);
+
+    // Token is valid - return full organizational context with fresh data
     echo json_encode([
         'authenticated' => true,
+        'token' => $freshJwt,  // Return the fresh token
         'user' => [
-            'id' => isset($payload->user_id) ? (int)$payload->user_id : null,
-            'email' => $payload->email ?? null,
-            'name' => $payload->name ?? null,
-            'system_role' => $payload->system_role ?? 'user',
+            'id' => (int)$user['id'],
+            'email' => $user['email'],
+            'name' => $userName,
+            'system_role' => $freshPayload->system_role ?? 'user',
             'organization' => [
-                'orgId' => $payload->org_id ?? null,
-                'orgType' => $payload->org_type ?? null,
-                'orgName' => $payload->org_name ?? null
+                'orgId' => $freshPayload->org_id ?? null,
+                'orgType' => $freshPayload->org_type ?? null,
+                'orgName' => $freshPayload->org_name ?? null
             ],
-            'roles' => $payload->roles ?? [],
-            'activeRole' => $payload->active_context ?? null
+            'roles' => $freshPayload->roles ?? [],
+            'activeRole' => $freshPayload->active_context ?? null
         ]
     ]);
 }

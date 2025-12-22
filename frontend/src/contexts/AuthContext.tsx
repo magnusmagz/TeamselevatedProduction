@@ -77,6 +77,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.authenticated && data.user) {
           console.log('[AuthContext] checkAuth - User authenticated:', data.user);
           setUser(data.user);
+
+          // If a fresh token is returned, update it in localStorage
+          if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+          }
         } else {
           console.log('[AuthContext] checkAuth - Not authenticated');
           setUser(null);
