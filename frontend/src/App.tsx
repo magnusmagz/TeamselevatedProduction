@@ -35,6 +35,12 @@ import LeagueSettings from './pages/LeagueSettings';
 import UserProfile from './pages/UserProfile';
 import CoachProfile from './pages/CoachProfile';
 import { useParams } from 'react-router-dom';
+// Payment components
+import { DemoModeBanner } from './components/DemoModeBanner';
+import { RevenueDashboard } from './pages/RevenueDashboard';
+import { PaymentItemsList } from './pages/PaymentItemsList';
+import { AthletePaymentsDashboard } from './pages/AthletePaymentsDashboard';
+import { PaymentCheckout } from './pages/PaymentCheckout';
 
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
@@ -95,6 +101,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
+        <DemoModeBanner />
         {user && (
           <nav className="bg-white border-b border-forest-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,6 +253,32 @@ function AppContent() {
               <TeamManagement />
             </main> :
             <CoachDashboard />
+          } />
+
+          {/* Payment routes */}
+          <Route path="/payment/revenue" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <RevenueDashboard />
+              </main>
+            </ProtectedRoute>
+          } />
+          <Route path="/payment/items" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <PaymentItemsList />
+              </main>
+            </ProtectedRoute>
+          } />
+          <Route path="/athlete/:athleteId/payments" element={
+            <ProtectedRoute>
+              <AthletePaymentsDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/payment/checkout/:athleteId/:paymentId?" element={
+            <ProtectedRoute>
+              <PaymentCheckout />
+            </ProtectedRoute>
           } />
         </Routes>
       </div>
