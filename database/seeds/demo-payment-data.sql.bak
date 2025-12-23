@@ -1,0 +1,383 @@
+-- ============================================
+-- DEMO PAYMENT DATA SEED SCRIPT
+-- Teams Elevated - Revenue Collection Demo
+-- ============================================
+-- This script generates realistic demo data for showcasing
+-- the payment collection and reporting system
+-- ============================================
+
+-- IMPORTANT: Run this AFTER the payment schema migration
+-- This assumes leagues, clubs, and users already exist
+
+BEGIN;
+
+-- ============================================
+-- 1. CLEAR EXISTING PAYMENT DATA (Demo Only!)
+-- ============================================
+TRUNCATE TABLE payment_transactions CASCADE;
+TRUNCATE TABLE payment_installments CASCADE;
+TRUNCATE TABLE athlete_payments CASCADE;
+TRUNCATE TABLE scholarship_applications CASCADE;
+TRUNCATE TABLE scholarships CASCADE;
+TRUNCATE TABLE discount_codes CASCADE;
+TRUNCATE TABLE payment_items CASCADE;
+TRUNCATE TABLE payment_plans CASCADE;
+
+-- Keep programs but clear payment-related data
+-- DELETE FROM programs WHERE name LIKE '%Demo%'; -- Optional
+
+-- ============================================
+-- 2. CREATE DEMO PROGRAMS
+-- ============================================
+-- Assuming league_id = 1 and club_id = 1 exist (adjust as needed)
+
+INSERT INTO programs (name, description, league_id, club_id, season_type, age_min, age_max, skill_level, start_date, end_date, capacity, gender, active, status)
+VALUES
+    ('Fall Soccer - U10', 'Recreational soccer program for ages 8-10', 1, 1, 'Fall', 8, 10, 'Beginner', '2024-09-01', '2024-11-30', 30, 'Mixed', true, 'active'),
+    ('Fall Soccer - U12', 'Competitive soccer program for ages 11-12', 1, 1, 'Fall', 11, 12, 'Intermediate', '2024-09-01', '2024-11-30', 25, 'Mixed', true, 'active'),
+    ('Winter Basketball - U14', 'Indoor basketball league for ages 13-14', 1, 1, 'Winter', 13, 14, 'Intermediate', '2024-12-01', '2025-03-15', 28, 'Mixed', true, 'active'),
+    ('Spring Baseball - U11', 'Youth baseball program for ages 10-11', 1, 1, 'Spring', 10, 11, 'Beginner', '2025-03-01', '2025-05-31', 32, 'Mixed', true, 'active'),
+    ('Summer Camp - Multi-Sport', 'Week-long multi-sport summer camp', 1, 1, 'Summer', 6, 16, 'Beginner', '2025-06-15', '2025-06-19', 50, 'Mixed', true, 'active')
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- 3. CREATE PAYMENT PLANS
+-- ============================================
+INSERT INTO payment_plans (name, description, total_installments, frequency, down_payment_percentage, league_id, club_id, auto_pay_required, late_fee_amount, grace_period_days, active)
+VALUES
+    ('3-Month Payment Plan', 'Pay over 3 months with auto-pay', 3, 'monthly', 25.00, 1, 1, true, 10.00, 5, true),
+    ('6-Month Payment Plan', 'Extended payment plan over 6 months', 6, 'monthly', 15.00, 1, 1, true, 10.00, 5, true),
+    ('Seasonal Plan (4 months)', 'Pay over the season duration', 4, 'monthly', 20.00, 1, 1, true, 15.00, 3, true),
+    ('Weekly Plan', 'Pay weekly over 8 weeks', 8, 'weekly', 10.00, 1, 1, true, 5.00, 2, true)
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- 4. CREATE PAYMENT ITEMS
+-- ============================================
+-- Get program IDs (assuming they were just inserted or exist)
+DO $$
+DECLARE
+    prog_soccer_u10 INTEGER;
+    prog_soccer_u12 INTEGER;
+    prog_basketball INTEGER;
+    prog_baseball INTEGER;
+    prog_camp INTEGER;
+BEGIN
+    SELECT id INTO prog_soccer_u10 FROM programs WHERE name = 'Fall Soccer - U10' LIMIT 1;
+    SELECT id INTO prog_soccer_u12 FROM programs WHERE name = 'Fall Soccer - U12' LIMIT 1;
+    SELECT id INTO prog_basketball FROM programs WHERE name = 'Winter Basketball - U14' LIMIT 1;
+    SELECT id INTO prog_baseball FROM programs WHERE name = 'Spring Baseball - U11' LIMIT 1;
+    SELECT id INTO prog_camp FROM programs WHERE name = 'Summer Camp - Multi-Sport' LIMIT 1;
+
+    -- Fall Soccer U10 Payment Items
+    INSERT INTO payment_items (name, description, item_type, base_price, league_id, club_id, program_id, is_recurring, is_required, allow_payment_plan, active)
+    VALUES
+        ('Fall Soccer U10 - Registration', 'One-time registration fee for Fall Soccer U10', 'registration', 150.00, 1, 1, prog_soccer_u10, false, true, true, true),
+        ('Fall Soccer U10 - Monthly Dues', 'Monthly dues for Fall Soccer U10 (3 months)', 'dues', 45.00, 1, 1, prog_soccer_u10, true, true, true, true),
+        ('Fall Soccer U10 - Uniform', 'Team uniform (jersey, shorts, socks)', 'uniform', 75.00, 1, 1, prog_soccer_u10, false, true, false, true),
+        ('Fall Soccer U10 - Equipment Fee', 'Soccer balls and training equipment', 'merchandise', 25.00, 1, 1, prog_soccer_u10, false, false, false, true);
+
+    -- Fall Soccer U12 Payment Items
+    INSERT INTO payment_items (name, description, item_type, base_price, league_id, club_id, program_id, is_recurring, is_required, allow_payment_plan, active)
+    VALUES
+        ('Fall Soccer U12 - Registration', 'One-time registration fee for Fall Soccer U12', 'registration', 200.00, 1, 1, prog_soccer_u12, false, true, true, true),
+        ('Fall Soccer U12 - Monthly Dues', 'Monthly dues for Fall Soccer U12 (3 months)', 'dues', 60.00, 1, 1, prog_soccer_u12, true, true, true, true),
+        ('Fall Soccer U12 - Uniform', 'Competitive team uniform package', 'uniform', 95.00, 1, 1, prog_soccer_u12, false, true, false, true),
+        ('Fall Soccer U12 - Tournament Fee', 'Fee for regional tournament entry', 'tournament', 50.00, 1, 1, prog_soccer_u12, false, true, true, true);
+
+    -- Winter Basketball Payment Items
+    INSERT INTO payment_items (name, description, item_type, base_price, league_id, club_id, program_id, is_recurring, is_required, allow_payment_plan, active)
+    VALUES
+        ('Winter Basketball - Registration', 'One-time registration fee', 'registration', 175.00, 1, 1, prog_basketball, false, true, true, true),
+        ('Winter Basketball - Monthly Dues', 'Monthly dues (4 months)', 'dues', 50.00, 1, 1, prog_basketball, true, true, true, true),
+        ('Winter Basketball - Uniform', 'Jersey and shorts', 'uniform', 65.00, 1, 1, prog_basketball, false, true, false, true);
+
+    -- Spring Baseball Payment Items
+    INSERT INTO payment_items (name, description, item_type, base_price, league_id, club_id, program_id, is_recurring, is_required, allow_payment_plan, active)
+    VALUES
+        ('Spring Baseball - Registration', 'One-time registration fee', 'registration', 160.00, 1, 1, prog_baseball, false, true, true, true),
+        ('Spring Baseball - Monthly Dues', 'Monthly dues (3 months)', 'dues', 40.00, 1, 1, prog_baseball, true, true, true, true),
+        ('Spring Baseball - Uniform', 'Complete baseball uniform', 'uniform', 80.00, 1, 1, prog_baseball, false, true, false, true),
+        ('Spring Baseball - Equipment', 'Team equipment contribution', 'merchandise', 30.00, 1, 1, prog_baseball, false, false, false, true);
+
+    -- Summer Camp Payment Items
+    INSERT INTO payment_items (name, description, item_type, base_price, league_id, club_id, program_id, is_recurring, is_required, allow_payment_plan, active)
+    VALUES
+        ('Summer Camp - Week Registration', 'Full week camp registration', 'registration', 150.00, 1, 1, prog_camp, false, true, false, true),
+        ('Summer Camp - T-Shirt', 'Official camp t-shirt', 'merchandise', 15.00, 1, 1, prog_camp, false, false, false, true);
+END $$;
+
+-- ============================================
+-- 5. CREATE DISCOUNT CODES
+-- ============================================
+INSERT INTO discount_codes (code, description, discount_type, discount_value, max_discount_amount, max_uses, times_used, max_uses_per_user, league_id, club_id, valid_from, valid_to, active)
+VALUES
+    ('EARLYBIRD20', 'Early registration - 20% off', 'percentage', 20.00, 100.00, NULL, 15, 1, 1, 1, '2024-08-01', '2024-08-31', true),
+    ('SIBLING10', 'Sibling discount - 10% off second child', 'percentage', 10.00, 50.00, NULL, 8, 1, 1, 1, '2024-08-01', '2025-12-31', true),
+    ('SUMMER50', 'Summer camp half off', 'percentage', 50.00, 75.00, 50, 12, 1, 1, 1, '2025-05-01', '2025-06-15', true),
+    ('WELCOME25', 'New family discount - $25 off', 'fixed_amount', 25.00, NULL, 100, 23, 1, 1, 1, '2024-08-01', '2025-12-31', true),
+    ('RETURNPLAYER', 'Returning player discount - 15% off', 'percentage', 15.00, 75.00, NULL, 34, 1, 1, 1, '2024-08-01', '2025-12-31', true);
+
+-- ============================================
+-- 6. CREATE SCHOLARSHIPS
+-- ============================================
+DO $$
+DECLARE
+    prog_soccer_u10 INTEGER;
+    prog_basketball INTEGER;
+BEGIN
+    SELECT id INTO prog_soccer_u10 FROM programs WHERE name = 'Fall Soccer - U10' LIMIT 1;
+    SELECT id INTO prog_basketball FROM programs WHERE name = 'Winter Basketball - U14' LIMIT 1;
+
+    INSERT INTO scholarships (name, description, league_id, club_id, total_budget, remaining_budget, award_type, award_percentage, award_amount, max_awards, awards_given, eligibility_criteria, requires_application, application_deadline, program_id, active)
+    VALUES
+        ('Fall Soccer Needs-Based Scholarship', 'Financial assistance for families in need', 1, 1, 5000.00, 3500.00, 'percentage', 50.00, NULL, 10, 3, 'Demonstrated financial need', true, '2024-08-15'::timestamp, prog_soccer_u10, true),
+        ('Basketball Excellence Award', 'Merit-based scholarship for exceptional players', 1, 1, 3000.00, 2000.00, 'percentage', 75.00, NULL, 5, 2, 'Demonstrated skill and commitment', true, '2024-11-01'::timestamp, prog_basketball, true),
+        ('Full Ride Scholarship', 'Complete coverage for qualifying families', 1, 1, 2000.00, 1200.00, 'full', 100.00, NULL, 3, 2, 'Exceptional financial need', true, '2024-08-01'::timestamp, NULL, true),
+        ('Equipment Grant', 'Fixed amount for equipment costs', 1, 1, 1500.00, 900.00, 'fixed_amount', NULL, 50.00, 20, 12, 'Any athlete needing equipment assistance', false, NULL, NULL, true);
+END $$;
+
+-- ============================================
+-- 7. CREATE DEMO ATHLETES & PAYMENTS
+-- ============================================
+-- This generates 100 athletes with varied payment scenarios
+
+DO $$
+DECLARE
+    athlete_id INTEGER;
+    program_id INTEGER;
+    payment_item_id INTEGER;
+    payment_plan_id INTEGER;
+    discount_code_id INTEGER;
+    athlete_payment_id INTEGER;
+    i INTEGER;
+    payment_status VARCHAR(20);
+    first_names TEXT[] := ARRAY['Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason', 'Isabella', 'William',
+                                  'Mia', 'James', 'Charlotte', 'Benjamin', 'Amelia', 'Lucas', 'Harper', 'Henry', 'Evelyn', 'Alexander',
+                                  'Abigail', 'Sebastian', 'Emily', 'Jack', 'Elizabeth', 'Owen', 'Sofia', 'Carter', 'Avery', 'Jackson',
+                                  'Ella', 'Wyatt', 'Madison', 'Levi', 'Scarlett', 'Grace', 'Gabriel', 'Victoria', 'Logan', 'Aria',
+                                  'Matthew', 'Chloe', 'Daniel', 'Camila', 'Samuel', 'Penelope', 'David', 'Riley', 'Joseph', 'Layla'];
+    last_names TEXT[] := ARRAY['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                                 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                                 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson'];
+    program_names TEXT[] := ARRAY['Fall Soccer - U10', 'Fall Soccer - U12', 'Winter Basketball - U14', 'Spring Baseball - U11'];
+    scenario INTEGER;
+    base_amount DECIMAL(10,2);
+    final_amount DECIMAL(10,2);
+    amount_paid DECIMAL(10,2);
+    random_discount_id INTEGER;
+BEGIN
+    -- Create 100 athletes with varied scenarios
+    FOR i IN 1..100 LOOP
+        -- Randomly assign to a program
+        program_id := (SELECT id FROM programs WHERE name = program_names[1 + (i % 4)] LIMIT 1);
+
+        -- Insert athlete (simplified - assumes parent user_id exists)
+        INSERT INTO athletes (first_name, last_name, date_of_birth, gender, club_id, parent_user_id, active)
+        VALUES (
+            first_names[1 + (i % 50)],
+            last_names[1 + (i % 30)],
+            CURRENT_DATE - INTERVAL '10 years' - (i || ' days')::INTERVAL,
+            CASE WHEN i % 2 = 0 THEN 'Male' ELSE 'Female' END,
+            1,
+            1, -- Simplified: all under same parent for demo
+            true
+        )
+        RETURNING id INTO athlete_id;
+
+        -- Determine payment scenario
+        scenario := i % 10;
+
+        -- Get registration payment item for this program
+        SELECT id, base_price INTO payment_item_id, base_amount
+        FROM payment_items
+        WHERE program_id = program_id AND item_type = 'registration'
+        LIMIT 1;
+
+        -- Apply random discount (20% chance)
+        IF i % 5 = 0 THEN
+            SELECT id INTO random_discount_id FROM discount_codes WHERE active = true ORDER BY RANDOM() LIMIT 1;
+            final_amount := base_amount * 0.80; -- 20% discount average
+        ELSE
+            random_discount_id := NULL;
+            final_amount := base_amount;
+        END IF;
+
+        -- Scenario-based payment creation
+        CASE scenario
+            -- 40% Fully Paid (scenarios 0-3)
+            WHEN 0, 1, 2, 3 THEN
+                payment_status := 'paid';
+                amount_paid := final_amount;
+
+                INSERT INTO athlete_payments (athlete_id, payment_item_id, program_id, base_amount, discount_amount, final_amount, status, amount_paid, amount_remaining, due_date, paid_at)
+                VALUES (athlete_id, payment_item_id, program_id, base_amount, base_amount - final_amount, final_amount, payment_status, amount_paid, 0, CURRENT_DATE - INTERVAL '30 days', CURRENT_DATE - INTERVAL '25 days')
+                RETURNING id INTO athlete_payment_id;
+
+                -- Create successful transaction
+                INSERT INTO payment_transactions (athlete_payment_id, amount, payment_method, maverick_transaction_id, status, payment_type, paid_by_user_id, created_at)
+                VALUES (athlete_payment_id, amount_paid, 'credit_card', 'demo_txn_' || athlete_payment_id, 'succeeded', 'full', 1, CURRENT_DATE - INTERVAL '25 days');
+
+            -- 30% On Payment Plans (scenarios 4-6)
+            WHEN 4, 5, 6 THEN
+                payment_status := 'partial';
+                amount_paid := final_amount * 0.40; -- 40% paid so far
+
+                -- Get a payment plan
+                SELECT id INTO payment_plan_id FROM payment_plans WHERE total_installments = 3 LIMIT 1;
+
+                INSERT INTO athlete_payments (athlete_id, payment_item_id, program_id, base_amount, discount_amount, final_amount, payment_plan_id, status, amount_paid, amount_remaining, due_date)
+                VALUES (athlete_id, payment_item_id, program_id, base_amount, base_amount - final_amount, final_amount, payment_plan_id, payment_status, amount_paid, final_amount - amount_paid, CURRENT_DATE + INTERVAL '60 days')
+                RETURNING id INTO athlete_payment_id;
+
+                -- Create installments (3 total, 1 paid, 1 due soon, 1 future)
+                INSERT INTO payment_installments (athlete_payment_id, payment_plan_id, installment_number, amount, due_date, status, paid_amount, paid_at)
+                VALUES
+                    (athlete_payment_id, payment_plan_id, 1, final_amount * 0.40, CURRENT_DATE - INTERVAL '30 days', 'paid', final_amount * 0.40, CURRENT_DATE - INTERVAL '28 days'),
+                    (athlete_payment_id, payment_plan_id, 2, final_amount * 0.30, CURRENT_DATE + INTERVAL '5 days', 'scheduled', 0, NULL),
+                    (athlete_payment_id, payment_plan_id, 3, final_amount * 0.30, CURRENT_DATE + INTERVAL '35 days', 'scheduled', 0, NULL);
+
+            -- 15% Partial Payment (scenario 7)
+            WHEN 7 THEN
+                payment_status := 'partial';
+                amount_paid := final_amount * 0.25; -- 25% paid
+
+                INSERT INTO athlete_payments (athlete_id, payment_item_id, program_id, base_amount, discount_amount, final_amount, status, amount_paid, amount_remaining, due_date)
+                VALUES (athlete_id, payment_item_id, program_id, base_amount, base_amount - final_amount, final_amount, payment_status, amount_paid, final_amount - amount_paid, CURRENT_DATE + INTERVAL '15 days')
+                RETURNING id INTO athlete_payment_id;
+
+            -- 10% Overdue (scenario 8)
+            WHEN 8 THEN
+                payment_status := 'pending';
+                amount_paid := 0;
+
+                INSERT INTO athlete_payments (athlete_id, payment_item_id, program_id, base_amount, discount_amount, final_amount, status, amount_paid, amount_remaining, due_date)
+                VALUES (athlete_id, payment_item_id, program_id, base_amount, base_amount - final_amount, final_amount, payment_status, amount_paid, final_amount, CURRENT_DATE - INTERVAL '10 days')
+                RETURNING id INTO athlete_payment_id;
+
+            -- 5% Scholarship Recipients (scenario 9)
+            WHEN 9 THEN
+                payment_status := 'paid';
+                final_amount := base_amount * 0.25; -- 75% scholarship
+                amount_paid := final_amount;
+
+                INSERT INTO athlete_payments (athlete_id, payment_item_id, program_id, base_amount, scholarship_amount, final_amount, status, amount_paid, amount_remaining, due_date, paid_at)
+                VALUES (athlete_id, payment_item_id, program_id, base_amount, base_amount * 0.75, final_amount, payment_status, amount_paid, 0, CURRENT_DATE - INTERVAL '20 days', CURRENT_DATE - INTERVAL '15 days')
+                RETURNING id INTO athlete_payment_id;
+
+                -- Create scholarship application
+                INSERT INTO scholarship_applications (scholarship_id, user_id, athlete_id, status, reviewed_at, approved_amount, created_at)
+                VALUES ((SELECT id FROM scholarships ORDER BY RANDOM() LIMIT 1), 1, athlete_id, 'approved', CURRENT_DATE - INTERVAL '40 days', base_amount * 0.75, CURRENT_DATE - INTERVAL '45 days');
+
+        END CASE;
+
+    END LOOP;
+
+END $$;
+
+-- ============================================
+-- 8. CREATE SAMPLE SCHOLARSHIP APPLICATIONS
+-- ============================================
+-- Add some pending scholarship applications
+INSERT INTO scholarship_applications (scholarship_id, user_id, athlete_id, application_data, financial_need_statement, status, created_at)
+SELECT
+    s.id,
+    1,
+    a.id,
+    '{"household_income": "40000", "num_dependents": "3", "other_expenses": "High medical costs"}'::jsonb,
+    'Our family is experiencing financial hardship due to medical expenses. We would greatly appreciate assistance.',
+    'pending',
+    CURRENT_DATE - INTERVAL '5 days'
+FROM scholarships s
+CROSS JOIN LATERAL (SELECT id FROM athletes ORDER BY RANDOM() LIMIT 1) a
+WHERE s.active = true
+LIMIT 5;
+
+-- ============================================
+-- 9. UPDATE SCHOLARSHIP BUDGETS
+-- ============================================
+-- Update remaining budgets based on awards
+UPDATE scholarships s
+SET remaining_budget = total_budget - COALESCE((
+    SELECT SUM(approved_amount)
+    FROM scholarship_applications sa
+    WHERE sa.scholarship_id = s.id AND sa.status = 'approved'
+), 0),
+awards_given = (
+    SELECT COUNT(*)
+    FROM scholarship_applications sa
+    WHERE sa.scholarship_id = s.id AND sa.status = 'approved'
+);
+
+-- ============================================
+-- 10. CREATE SAMPLE REFUND TRANSACTIONS
+-- ============================================
+-- Add a few refund scenarios
+UPDATE payment_transactions
+SET
+    refund_amount = amount * 0.50,
+    refund_reason = 'Athlete withdrew from program',
+    refunded_at = CURRENT_DATE - INTERVAL '10 days',
+    status = 'refunded'
+WHERE id IN (SELECT id FROM payment_transactions WHERE status = 'succeeded' ORDER BY RANDOM() LIMIT 3);
+
+COMMIT;
+
+-- ============================================
+-- VERIFICATION QUERIES
+-- ============================================
+-- Run these to verify data was created correctly
+
+-- Count athletes by program
+SELECT
+    p.name as program_name,
+    COUNT(DISTINCT ap.athlete_id) as athlete_count,
+    SUM(ap.final_amount) as total_revenue,
+    SUM(ap.amount_paid) as collected,
+    SUM(ap.amount_remaining) as outstanding
+FROM athlete_payments ap
+JOIN programs p ON ap.program_id = p.id
+GROUP BY p.name
+ORDER BY total_revenue DESC;
+
+-- Payment status breakdown
+SELECT
+    status,
+    COUNT(*) as count,
+    SUM(final_amount) as total_amount,
+    SUM(amount_paid) as paid_amount,
+    SUM(amount_remaining) as remaining_amount
+FROM athlete_payments
+GROUP BY status
+ORDER BY count DESC;
+
+-- Scholarship summary
+SELECT
+    name,
+    total_budget,
+    remaining_budget,
+    awards_given,
+    max_awards
+FROM scholarships
+ORDER BY name;
+
+-- Active payment plans
+SELECT
+    COUNT(*) as active_payment_plans,
+    SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_installments,
+    SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as upcoming_installments,
+    SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'paid' THEN 1 ELSE 0 END) as overdue_installments
+FROM payment_installments;
+
+-- Discount code usage
+SELECT
+    code,
+    description,
+    times_used,
+    max_uses,
+    CASE WHEN max_uses IS NULL THEN 'Unlimited' ELSE (max_uses - times_used)::TEXT END as remaining_uses
+FROM discount_codes
+WHERE active = true
+ORDER BY times_used DESC;
+
+SELECT '✅ Demo data created successfully!' as status;
