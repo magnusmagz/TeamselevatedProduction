@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/database.php';
 
 try {
+    $db = Database::getInstance();
+    $pdo = $db->getConnection();
+
     $athlete_id = $_GET['athlete_id'] ?? null;
 
     if (!$athlete_id) {
