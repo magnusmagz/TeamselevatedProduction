@@ -40,7 +40,7 @@ try {
     }
 
     if ($season) {
-        $whereClauses[] = 'p.season = :season';
+        $whereClauses[] = 'p.season_type = :season';
         $params['season'] = $season;
     }
 
@@ -62,7 +62,7 @@ try {
             pi.sibling_discount_type,
             pi.sibling_discount_value,
             p.name as program_name,
-            p.season
+            p.season_type as season
         FROM payment_items pi
         JOIN programs p ON pi.program_id = p.id
         WHERE $whereClause
