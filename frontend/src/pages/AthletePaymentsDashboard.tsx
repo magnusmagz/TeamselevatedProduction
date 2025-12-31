@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface AthleteInfo {
   id: number;
@@ -33,9 +34,13 @@ interface Payment {
 export const AthletePaymentsDashboard: React.FC = () => {
   const { athleteId } = useParams<{ athleteId: string }>();
   const navigate = useNavigate();
+  const { isLeagueAdmin, isClubAdmin } = useOrg();
   const [athlete, setAthlete] = useState<AthleteInfo | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Admins can always view amounts, others can view their own athletes
+  const canViewAmounts = isLeagueAdmin || isClubAdmin || true; // For now, allow all authenticated users
 
   useEffect(() => {
     if (!athleteId) return;
@@ -133,22 +138,30 @@ export const AthletePaymentsDashboard: React.FC = () => {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="text-sm text-gray-600 mb-1">Total Owed</div>
-          <div className="text-2xl font-bold text-gray-900">{formatCurrency(athlete.total_owed)}</div>
-        </div>
+      {canViewAmounts ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+            <div className="text-sm text-gray-600 mb-1">Total Owed</div>
+            <div className="text-2xl font-bold text-gray-900">{formatCurrency(athlete.total_owed)}</div>
+          </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-sm text-gray-600 mb-1">Total Paid</div>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(athlete.total_paid)}</div>
-        </div>
+          <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+            <div className="text-sm text-gray-600 mb-1">Total Paid</div>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(athlete.total_paid)}</div>
+          </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
-          <div className="text-sm text-gray-600 mb-1">Remaining Balance</div>
-          <div className="text-2xl font-bold text-orange-600">{formatCurrency(athlete.total_remaining)}</div>
+          <div className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
+            <div className="text-sm text-gray-600 mb-1">Remaining Balance</div>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(athlete.total_remaining)}</div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-8">
+          <p className="text-gray-600 text-sm">
+            Payment amounts are only visible to parents/guardians and financial administrators.
+          </p>
+        </div>
+      )}
 
       {/* Payment Items */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -180,39 +193,45 @@ export const AthletePaymentsDashboard: React.FC = () => {
                     <p className="text-sm text-gray-600">{payment.program_name}</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900">{formatCurrency(payment.final_amount)}</div>
+                    {canViewAmounts ? (
+                      <div className="text-2xl font-bold text-gray-900">{formatCurrency(payment.final_amount)}</div>
+                    ) : (
+                      <div className="text-2xl font-bold text-gray-400">---</div>
+                    )}
                     <span className={`inline-block mt-1 px-3 py-1 text-sm font-semibold rounded-full border-2 ${getStatusColor(payment.status)}`}>
                       {payment.status.toUpperCase()}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
-                  <div>
-                    <span className="text-gray-600">Amount Paid:</span>
-                    <div className="font-semibold text-green-600">{formatCurrency(payment.amount_paid)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Remaining:</span>
-                    <div className="font-semibold text-orange-600">{formatCurrency(payment.amount_remaining)}</div>
-                  </div>
-                  {payment.due_date && (
+                {canViewAmounts && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
                     <div>
-                      <span className="text-gray-600">Due Date:</span>
-                      <div className={`font-semibold ${payment.is_overdue ? 'text-red-600' : 'text-gray-900'}`}>
-                        {new Date(payment.due_date).toLocaleDateString()}
-                      </div>
+                      <span className="text-gray-600">Amount Paid:</span>
+                      <div className="font-semibold text-green-600">{formatCurrency(payment.amount_paid)}</div>
                     </div>
-                  )}
-                  {payment.on_payment_plan && (
                     <div>
-                      <span className="text-gray-600">Payment Plan:</span>
-                      <div className="font-semibold text-blue-600">
-                        {payment.payment_plan_name} ({payment.current_installment}/{payment.total_installments})
-                      </div>
+                      <span className="text-gray-600">Remaining:</span>
+                      <div className="font-semibold text-orange-600">{formatCurrency(payment.amount_remaining)}</div>
                     </div>
-                  )}
-                </div>
+                    {payment.due_date && (
+                      <div>
+                        <span className="text-gray-600">Due Date:</span>
+                        <div className={`font-semibold ${payment.is_overdue ? 'text-red-600' : 'text-gray-900'}`}>
+                          {new Date(payment.due_date).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                    {payment.on_payment_plan && (
+                      <div>
+                        <span className="text-gray-600">Payment Plan:</span>
+                        <div className="font-semibold text-blue-600">
+                          {payment.payment_plan_name} ({payment.current_installment}/{payment.total_installments})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {payment.status !== 'paid' && (
                   <div className="flex justify-end">

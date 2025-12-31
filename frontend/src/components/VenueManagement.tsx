@@ -213,7 +213,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         address: formData.address,
         city: formData.city,
         state: formData.state,
-        zip_code: formData.zip || formData.zip_code,
+        zip_code: formData.zip,
         map_url: formData.map_url || null,
         website: formData.website || null,
         fields: formData.fields && formData.fields.length > 0 ? formData.fields : []

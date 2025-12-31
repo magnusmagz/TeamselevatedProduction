@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 interface RevenueSummary {
   total_revenue: string;
@@ -87,7 +88,29 @@ export const RevenueDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Revenue Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Revenue Dashboard</h1>
+        <div className="flex gap-2">
+          <Link
+            to="/payment/roster-fees"
+            className="px-4 py-2 bg-forest-600 text-white rounded hover:bg-forest-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Roster Fees
+          </Link>
+          <Link
+            to="/payment/transactions"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Transactions
+          </Link>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -101,10 +124,11 @@ export const RevenueDashboard: React.FC = () => {
           <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.collected)}</div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
+        <Link to="/payment/outstanding" className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 hover:shadow-lg transition-shadow block">
           <div className="text-sm text-gray-600 mb-1">Outstanding</div>
           <div className="text-2xl font-bold text-orange-600">{formatCurrency(summary.outstanding)}</div>
-        </div>
+          <div className="text-xs text-blue-600 mt-2">View Details &rarr;</div>
+        </Link>
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
           <div className="text-sm text-gray-600 mb-1">Collection Rate</div>
@@ -130,7 +154,11 @@ export const RevenueDashboard: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {byProgram.map(program => (
                 <tr key={program.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{program.name}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <Link to={`/payment/items?program_id=${program.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                      {program.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{program.athletes}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900">{formatCurrency(program.revenue)}</td>
                   <td className="px-4 py-3 text-sm text-green-600">{formatCurrency(program.collected)}</td>

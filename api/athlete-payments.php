@@ -21,9 +21,40 @@ try {
     $pdo = $db->getConnection();
 
     $athlete_id = $_GET['athlete_id'] ?? null;
+    $payment_id = $_GET['payment_id'] ?? null;
+
+    // If payment_id is provided, return just that payment
+    if ($payment_id) {
+        $stmt = $pdo->prepare("
+            SELECT
+                ap.*,
+                a.first_name || ' ' || a.last_name as athlete_name,
+                pi.name as item_name,
+                pi.item_type,
+                p.name as program_name
+            FROM athlete_payments ap
+            JOIN athletes a ON ap.athlete_id = a.id
+            JOIN payment_items pi ON ap.payment_item_id = pi.id
+            JOIN programs p ON ap.program_id = p.id
+            WHERE ap.id = :payment_id
+        ");
+        $stmt->execute(['payment_id' => $payment_id]);
+        $payment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$payment) {
+            echo json_encode(['success' => false, 'error' => 'Payment not found']);
+            exit;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'payment' => $payment
+        ]);
+        exit;
+    }
 
     if (!$athlete_id) {
-        echo json_encode(['error' => 'athlete_id is required']);
+        echo json_encode(['error' => 'athlete_id or payment_id is required']);
         exit;
     }
 

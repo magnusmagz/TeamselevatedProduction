@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Program, FormField } from '../types';
+
+interface PaymentItem {
+  id: number;
+  name: string;
+  base_price: string;
+  item_type: string;
+  allow_payment_plan: boolean;
+}
 
 interface PublicRegistrationFormProps {
   embedCode: string;
@@ -8,6 +17,7 @@ interface PublicRegistrationFormProps {
 
 const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCode, embedded = false }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const navigate = useNavigate();
   const [program, setProgram] = useState<Program | null>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -15,6 +25,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [registrationFee, setRegistrationFee] = useState<number>(0);
 
   useEffect(() => {
     fetchProgramDetails();
@@ -45,6 +56,23 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
           initialData[field.field_name] = field.field_type === 'checkbox' ? false : '';
         });
         setFormData(initialData);
+
+        // Fetch payment items for this program
+        try {
+          const paymentResponse = await fetch(
+            `${API_URL}/api/payment-items.php?program_id=${data.id}`
+          );
+          const paymentData = await paymentResponse.json();
+          if (paymentData.success && paymentData.items) {
+            // Find registration fee
+            const regFee = paymentData.items.find((item: PaymentItem) => item.item_type === 'registration');
+            if (regFee) {
+              setRegistrationFee(parseFloat(regFee.base_price));
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching payment items:', err);
+        }
       }
     } catch (error) {
       console.error('Error fetching program:', error);
@@ -101,12 +129,19 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        setSubmitted(true);
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // If there's a payment required, redirect to checkout
+        if (result.athlete_payment_id && result.payment_amount > 0) {
+          navigate(`/payment/checkout/${result.athlete_id}/${result.athlete_payment_id}`);
+        } else {
+          // No payment required, show success
+          setSubmitted(true);
+        }
       } else {
-        const errorData = await response.json();
-        console.error('Registration error:', errorData);
-        alert(`Error: ${errorData.error || 'An error occurred. Please try again.'}`);
+        console.error('Registration error:', result);
+        alert(`Error: ${result.error || 'An error occurred. Please try again.'}`);
       }
     } catch (error) {
       console.error('Error submitting registration:', error);
@@ -275,23 +310,33 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
         <div className="bg-white border border-forest-200 rounded-md">
           {/* Header */}
           <div className="bg-forest-800 text-white p-6">
-            <h1 className="text-2xl font-bold uppercase">{program.name}</h1>
-            {program.description && (
-              <p className="mt-2 text-white/90">{program.description}</p>
-            )}
-            {(program.start_date || program.end_date) && (
-              <div className="mt-4 text-sm">
-                {program.start_date && (
-                  <span>
-                    {new Date(program.start_date).toLocaleDateString()}
-                    {program.end_date && ' - '}
-                  </span>
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-bold uppercase">{program.name}</h1>
+                {program.description && (
+                  <p className="mt-2 text-white/90">{program.description}</p>
                 )}
-                {program.end_date && (
-                  <span>{new Date(program.end_date).toLocaleDateString()}</span>
+                {(program.start_date || program.end_date) && (
+                  <div className="mt-4 text-sm">
+                    {program.start_date && (
+                      <span>
+                        {new Date(program.start_date).toLocaleDateString()}
+                        {program.end_date && ' - '}
+                      </span>
+                    )}
+                    {program.end_date && (
+                      <span>{new Date(program.end_date).toLocaleDateString()}</span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+              {registrationFee > 0 && (
+                <div className="text-right">
+                  <div className="text-sm text-white/80">Registration Fee</div>
+                  <div className="text-3xl font-bold">${registrationFee.toFixed(2)}</div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Form */}
@@ -320,13 +365,19 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
               </div>
             ))}
 
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex justify-between items-center">
+              {registrationFee > 0 && (
+                <div className="text-forest-800">
+                  <span className="text-sm">Total Due: </span>
+                  <span className="text-xl font-bold">${registrationFee.toFixed(2)}</span>
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={submitting}
                 className="bg-forest-800 text-white px-8 py-3 rounded-md hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : 'Submit Registration'}
+                {submitting ? 'Submitting...' : (registrationFee > 0 ? 'Continue to Payment' : 'Submit Registration')}
               </button>
             </div>
           </form>

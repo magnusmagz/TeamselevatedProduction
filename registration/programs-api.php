@@ -44,8 +44,8 @@ try {
                 $program_id = $_GET['id'] ?? 0;
                 $stmt = $connection->prepare("
                     SELECT p.*,
-                           c.club_name,
-                           c.logo_data as club_logo,
+                           c.name as club_name,
+                           c.logo_url as club_logo,
                            c.primary_color as club_primary_color
                     FROM programs p
                     LEFT JOIN club_profile c ON p.club_id = c.id
@@ -71,8 +71,8 @@ try {
                 $embed_code = $_GET['code'] ?? '';
                 $stmt = $connection->prepare("
                     SELECT p.*,
-                           c.club_name,
-                           c.logo_data as club_logo,
+                           c.name as club_name,
+                           c.logo_url as club_logo,
                            c.primary_color as club_primary_color
                     FROM programs p
                     LEFT JOIN club_profile c ON p.club_id = c.id

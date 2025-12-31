@@ -7,7 +7,27 @@ interface PaymentDetails {
   payment_id?: number;
   item_name?: string;
   amount: number;
+  base_amount?: number;
+  discount_amount?: number;
   description: string;
+  allow_payment_plan?: boolean;
+}
+
+interface PaymentPlan {
+  id: number;
+  name: string;
+  description: string;
+  total_installments: number;
+  frequency: string;
+  down_payment_percentage: string;
+  auto_pay_required: boolean;
+}
+
+interface Installment {
+  number: number;
+  amount: number;
+  due_date: string;
+  is_down_payment: boolean;
 }
 
 /**
@@ -33,6 +53,12 @@ export const PaymentCheckout: React.FC = () => {
   const [discountCode, setDiscountCode] = useState('');
   const [saveCard, setSaveCard] = useState(false);
 
+  // Payment plan state
+  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+  const [installments, setInstallments] = useState<Installment[]>([]);
+  const [usePaymentPlan, setUsePaymentPlan] = useState(false);
+
   const isDemoMode = process.env.REACT_APP_PAYMENT_MODE === 'demo';
 
   useEffect(() => {
@@ -57,6 +83,8 @@ export const PaymentCheckout: React.FC = () => {
                 payment_id: payment.id,
                 item_name: payment.item_name,
                 amount: parseFloat(payment.amount_remaining),
+                base_amount: parseFloat(payment.base_amount || payment.amount_remaining),
+                discount_amount: parseFloat(payment.discount_amount || 0),
                 description: `${payment.item_name} - ${payment.program_name}`
               });
             }
@@ -79,6 +107,32 @@ export const PaymentCheckout: React.FC = () => {
       });
   }, [athleteId, paymentId]);
 
+  // Fetch available payment plans
+  useEffect(() => {
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&league_id=13`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setPaymentPlans(data.plans);
+        }
+      })
+      .catch(err => console.error('Error fetching payment plans:', err));
+  }, []);
+
+  // Fetch installment schedule when plan is selected
+  useEffect(() => {
+    if (!selectedPlan || !paymentDetails?.amount) return;
+
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=calculate&plan_id=${selectedPlan}&amount=${paymentDetails.amount}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setInstallments(data.installments);
+        }
+      })
+      .catch(err => console.error('Error calculating installments:', err));
+  }, [selectedPlan, paymentDetails?.amount]);
+
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -89,20 +143,44 @@ export const PaymentCheckout: React.FC = () => {
     setProcessing(true);
 
     try {
+      // If using payment plan, first apply the plan to create installments
+      if (usePaymentPlan && selectedPlan) {
+        const applyPlanResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            athlete_payment_id: paymentDetails?.payment_id,
+            plan_id: selectedPlan
+          })
+        });
+
+        const planResult = await applyPlanResponse.json();
+        if (!planResult.success) {
+          setError(planResult.error || 'Failed to apply payment plan');
+          setProcessing(false);
+          return;
+        }
+      }
+
+      // Calculate amount to charge (down payment if using plan, full amount otherwise)
+      const amountToCharge = usePaymentPlan && installments.length > 0
+        ? installments.find(i => i.is_down_payment)?.amount || paymentDetails?.amount
+        : paymentDetails?.amount;
+
       const payload = {
-        athlete_id: paymentDetails?.athlete_id,
-        payment_id: paymentDetails?.payment_id,
-        amount: paymentDetails?.amount,
-        payment_method: paymentMethod,
-        card_number: paymentMethod === 'card' ? cardNumber.replace(/\s/g, '') : undefined,
-        expiry_month: paymentMethod === 'card' ? expiryMonth : undefined,
-        expiry_year: paymentMethod === 'card' ? expiryYear : undefined,
-        cvv: paymentMethod === 'card' ? cvv : undefined,
+        athlete_payment_id: paymentDetails?.payment_id,
+        amount: amountToCharge,
+        payment_method: paymentMethod === 'card' ? {
+          card_number: cardNumber.replace(/\s/g, ''),
+          expiry_month: expiryMonth,
+          expiry_year: expiryYear,
+          cvv: cvv
+        } : {},
         discount_code: discountCode || undefined,
-        save_card: saveCard
+        save_card: usePaymentPlan ? true : saveCard // Always save card for payment plans
       };
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payments-stub.php`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payments-stub.php?action=process-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,11 +192,18 @@ export const PaymentCheckout: React.FC = () => {
 
       if (result.success) {
         setSuccess(true);
-        setTimeout(() => {
-          navigate(`/athlete/${athleteId}/payments`);
-        }, 2000);
+        // Redirect to receipt page if we have a transaction_id
+        if (result.transaction_id) {
+          setTimeout(() => {
+            navigate(`/payment/receipt/${result.transaction_id}`);
+          }, 2000);
+        } else {
+          setTimeout(() => {
+            navigate(`/athlete/${athleteId}/payments`);
+          }, 2000);
+        }
       } else {
-        setError(result.error || 'Payment failed');
+        setError(result.message || result.error || 'Payment failed');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -225,12 +310,115 @@ export const PaymentCheckout: React.FC = () => {
               <span className="text-gray-600">Description:</span>
               <span className="font-semibold">{paymentDetails.description}</span>
             </div>
+
+            {/* Show discount breakdown if applicable */}
+            {paymentDetails.discount_amount && paymentDetails.discount_amount > 0 && (
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(paymentDetails.base_amount || paymentDetails.amount)}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span className="flex items-center gap-2">
+                    Sibling Discount
+                    <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">Applied</span>
+                  </span>
+                  <span>-{formatCurrency(paymentDetails.discount_amount)}</span>
+                </div>
+              </>
+            )}
+
             <div className="border-t pt-2 mt-2 flex justify-between">
               <span className="text-lg font-bold">Total Amount:</span>
               <span className="text-2xl font-bold text-blue-600">{formatCurrency(paymentDetails.amount)}</span>
             </div>
           </div>
         </div>
+
+        {/* Payment Plan Selection */}
+        {paymentPlans.length > 0 && (
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Payment Options</h2>
+
+            <div className="space-y-3">
+              <label className="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentOption"
+                  checked={!usePaymentPlan}
+                  onChange={() => {
+                    setUsePaymentPlan(false);
+                    setSelectedPlan(null);
+                    setInstallments([]);
+                  }}
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <div className="font-semibold">Pay in Full</div>
+                  <div className="text-sm text-gray-600">Pay {formatCurrency(paymentDetails.amount)} today</div>
+                </div>
+              </label>
+
+              <label className="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentOption"
+                  checked={usePaymentPlan}
+                  onChange={() => setUsePaymentPlan(true)}
+                  className="mt-1 mr-3"
+                />
+                <div className="flex-1">
+                  <div className="font-semibold">Use Payment Plan</div>
+                  <div className="text-sm text-gray-600">Spread payments over multiple installments</div>
+
+                  {usePaymentPlan && (
+                    <div className="mt-3 space-y-3">
+                      <select
+                        value={selectedPlan || ''}
+                        onChange={(e) => setSelectedPlan(parseInt(e.target.value))}
+                        className="w-full border border-gray-300 rounded px-3 py-2"
+                      >
+                        <option value="">Select a payment plan...</option>
+                        {paymentPlans.map(plan => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.name} - {plan.total_installments} payments ({plan.frequency})
+                          </option>
+                        ))}
+                      </select>
+
+                      {installments.length > 0 && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="text-sm font-semibold mb-2">Payment Schedule:</div>
+                          <div className="space-y-2">
+                            {installments.map((inst) => (
+                              <div key={inst.number} className="flex justify-between text-sm">
+                                <span className={inst.is_down_payment ? 'font-semibold text-blue-600' : ''}>
+                                  {inst.is_down_payment ? 'Down Payment (Today)' : `Installment ${inst.number - 1}`}
+                                  {!inst.is_down_payment && (
+                                    <span className="text-gray-500 ml-2">
+                                      Due: {new Date(inst.due_date).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-semibold">{formatCurrency(inst.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="border-t mt-2 pt-2 flex justify-between text-sm font-semibold">
+                            <span>Due Today:</span>
+                            <span className="text-blue-600">
+                              {formatCurrency(installments.find(i => i.is_down_payment)?.amount || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Payment Form */}
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">

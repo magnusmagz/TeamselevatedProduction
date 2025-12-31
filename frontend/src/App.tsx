@@ -6,6 +6,8 @@ import LeagueSelector from './components/LeagueSelector';
 import BrandingLogo from './components/BrandingLogo';
 import ProfileMenu from './components/ProfileMenu';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
+import { ChatWidget } from './components/chat';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -41,6 +43,13 @@ import { RevenueDashboard } from './pages/RevenueDashboard';
 import { PaymentItemsList } from './pages/PaymentItemsList';
 import { AthletePaymentsDashboard } from './pages/AthletePaymentsDashboard';
 import { PaymentCheckout } from './pages/PaymentCheckout';
+import { PaymentReceipt } from './pages/PaymentReceipt';
+import { TransactionReport } from './pages/TransactionReport';
+import { OutstandingBalances } from './pages/OutstandingBalances';
+import { RegistrationCart } from './pages/RegistrationCart';
+import { MultiPaymentCheckout } from './pages/MultiPaymentCheckout';
+import { RosterFeeStatus } from './pages/RosterFeeStatus';
+import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
@@ -93,8 +102,8 @@ const TeamRosterPage: React.FC = () => {
 };
 
 function AppContent() {
-  const { user, logout } = useAuth();
-  const { activeContext, isLeagueAdmin, isClubAdmin } = useOrg();
+  const { user } = useAuth();
+  const { isLeagueAdmin, isClubAdmin } = useOrg();
 
   // Determine if user has admin capabilities (league or club admin)
   const isAdmin = isLeagueAdmin || isClubAdmin;
@@ -120,6 +129,7 @@ function AppContent() {
               <div className="flex space-x-6 h-12 items-center">
                 {isAdmin ? (
                   <>
+                    <Link to="/payment/revenue" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Revenue</Link>
                     <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Teams</Link>
                     <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Athletes</Link>
                     <Link to="/coaches" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Coaches</Link>
@@ -257,18 +267,25 @@ function AppContent() {
 
           {/* Payment routes */}
           <Route path="/payment/revenue" element={
-            <ProtectedRoute>
+            <ProtectedFinancialRoute requiredPermission="revenue">
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <RevenueDashboard />
               </main>
-            </ProtectedRoute>
+            </ProtectedFinancialRoute>
           } />
           <Route path="/payment/items" element={
-            <ProtectedRoute>
+            <ProtectedFinancialRoute requiredPermission="revenue">
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <PaymentItemsList />
               </main>
-            </ProtectedRoute>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/payment/outstanding" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <OutstandingBalances />
+              </main>
+            </ProtectedFinancialRoute>
           } />
           <Route path="/athlete/:athleteId/payments" element={
             <ProtectedRoute>
@@ -280,7 +297,41 @@ function AppContent() {
               <PaymentCheckout />
             </ProtectedRoute>
           } />
+          <Route path="/payment/receipt/:transactionId" element={
+            <ProtectedRoute>
+              <PaymentReceipt />
+            </ProtectedRoute>
+          } />
+          <Route path="/payment/transactions" element={
+            <ProtectedFinancialRoute requiredPermission="transactions">
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <TransactionReport />
+              </main>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/registration/cart" element={
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <RegistrationCart />
+            </main>
+          } />
+          <Route path="/payment/multi-checkout" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <MultiPaymentCheckout />
+              </main>
+            </ProtectedRoute>
+          } />
+          <Route path="/payment/roster-fees" element={
+            <ProtectedFinancialRoute requiredPermission="roster_fees">
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <RosterFeeStatus />
+              </main>
+            </ProtectedFinancialRoute>
+          } />
         </Routes>
+
+        {/* Chat Widget - only visible when logged in */}
+        {user && <ChatWidget />}
       </div>
   );
 }
@@ -290,7 +341,9 @@ function App() {
     <Router>
       <AuthProvider>
         <OrgProvider>
-          <AppContent />
+          <RegistrationCartProvider>
+            <AppContent />
+          </RegistrationCartProvider>
         </OrgProvider>
       </AuthProvider>
     </Router>
