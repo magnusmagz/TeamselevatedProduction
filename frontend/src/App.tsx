@@ -49,6 +49,7 @@ import { OutstandingBalances } from './pages/OutstandingBalances';
 import { RegistrationCart } from './pages/RegistrationCart';
 import { MultiPaymentCheckout } from './pages/MultiPaymentCheckout';
 import { RosterFeeStatus } from './pages/RosterFeeStatus';
+import { FamilyInvoices } from './pages/FamilyInvoices';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 
 // Team Roster Page Component
@@ -327,6 +328,13 @@ function AppContent() {
                 <RosterFeeStatus />
               </main>
             </ProtectedFinancialRoute>
+          } />
+          <Route path="/payment/family-invoices" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <FamilyInvoices />
+              </main>
+            </ProtectedRoute>
           } />
         </Routes>
 
