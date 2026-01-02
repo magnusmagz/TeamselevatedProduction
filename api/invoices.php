@@ -146,7 +146,7 @@ try {
                 FROM invoices i
                 JOIN athletes a ON i.athlete_id = a.id
                 LEFT JOIN programs p ON i.program_id = p.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN leagues l ON i.league_id = l.id
                 WHERE i.id = :id
@@ -357,7 +357,7 @@ try {
                 FROM invoices i
                 JOIN athletes a ON i.athlete_id = a.id
                 LEFT JOIN programs p ON i.program_id = p.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 WHERE i.id = :id
             ");

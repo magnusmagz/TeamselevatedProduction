@@ -111,7 +111,7 @@ test_endpoint \
 
 # Test 6: Create invoice with data
 CREATE_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
-    -d '{"athlete_id": 1, "league_id": 13, "subtotal": 100, "total_amount": 100, "due_date": "2026-02-01", "memo": "Test invoice"}' \
+    -d '{"athlete_id": 130, "league_id": 13, "subtotal": 100, "total_amount": 100, "due_date": "2026-02-01", "memo": "Test invoice"}' \
     "$API_URL/api/invoices.php?action=create")
 
 if echo "$CREATE_RESPONSE" | grep -q "invoice_number"; then
