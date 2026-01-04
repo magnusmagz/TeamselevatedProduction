@@ -785,3 +785,42 @@
 20. Team owner access
 21. Sponsorship payments
 22. Accept donations
+
+---
+
+# Invoicing System
+
+Parent-facing invoice experience for viewing, receiving, and paying invoices.
+
+## Invoicing Phase 1 - Core Parent Experience ✅ COMPLETE (Jan 4, 2026)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| P1 | View Invoices in Payment Dashboard | ✅ Done |
+| P3 | Pay Invoice Online | ✅ Done |
+| P6 | Multi-Child Family Invoice View | ✅ Done |
+
+**Delivered:**
+- `api/invoices.php` - Full invoice API (list, create, get, send, mark-viewed, family)
+- `invoices` table with status tracking (draft, sent, viewed, paid, overdue, cancelled)
+- `invoice_items` table for line items
+- `invoice_emails` table for email tracking
+- Auto-generated invoice numbers (INV-YYYYMM-XXXXX)
+- Invoices tab in AthletePaymentsDashboard
+- Family Invoices page at `/payment/family-invoices`
+- 14 API tests passing
+
+## Invoicing Phase 2 - Communication (Pending)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| P2 | Receive Invoice via Email | Pending |
+| P5 | View Invoice History | Pending |
+
+## Invoicing Phase 3 - Enhanced Features (Nice to Have)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| P4 | Download/Print Invoice PDF | Pending |
+
+**Detailed Plan:** See `.claude/plans/luminous-wandering-prism.md`
