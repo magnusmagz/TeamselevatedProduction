@@ -143,7 +143,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="text-forest-800">Loading documents...</div>
+        <div className="text-brand-primary">Loading documents...</div>
       </div>
     );
   }
@@ -159,14 +159,14 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-forest-800">Document Hub</h2>
+          <h2 className="text-lg font-semibold text-brand-primary">Document Hub</h2>
           <p className="text-sm text-gray-600 mt-1">
             Manage important documents and resources for your league
           </p>
         </div>
         <button
           onClick={handleAddDocument}
-          className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 uppercase font-medium text-sm"
+          className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary uppercase font-medium text-sm"
         >
           Add Document
         </button>
@@ -196,7 +196,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
             <div className="mt-6">
               <button
                 onClick={handleAddDocument}
-                className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 uppercase font-medium text-sm"
+                className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary uppercase font-medium text-sm"
               >
                 Add Document
               </button>
@@ -211,7 +211,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-forest-800 truncate">
+                    <h3 className="text-sm font-medium text-brand-primary truncate">
                       {doc.name}
                     </h3>
                     <a
@@ -229,7 +229,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
                   <div className="ml-2 flex space-x-2">
                     <button
                       onClick={() => handleEditDocument(doc)}
-                      className="text-gray-400 hover:text-forest-600"
+                      className="text-gray-400 hover:text-brand-primary-hover"
                       title="Edit"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,7 +268,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-forest-800">
+              <h2 className="text-xl font-semibold text-brand-primary">
                 {editingDocument ? 'Edit Document' : 'Add Document'}
               </h2>
               <button
@@ -295,7 +295,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., League Rules, Registration Form"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
                   required
                 />
               </div>
@@ -309,7 +309,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                   placeholder="https://example.com/document.pdf"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
                   required
                 />
                 <p className="mt-1 text-xs text-gray-500">
@@ -331,7 +331,7 @@ const LeagueDocuments: React.FC<LeagueDocumentsProps> = ({ leagueId }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 uppercase font-medium text-sm"
+                  className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary uppercase font-medium text-sm"
                 >
                   {editingDocument ? 'Update' : 'Add'} Document
                 </button>

@@ -153,7 +153,7 @@ export default function SignUp() {
                   value={formData.first_name}
                   onChange={handleChange}
                   placeholder="John"
-                  className={`w-full px-4 py-3 border-2 ${errors.first_name ? 'border-red-300' : 'border-gray-300'} focus:border-forest-600 focus:outline-none transition-colors`}
+                  className={`w-full px-4 py-3 border-2 ${errors.first_name ? 'border-red-300' : 'border-gray-300'} focus:border-brand-accent focus:outline-none transition-colors`}
                   required
                 />
                 {errors.first_name && (
@@ -170,7 +170,7 @@ export default function SignUp() {
                   value={formData.last_name}
                   onChange={handleChange}
                   placeholder="Doe"
-                  className={`w-full px-4 py-3 border-2 ${errors.last_name ? 'border-red-300' : 'border-gray-300'} focus:border-forest-600 focus:outline-none transition-colors`}
+                  className={`w-full px-4 py-3 border-2 ${errors.last_name ? 'border-red-300' : 'border-gray-300'} focus:border-brand-accent focus:outline-none transition-colors`}
                   required
                 />
                 {errors.last_name && (
@@ -189,7 +189,7 @@ export default function SignUp() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="your.email@example.com"
-                className={`w-full px-4 py-3 border-2 ${errors.email ? 'border-red-300' : 'border-gray-300'} focus:border-forest-600 focus:outline-none transition-colors`}
+                className={`w-full px-4 py-3 border-2 ${errors.email ? 'border-red-300' : 'border-gray-300'} focus:border-brand-accent focus:outline-none transition-colors`}
                 required
               />
               {errors.email && (
@@ -207,7 +207,7 @@ export default function SignUp() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Create a strong password"
-                className={`w-full px-4 py-3 border-2 ${errors.password ? 'border-red-300' : 'border-gray-300'} focus:border-forest-600 focus:outline-none transition-colors`}
+                className={`w-full px-4 py-3 border-2 ${errors.password ? 'border-red-300' : 'border-gray-300'} focus:border-brand-accent focus:outline-none transition-colors`}
                 required
               />
               {formData.password && (
@@ -245,7 +245,7 @@ export default function SignUp() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm your password"
-                className={`w-full px-4 py-3 border-2 ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'} focus:border-forest-600 focus:outline-none transition-colors`}
+                className={`w-full px-4 py-3 border-2 ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'} focus:border-brand-accent focus:outline-none transition-colors`}
                 required
               />
               {errors.confirmPassword && (
@@ -262,7 +262,7 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
             </button>
@@ -271,7 +271,7 @@ export default function SignUp() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-forest-600 hover:text-forest-700 font-semibold">
+              <Link to="/login" className="text-brand-primary hover:text-brand-primary-hover font-semibold">
                 Sign in
               </Link>
             </p>

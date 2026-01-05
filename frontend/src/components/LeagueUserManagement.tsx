@@ -115,7 +115,7 @@ const LeagueUserManagement: React.FC<LeagueUserManagementProps> = ({ leagueId })
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="text-forest-800">Loading users...</div>
+        <div className="text-brand-primary">Loading users...</div>
       </div>
     );
   }
@@ -131,14 +131,14 @@ const LeagueUserManagement: React.FC<LeagueUserManagementProps> = ({ leagueId })
       {/* Header with Create User button */}
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <div>
-          <h2 className="text-lg font-semibold text-forest-800">Users & Permissions</h2>
+          <h2 className="text-lg font-semibold text-brand-primary">Users & Permissions</h2>
           <p className="text-sm text-gray-600 mt-1">
             Manage user access and roles for this league
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 uppercase font-medium text-sm"
+          className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary uppercase font-medium text-sm"
         >
           Create User
         </button>
@@ -216,7 +216,7 @@ const LeagueUserManagement: React.FC<LeagueUserManagementProps> = ({ leagueId })
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => setEditingUser({ user, role: user.roles[0] })}
-                      className="text-forest-600 hover:text-forest-900 uppercase font-medium text-xs"
+                      className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-xs"
                     >
                       Manage
                     </button>

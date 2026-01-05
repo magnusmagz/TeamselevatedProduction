@@ -203,27 +203,27 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b border-forest-200 px-6 py-4">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b border-brand-secondary px-6 py-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
               {team ? 'Edit Team' : 'Create New Team'}
             </h3>
             <button
               onClick={onClose}
-              className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-8 border-b border-forest-200 -mb-0.5">
+          <div className="flex space-x-8 border-b border-brand-secondary -mb-0.5">
             <button
               onClick={() => setActiveTab('info')}
               className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
                 activeTab === 'info'
-                  ? 'border-forest-800 text-forest-800'
+                  ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -233,7 +233,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
               onClick={() => setActiveTab('branding')}
               className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
                 activeTab === 'branding'
-                  ? 'border-forest-800 text-forest-800'
+                  ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -247,14 +247,14 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Team Name */}
               <div className="md:col-span-2">
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Team Name *
                 </label>
                 <input
                   type="text"
-                  className={`w-full bg-white text-forest-800 border rounded-md ${
-                    errors.name ? 'border-red-500' : 'border-forest-200'
-                  } px-4 py-2 focus:outline-none focus:border-forest-600`}
+                  className={`w-full bg-white text-brand-primary border rounded-md ${
+                    errors.name ? 'border-red-500' : 'border-brand-secondary'
+                  } px-4 py-2 focus:outline-none focus:border-brand-accent`}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Lightning Bolts"
@@ -264,13 +264,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Age Group */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Age Group *
                 </label>
                 <select
-                  className={`w-full bg-white text-forest-800 border rounded-md ${
-                    errors.age_group ? 'border-red-500' : 'border-forest-200'
-                  } px-4 py-2 focus:outline-none focus:border-forest-600`}
+                  className={`w-full bg-white text-brand-primary border rounded-md ${
+                    errors.age_group ? 'border-red-500' : 'border-brand-secondary'
+                  } px-4 py-2 focus:outline-none focus:border-brand-accent`}
                   value={formData.age_group}
                   onChange={(e) => setFormData({ ...formData, age_group: e.target.value })}
                 >
@@ -295,13 +295,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Division */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Division *
                 </label>
                 <select
-                  className={`w-full bg-white text-forest-800 border rounded-md ${
-                    errors.division ? 'border-red-500' : 'border-forest-200'
-                  } px-4 py-2 focus:outline-none focus:border-forest-600`}
+                  className={`w-full bg-white text-brand-primary border rounded-md ${
+                    errors.division ? 'border-red-500' : 'border-brand-secondary'
+                  } px-4 py-2 focus:outline-none focus:border-brand-accent`}
                   value={formData.division}
                   onChange={(e) => setFormData({ ...formData, division: e.target.value })}
                 >
@@ -314,13 +314,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Season */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Season *
                 </label>
                 <select
-                  className={`w-full bg-white text-forest-800 border rounded-md ${
-                    errors.season_id ? 'border-red-500' : 'border-forest-200'
-                  } px-4 py-2 focus:outline-none focus:border-forest-600`}
+                  className={`w-full bg-white text-brand-primary border rounded-md ${
+                    errors.season_id ? 'border-red-500' : 'border-brand-secondary'
+                  } px-4 py-2 focus:outline-none focus:border-brand-accent`}
                   value={formData.season_id}
                   onChange={(e) => setFormData({ ...formData, season_id: e.target.value })}
                 >
@@ -335,25 +335,25 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                 <button
                   type="button"
                   onClick={() => setShowSeasonForm(!showSeasonForm)}
-                  className="text-forest-800 hover:underline text-sm mt-2"
+                  className="text-brand-primary hover:underline text-sm mt-2"
                 >
                   + Create New Season
                 </button>
 
                 {/* Inline Season Creation Form */}
                 {showSeasonForm && (
-                  <div className="border border-forest-200 rounded-md p-4 mt-3 bg-gray-50">
-                    <h4 className="text-sm font-semibold text-forest-800 mb-3 uppercase">
+                  <div className="border border-brand-secondary rounded-md p-4 mt-3 bg-gray-50">
+                    <h4 className="text-sm font-semibold text-brand-primary mb-3 uppercase">
                       Create New Season
                     </h4>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                        <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">
                           Season Name *
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
                           value={seasonFormData.name}
                           onChange={(e) => setSeasonFormData({ ...seasonFormData, name: e.target.value })}
                           placeholder="e.g., Spring 2024"
@@ -363,12 +363,12 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                          <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">
                             Start Date *
                           </label>
                           <input
                             type="date"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
                             value={seasonFormData.start_date}
                             onChange={(e) => setSeasonFormData({ ...seasonFormData, start_date: e.target.value })}
                             required
@@ -376,12 +376,12 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                         </div>
 
                         <div>
-                          <label className="block text-forest-800 text-xs font-medium mb-1 uppercase">
+                          <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">
                             End Date *
                           </label>
                           <input
                             type="date"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-2 focus:outline-none focus:border-forest-600 text-sm"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
                             value={seasonFormData.end_date}
                             onChange={(e) => setSeasonFormData({ ...seasonFormData, end_date: e.target.value })}
                             min={seasonFormData.start_date}
@@ -397,14 +397,14 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                             setShowSeasonForm(false);
                             setSeasonFormData({ name: '', start_date: '', end_date: '' });
                           }}
-                          className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
                           onClick={(e) => handleCreateSeason(e as any)}
-                          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-1 hover:bg-forest-700 font-semibold uppercase text-sm"
+                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary font-semibold uppercase text-sm"
                         >
                           Save Season
                         </button>
@@ -416,11 +416,11 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Primary Coach */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Primary Coach
                 </label>
                 <select
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   value={formData.primary_coach_id}
                   onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
                 >
@@ -435,11 +435,11 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Home Field */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Home Field
                 </label>
                 <select
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   value={formData.home_field_id}
                   onChange={(e) => setFormData({ ...formData, home_field_id: e.target.value })}
                 >
@@ -454,12 +454,12 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
               {/* Max Players */}
               <div>
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Max Players
                 </label>
                 <input
                   type="number"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   value={formData.max_players}
                   onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) || 20 })}
                   min="1"
@@ -487,13 +487,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
               >
                 {team ? 'Update Team' : 'Create Team'}
               </button>

@@ -98,7 +98,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-forest-800">Create New User</h2>
+          <h2 className="text-xl font-semibold text-brand-primary">Create New User</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -127,7 +127,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               required
             />
           </div>
@@ -142,7 +142,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="John"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               required
             />
           </div>
@@ -157,7 +157,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Doe"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               required
             />
           </div>
@@ -170,7 +170,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
             <select
               value={accessType}
               onChange={(e) => setAccessType(e.target.value as 'league' | 'club')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               <option value="league">League Level</option>
               <option value="club">Club Level</option>
@@ -186,7 +186,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
               <select
                 value={clubId || ''}
                 onChange={(e) => setClubId(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 required
               >
                 <option value="">Choose a club...</option>
@@ -207,7 +207,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as 'league_admin' | 'club_admin' | 'coach')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               {accessType === 'league' ? (
                 <>
@@ -240,7 +240,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ leagueId, onClose, onSucces
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
+              className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
             >
               {loading ? 'Creating...' : 'Create User'}
             </button>

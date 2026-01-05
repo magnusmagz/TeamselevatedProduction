@@ -153,7 +153,7 @@ const UserProfile: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-forest-800">Loading profile...</div>
+        <div className="text-brand-primary">Loading profile...</div>
       </div>
     );
   }
@@ -161,7 +161,7 @@ const UserProfile: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-forest-800 mb-2 uppercase tracking-wide">My Profile</h2>
+        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">My Profile</h2>
         <p className="text-gray-600">Manage your personal information and account settings</p>
       </div>
 
@@ -178,19 +178,19 @@ const UserProfile: React.FC = () => {
       )}
 
       {/* Profile Information Section */}
-      <div className="bg-white border border-forest-200 rounded-md p-6 mb-6">
-        <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+      <div className="bg-white border border-brand-secondary rounded-md p-6 mb-6">
+        <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
           Profile Information
         </h3>
         <form onSubmit={handleProfileUpdate}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 First Name
               </label>
               <input
                 type="text"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={formData.first_name}
                 onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 required
@@ -198,12 +198,12 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Last Name
               </label>
               <input
                 type="text"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={formData.last_name}
                 onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 required
@@ -211,12 +211,12 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Email Address
               </label>
               <input
                 type="email"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
@@ -228,7 +228,7 @@ const UserProfile: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -237,19 +237,19 @@ const UserProfile: React.FC = () => {
       </div>
 
       {/* Change Password Section */}
-      <div className="bg-white border border-forest-200 rounded-md p-6">
-        <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+      <div className="bg-white border border-brand-secondary rounded-md p-6">
+        <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
           Change Password
         </h3>
         <form onSubmit={handlePasswordUpdate}>
           <div className="grid grid-cols-1 gap-4 mb-6">
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Current Password
               </label>
               <input
                 type="password"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={passwordData.current_password}
                 onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
                 required
@@ -257,12 +257,12 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 New Password
               </label>
               <input
                 type="password"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={passwordData.new_password}
                 onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
                 required
@@ -272,12 +272,12 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Confirm New Password
               </label>
               <input
                 type="password"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 value={passwordData.confirm_password}
                 onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
                 required
@@ -289,7 +289,7 @@ const UserProfile: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
             >
               {saving ? 'Updating...' : 'Update Password'}
             </button>

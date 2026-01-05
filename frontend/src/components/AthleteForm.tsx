@@ -309,12 +309,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {athlete ? 'Edit Athlete' : 'Create New Athlete'}
           </h3>
-          <button onClick={onClose} className="text-forest-800 hover:bg-gray-100 px-2 text-2xl">
+          <button onClick={onClose} className="text-brand-primary hover:bg-gray-100 px-2 text-2xl">
             ×
           </button>
         </div>
@@ -325,10 +325,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             {['Athlete Info', 'Guardian Info', 'Emergency & Medical'].map((step, index) => (
               <div
                 key={index}
-                className={`flex-1 text-center py-2 border border-forest-200 rounded-md ${
+                className={`flex-1 text-center py-2 border border-brand-secondary rounded-md ${
                   currentStep === index + 1
-                    ? 'bg-white text-forest-800 font-bold'
-                    : 'bg-gray-100 text-forest-800'
+                    ? 'bg-white text-brand-primary font-bold'
+                    : 'bg-gray-100 text-brand-primary'
                 }`}
               >
                 {step}
@@ -340,16 +340,16 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             {/* Step 1: Athlete Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h4 className="text-lg font-semibold text-forest-800 mb-4 uppercase">Athlete Information</h4>
+                <h4 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Athlete Information</h4>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       First Name *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.first_name}
                       onChange={(e) => handleChange('first_name', e.target.value)}
                       required
@@ -357,12 +357,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Middle Initial
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.middle_initial}
                       onChange={(e) => handleChange('middle_initial', e.target.value)}
                       maxLength={1}
@@ -370,12 +370,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Last Name *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.last_name}
                       onChange={(e) => handleChange('last_name', e.target.value)}
                       required
@@ -385,24 +385,24 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Preferred Name
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.preferred_name}
                       onChange={(e) => handleChange('preferred_name', e.target.value)}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Date of Birth *
                     </label>
                     <input
                       type="date"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.date_of_birth}
                       onChange={(e) => handleChange('date_of_birth', e.target.value)}
                       required
@@ -413,11 +413,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Gender *
                     </label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.gender}
                       onChange={(e) => handleChange('gender', e.target.value)}
                       required
@@ -431,12 +431,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Address Line 1 *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.home_address_line1}
                       onChange={(e) => handleChange('home_address_line1', e.target.value)}
                       required
@@ -444,12 +444,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Address Line 2
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.home_address_line2}
                       onChange={(e) => handleChange('home_address_line2', e.target.value)}
                     />
@@ -457,12 +457,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         City *
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.city}
                         onChange={(e) => handleChange('city', e.target.value)}
                         required
@@ -470,12 +470,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                     </div>
 
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         State *
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.state}
                         onChange={(e) => handleChange('state', e.target.value)}
                         maxLength={2}
@@ -484,12 +484,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                     </div>
 
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Zip Code *
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.zip_code}
                         onChange={(e) => handleChange('zip_code', e.target.value)}
                         required
@@ -499,24 +499,24 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         School Name
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.school_name}
                         onChange={(e) => handleChange('school_name', e.target.value)}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Grade Level
                       </label>
                       <input
                         type="number"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.grade_level}
                         onChange={(e) => handleChange('grade_level', parseInt(e.target.value))}
                         min="1"
@@ -531,16 +531,16 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             {/* Step 2: Guardian Information */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                <h4 className="text-lg font-semibold text-forest-800 mb-4 uppercase">Guardian Information</h4>
+                <h4 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Guardian Information</h4>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Guardian First Name *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.first_name}
                       onChange={(e) => handleGuardianChange('first_name', e.target.value)}
                       required
@@ -548,12 +548,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Guardian Last Name *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.last_name}
                       onChange={(e) => handleGuardianChange('last_name', e.target.value)}
                       required
@@ -563,12 +563,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Email *
                     </label>
                     <input
                       type="email"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.email}
                       onChange={(e) => handleGuardianChange('email', e.target.value)}
                       required
@@ -576,12 +576,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Mobile Phone *
                     </label>
                     <input
                       type="tel"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.mobile_phone}
                       onChange={(e) => handleGuardianChange('mobile_phone', e.target.value)}
                       required
@@ -591,11 +591,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Relationship *
                     </label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.relationship_type}
                       onChange={(e) => handleGuardianChange('relationship_type', e.target.value)}
                       required
@@ -610,12 +610,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                       Work Phone
                     </label>
                     <input
                       type="tel"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={formData.guardian?.work_phone}
                       onChange={(e) => handleGuardianChange('work_phone', e.target.value)}
                     />
@@ -628,17 +628,17 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             {currentStep === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-lg font-semibold text-forest-800 mb-4 uppercase">Emergency Contacts</h4>
+                  <h4 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Emergency Contacts</h4>
                   {formData.emergency_contacts?.map((contact, index) => (
-                    <div key={index} className="bg-white border border-forest-200 rounded-md p-4 mb-4">
+                    <div key={index} className="bg-white border border-brand-secondary rounded-md p-4 mb-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Contact Name *
                           </label>
                           <input
                             type="text"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={contact.contact_name}
                             onChange={(e) => handleEmergencyContactChange(index, 'contact_name', e.target.value)}
                             required
@@ -646,12 +646,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </div>
 
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Relationship *
                           </label>
                           <input
                             type="text"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={contact.relationship}
                             onChange={(e) => handleEmergencyContactChange(index, 'relationship', e.target.value)}
                             required
@@ -659,12 +659,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </div>
 
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Primary Phone *
                           </label>
                           <input
                             type="tel"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={contact.primary_phone}
                             onChange={(e) => handleEmergencyContactChange(index, 'primary_phone', e.target.value)}
                             required
@@ -672,11 +672,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </div>
 
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Can Authorize Medical
                           </label>
                           <select
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={contact.can_authorize_medical ? 'yes' : 'no'}
                             onChange={(e) => handleEmergencyContactChange(index, 'can_authorize_medical', e.target.value === 'yes')}
                           >
@@ -701,25 +701,25 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   <button
                     type="button"
                     onClick={addEmergencyContact}
-                    className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100"
+                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100"
                   >
                     + Add Emergency Contact
                   </button>
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-forest-800 mb-4 uppercase">Medical Information</h4>
+                  <h4 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Medical Information</h4>
 
                   {/* Critical Allergy Information */}
                   <div className="bg-red-50 border-2 border-red-300 p-4 mb-6">
                     <h5 className="font-semibold text-red-800 mb-3 uppercase">Critical Allergy Information</h5>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Allergies (food, medication, environmental)
                         </label>
                         <textarea
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           rows={2}
                           placeholder="e.g., Peanuts, Bee stings, Penicillin"
                           value={formData.medical?.allergies}
@@ -729,11 +729,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Allergy Severity
                           </label>
                           <select
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={formData.medical?.allergy_severity}
                             onChange={(e) => handleMedicalChange('allergy_severity', e.target.value)}
                           >
@@ -746,7 +746,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </div>
 
                         <div>
-                          <label className="flex items-center text-forest-800 mt-6">
+                          <label className="flex items-center text-brand-primary mt-6">
                             <input
                               type="checkbox"
                               className="mr-2"
@@ -758,7 +758,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                           {formData.medical?.has_epipen && (
                             <input
                               type="text"
-                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full mt-2 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               placeholder="EpiPen location (e.g., backpack, coach)"
                               value={formData.medical?.epipen_location}
                               onChange={(e) => handleMedicalChange('epipen_location', e.target.value)}
@@ -774,11 +774,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                     <h5 className="font-semibold text-yellow-800 mb-3 uppercase">Medical Conditions & Medications</h5>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Medical Conditions
                         </label>
                         <textarea
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           rows={2}
                           placeholder="e.g., Diabetes, ADHD, Epilepsy, Heart condition"
                           value={formData.medical?.medical_conditions}
@@ -787,11 +787,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Current Medications
                         </label>
                         <textarea
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           rows={2}
                           placeholder="List all current medications and dosages"
                           value={formData.medical?.medications}
@@ -801,7 +801,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="flex items-center text-forest-800">
+                          <label className="flex items-center text-brand-primary">
                             <input
                               type="checkbox"
                               className="mr-2"
@@ -813,7 +813,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                           {formData.medical?.has_asthma && (
                             <input
                               type="text"
-                              className="w-full mt-2 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full mt-2 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               placeholder="Inhaler location (e.g., backpack, coach)"
                               value={formData.medical?.inhaler_location}
                               onChange={(e) => handleMedicalChange('inhaler_location', e.target.value)}
@@ -825,40 +825,40 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   {/* Insurance Information */}
-                  <div className="border border-forest-200 rounded-md p-4 mb-6">
-                    <h5 className="font-semibold text-forest-800 mb-3 uppercase">Insurance Information</h5>
+                  <div className="border border-brand-secondary rounded-md p-4 mb-6">
+                    <h5 className="font-semibold text-brand-primary mb-3 uppercase">Insurance Information</h5>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Insurance Provider
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.medical?.insurance_provider}
                           onChange={(e) => handleMedicalChange('insurance_provider', e.target.value)}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Policy Number
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.medical?.insurance_policy_number}
                           onChange={(e) => handleMedicalChange('insurance_policy_number', e.target.value)}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Group Number
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.medical?.insurance_group_number}
                           onChange={(e) => handleMedicalChange('insurance_group_number', e.target.value)}
                         />
@@ -868,38 +868,38 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
                   {/* Physician & Physical Information */}
                   <div className="grid grid-cols-2 gap-6 mb-6">
-                    <div className="border border-forest-200 rounded-md p-4">
-                      <h5 className="font-semibold text-forest-800 mb-3 uppercase">Primary Physician</h5>
+                    <div className="border border-brand-secondary rounded-md p-4">
+                      <h5 className="font-semibold text-brand-primary mb-3 uppercase">Primary Physician</h5>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Physician Name
                           </label>
                           <input
                             type="text"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={formData.medical?.physician_name}
                             onChange={(e) => handleMedicalChange('physician_name', e.target.value)}
                           />
                         </div>
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Phone
                           </label>
                           <input
                             type="tel"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={formData.medical?.physician_phone}
                             onChange={(e) => handleMedicalChange('physician_phone', e.target.value)}
                           />
                         </div>
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Address
                           </label>
                           <input
                             type="text"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={formData.medical?.physician_address}
                             onChange={(e) => handleMedicalChange('physician_address', e.target.value)}
                           />
@@ -907,28 +907,28 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       </div>
                     </div>
 
-                    <div className="border border-forest-200 rounded-md p-4">
-                      <h5 className="font-semibold text-forest-800 mb-3 uppercase">Physical Information</h5>
+                    <div className="border border-brand-secondary rounded-md p-4">
+                      <h5 className="font-semibold text-brand-primary mb-3 uppercase">Physical Information</h5>
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                               Last Physical
                             </label>
                             <input
                               type="date"
-                              className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               value={formData.medical?.last_physical_date}
                               onChange={(e) => handleMedicalChange('last_physical_date', e.target.value)}
                             />
                           </div>
                           <div>
-                            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                               Expires
                             </label>
                             <input
                               type="date"
-                              className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               value={formData.medical?.physical_expiry_date}
                               onChange={(e) => handleMedicalChange('physical_expiry_date', e.target.value)}
                             />
@@ -936,34 +936,34 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                               Height (inches)
                             </label>
                             <input
                               type="number"
-                              className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               value={formData.medical?.height_inches}
                               onChange={(e) => handleMedicalChange('height_inches', parseInt(e.target.value))}
                             />
                           </div>
                           <div>
-                            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                               Weight (lbs)
                             </label>
                             <input
                               type="number"
-                              className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                               value={formData.medical?.weight_lbs}
                               onChange={(e) => handleMedicalChange('weight_lbs', parseInt(e.target.value))}
                             />
                           </div>
                         </div>
                         <div>
-                          <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                             Blood Type
                           </label>
                           <select
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                             value={formData.medical?.blood_type}
                             onChange={(e) => handleMedicalChange('blood_type', e.target.value)}
                           >
@@ -983,10 +983,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
 
                   {/* Emergency Consent & Special Instructions */}
-                  <div className="border border-forest-200 rounded-md p-4">
+                  <div className="border border-brand-secondary rounded-md p-4">
                     <div className="space-y-4">
                       <div>
-                        <label className="flex items-center text-forest-800">
+                        <label className="flex items-center text-brand-primary">
                           <input
                             type="checkbox"
                             className="mr-2"
@@ -998,11 +998,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Special Instructions or Additional Medical Information
                         </label>
                         <textarea
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           rows={3}
                           placeholder="Any additional medical information, special care instructions, or important notes for coaches and medical staff"
                           value={formData.medical?.special_instructions}
@@ -1022,7 +1022,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   <button
                     type="button"
                     onClick={() => setCurrentStep(currentStep - 1)}
-                    className="bg-forest-600 text-white px-6 py-2 hover:bg-forest-500"
+                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
                   >
                     Previous
                   </button>
@@ -1033,7 +1033,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                 <button
                   type="button"
                   onClick={onClose}
-                  className="bg-forest-600 text-white px-6 py-2 hover:bg-forest-500"
+                  className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
                 >
                   Cancel
                 </button>
@@ -1042,14 +1042,14 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   <button
                     type="button"
                     onClick={() => setCurrentStep(currentStep + 1)}
-                    className="bg-forest-500 text-white px-6 py-2 hover:bg-forest-400 font-semibold"
+                    className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
                   >
                     Next
                   </button>
                 ) : (
                   <button
                     type="submit"
-                    className="bg-forest-500 text-white px-6 py-2 hover:bg-forest-400 font-semibold"
+                    className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
                   >
                     {athlete ? 'Update Athlete' : 'Create Athlete'}
                   </button>

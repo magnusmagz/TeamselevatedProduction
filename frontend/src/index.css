@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dynamic Theme Colors - Set via JavaScript in ThemeContext */
+:root {
+  --color-primary: #12443e;
+  --color-primary-hover: #0d2a1f;
+  --color-primary-dark: #0a2a25;
+  --color-secondary: #a3ebd1;
+  --color-secondary-hover: #6edeb5;
+  --color-accent: #3fcb9a;
+  --color-light: #d1f5e8;
+  --color-muted: #6edeb5;
+}
+
 /* Orbitron Font */
 @font-face {
   font-family: 'Orbitron';

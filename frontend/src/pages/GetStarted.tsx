@@ -179,7 +179,7 @@ export default function GetStarted() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
         <div className="max-w-2xl w-full">
-          <div className="bg-white border border-forest-200 rounded-md p-8">
+          <div className="bg-white border border-brand-secondary rounded-md p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Get Started</h1>
               <p className="text-gray-600">Tell us about yourself (select all that apply)</p>
@@ -191,15 +191,15 @@ export default function GetStarted() {
                   key={role.id}
                   className={`flex items-center p-4 border rounded-md cursor-pointer transition-colors ${
                     selectedRoles.includes(role.id)
-                      ? 'bg-forest-50 border-forest-600'
-                      : 'border-forest-200 bg-white hover:bg-gray-50'
+                      ? 'bg-brand-secondary border-brand-primary'
+                      : 'border-brand-secondary bg-white hover:bg-gray-50'
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={selectedRoles.includes(role.id)}
                     onChange={() => toggleRole(role.id)}
-                    className="w-5 h-5 text-forest-600 border-gray-300 focus:ring-forest-500"
+                    className="w-5 h-5 text-brand-primary border-gray-300 focus:ring-brand-accent"
                   />
                   <span className="ml-3 text-lg font-medium text-gray-900">{role.label}</span>
                 </label>
@@ -215,13 +215,13 @@ export default function GetStarted() {
             <div className="space-y-3">
               <button
                 onClick={handleContinueToDetails}
-                className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
+                className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 border border-brand-secondary rounded-md transition-colors duration-200 uppercase"
               >
                 Continue
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="w-full bg-white hover:bg-gray-50 text-forest-800 font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
+                className="w-full bg-white hover:bg-gray-50 text-brand-primary font-semibold py-3 px-4 border border-brand-secondary rounded-md transition-colors duration-200 uppercase"
               >
                 Back to Home
               </button>
@@ -237,7 +237,7 @@ export default function GetStarted() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4 py-8">
         <div className="max-w-2xl w-full">
-          <div className="bg-white border border-forest-200 rounded-md p-8">
+          <div className="bg-white border border-brand-secondary rounded-md p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Create Your Organization</h1>
               <p className="text-gray-600">Provide your organization details</p>
@@ -255,7 +255,7 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="Enter your organization, team, or league name"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
 
@@ -270,7 +270,7 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="Enter your full name"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
 
@@ -285,7 +285,7 @@ export default function GetStarted() {
                   onChange={handleInputChange}
                   required
                   placeholder="your.email@example.com"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
 
@@ -299,7 +299,7 @@ export default function GetStarted() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="(555) 123-4567"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
 
@@ -318,7 +318,7 @@ export default function GetStarted() {
                           value={formData.address}
                           onChange={handleInputChange}
                           placeholder="123 Main Street"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         />
                       </div>
 
@@ -333,7 +333,7 @@ export default function GetStarted() {
                             value={formData.city}
                             onChange={handleInputChange}
                             placeholder="City"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           />
                         </div>
 
@@ -347,7 +347,7 @@ export default function GetStarted() {
                             value={formData.state}
                             onChange={handleInputChange}
                             placeholder="State"
-                            className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           />
                         </div>
                       </div>
@@ -362,7 +362,7 @@ export default function GetStarted() {
                           value={formData.zipCode}
                           onChange={handleInputChange}
                           placeholder="12345"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         />
                       </div>
                     </div>
@@ -380,14 +380,14 @@ export default function GetStarted() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                  className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 border border-brand-secondary rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
                 >
                   {loading ? 'Creating...' : 'Create Organization'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep('roles')}
-                  className="w-full bg-white hover:bg-gray-50 text-forest-800 font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
+                  className="w-full bg-white hover:bg-gray-50 text-brand-primary font-semibold py-3 px-4 border border-brand-secondary rounded-md transition-colors duration-200 uppercase"
                 >
                   Back
                 </button>
@@ -403,7 +403,7 @@ export default function GetStarted() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
-        <div className="bg-white border border-forest-200 rounded-md p-8">
+        <div className="bg-white border border-brand-secondary rounded-md p-8">
           <div className="text-center">
             <div className="mx-auto h-16 w-16 bg-green-100 rounded-md flex items-center justify-center mb-4">
               <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,7 +419,7 @@ export default function GetStarted() {
             </p>
 
             {createdData?.magicLink && (
-              <div className="bg-forest-50 border border-forest-200 rounded-md p-4 text-sm text-forest-800 mb-6">
+              <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4 text-sm text-brand-primary mb-6">
                 <p className="font-semibold mb-2">Check your email!</p>
                 <p>We've sent you a magic link to complete your setup.</p>
               </div>
@@ -427,7 +427,7 @@ export default function GetStarted() {
 
             <button
               onClick={() => navigate('/dashboard')}
-              className="bg-forest-800 hover:bg-forest-700 text-white font-semibold py-2 px-6 border border-forest-200 rounded-md transition-colors duration-200 uppercase"
+              className="bg-brand-primary hover:bg-brand-primary text-white font-semibold py-2 px-6 border border-brand-secondary rounded-md transition-colors duration-200 uppercase"
             >
               Go to Dashboard Now
             </button>

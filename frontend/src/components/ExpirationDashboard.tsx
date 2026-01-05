@@ -58,7 +58,7 @@ const ExpirationDashboard: React.FC = () => {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-forest-800 mb-2 uppercase tracking-wide">Document Expiration Dashboard</h2>
+        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Document Expiration Dashboard</h2>
         <p className="text-gray-600">Monitor and manage expiring athlete documents</p>
       </div>
 
@@ -66,40 +66,40 @@ const ExpirationDashboard: React.FC = () => {
       <div className="mb-6 flex gap-2">
         <button
           onClick={() => setDaysFilter(7)}
-          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
+          className={`px-4 py-2 border border-brand-secondary rounded-md uppercase font-medium ${
             daysFilter === 7
-              ? 'bg-forest-800 text-white'
-              : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
+              ? 'bg-brand-primary text-white'
+              : 'bg-white text-brand-primary hover:bg-brand-primary hover:text-white'
           }`}
         >
           Next 7 Days
         </button>
         <button
           onClick={() => setDaysFilter(30)}
-          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
+          className={`px-4 py-2 border border-brand-secondary rounded-md uppercase font-medium ${
             daysFilter === 30
-              ? 'bg-forest-800 text-white'
-              : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
+              ? 'bg-brand-primary text-white'
+              : 'bg-white text-brand-primary hover:bg-brand-primary hover:text-white'
           }`}
         >
           Next 30 Days
         </button>
         <button
           onClick={() => setDaysFilter(60)}
-          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
+          className={`px-4 py-2 border border-brand-secondary rounded-md uppercase font-medium ${
             daysFilter === 60
-              ? 'bg-forest-800 text-white'
-              : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
+              ? 'bg-brand-primary text-white'
+              : 'bg-white text-brand-primary hover:bg-brand-primary hover:text-white'
           }`}
         >
           Next 60 Days
         </button>
         <button
           onClick={() => setDaysFilter(90)}
-          className={`px-4 py-2 border border-forest-200 rounded-md uppercase font-medium ${
+          className={`px-4 py-2 border border-brand-secondary rounded-md uppercase font-medium ${
             daysFilter === 90
-              ? 'bg-forest-800 text-white'
-              : 'bg-white text-forest-800 hover:bg-forest-800 hover:text-white'
+              ? 'bg-brand-primary text-white'
+              : 'bg-white text-brand-primary hover:bg-brand-primary hover:text-white'
           }`}
         >
           Next 90 Days
@@ -117,30 +117,30 @@ const ExpirationDashboard: React.FC = () => {
         <div className={`p-6 border rounded-md ${
           groups.thisWeek.length > 0
             ? 'border-orange-200 bg-orange-50'
-            : 'border-forest-200 bg-white'
+            : 'border-brand-secondary bg-white'
         }`}>
           <div className={`text-4xl font-bold mb-1 ${
-            groups.thisWeek.length > 0 ? 'text-orange-600' : 'text-forest-800'
+            groups.thisWeek.length > 0 ? 'text-orange-600' : 'text-brand-primary'
           }`}>
             {groups.thisWeek.length}
           </div>
-          <div className="text-sm uppercase tracking-wide text-forest-800">This Week</div>
+          <div className="text-sm uppercase tracking-wide text-brand-primary">This Week</div>
         </div>
         <div className={`p-6 border rounded-md ${
           groups.nextTwoWeeks.length > 0
             ? 'border-yellow-200 bg-yellow-50'
-            : 'border-forest-200 bg-white'
+            : 'border-brand-secondary bg-white'
         }`}>
           <div className={`text-4xl font-bold mb-1 ${
-            groups.nextTwoWeeks.length > 0 ? 'text-yellow-600' : 'text-forest-800'
+            groups.nextTwoWeeks.length > 0 ? 'text-yellow-600' : 'text-brand-primary'
           }`}>
             {groups.nextTwoWeeks.length}
           </div>
-          <div className="text-sm uppercase tracking-wide text-forest-800">Next 2 Weeks</div>
+          <div className="text-sm uppercase tracking-wide text-brand-primary">Next 2 Weeks</div>
         </div>
-        <div className="p-6 border border-forest-200 rounded-md bg-white">
-          <div className="text-4xl font-bold text-forest-800 mb-1">{groups.thisMonth.length}</div>
-          <div className="text-sm uppercase tracking-wide text-forest-800">This Month</div>
+        <div className="p-6 border border-brand-secondary rounded-md bg-white">
+          <div className="text-4xl font-bold text-brand-primary mb-1">{groups.thisMonth.length}</div>
+          <div className="text-sm uppercase tracking-wide text-brand-primary">This Month</div>
         </div>
       </div>
 
@@ -177,19 +177,19 @@ const ExpirationDashboard: React.FC = () => {
 
       {/* Expiring Soon Table */}
       {expiringDocs.filter(d => d.days_until_expiry >= 0).length > 0 && (
-        <div className="border border-forest-200 rounded-md bg-white">
-          <div className="bg-forest-800 p-4 border-b border-forest-200">
+        <div className="border border-brand-secondary rounded-md bg-white">
+          <div className="bg-brand-primary p-4 border-b border-brand-secondary">
             <h3 className="font-bold text-white uppercase tracking-wide">Expiring Documents</h3>
           </div>
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-forest-200">
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Days</th>
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Athlete</th>
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Document Type</th>
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Document Name</th>
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Expiration Date</th>
-                <th className="text-left p-4 font-bold text-forest-800 uppercase text-sm tracking-wide">Action</th>
+              <tr className="bg-gray-50 border-b border-brand-secondary">
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Days</th>
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Athlete</th>
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Document Type</th>
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Document Name</th>
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Expiration Date</th>
+                <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -206,19 +206,19 @@ const ExpirationDashboard: React.FC = () => {
                           ? 'border-orange-200 bg-orange-50 text-orange-600'
                           : doc.days_until_expiry <= 30
                           ? 'border-yellow-200 bg-yellow-50 text-yellow-600'
-                          : 'border-forest-200 bg-gray-50 text-forest-800'
+                          : 'border-brand-secondary bg-gray-50 text-brand-primary'
                       }`}>
                         {doc.days_until_expiry}d
                       </span>
                     </td>
-                    <td className="p-4 font-medium text-forest-800">{doc.athlete_name}</td>
-                    <td className="p-4 text-forest-800">{doc.document_type}</td>
+                    <td className="p-4 font-medium text-brand-primary">{doc.athlete_name}</td>
+                    <td className="p-4 text-brand-primary">{doc.document_type}</td>
                     <td className="p-4 text-sm text-gray-600">{doc.document_name}</td>
-                    <td className="p-4 text-forest-800">{new Date(doc.expires_date).toLocaleDateString()}</td>
+                    <td className="p-4 text-brand-primary">{new Date(doc.expires_date).toLocaleDateString()}</td>
                     <td className="p-4">
                       <button
                         onClick={() => window.location.href = `/athlete/${doc.athlete_id}/documents`}
-                        className="bg-forest-800 text-white border border-forest-200 rounded-md px-3 py-1 text-sm uppercase hover:bg-forest-700"
+                        className="bg-brand-primary text-white border border-brand-secondary rounded-md px-3 py-1 text-sm uppercase hover:bg-brand-primary"
                       >
                         Update →
                       </button>
@@ -239,23 +239,23 @@ const ExpirationDashboard: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="mt-6 p-6 bg-gray-50 border border-forest-200 rounded-md">
-        <h4 className="font-bold mb-4 text-forest-800 uppercase tracking-wide">Quick Actions</h4>
+      <div className="mt-6 p-6 bg-gray-50 border border-brand-secondary rounded-md">
+        <h4 className="font-bold mb-4 text-brand-primary uppercase tracking-wide">Quick Actions</h4>
         <ul className="space-y-2">
-          <li className="flex items-center text-forest-800">
-            <span className="w-2 h-2 bg-forest-800 mr-3"></span>
+          <li className="flex items-center text-brand-primary">
+            <span className="w-2 h-2 bg-brand-primary mr-3"></span>
             Send reminder emails to parents about expiring documents
           </li>
-          <li className="flex items-center text-forest-800">
-            <span className="w-2 h-2 bg-forest-800 mr-3"></span>
+          <li className="flex items-center text-brand-primary">
+            <span className="w-2 h-2 bg-brand-primary mr-3"></span>
             Generate compliance report for league requirements
           </li>
-          <li className="flex items-center text-forest-800">
-            <span className="w-2 h-2 bg-forest-800 mr-3"></span>
+          <li className="flex items-center text-brand-primary">
+            <span className="w-2 h-2 bg-brand-primary mr-3"></span>
             Bulk update expiration dates for seasonal documents
           </li>
-          <li className="flex items-center text-forest-800">
-            <span className="w-2 h-2 bg-forest-800 mr-3"></span>
+          <li className="flex items-center text-brand-primary">
+            <span className="w-2 h-2 bg-brand-primary mr-3"></span>
             Export list of non-compliant athletes
           </li>
         </ul>

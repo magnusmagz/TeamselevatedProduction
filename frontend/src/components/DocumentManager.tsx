@@ -159,7 +159,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
       </div>
 
       {/* Compliance Status */}
-      <div className="mb-5 p-4 border border-forest-200 rounded-md bg-gray-50">
+      <div className="mb-5 p-4 border border-brand-secondary rounded-md bg-gray-50">
         <div className="flex justify-between items-center mb-2">
           <span className="font-bold">Compliance Status</span>
           <span className={`text-lg font-bold ${compliancePercent === 100 ? 'text-green-600' : 'text-yellow-600'}`}>

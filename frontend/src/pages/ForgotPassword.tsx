@@ -48,8 +48,8 @@ export default function ForgotPassword() {
         <div className="max-w-md w-full">
           <div className="bg-white border-2 border-gray-200 p-8">
             <div className="text-center">
-              <div className="mx-auto h-16 w-16 bg-forest-100 flex items-center justify-center mb-4">
-                <svg className="h-8 w-8 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto h-16 w-16 bg-brand-secondary flex items-center justify-center mb-4">
+                <svg className="h-8 w-8 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -66,13 +66,13 @@ export default function ForgotPassword() {
                     setSuccess(false);
                     setEmail('');
                   }}
-                  className="bg-white text-forest-600 font-semibold py-2 px-4 border-2 border-forest-600 hover:bg-gray-50 transition-colors duration-200 w-full"
+                  className="bg-white text-brand-primary font-semibold py-2 px-4 border-2 border-brand-primary hover:bg-gray-50 transition-colors duration-200 w-full"
                 >
                   TRY ANOTHER EMAIL
                 </button>
                 <Link
                   to="/login"
-                  className="block text-center text-forest-600 hover:text-forest-700 font-medium"
+                  className="block text-center text-brand-primary hover:text-brand-primary-hover font-medium"
                 >
                   Back to login
                 </Link>
@@ -103,7 +103,7 @@ export default function ForgotPassword() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
-                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                 required
                 autoFocus
               />
@@ -118,14 +118,14 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'SENDING...' : 'SEND RESET LINK'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-forest-600 hover:text-forest-700 font-medium">
+            <Link to="/login" className="text-sm text-brand-primary hover:text-brand-primary-hover font-medium">
               Back to login
             </Link>
           </div>

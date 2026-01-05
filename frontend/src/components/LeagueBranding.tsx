@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogoColorExtractor, LogoColorData } from './LogoColorExtractor';
+import { useTheme } from '../contexts/ThemeContext';
+import { clearBrandingCache } from './BrandingLogo';
 
 interface LeagueBrandingProps {
   leagueId: number;
@@ -7,6 +9,7 @@ interface LeagueBrandingProps {
 
 const LeagueBranding: React.FC<LeagueBrandingProps> = ({ leagueId }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const { updateTheme } = useTheme();
   const [initialData, setInitialData] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
@@ -56,8 +59,9 @@ const LeagueBranding: React.FC<LeagueBrandingProps> = ({ leagueId }) => {
         throw new Error(result.error || 'Failed to save league branding');
       }
 
-      // Refresh the page to show new logo in header
-      window.location.reload();
+      // Clear the logo cache and update theme colors immediately
+      clearBrandingCache('league', leagueId);
+      updateTheme(data.primaryColor);
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to save league branding');
     }
@@ -65,7 +69,7 @@ const LeagueBranding: React.FC<LeagueBrandingProps> = ({ leagueId }) => {
 
   if (loading) {
     return (
-      <div className="text-center text-forest-800 py-12">
+      <div className="text-center text-brand-primary py-12">
         Loading league branding...
       </div>
     );
@@ -74,7 +78,7 @@ const LeagueBranding: React.FC<LeagueBrandingProps> = ({ leagueId }) => {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-forest-800">League Branding</h2>
+        <h2 className="text-xl font-semibold text-brand-primary">League Branding</h2>
         <p className="text-gray-600 mt-1">
           Upload your league logo and customize brand colors. Your logo will appear throughout the platform for all league members.
         </p>

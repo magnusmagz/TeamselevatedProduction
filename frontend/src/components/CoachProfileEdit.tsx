@@ -130,7 +130,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-md p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold text-forest-800 mb-6 uppercase tracking-wide">
+        <h3 className="text-2xl font-bold text-brand-primary mb-6 uppercase tracking-wide">
           Edit Profile
         </h3>
 
@@ -144,7 +144,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 First Name *
               </label>
               <input
@@ -153,12 +153,12 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 value={formData.first_name}
                 onChange={handleInputChange}
                 required
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Last Name *
               </label>
               <input
@@ -167,7 +167,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 value={formData.last_name}
                 onChange={handleInputChange}
                 required
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
           </div>
@@ -175,7 +175,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
           {/* Contact Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Email *
               </label>
               <input
@@ -184,12 +184,12 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 value={formData.email}
                 onChange={handleInputChange}
                 required
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Phone Number
               </label>
               <input
@@ -198,14 +198,14 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="(555) 123-4567"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
           </div>
 
           {/* Profile Image */}
           <div className="mb-4">
-            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
               Profile Image
             </label>
 
@@ -215,7 +215,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 onClick={() => setImageInputType('url')}
                 className={`px-4 py-2 rounded-md font-medium uppercase text-sm ${
                   imageInputType === 'url'
-                    ? 'bg-forest-800 text-white'
+                    ? 'bg-brand-primary text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
@@ -226,7 +226,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 onClick={() => setImageInputType('upload')}
                 className={`px-4 py-2 rounded-md font-medium uppercase text-sm ${
                   imageInputType === 'upload'
-                    ? 'bg-forest-800 text-white'
+                    ? 'bg-brand-primary text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
@@ -241,7 +241,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 value={formData.profile_image_url}
                 onChange={handleInputChange}
                 placeholder="https://example.com/image.jpg"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             ) : (
               <div>
@@ -250,7 +250,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                   accept="image/*"
                   onChange={handleFileUpload}
                   disabled={uploading}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
                 {uploading && (
                   <p className="text-sm text-gray-600 mt-2">Uploading image...</p>
@@ -263,7 +263,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
                 <img
                   src={formData.profile_image_url}
                   alt="Profile preview"
-                  className="w-24 h-24 rounded-full object-cover border-2 border-forest-200"
+                  className="w-24 h-24 rounded-full object-cover border-2 border-brand-secondary"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -274,7 +274,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
 
           {/* Coaching Background */}
           <div className="mb-6">
-            <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+            <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
               Coaching Background
             </label>
             <textarea
@@ -283,7 +283,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
               onChange={handleInputChange}
               rows={6}
               placeholder="Describe your coaching experience, certifications, philosophy, etc..."
-              className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 resize-none"
+              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent resize-none"
             />
           </div>
 
@@ -300,7 +300,7 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
             <button
               type="submit"
               disabled={saving || uploading}
-              className="px-6 py-2 bg-forest-800 text-white rounded-md hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+              className="px-6 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>

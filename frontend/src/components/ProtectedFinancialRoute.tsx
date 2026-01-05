@@ -61,7 +61,7 @@ export const ProtectedFinancialRoute: React.FC<Props> = ({
           </p>
           <button
             onClick={() => window.history.back()}
-            className="mt-4 px-4 py-2 bg-forest-600 text-white rounded hover:bg-forest-700"
+            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary"
           >
             Go Back
           </button>

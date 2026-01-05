@@ -44,14 +44,14 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-forest-800 uppercase">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl">
+        <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-brand-primary uppercase">
             Embed Registration Form
           </h3>
           <button
             onClick={onClose}
-            className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
           >
             ×
           </button>
@@ -59,23 +59,23 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
         <div className="p-6">
           <div className="mb-6">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Program</h4>
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Program</h4>
             <p className="text-gray-600">{program.name}</p>
           </div>
 
           {/* Direct Link */}
           <div className="mb-6">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Direct Link</h4>
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Direct Link</h4>
             <div className="flex space-x-2">
               <input
                 type="text"
                 readOnly
                 value={registrationUrl}
-                className="flex-1 bg-gray-100 border border-forest-200 rounded-md px-3 py-2 text-sm"
+                className="flex-1 bg-gray-100 border border-brand-secondary rounded-md px-3 py-2 text-sm"
               />
               <button
                 onClick={copyLink}
-                className="bg-forest-800 text-white px-4 py-2 rounded-md hover:bg-forest-700 uppercase text-sm font-semibold"
+                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary uppercase text-sm font-semibold"
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
@@ -84,14 +84,14 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
           {/* Embed Type Selection */}
           <div className="mb-4">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Embed Type</h4>
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Embed Type</h4>
             <div className="flex space-x-4">
               <button
                 onClick={() => setEmbedType('iframe')}
                 className={`px-4 py-2 border rounded-md ${
                   embedType === 'iframe'
-                    ? 'border-forest-800 bg-forest-800 text-white'
-                    : 'border-forest-200 text-forest-800'
+                    ? 'border-brand-primary bg-brand-primary text-white'
+                    : 'border-brand-secondary text-brand-primary'
                 } uppercase text-sm font-semibold`}
               >
                 Iframe (Full Form)
@@ -100,8 +100,8 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
                 onClick={() => setEmbedType('button')}
                 className={`px-4 py-2 border rounded-md ${
                   embedType === 'button'
-                    ? 'border-forest-800 bg-forest-800 text-white'
-                    : 'border-forest-200 text-forest-800'
+                    ? 'border-brand-primary bg-brand-primary text-white'
+                    : 'border-brand-secondary text-brand-primary'
                 } uppercase text-sm font-semibold`}
               >
                 Button (Link)
@@ -111,15 +111,15 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
           {/* Embed Code */}
           <div className="mb-6">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Embed Code</h4>
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Embed Code</h4>
             <textarea
               readOnly
               value={getEmbedCode()}
-              className="w-full h-32 bg-gray-100 border border-forest-200 rounded-md px-3 py-2 text-sm font-mono"
+              className="w-full h-32 bg-gray-100 border border-brand-secondary rounded-md px-3 py-2 text-sm font-mono"
             />
             <button
               onClick={copyToClipboard}
-              className="mt-2 bg-forest-800 text-white px-6 py-2 rounded-md hover:bg-forest-700 uppercase font-semibold"
+              className="mt-2 bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary uppercase font-semibold"
             >
               {copied ? 'Copied!' : 'Copy Code'}
             </button>
@@ -127,7 +127,7 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
           {/* Preview */}
           <div className="mb-6">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Preview</h4>
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Preview</h4>
             <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
               {embedType === 'iframe' ? (
                 <div className="text-center text-gray-500 py-8 border border-dashed border-gray-300 rounded-md">
@@ -138,7 +138,7 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
                   <a
                     href="#"
                     onClick={(e) => e.preventDefault()}
-                    className="inline-block bg-forest-800 text-white px-6 py-3 rounded-md no-underline font-bold uppercase"
+                    className="inline-block bg-brand-primary text-white px-6 py-3 rounded-md no-underline font-bold uppercase"
                   >
                     Register Now
                   </a>
@@ -148,8 +148,8 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
           </div>
 
           {/* Instructions */}
-          <div className="bg-gray-50 border border-forest-200 rounded-md p-4">
-            <h4 className="text-forest-800 font-semibold mb-2 uppercase">Instructions</h4>
+          <div className="bg-gray-50 border border-brand-secondary rounded-md p-4">
+            <h4 className="text-brand-primary font-semibold mb-2 uppercase">Instructions</h4>
             <ol className="list-decimal list-inside text-gray-600 space-y-1 text-sm">
               <li>Copy the embed code above</li>
               <li>Paste it into your website's HTML where you want the form to appear</li>

@@ -60,7 +60,7 @@ const LeagueSelector: React.FC = () => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
-        className="flex items-center space-x-2 px-4 py-2 bg-forest-800 text-white rounded-md hover:bg-forest-700 transition-colors disabled:opacity-50"
+        className="flex items-center space-x-2 px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary transition-colors disabled:opacity-50"
       >
         <svg
           className="w-5 h-5"
@@ -100,9 +100,9 @@ const LeagueSelector: React.FC = () => {
           />
 
           {/* Dropdown */}
-          <div className="absolute right-0 mt-2 w-80 bg-white border border-forest-200 rounded-md shadow-lg z-20 max-h-96 overflow-y-auto">
-            <div className="px-4 py-3 border-b border-forest-200">
-              <p className="text-sm font-semibold text-forest-800 uppercase">
+          <div className="absolute right-0 mt-2 w-80 bg-white border border-brand-secondary rounded-md shadow-lg z-20 max-h-96 overflow-y-auto">
+            <div className="px-4 py-3 border-b border-brand-secondary">
+              <p className="text-sm font-semibold text-brand-primary uppercase">
                 Select Organization
               </p>
               <p className="text-xs text-gray-600 mt-1">
@@ -118,16 +118,16 @@ const LeagueSelector: React.FC = () => {
                     <button
                       onClick={() => handleContextSwitch(group.league.scope_id, 'league')}
                       disabled={isLoading}
-                      className={`w-full text-left px-4 py-2 hover:bg-forest-50 transition-colors disabled:opacity-50 ${
+                      className={`w-full text-left px-4 py-2 hover:bg-brand-secondary transition-colors disabled:opacity-50 ${
                         activeContext?.scope_id === group.league.scope_id &&
                         activeContext?.scope_type === 'league'
-                          ? 'bg-forest-100 border-l-4 border-forest-800'
+                          ? 'bg-brand-secondary border-l-4 border-brand-primary'
                           : ''
                       }`}
                     >
                       <div className="flex items-center space-x-2">
                         <svg
-                          className="w-4 h-4 text-forest-800"
+                          className="w-4 h-4 text-brand-primary"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -140,7 +140,7 @@ const LeagueSelector: React.FC = () => {
                           />
                         </svg>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-forest-800">
+                          <p className="text-sm font-medium text-brand-primary">
                             {group.league.scope_name}
                           </p>
                           <p className="text-xs text-gray-600 uppercase">
@@ -159,16 +159,16 @@ const LeagueSelector: React.FC = () => {
                           key={club.scope_id}
                           onClick={() => handleContextSwitch(club.scope_id, 'club')}
                           disabled={isLoading}
-                          className={`w-full text-left px-4 py-2 hover:bg-forest-50 transition-colors disabled:opacity-50 ${
+                          className={`w-full text-left px-4 py-2 hover:bg-brand-secondary transition-colors disabled:opacity-50 ${
                             activeContext?.scope_id === club.scope_id &&
                             activeContext?.scope_type === 'club'
-                              ? 'bg-forest-100 border-l-4 border-forest-600'
+                              ? 'bg-brand-secondary border-l-4 border-brand-primary'
                               : ''
                           }`}
                         >
                           <div className="flex items-center space-x-2">
                             <svg
-                              className="w-4 h-4 text-forest-600"
+                              className="w-4 h-4 text-brand-primary"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -181,7 +181,7 @@ const LeagueSelector: React.FC = () => {
                               />
                             </svg>
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-forest-800">
+                              <p className="text-sm font-medium text-brand-primary">
                                 {club.scope_name}
                               </p>
                               <p className="text-xs text-gray-600 uppercase">
@@ -200,17 +200,17 @@ const LeagueSelector: React.FC = () => {
             {/* Invitations Link (for admins only) */}
             {(isLeagueAdmin || isClubAdmin) && (
               <>
-                <div className="border-t border-forest-200 my-2"></div>
+                <div className="border-t border-brand-secondary my-2"></div>
                 <button
                   onClick={() => {
                     navigate('/invitations');
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-forest-50 transition-colors"
+                  className="w-full text-left px-4 py-2 hover:bg-brand-secondary transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <svg
-                      className="w-4 h-4 text-forest-600"
+                      className="w-4 h-4 text-brand-primary"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -223,7 +223,7 @@ const LeagueSelector: React.FC = () => {
                       />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-forest-800">
+                      <p className="text-sm font-medium text-brand-primary">
                         Manage Invitations
                       </p>
                       <p className="text-xs text-gray-600">
@@ -242,11 +242,11 @@ const LeagueSelector: React.FC = () => {
                   navigate('/league-settings');
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-forest-50 transition-colors"
+                className="w-full text-left px-4 py-2 hover:bg-brand-secondary transition-colors"
               >
                 <div className="flex items-center space-x-2">
                   <svg
-                    className="w-4 h-4 text-forest-600"
+                    className="w-4 h-4 text-brand-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -265,7 +265,7 @@ const LeagueSelector: React.FC = () => {
                     />
                   </svg>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-forest-800">
+                    <p className="text-sm font-medium text-brand-primary">
                       League Settings
                     </p>
                     <p className="text-xs text-gray-600">

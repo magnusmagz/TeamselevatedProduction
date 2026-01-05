@@ -149,19 +149,19 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     <div>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">{team.name} Roster</h2>
+          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">{team.name} Roster</h2>
           <p className="text-gray-600 mt-2">{roster.length} players total</p>
         </div>
       </div>
 
 
       {loading ? (
-        <div className="text-center text-forest-800 py-12">Loading roster...</div>
+        <div className="text-center text-brand-primary py-12">Loading roster...</div>
       ) : (
         <div className="grid grid-cols-2 gap-6">
           {/* Available Athletes */}
-          <div className="bg-white border border-forest-200 rounded-md p-4">
-            <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase tracking-wide">
+          <div className="bg-white border border-brand-secondary rounded-md p-4">
+            <h3 className="text-xl font-bold text-brand-primary mb-4 uppercase tracking-wide">
               Available Athletes
             </h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -172,7 +172,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                   onDragStart={(e) => handleDragStart(e, athlete)}
                   className="bg-gray-50 border border-gray-300 p-3 cursor-move hover:bg-gray-100 transition-colors"
                 >
-                  <div className="font-medium text-forest-800">
+                  <div className="font-medium text-brand-primary">
                     {athlete.first_name} {athlete.last_name}
                   </div>
                   <div className="text-sm text-gray-600">
@@ -192,28 +192,28 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           <div
             className={`bg-white border-2 p-4 transition-colors ${
               isDragOver
-                ? 'border-forest-600 bg-forest-50'
-                : 'border-forest-800'
+                ? 'border-brand-primary bg-brand-secondary'
+                : 'border-brand-primary'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <h3 className="text-xl font-bold text-forest-800 mb-4 uppercase tracking-wide">
+            <h3 className="text-xl font-bold text-brand-primary mb-4 uppercase tracking-wide">
               Team Roster ({roster.length} players)
             </h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {roster.map((athlete) => (
                 <div
                   key={athlete.id}
-                  className="bg-forest-50 border border-forest-300 p-3"
+                  className="bg-brand-secondary border border-brand-secondary p-3"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-medium text-forest-800">
+                      <div className="font-medium text-brand-primary">
                         {athlete.first_name} {athlete.last_name}
                       </div>
-                      <div className="text-sm text-forest-600">
+                      <div className="text-sm text-brand-primary">
                         {athlete.email}
                       </div>
                     </div>
@@ -229,7 +229,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               {roster.length === 0 && (
                 <div className={`text-center py-8 border-2 border-dashed transition-colors ${
                   isDragOver
-                    ? 'border-forest-600 text-forest-800 bg-forest-100'
+                    ? 'border-brand-primary text-brand-primary bg-brand-secondary'
                     : 'border-gray-300 text-gray-500'
                 }`}>
                   Drop athletes here to add them to the team

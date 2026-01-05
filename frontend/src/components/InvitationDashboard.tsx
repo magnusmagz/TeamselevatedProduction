@@ -129,7 +129,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-forest-800">Loading invitations...</div>;
+    return <div className="text-center py-8 text-brand-primary">Loading invitations...</div>;
   }
 
   if (error) {
@@ -144,7 +144,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
           onClick={() => setFilter('all')}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all uppercase ${
             filter === 'all'
-              ? 'bg-white text-forest-800 shadow-sm'
+              ? 'bg-white text-brand-primary shadow-sm'
               : 'text-gray-700 hover:text-gray-900'
           }`}
         >
@@ -154,7 +154,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
           onClick={() => setFilter('pending')}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all uppercase ${
             filter === 'pending'
-              ? 'bg-white text-forest-800 shadow-sm'
+              ? 'bg-white text-brand-primary shadow-sm'
               : 'text-gray-700 hover:text-gray-900'
           }`}
         >
@@ -164,7 +164,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
           onClick={() => setFilter('accepted')}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all uppercase ${
             filter === 'accepted'
-              ? 'bg-white text-forest-800 shadow-sm'
+              ? 'bg-white text-brand-primary shadow-sm'
               : 'text-gray-700 hover:text-gray-900'
           }`}
         >
@@ -174,14 +174,14 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
 
       {/* Invitation Links Section */}
       {invitationLinks.length > 0 && (
-        <div className="bg-forest-50 border border-forest-200 rounded-md p-4">
-          <h3 className="text-lg font-semibold text-forest-800 mb-3 uppercase">Active Invitation Links</h3>
+        <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4">
+          <h3 className="text-lg font-semibold text-brand-primary mb-3 uppercase">Active Invitation Links</h3>
           <div className="space-y-2">
             {invitationLinks.map((link) => (
-              <div key={link.id} className="bg-white p-3 rounded-md border border-forest-100">
+              <div key={link.id} className="bg-white p-3 rounded-md border border-brand-secondary">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-mono text-sm text-forest-800 font-semibold">{link.code}</p>
+                    <p className="font-mono text-sm text-brand-primary font-semibold">{link.code}</p>
                     <p className="text-xs text-gray-600 mt-1">
                       Created by {link.creator_name} •
                       {link.max_uses ? ` ${link.uses_count}/${link.max_uses} uses` : ` ${link.uses_count} uses`} •
@@ -190,7 +190,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
                   </div>
                   <button
                     onClick={() => navigator.clipboard.writeText(link.url)}
-                    className="text-sm text-forest-600 hover:text-forest-700 font-semibold px-3 py-1 border border-forest-200 rounded-md hover:bg-forest-50 uppercase"
+                    className="text-sm text-brand-primary hover:text-brand-primary-hover font-semibold px-3 py-1 border border-brand-secondary rounded-md hover:bg-brand-secondary uppercase"
                   >
                     Copy Link
                   </button>
@@ -202,43 +202,43 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
       )}
 
       {/* Invitations List */}
-      <div className="bg-white rounded-md border border-forest-200 overflow-hidden">
+      <div className="bg-white rounded-md border border-brand-secondary overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-forest-200">
+          <table className="min-w-full divide-y divide-brand-secondary">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Invited By
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-forest-800 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-forest-100">
+            <tbody className="bg-white divide-y divide-brand-secondary">
               {invitations.map((invitation) => (
                 <tr key={invitation.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-forest-800">
+                    <div className="flex items-center text-sm text-brand-primary">
                       <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                       {invitation.email}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary">
                     {formatRole(invitation.role)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -255,7 +255,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleResend(invitation.id)}
-                          className="text-forest-600 hover:text-forest-700 font-semibold uppercase"
+                          className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
                         >
                           Resend
                         </button>

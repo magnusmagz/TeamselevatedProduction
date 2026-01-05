@@ -318,14 +318,14 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
   if (step === 'complete') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl p-8 text-center">
-          <h2 className="text-2xl font-bold text-forest-800 mb-4 uppercase">Schedule Published!</h2>
+        <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl p-8 text-center">
+          <h2 className="text-2xl font-bold text-brand-primary mb-4 uppercase">Schedule Published!</h2>
           <p className="text-gray-600 mb-6">
             {generatedPractices.filter(p => !p.skip).length} practices have been added to your calendar.
           </p>
           <button
             onClick={onClose}
-            className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase"
           >
             Done
           </button>
@@ -336,14 +336,14 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             Practice Schedule Builder - {team.name}
           </h3>
           <button
             onClick={onClose}
-            className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
           >
             ×
           </button>
@@ -352,12 +352,12 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
         <div className="p-6">
           {step === 'pattern' && (
             <div className="space-y-6">
-              <div className="border border-forest-200 rounded-md p-6">
-                <h4 className="text-forest-800 font-bold mb-4 uppercase">Quick Pattern Setup</h4>
+              <div className="border border-brand-secondary rounded-md p-6">
+                <h4 className="text-brand-primary font-bold mb-4 uppercase">Quick Pattern Setup</h4>
 
                 {/* Days Selection */}
                 <div className="mb-6">
-                  <label className="block text-forest-800 font-medium mb-3 uppercase text-sm">
+                  <label className="block text-brand-primary font-medium mb-3 uppercase text-sm">
                     Select Practice Days
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -367,8 +367,8 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                         onClick={() => handleDayToggle(day.value)}
                         className={`px-4 py-2 border-2 uppercase ${
                           selectedDays.includes(day.value)
-                            ? 'bg-forest-800 text-white border-forest-800'
-                            : 'bg-white text-forest-800 border-forest-800 hover:bg-gray-100'
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'bg-white text-brand-primary border-brand-primary hover:bg-gray-100'
                         }`}
                       >
                         {day.label}
@@ -380,25 +380,25 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 {/* Time Selection */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       Start Time
                     </label>
                     <input
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     />
                   </div>
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       End Time
                     </label>
                     <input
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     />
                   </div>
                 </div>
@@ -406,13 +406,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 {/* Venue and Field Selection */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       Venue
                     </label>
                     <select
                       value={selectedVenue || ''}
                       onChange={(e) => setSelectedVenue(Number(e.target.value))}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     >
                       <option value="">Select a venue...</option>
                       {venues.map(venue => (
@@ -423,13 +423,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                     </select>
                   </div>
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       Field
                     </label>
                     <select
                       value={selectedField || ''}
                       onChange={(e) => setSelectedField(Number(e.target.value))}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       disabled={!selectedVenue}
                     >
                       <option value="">Select a field...</option>
@@ -445,25 +445,25 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 {/* Date Range */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       Start Date
                     </label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     />
                   </div>
                   <div>
-                    <label className="block text-forest-800 font-medium mb-2 uppercase text-sm">
+                    <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
                       End Date
                     </label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     />
                   </div>
                 </div>
@@ -472,7 +472,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                   <button
                     onClick={handleGenerateSchedule}
                     disabled={loading || selectedDays.length === 0 || !selectedField}
-                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase disabled:opacity-50"
+                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase disabled:opacity-50"
                   >
                     {loading ? 'Generating...' : 'Generate Schedule →'}
                   </button>
@@ -483,9 +483,9 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
           {step === 'review' && (
             <div className="space-y-6">
-              <div className="bg-white p-4 border border-forest-200 rounded-md">
+              <div className="bg-white p-4 border border-brand-secondary rounded-md">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-forest-800 font-bold uppercase">
+                  <h4 className="text-brand-primary font-bold uppercase">
                     Generated Schedule ({generatedPractices.length} practices)
                   </h4>
                   {conflictCount > 0 && (
@@ -500,16 +500,16 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border border-forest-200 rounded-md">
+                  <table className="min-w-full border border-brand-secondary rounded-md">
                     <thead>
-                      <tr className="border-b border-forest-200">
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">✓</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Date</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Day</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Time</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Field</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Status</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Notes</th>
+                      <tr className="border-b border-brand-secondary">
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">✓</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Day</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Time</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Field</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Notes</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -525,17 +525,17 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                               type="checkbox"
                               checked={!practice.skip}
                               onChange={() => handleTogglePractice(index)}
-                              className="border border-forest-200 rounded-md"
+                              className="border border-brand-secondary rounded-md"
                             />
                           </td>
-                          <td className="px-4 py-2 text-forest-800">
+                          <td className="px-4 py-2 text-brand-primary">
                             {new Date(practice.date).toLocaleDateString()}
                           </td>
-                          <td className="px-4 py-2 text-forest-800">{practice.day}</td>
-                          <td className="px-4 py-2 text-forest-800">
+                          <td className="px-4 py-2 text-brand-primary">{practice.day}</td>
+                          <td className="px-4 py-2 text-brand-primary">
                             {practice.start_time.slice(0, 5)} - {practice.end_time.slice(0, 5)}
                           </td>
-                          <td className="px-4 py-2 text-forest-800">
+                          <td className="px-4 py-2 text-brand-primary">
                             {fields.find(f => f.id === practice.field_id)?.name}
                           </td>
                           <td className="px-4 py-2">
@@ -557,7 +557,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                               type="text"
                               value={practice.notes || ''}
                               onChange={(e) => handleUpdatePractice(index, 'notes', e.target.value)}
-                              className="w-full bg-white text-forest-800 border border-gray-300 px-2 py-1 text-sm"
+                              className="w-full bg-white text-brand-primary border border-gray-300 px-2 py-1 text-sm"
                               placeholder="Optional notes..."
                             />
                           </td>
@@ -570,19 +570,19 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 <div className="flex justify-between items-center mt-6">
                   <button
                     onClick={() => setStep('pattern')}
-                    className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                   >
                     Edit Pattern
                   </button>
 
                   <div className="flex space-x-4">
-                    <div className="text-forest-800">
+                    <div className="text-brand-primary">
                       {generatedPractices.filter(p => !p.skip).length} practices selected
                     </div>
                     <button
                       onClick={handlePublishSchedule}
                       disabled={saving}
-                      className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-semibold"
+                      className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold"
                     >
                       {saving ? 'Publishing...' : 'Publish Schedule'}
                     </button>

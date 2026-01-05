@@ -214,13 +214,13 @@ export const RosterFeeStatus: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-forest-800">Roster Fee Status</h1>
+          <h1 className="text-2xl font-bold text-brand-primary">Roster Fee Status</h1>
           <p className="text-gray-600 mt-1">View payment status for each athlete in your roster</p>
         </div>
         <button
           onClick={handleExportCSV}
           disabled={roster.length === 0}
-          className="px-4 py-2 bg-forest-600 text-white rounded-lg hover:bg-forest-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -242,7 +242,7 @@ export const RosterFeeStatus: React.FC = () => {
                 setSelectedProgram('');
                 setSelectedTeam('');
               }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-forest-500 focus:border-forest-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-accent focus:border-brand-accent"
             >
               <option value="league">All Athletes (League)</option>
               <option value="program">By Program</option>
@@ -257,7 +257,7 @@ export const RosterFeeStatus: React.FC = () => {
               <select
                 value={selectedProgram}
                 onChange={(e) => setSelectedProgram(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-forest-500 focus:border-forest-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-accent focus:border-brand-accent"
               >
                 <option value="">Select a program</option>
                 {programs.map(p => (
@@ -274,7 +274,7 @@ export const RosterFeeStatus: React.FC = () => {
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-forest-500 focus:border-forest-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-accent focus:border-brand-accent"
               >
                 <option value="">Select a team</option>
                 {teams.map(t => (
@@ -290,7 +290,7 @@ export const RosterFeeStatus: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-forest-500 focus:border-forest-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-accent focus:border-brand-accent"
             >
               <option value="all">All Statuses</option>
               <option value="paid">Paid</option>
@@ -306,7 +306,7 @@ export const RosterFeeStatus: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Total Athletes</p>
-            <p className="text-2xl font-bold text-forest-800">{summary.total_athletes}</p>
+            <p className="text-2xl font-bold text-brand-primary">{summary.total_athletes}</p>
             <div className="mt-2 flex gap-2 text-xs">
               <span className="text-green-600">{summary.paid_count} paid</span>
               <span className="text-yellow-600">{summary.partial_count} partial</span>
@@ -316,7 +316,7 @@ export const RosterFeeStatus: React.FC = () => {
 
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Expected Revenue</p>
-            <p className="text-2xl font-bold text-forest-800">{formatCurrency(summary.total_expected)}</p>
+            <p className="text-2xl font-bold text-brand-primary">{formatCurrency(summary.total_expected)}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-4">
@@ -398,7 +398,7 @@ export const RosterFeeStatus: React.FC = () => {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <Link
                         to={`/athlete/${athlete.athlete_id}`}
-                        className="text-forest-600 hover:text-forest-800 font-medium"
+                        className="text-brand-primary hover:text-brand-primary font-medium"
                       >
                         {athlete.first_name} {athlete.last_name}
                       </Link>
@@ -421,7 +421,7 @@ export const RosterFeeStatus: React.FC = () => {
                       {athlete.guardian_email && (
                         <a
                           href={`mailto:${athlete.guardian_email}`}
-                          className="text-sm text-forest-600 hover:text-forest-800 block"
+                          className="text-sm text-brand-primary hover:text-brand-primary block"
                         >
                           {athlete.guardian_email}
                         </a>
@@ -449,7 +449,7 @@ export const RosterFeeStatus: React.FC = () => {
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       <Link
                         to={`/athlete/${athlete.athlete_id}/payments`}
-                        className="text-forest-600 hover:text-forest-800 text-sm font-medium"
+                        className="text-brand-primary hover:text-brand-primary text-sm font-medium"
                       >
                         View Payments
                       </Link>

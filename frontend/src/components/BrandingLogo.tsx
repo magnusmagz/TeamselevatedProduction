@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface BrandingData {
   logo_url: string | null;
@@ -23,6 +24,17 @@ interface BrandingLogoProps {
 const logoCache = new Map<string, { data: BrandingData; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Export function to clear cache (called when branding is updated)
+export function clearBrandingCache(contextType?: string, contextId?: number) {
+  if (contextType && contextId) {
+    // Clear specific cache entry
+    logoCache.delete(`${contextType}-${contextId}`);
+  } else {
+    // Clear all cache entries
+    logoCache.clear();
+  }
+}
+
 const BrandingLogo: React.FC<BrandingLogoProps> = ({
   contextType,
   contextId,
@@ -32,6 +44,7 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { activeContext, currentLeagueId, currentClubId } = useOrg();
+  const { brandingVersion } = useTheme();
 
   const [branding, setBranding] = useState<BrandingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,7 +160,7 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
     } else {
       setLoading(false);
     }
-  }, [effectiveContextType, effectiveContextId, fetchBranding, findLogo]);
+  }, [effectiveContextType, effectiveContextId, fetchBranding, findLogo, brandingVersion]);
 
   // Handle image load error - try fallback
   const handleImageError = useCallback(() => {
@@ -167,7 +180,7 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
   if (loading) {
     return (
       <div className={`${sizeClasses[size]} ${className} flex items-center`}>
-        <div className="text-forest-800 opacity-50 animate-pulse uppercase tracking-wide font-bold">
+        <div className="text-brand-primary opacity-50 animate-pulse uppercase tracking-wide font-bold">
           Loading...
         </div>
       </div>
@@ -190,7 +203,7 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
   // Fallback to text
   if (fallbackToText) {
     return (
-      <span className={`${textSizeClasses[size]} ${className} font-bold text-forest-800 uppercase tracking-wide`}>
+      <span className={`${textSizeClasses[size]} ${className} font-bold text-brand-primary uppercase tracking-wide`}>
         {branding?.name || 'TEAMS ELEVATED'}
       </span>
     );

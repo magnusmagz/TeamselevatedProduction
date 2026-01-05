@@ -157,7 +157,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center text-forest-800 py-12">Loading athlete profile...</div>
+        <div className="text-center text-brand-primary py-12">Loading athlete profile...</div>
       </div>
     );
   }
@@ -165,7 +165,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   if (!athlete) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center text-forest-800 py-12">Athlete not found</div>
+        <div className="text-center text-brand-primary py-12">Athlete not found</div>
       </div>
     );
   }
@@ -176,29 +176,29 @@ const AthleteProfileEnhanced: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="border-b border-forest-200 pb-6 mb-6">
+      <div className="border-b border-brand-secondary pb-6 mb-6">
         <div className="mb-4">
-          <button onClick={() => window.history.back()} className="text-sm text-forest-800 hover:underline">
+          <button onClick={() => window.history.back()} className="text-sm text-brand-primary hover:underline">
             ← Back to Athletes
           </button>
         </div>
-        <h1 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">
+        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
           {athlete.preferred_name || athlete.first_name} {athlete.last_name}
         </h1>
       </div>
 
       {/* Team Selector */}
       {teams.length > 0 && (
-        <div className="border border-forest-200 rounded-md p-4 mb-6">
+        <div className="border border-brand-secondary rounded-md p-4 mb-6">
           <div className="flex gap-3 flex-wrap">
             {teams.map((team, index) => (
               <button
                 key={team.id}
                 onClick={() => setSelectedTeamIndex(index)}
-                className={`flex-1 min-w-60 p-4 border border-forest-200 rounded-md text-center ${
+                className={`flex-1 min-w-60 p-4 border border-brand-secondary rounded-md text-center ${
                   selectedTeamIndex === index
-                    ? 'bg-forest-800 text-white'
-                    : 'bg-white text-forest-800 hover:bg-gray-50'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-white text-brand-primary hover:bg-gray-50'
                 }`}
               >
                 <div className="font-bold uppercase">{team.team_name}</div>
@@ -213,7 +213,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       )}
 
       {/* Quick Info Bar */}
-      <div className="border border-forest-200 rounded-md p-6 mb-6">
+      <div className="border border-brand-secondary rounded-md p-6 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Jersey</div>
@@ -250,16 +250,16 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       {/* All Teams Overview */}
       {teams.length > 1 && (
-        <div className="border border-forest-200 rounded-md p-6 mb-6">
-          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
+        <div className="border border-brand-secondary rounded-md p-6 mb-6">
+          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-brand-primary">
             ALL TEAM ASSIGNMENTS
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teams.map((team, index) => (
-              <div key={team.id} className="border border-forest-800 p-4">
+              <div key={team.id} className="border border-brand-primary p-4">
                 <div className="font-bold mb-3 flex items-center justify-between">
                   <span>{team.team_name}</span>
-                  {index === 0 && <span className="px-2 py-1 text-xs bg-forest-800 text-white">PRIMARY</span>}
+                  {index === 0 && <span className="px-2 py-1 text-xs bg-brand-primary text-white">PRIMARY</span>}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -282,7 +282,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       )}
 
       {/* Emergency Information */}
-      <div className="border-3 border-forest-800 p-6 mb-6 bg-gray-50">
+      <div className="border-3 border-brand-primary p-6 mb-6 bg-gray-50">
         <div className="text-sm font-bold uppercase tracking-wide mb-4">
           EMERGENCY INFORMATION
         </div>
@@ -292,7 +292,7 @@ const AthleteProfileEnhanced: React.FC = () => {
               <div className="mb-4">
                 <div className="font-bold mb-2">Primary Contact</div>
                 <div>{primaryGuardian.first_name} {primaryGuardian.last_name} ({primaryGuardian.relationship_type})</div>
-                <a href={`tel:${primaryGuardian.mobile_phone}`} className="text-lg font-bold text-forest-800 hover:underline">
+                <a href={`tel:${primaryGuardian.mobile_phone}`} className="text-lg font-bold text-brand-primary hover:underline">
                   📞 {formatPhoneForDisplay(primaryGuardian.mobile_phone)}
                 </a>
               </div>
@@ -301,7 +301,7 @@ const AthleteProfileEnhanced: React.FC = () => {
               <div>
                 <div className="font-bold mb-2">Emergency Contact</div>
                 <div>{emergencyContact.first_name} {emergencyContact.last_name} ({emergencyContact.relationship_type})</div>
-                <a href={`tel:${emergencyContact.mobile_phone}`} className="text-lg font-bold text-forest-800 hover:underline">
+                <a href={`tel:${emergencyContact.mobile_phone}`} className="text-lg font-bold text-brand-primary hover:underline">
                   📞 {formatPhoneForDisplay(emergencyContact.mobile_phone)}
                 </a>
               </div>
@@ -371,8 +371,8 @@ const AthleteProfileEnhanced: React.FC = () => {
       {/* Main Content Grid */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
         {/* Player Details */}
-        <div className="border border-forest-200 rounded-md p-6">
-          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
+        <div className="border border-brand-secondary rounded-md p-6">
+          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-brand-primary">
             Player Details
           </div>
           <div className="space-y-3">
@@ -404,8 +404,8 @@ const AthleteProfileEnhanced: React.FC = () => {
         </div>
 
         {/* Family Information */}
-        <div className="border border-forest-200 rounded-md p-6">
-          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-forest-800">
+        <div className="border border-brand-secondary rounded-md p-6">
+          <div className="text-sm font-bold uppercase tracking-wide mb-4 pb-3 border-b border-brand-primary">
             Family & Contacts
           </div>
           <div className="space-y-4">
@@ -449,8 +449,8 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       {/* Tabs Section */}
-      <div className="border border-forest-200 rounded-md mb-6">
-        <div className="flex border-b border-forest-200">
+      <div className="border border-brand-secondary rounded-md mb-6">
+        <div className="flex border-b border-brand-secondary">
           {[
             { id: 'profile', label: 'Extended Profile' },
             { id: 'medical', label: 'Medical Info' },
@@ -460,10 +460,10 @@ const AthleteProfileEnhanced: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-4 py-3 text-sm font-medium uppercase tracking-wide border-r border-forest-800 last:border-r-0 ${
+              className={`flex-1 px-4 py-3 text-sm font-medium uppercase tracking-wide border-r border-brand-primary last:border-r-0 ${
                 activeTab === tab.id
-                  ? 'bg-forest-800 text-white'
-                  : 'bg-white text-forest-800 hover:bg-gray-50'
+                  ? 'bg-brand-primary text-white'
+                  : 'bg-white text-brand-primary hover:bg-gray-50'
               }`}
             >
               {tab.label}
@@ -580,7 +580,7 @@ const AthleteProfileEnhanced: React.FC = () => {
           {activeTab === 'medical' && (!medical || !medical.exists) && (
             <div className="text-center py-8">
               <div className="text-gray-600">No medical information on file</div>
-              <button className="mt-4 px-6 py-2 bg-forest-800 text-white hover:bg-forest-700">
+              <button className="mt-4 px-6 py-2 bg-brand-primary text-white hover:bg-brand-primary">
                 Add Medical Information
               </button>
             </div>
@@ -607,7 +607,7 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       {/* Contact Button */}
-      <button className="w-full bg-white border border-forest-200 rounded-md text-forest-800 py-3 px-6 font-bold uppercase hover:bg-forest-800 hover:text-white transition-colors">
+      <button className="w-full bg-white border border-brand-secondary rounded-md text-brand-primary py-3 px-6 font-bold uppercase hover:bg-brand-primary hover:text-white transition-colors">
         Contact Family
       </button>
     </div>

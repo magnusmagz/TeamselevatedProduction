@@ -34,7 +34,7 @@ const LeagueSettings: React.FC = () => {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-forest-800">League Settings</h1>
+        <h1 className="text-2xl font-bold text-brand-primary">League Settings</h1>
         <p className="text-gray-600 mt-1">
           Manage your league information and user access
         </p>
@@ -48,7 +48,7 @@ const LeagueSettings: React.FC = () => {
             className={`
               py-4 px-1 border-b-2 font-medium text-sm uppercase
               ${activeTab === 'info'
-                ? 'border-forest-600 text-forest-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
@@ -60,7 +60,7 @@ const LeagueSettings: React.FC = () => {
             className={`
               py-4 px-1 border-b-2 font-medium text-sm uppercase
               ${activeTab === 'users'
-                ? 'border-forest-600 text-forest-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
@@ -72,7 +72,7 @@ const LeagueSettings: React.FC = () => {
             className={`
               py-4 px-1 border-b-2 font-medium text-sm uppercase
               ${activeTab === 'documents'
-                ? 'border-forest-600 text-forest-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
@@ -84,7 +84,7 @@ const LeagueSettings: React.FC = () => {
             className={`
               py-4 px-1 border-b-2 font-medium text-sm uppercase
               ${activeTab === 'branding'
-                ? 'border-forest-600 text-forest-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}

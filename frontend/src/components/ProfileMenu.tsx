@@ -34,7 +34,7 @@ const ProfileMenu: React.FC = () => {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 text-forest-800 hover:text-forest-600 uppercase font-medium text-sm flex items-center space-x-1"
+        className="px-4 py-2 text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm flex items-center space-x-1"
       >
         <span>{user?.name || 'Profile'}</span>
         <svg
@@ -48,18 +48,18 @@ const ProfileMenu: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-forest-200 rounded-md shadow-lg z-50">
+        <div className="absolute right-0 mt-2 w-48 bg-white border border-brand-secondary rounded-md shadow-lg z-50">
           <div className="py-1">
             <Link
               to="/profile"
               onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-forest-800 hover:bg-forest-50 uppercase font-medium"
+              className="block px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
             >
               My Profile
             </Link>
             <button
               onClick={handleSignOut}
-              className="w-full text-left px-4 py-2 text-sm text-forest-800 hover:bg-forest-50 uppercase font-medium"
+              className="w-full text-left px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
             >
               Sign Out
             </button>

@@ -147,8 +147,8 @@ export default function AcceptInvitation() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-forest-800 mx-auto"></div>
-          <p className="mt-4 text-forest-800">Loading invitation details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary mx-auto"></div>
+          <p className="mt-4 text-brand-primary">Loading invitation details...</p>
         </div>
       </div>
     );
@@ -157,15 +157,15 @@ export default function AcceptInvitation() {
   if (error && !invitationInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white px-4">
-        <div className="max-w-md w-full bg-white rounded-md border border-forest-200 p-8 text-center">
+        <div className="max-w-md w-full bg-white rounded-md border border-brand-secondary p-8 text-center">
           <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h2 className="text-2xl font-bold text-forest-800 mb-2 uppercase">Invalid Invitation</h2>
+          <h2 className="text-2xl font-bold text-brand-primary mb-2 uppercase">Invalid Invitation</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-forest-800 hover:bg-forest-700 text-white font-semibold py-2 px-6 rounded-md uppercase"
+            className="bg-brand-primary hover:bg-brand-primary text-white font-semibold py-2 px-6 rounded-md uppercase"
           >
             Go to Home
           </button>
@@ -178,31 +178,31 @@ export default function AcceptInvitation() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white px-4 py-12">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-md border border-forest-200 p-8">
+          <div className="bg-white rounded-md border border-brand-secondary p-8">
             <div className="text-center mb-8">
               <div className="mx-auto h-20 w-20 bg-green-100 rounded-md flex items-center justify-center mb-4">
                 <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-3xl font-bold text-forest-800 uppercase">Welcome!</h2>
+              <h2 className="text-3xl font-bold text-brand-primary uppercase">Welcome!</h2>
               <p className="mt-2 text-gray-600">You've successfully joined {invitationInfo?.organizationName}</p>
             </div>
 
             <div className="bg-gray-50 rounded-md p-4 mb-6">
-              <h3 className="font-semibold text-forest-800 mb-2 uppercase">Details</h3>
+              <h3 className="font-semibold text-brand-primary mb-2 uppercase">Details</h3>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Organization:</dt>
-                  <dd className="font-semibold text-forest-800">{invitationInfo?.organizationName}</dd>
+                  <dd className="font-semibold text-brand-primary">{invitationInfo?.organizationName}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Type:</dt>
-                  <dd className="font-semibold text-forest-800 uppercase">{invitationInfo?.organizationType}</dd>
+                  <dd className="font-semibold text-brand-primary uppercase">{invitationInfo?.organizationType}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Your Role:</dt>
-                  <dd className="font-semibold text-forest-800 uppercase">{invitationInfo?.role?.replace('_', ' ')}</dd>
+                  <dd className="font-semibold text-brand-primary uppercase">{invitationInfo?.role?.replace('_', ' ')}</dd>
                 </div>
               </dl>
             </div>
@@ -210,7 +210,7 @@ export default function AcceptInvitation() {
             <div className="text-center">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-6 rounded-md uppercase"
+                className="bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-6 rounded-md uppercase"
               >
                 Go to Dashboard
               </button>
@@ -224,40 +224,40 @@ export default function AcceptInvitation() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white px-4 py-12">
       <div className="max-w-md w-full">
-        <div className="bg-white rounded-md border border-forest-200 p-8">
+        <div className="bg-white rounded-md border border-brand-secondary p-8">
           <div className="text-center mb-8">
-            <div className="mx-auto h-20 w-20 bg-forest-50 rounded-md flex items-center justify-center mb-4">
-              <svg className="h-10 w-10 text-forest-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mx-auto h-20 w-20 bg-brand-secondary rounded-md flex items-center justify-center mb-4">
+              <svg className="h-10 w-10 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-forest-800 uppercase">You're Invited!</h2>
+            <h2 className="text-3xl font-bold text-brand-primary uppercase">You're Invited!</h2>
             <p className="mt-2 text-gray-600">Join <span className="font-semibold">{invitationInfo?.organizationName}</span></p>
           </div>
 
           {invitationInfo && (
             <div className="bg-gray-50 rounded-md p-4 mb-6">
-              <h3 className="font-semibold text-forest-800 mb-2 uppercase">Invitation Details</h3>
+              <h3 className="font-semibold text-brand-primary mb-2 uppercase">Invitation Details</h3>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Organization:</dt>
-                  <dd className="font-semibold text-forest-800">{invitationInfo.organizationName}</dd>
+                  <dd className="font-semibold text-brand-primary">{invitationInfo.organizationName}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Type:</dt>
-                  <dd className="font-semibold text-forest-800 uppercase">{invitationInfo.organizationType}</dd>
+                  <dd className="font-semibold text-brand-primary uppercase">{invitationInfo.organizationType}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Role:</dt>
-                  <dd className="font-semibold text-forest-800 uppercase">{invitationInfo.role.replace('_', ' ')}</dd>
+                  <dd className="font-semibold text-brand-primary uppercase">{invitationInfo.role.replace('_', ' ')}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-600">Invited by:</dt>
-                  <dd className="font-semibold text-forest-800">{invitationInfo.inviterName || invitationInfo.creatorName}</dd>
+                  <dd className="font-semibold text-brand-primary">{invitationInfo.inviterName || invitationInfo.creatorName}</dd>
                 </div>
               </dl>
               {invitationInfo.personalMessage && (
-                <div className="mt-3 p-3 bg-white rounded-md border border-forest-100">
+                <div className="mt-3 p-3 bg-white rounded-md border border-brand-secondary">
                   <p className="text-sm text-gray-700 italic">"{invitationInfo.personalMessage}"</p>
                 </div>
               )}
@@ -276,7 +276,7 @@ export default function AcceptInvitation() {
                   <button
                     onClick={handleAccept}
                     disabled={joining}
-                    className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                    className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
                   >
                     {joining ? 'Accepting...' : 'Accept Invitation'}
                   </button>
@@ -284,7 +284,7 @@ export default function AcceptInvitation() {
               ) : (
                 <button
                   onClick={handleAccept}
-                  className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 rounded-md transition-colors uppercase"
+                  className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors uppercase"
                 >
                   Accept Invitation
                 </button>
@@ -293,7 +293,7 @@ export default function AcceptInvitation() {
           ) : (
             <form onSubmit={handleSubmitForm} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+                <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                   Your Name
                 </label>
                 <input
@@ -301,13 +301,13 @@ export default function AcceptInvitation() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter your full name"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+                <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                   Your Email
                 </label>
                 <input
@@ -315,7 +315,7 @@ export default function AcceptInvitation() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="your.email@example.com"
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   required
                   disabled={!!invitationInfo?.email}
                 />
@@ -334,14 +334,14 @@ export default function AcceptInvitation() {
                 <button
                   type="button"
                   onClick={() => setStep('info')}
-                  className="flex-1 bg-white hover:bg-gray-50 text-forest-800 font-semibold py-3 px-4 border border-forest-200 rounded-md transition-colors uppercase"
+                  className="flex-1 bg-white hover:bg-gray-50 text-brand-primary font-semibold py-3 px-4 border border-brand-secondary rounded-md transition-colors uppercase"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={joining}
-                  className="flex-1 bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                  className="flex-1 bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
                 >
                   {joining ? 'Accepting...' : 'Accept Invitation'}
                 </button>

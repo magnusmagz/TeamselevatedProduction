@@ -431,42 +431,42 @@ const TeamCalendar: React.FC = () => {
       {/* Header */}
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">Team Calendar</h1>
+          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Team Calendar</h1>
           <p className="text-gray-600 mt-2">View all team practices and events</p>
         </div>
         <button
           onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
         >
           + Add Event
         </button>
       </div>
 
       {/* Controls */}
-      <div className="bg-white border border-forest-200 rounded-md p-6 mb-6">
+      <div className="bg-white border border-brand-secondary rounded-md p-6 mb-6">
         {/* View Mode Selector */}
         <div className="flex justify-center mb-4">
-          <div className="inline-flex border border-forest-200 rounded-md">
+          <div className="inline-flex border border-brand-secondary rounded-md">
             <button
               onClick={() => setViewMode('month')}
               className={`px-6 py-2 uppercase font-medium ${
-                viewMode === 'month' ? 'bg-forest-800 text-white' : 'bg-white text-forest-800'
+                viewMode === 'month' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
               Month
             </button>
             <button
               onClick={() => setViewMode('week')}
-              className={`px-6 py-2 uppercase font-medium border-l border-forest-200 ${
-                viewMode === 'week' ? 'bg-forest-800 text-white' : 'bg-white text-forest-800'
+              className={`px-6 py-2 uppercase font-medium border-l border-brand-secondary ${
+                viewMode === 'week' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
               Week
             </button>
             <button
               onClick={() => setViewMode('schedule')}
-              className={`px-6 py-2 uppercase font-medium border-l border-forest-200 ${
-                viewMode === 'schedule' ? 'bg-forest-800 text-white' : 'bg-white text-forest-800'
+              className={`px-6 py-2 uppercase font-medium border-l border-brand-secondary ${
+                viewMode === 'schedule' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
               Schedule
@@ -480,11 +480,11 @@ const TeamCalendar: React.FC = () => {
               <>
                 <button
                   onClick={handlePreviousPeriod}
-                  className="text-forest-800 hover:bg-gray-100 p-2"
+                  className="text-brand-primary hover:bg-gray-100 p-2"
                 >
                   ←
                 </button>
-                <h2 className="text-xl font-bold text-forest-800">
+                <h2 className="text-xl font-bold text-brand-primary">
                   {viewMode === 'week'
                     ? `Week of ${weekDays[0]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekDays[6]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
                     : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
@@ -492,29 +492,29 @@ const TeamCalendar: React.FC = () => {
                 </h2>
                 <button
                   onClick={handleNextPeriod}
-                  className="text-forest-800 hover:bg-gray-100 p-2"
+                  className="text-brand-primary hover:bg-gray-100 p-2"
                 >
                   →
                 </button>
               </>
             )}
             {viewMode === 'schedule' && (
-              <h2 className="text-xl font-bold text-forest-800 uppercase">All Scheduled Practices</h2>
+              <h2 className="text-xl font-bold text-brand-primary uppercase">All Scheduled Practices</h2>
             )}
             <button
               onClick={handleToday}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
             >
               Today
             </button>
           </div>
 
           <div className="flex items-center space-x-4">
-            <label className="text-forest-800 font-medium">Filter by team:</label>
+            <label className="text-brand-primary font-medium">Filter by team:</label>
             <select
               value={selectedTeamFilter}
               onChange={(e) => setSelectedTeamFilter(e.target.value)}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-1 focus:outline-none focus:border-forest-600"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 focus:outline-none focus:border-brand-accent"
             >
               <option value="all">All Teams</option>
               {teams.map(team => (
@@ -526,11 +526,11 @@ const TeamCalendar: React.FC = () => {
 
         {/* Calendar Views */}
         {viewMode === 'month' && (
-          <div className="border border-forest-200 rounded-md">
+          <div className="border border-brand-secondary rounded-md">
             {/* Day Headers */}
-            <div className="grid grid-cols-7 bg-forest-800 text-white">
+            <div className="grid grid-cols-7 bg-brand-primary text-white">
               {dayNames.map(day => (
-                <div key={day} className="p-2 text-center font-bold uppercase text-sm border-r border-forest-600 last:border-r-0">
+                <div key={day} className="p-2 text-center font-bold uppercase text-sm border-r border-brand-primary last:border-r-0">
                   {day}
                 </div>
               ))}
@@ -547,7 +547,7 @@ const TeamCalendar: React.FC = () => {
                   onClick={() => handleDateClick(day.dateStr)}
                 >
                   <div className={`font-medium mb-1 ${
-                    day.isToday ? 'text-forest-800 font-bold' :
+                    day.isToday ? 'text-brand-primary font-bold' :
                     day.isCurrentMonth ? 'text-gray-700' : 'text-gray-400'
                   }`}>
                     {day.date.getDate()}
@@ -556,7 +556,7 @@ const TeamCalendar: React.FC = () => {
                     {day.events.slice(0, 2).map((event, eIndex) => (
                       <div
                         key={`e-${eIndex}`}
-                        className="text-xs p-1 border bg-forest-100 border-forest-300 text-forest-800"
+                        className="text-xs p-1 border bg-brand-secondary border-brand-secondary text-brand-primary"
                         title={event.name}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -590,11 +590,11 @@ const TeamCalendar: React.FC = () => {
         )}
 
         {viewMode === 'week' && (
-          <div className="border border-forest-200 rounded-md">
+          <div className="border border-brand-secondary rounded-md">
             {/* Day Headers */}
-            <div className="grid grid-cols-7 bg-forest-800 text-white">
+            <div className="grid grid-cols-7 bg-brand-primary text-white">
               {weekDays.map((day, index) => (
-                <div key={index} className="p-2 text-center border-r border-forest-600 last:border-r-0">
+                <div key={index} className="p-2 text-center border-r border-brand-primary last:border-r-0">
                   <div className="font-bold uppercase text-sm">{dayNames[index]}</div>
                   <div className="text-xs">{day?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                 </div>
@@ -616,7 +616,7 @@ const TeamCalendar: React.FC = () => {
                         {day.events.map((event, eIndex) => (
                           <div
                             key={`e-${eIndex}`}
-                            className="p-2 border bg-forest-100 border-forest-300 text-forest-800 cursor-pointer hover:bg-forest-200"
+                            className="p-2 border bg-brand-secondary border-brand-secondary text-brand-primary cursor-pointer hover:bg-brand-secondary-hover"
                             onClick={() => handleEventClick(event)}
                           >
                             <div className="font-bold text-sm">
@@ -653,7 +653,7 @@ const TeamCalendar: React.FC = () => {
         )}
 
         {viewMode === 'schedule' && (
-          <div className="border border-forest-200 rounded-md bg-white">
+          <div className="border border-brand-secondary rounded-md bg-white">
             <div className="p-4">
               <div className="max-h-[600px] overflow-y-auto">
                 {(() => {
@@ -692,18 +692,18 @@ const TeamCalendar: React.FC = () => {
                     return (
                       <div key={index}>
                         {showMonthHeader && (
-                          <div className="bg-forest-800 text-white px-4 py-2 font-bold uppercase mt-4 first:mt-0">
+                          <div className="bg-brand-primary text-white px-4 py-2 font-bold uppercase mt-4 first:mt-0">
                             {monthYear}
                           </div>
                         )}
                         <div className="border-b border-gray-200 p-4 hover:bg-gray-50 grid grid-cols-12 gap-4">
                           <div className="col-span-2">
-                            <div className="font-bold text-forest-800">
+                            <div className="font-bold text-brand-primary">
                               {practiceDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                             </div>
                           </div>
                           <div className="col-span-2">
-                            <div className="text-forest-800">
+                            <div className="text-brand-primary">
                               {practice.start_time} - {practice.end_time}
                             </div>
                           </div>
@@ -740,7 +740,7 @@ const TeamCalendar: React.FC = () => {
         {/* Legend */}
         {teams.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-forest-800 font-bold uppercase mb-2">Teams</h3>
+            <h3 className="text-brand-primary font-bold uppercase mb-2">Teams</h3>
             <div className="flex flex-wrap gap-2">
               {teams.map(team => (
                 <div
@@ -757,19 +757,19 @@ const TeamCalendar: React.FC = () => {
         {/* Stats */}
         <div className="mt-6 grid grid-cols-4 gap-4">
           <div className="bg-gray-50 border border-gray-300 p-4">
-            <div className="text-2xl font-bold text-forest-800">
+            <div className="text-2xl font-bold text-brand-primary">
               {events.filter(e => selectedTeamFilter === 'all' || e.team_name === selectedTeamFilter).length}
             </div>
             <div className="text-sm text-gray-600 uppercase">Total Events</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
-            <div className="text-2xl font-bold text-forest-800">
+            <div className="text-2xl font-bold text-brand-primary">
               {practices.filter(p => selectedTeamFilter === 'all' || p.team_name === selectedTeamFilter).length}
             </div>
             <div className="text-sm text-gray-600 uppercase">Total Practices</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
-            <div className="text-2xl font-bold text-forest-800">
+            <div className="text-2xl font-bold text-brand-primary">
               {[...events, ...practices].filter(item => {
                 const itemDate = new Date('event_date' in item ? item.event_date : item.date);
                 return itemDate.getMonth() === currentDate.getMonth() &&
@@ -780,7 +780,7 @@ const TeamCalendar: React.FC = () => {
             <div className="text-sm text-gray-600 uppercase">This Month</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
-            <div className="text-2xl font-bold text-forest-800">
+            <div className="text-2xl font-bold text-brand-primary">
               {[...events, ...practices].filter(item => {
                 const itemDate = new Date('event_date' in item ? item.event_date : item.date);
                 const todayDate = new Date();
@@ -797,9 +797,9 @@ const TeamCalendar: React.FC = () => {
       {/* Event Form Modal */}
       {showEventForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-forest-200 px-6 py-4">
-              <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+          <div className="bg-white border border-brand-secondary rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-brand-secondary px-6 py-4">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 {selectedEvent ? 'Edit Event' : 'Add New Event'}
               </h3>
             </div>
@@ -807,26 +807,26 @@ const TeamCalendar: React.FC = () => {
             <form onSubmit={handleEventSubmit} className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Event Name *
                   </label>
                   <input
                     type="text"
                     value={eventFormData.name}
                     onChange={(e) => setEventFormData({ ...eventFormData, name: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Type *
                   </label>
                   <select
                     value={eventFormData.type}
                     onChange={(e) => setEventFormData({ ...eventFormData, type: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     required
                   >
                     <option value="event">Event</option>
@@ -839,26 +839,26 @@ const TeamCalendar: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Date *
                   </label>
                   <input
                     type="date"
                     value={eventFormData.event_date}
                     onChange={(e) => setEventFormData({ ...eventFormData, event_date: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Status
                   </label>
                   <select
                     value={eventFormData.status}
                     onChange={(e) => setEventFormData({ ...eventFormData, status: e.target.value as any })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   >
                     <option value="scheduled">Scheduled</option>
                     <option value="cancelled">Cancelled</option>
@@ -868,31 +868,31 @@ const TeamCalendar: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Start Time
                   </label>
                   <input
                     type="time"
                     value={eventFormData.start_time || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, start_time: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     End Time
                   </label>
                   <input
                     type="time"
                     value={eventFormData.end_time || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, end_time: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Teams (Hold Ctrl/Cmd to select multiple)
                   </label>
                   <div className="mb-2 flex gap-2">
@@ -902,7 +902,7 @@ const TeamCalendar: React.FC = () => {
                         const allTeamIds = allTeams.map(team => team.id);
                         setEventFormData({ ...eventFormData, team_ids: allTeamIds });
                       }}
-                      className="px-3 py-1 text-xs bg-forest-800 text-white hover:bg-forest-700 uppercase font-medium"
+                      className="px-3 py-1 text-xs bg-brand-primary text-white hover:bg-brand-primary uppercase font-medium"
                     >
                       Choose All
                     </button>
@@ -911,7 +911,7 @@ const TeamCalendar: React.FC = () => {
                       onClick={() => {
                         setEventFormData({ ...eventFormData, team_ids: [] });
                       }}
-                      className="px-3 py-1 text-xs border border-forest-200 rounded-md text-forest-800 hover:bg-gray-100 uppercase font-medium"
+                      className="px-3 py-1 text-xs border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 uppercase font-medium"
                     >
                       Clear All
                     </button>
@@ -923,7 +923,7 @@ const TeamCalendar: React.FC = () => {
                       const selectedIds = Array.from(e.target.selectedOptions, option => Number(option.value));
                       setEventFormData({ ...eventFormData, team_ids: selectedIds });
                     }}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600 min-h-[120px]"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent min-h-[120px]"
                   >
                     {allTeams.map(team => (
                       <option key={team.id} value={team.id}>{team.name}</option>
@@ -938,13 +938,13 @@ const TeamCalendar: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Venue
                   </label>
                   <select
                     value={eventFormData.venue_id || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, venue_id: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   >
                     <option value="">No Venue</option>
                     {venues.map(venue => (
@@ -954,34 +954,34 @@ const TeamCalendar: React.FC = () => {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Location (if not a venue)
                   </label>
                   <input
                     type="text"
                     value={eventFormData.location || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, location: e.target.value })}
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     placeholder="e.g., Away game at opponent's field"
                   />
                 </div>
               </div>
 
               <div className="mb-4">
-                <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                   Description
                 </label>
                 <textarea
                   value={eventFormData.description || ''}
                   onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                  className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   rows={3}
                 />
               </div>
 
               {/* Calendar Invite Options */}
               <div className="mb-4 border-t-2 border-gray-200 pt-4">
-                <div className="text-forest-800 text-sm font-medium mb-3 uppercase">Calendar Invites</div>
+                <div className="text-brand-primary text-sm font-medium mb-3 uppercase">Calendar Invites</div>
 
                 {/* Show changes summary when editing */}
                 {selectedEvent && changesSummary && (
@@ -997,9 +997,9 @@ const TeamCalendar: React.FC = () => {
                       type="checkbox"
                       checked={sendInvites}
                       onChange={(e) => setSendInvites(e.target.checked)}
-                      className="w-4 h-4 text-forest-800 border border-forest-200 rounded-md focus:ring-forest-600"
+                      className="w-4 h-4 text-brand-primary border border-brand-secondary rounded-md focus:ring-brand-accent"
                     />
-                    <span className="text-forest-800">Send calendar invites to all team members</span>
+                    <span className="text-brand-primary">Send calendar invites to all team members</span>
                   </label>
                 )}
 
@@ -1010,9 +1010,9 @@ const TeamCalendar: React.FC = () => {
                       type="checkbox"
                       checked={sendUpdates}
                       onChange={(e) => setSendUpdates(e.target.checked)}
-                      className="w-4 h-4 text-forest-800 border border-forest-200 rounded-md focus:ring-forest-600"
+                      className="w-4 h-4 text-brand-primary border border-brand-secondary rounded-md focus:ring-brand-accent"
                     />
-                    <span className="text-forest-800">Send update notifications to all invitees</span>
+                    <span className="text-brand-primary">Send update notifications to all invitees</span>
                   </label>
                 )}
 
@@ -1048,13 +1048,13 @@ const TeamCalendar: React.FC = () => {
                         status: 'scheduled'
                       });
                     }}
-                    className="px-4 py-2 border border-forest-200 rounded-md text-forest-800 hover:bg-gray-100 font-semibold uppercase"
+                    className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-forest-800 text-white border border-forest-200 rounded-md hover:bg-forest-700 font-semibold uppercase"
+                    className="px-4 py-2 bg-brand-primary text-white border border-brand-secondary rounded-md hover:bg-brand-primary font-semibold uppercase"
                   >
                     {selectedEvent ? 'Update' : 'Create'} Event
                   </button>

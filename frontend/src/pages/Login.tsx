@@ -86,8 +86,8 @@ export default function Login() {
         <div className="max-w-md w-full">
           <div className="bg-white border-2 border-gray-200 p-8">
             <div className="text-center">
-              <div className="mx-auto h-16 w-16 bg-forest-100 flex items-center justify-center mb-4">
-                <svg className="h-8 w-8 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto h-16 w-16 bg-brand-secondary flex items-center justify-center mb-4">
+                <svg className="h-8 w-8 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -103,7 +103,7 @@ export default function Login() {
                   setSuccess(false);
                   setEmail('');
                 }}
-                className="bg-white text-forest-600 font-semibold py-2 px-4 border-2 border-forest-600 hover:bg-gray-50 transition-colors duration-200 w-full"
+                className="bg-white text-brand-primary font-semibold py-2 px-4 border-2 border-brand-primary hover:bg-gray-50 transition-colors duration-200 w-full"
               >
                 SEND ANOTHER LINK
               </button>
@@ -130,7 +130,7 @@ export default function Login() {
               onClick={() => setLoginMethod('password')}
               className={`flex-1 py-2 text-sm font-semibold uppercase transition-colors ${
                 loginMethod === 'password'
-                  ? 'bg-forest-600 text-white'
+                  ? 'bg-brand-primary text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -141,7 +141,7 @@ export default function Login() {
               onClick={() => setLoginMethod('magic-link')}
               className={`flex-1 py-2 text-sm font-semibold uppercase transition-colors ${
                 loginMethod === 'magic-link'
-                  ? 'bg-forest-600 text-white'
+                  ? 'bg-brand-primary text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -160,7 +160,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@example.com"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                   required
                   autoFocus
                 />
@@ -175,7 +175,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                   required
                 />
               </div>
@@ -183,7 +183,7 @@ export default function Login() {
               <div className="flex justify-end">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-forest-600 hover:text-forest-700 font-medium"
+                  className="text-sm text-brand-primary hover:text-brand-primary-hover font-medium"
                 >
                   Forgot password?
                 </Link>
@@ -198,7 +198,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
               >
                 {loading ? 'SIGNING IN...' : 'SIGN IN'}
               </button>
@@ -214,7 +214,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@example.com"
-                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                   required
                   autoFocus
                 />
@@ -229,7 +229,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
               >
                 {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
               </button>
@@ -243,7 +243,7 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-forest-600 hover:text-forest-700 font-semibold">
+              <Link to="/signup" className="text-brand-primary hover:text-brand-primary-hover font-semibold">
                 Sign up
               </Link>
             </p>

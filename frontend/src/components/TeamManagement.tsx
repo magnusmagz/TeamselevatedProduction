@@ -115,31 +115,31 @@ const TeamManagement: React.FC = () => {
     <div>
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h2 className="text-3xl font-bold text-forest-800 mb-2 uppercase tracking-wide">Team Management</h2>
+          <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Team Management</h2>
           <p className="text-gray-600">Manage your club's teams, coaches, and athletes</p>
         </div>
         <div className="flex space-x-2">
           <button
             onClick={handleCreateTeam}
-            className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
           >
             + Create Team
           </button>
         </div>
       </div>
 
-      <div className="border border-forest-200 rounded-md p-6 mb-6 bg-white">
+      <div className="border border-brand-secondary rounded-md p-6 mb-6 bg-white">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             placeholder="Search teams..."
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
           />
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={filters.age_group}
             onChange={(e) => setFilters({ ...filters, age_group: e.target.value })}
           >
@@ -162,7 +162,7 @@ const TeamManagement: React.FC = () => {
           </select>
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={filters.division}
             onChange={(e) => setFilters({ ...filters, division: e.target.value })}
           >
@@ -174,7 +174,7 @@ const TeamManagement: React.FC = () => {
 
           <button
             onClick={() => setFilters({ search: '', season_id: '', age_group: '', division: '' })}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>
@@ -182,7 +182,7 @@ const TeamManagement: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="text-center text-forest-800 py-12">Loading teams...</div>
+        <div className="text-center text-brand-primary py-12">Loading teams...</div>
       ) : (
         <TeamList
           teams={teams}

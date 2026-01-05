@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import LeagueSelector from './components/LeagueSelector';
 import BrandingLogo from './components/BrandingLogo';
 import ProfileMenu from './components/ProfileMenu';
@@ -82,7 +83,7 @@ const TeamRosterPage: React.FC = () => {
   if (loading) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center text-forest-800 py-12">Loading team...</div>
+        <div className="text-center text-brand-primary py-12">Loading team...</div>
       </main>
     );
   }
@@ -90,7 +91,7 @@ const TeamRosterPage: React.FC = () => {
   if (!team) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center text-forest-800 py-12">Team not found</div>
+        <div className="text-center text-brand-primary py-12">Team not found</div>
       </main>
     );
   }
@@ -113,10 +114,10 @@ function AppContent() {
     <div className="min-h-screen bg-white">
         <DemoModeBanner />
         {user && (
-          <nav className="bg-white border-b border-forest-200">
+          <nav className="bg-white border-b border-brand-secondary">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {/* Top row: Logo and user controls */}
-              <div className="flex justify-between items-center h-20 border-b border-forest-100">
+              <div className="flex justify-between items-center h-20 border-b border-brand-secondary">
                 <Link to="/dashboard" className="flex items-center">
                   <BrandingLogo size="xl" fallbackToText={true} />
                 </Link>
@@ -130,21 +131,21 @@ function AppContent() {
               <div className="flex space-x-6 h-12 items-center">
                 {isAdmin ? (
                   <>
-                    <Link to="/payment/revenue" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Revenue</Link>
-                    <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Teams</Link>
-                    <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Athletes</Link>
-                    <Link to="/coaches" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Coaches</Link>
-                    <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Calendar</Link>
-                    <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Documents</Link>
-                    <Link to="/venues" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Venues</Link>
-                    <Link to="/program-management" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Programs</Link>
+                    <Link to="/payment/revenue" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Revenue</Link>
+                    <Link to="/dashboard" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Teams</Link>
+                    <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
+                    <Link to="/coaches" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Coaches</Link>
+                    <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
+                    <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link>
+                    <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Venues</Link>
+                    <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
                   </>
                 ) : (
                   <>
-                    <Link to="/dashboard" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">My Teams</Link>
-                    <Link to="/athletes" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Athletes</Link>
-                    <Link to="/calendar" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Calendar</Link>
-                    <Link to="/documents/expiring" className="text-forest-800 hover:text-forest-600 uppercase font-medium text-sm">Documents</Link>
+                    <Link to="/dashboard" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">My Teams</Link>
+                    <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
+                    <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
+                    <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link>
                   </>
                 )}
               </div>
@@ -153,18 +154,18 @@ function AppContent() {
         )}
 
         {!user && window.location.pathname === '/' && (
-          <nav className="bg-white border-b border-forest-200">
+          <nav className="bg-white border-b border-brand-secondary">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">
                   <Link to="/" className="flex items-center">
-                    <span className="text-lg font-bold text-forest-800 uppercase tracking-wide">TEAMS ELEVATED</span>
+                    <span className="text-lg font-bold text-brand-primary uppercase tracking-wide">TEAMS ELEVATED</span>
                   </Link>
                 </div>
                 <div className="flex items-center">
                   <Link
                     to="/login"
-                    className="text-forest-800 hover:text-forest-600 uppercase font-semibold"
+                    className="text-brand-primary hover:text-brand-primary-hover uppercase font-semibold"
                   >
                     LOG IN
                   </Link>
@@ -349,9 +350,11 @@ function App() {
     <Router>
       <AuthProvider>
         <OrgProvider>
-          <RegistrationCartProvider>
-            <AppContent />
-          </RegistrationCartProvider>
+          <ThemeProvider>
+            <RegistrationCartProvider>
+              <AppContent />
+            </RegistrationCartProvider>
+          </ThemeProvider>
         </OrgProvider>
       </AuthProvider>
     </Router>

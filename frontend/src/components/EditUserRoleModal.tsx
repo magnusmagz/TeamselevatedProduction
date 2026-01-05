@@ -95,7 +95,7 @@ const EditUserRoleModal: React.FC<EditUserRoleModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-forest-800">Edit User Role</h2>
+          <h2 className="text-xl font-semibold text-brand-primary">Edit User Role</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -146,7 +146,7 @@ const EditUserRoleModal: React.FC<EditUserRoleModalProps> = ({
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
             >
               {availableRoles.map((role) => (
                 <option key={role} value={role}>
@@ -173,7 +173,7 @@ const EditUserRoleModal: React.FC<EditUserRoleModalProps> = ({
             <button
               type="submit"
               disabled={loading || newRole === currentRole.role}
-              className="px-4 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
+              className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
             >
               {loading ? 'Updating...' : 'Update Role'}
             </button>

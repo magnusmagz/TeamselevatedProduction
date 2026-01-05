@@ -142,7 +142,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
       case 'absent': return 'bg-red-800 text-red-200';
       case 'late': return 'bg-yellow-800 text-yellow-200';
       case 'excused': return 'bg-blue-800 text-blue-200';
-      default: return 'bg-forest-700 text-forest-200';
+      default: return 'bg-brand-primary text-brand-light';
     }
   };
 
@@ -170,13 +170,13 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
     <div>
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-white">Attendance Tracking</h2>
-        <p className="text-forest-200 mt-2">{team.name}</p>
+        <p className="text-brand-light mt-2">{team.name}</p>
       </div>
 
-      <div className="bg-forest-800 p-6 mb-6">
+      <div className="bg-brand-primary p-6 mb-6">
         <h3 className="text-xl font-bold text-white mb-4">Select Event</h3>
         <select
-          className="w-full bg-forest-700 text-white px-4 py-2"
+          className="w-full bg-brand-primary text-white px-4 py-2"
           onChange={(e) => {
             const event = events.find(ev => ev.id === parseInt(e.target.value));
             setSelectedEvent(event || null);
@@ -197,7 +197,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
 
       {selectedEvent && (
         <>
-          <div className="bg-forest-800 p-6 mb-6">
+          <div className="bg-brand-primary p-6 mb-6">
             <h3 className="text-xl font-bold text-white mb-4">Attendance Summary</h3>
             <div className="grid grid-cols-4 gap-4">
               {Object.entries(calculateAttendanceStats()).map(([status, count]) => (
@@ -209,23 +209,23 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
             </div>
           </div>
 
-          <div className="bg-forest-800 overflow-hidden">
+          <div className="bg-brand-primary overflow-hidden">
             <table className="min-w-full">
               <thead>
-                <tr className="bg-forest-950">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forest-200 uppercase">
+                <tr className="bg-brand-primary-dark">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-light uppercase">
                     Jersey
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forest-200 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-light uppercase">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forest-200 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-light uppercase">
                     Position
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forest-200 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-light uppercase">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-forest-200 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-light uppercase">
                     Notes
                   </th>
                 </tr>
@@ -234,7 +234,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
                 {roster.map((player, index) => (
                   <tr
                     key={player.id}
-                    className={index % 2 === 0 ? 'bg-forest-800' : 'bg-forest-700'}
+                    className={index % 2 === 0 ? 'bg-brand-primary' : 'bg-brand-primary'}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-2xl font-bold text-white">
@@ -245,7 +245,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
                       <div className="text-white">{player.name}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-forest-200">{player.primary_position}</span>
+                      <span className="text-brand-light">{player.primary_position}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select
@@ -262,7 +262,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
                     <td className="px-6 py-4">
                       <input
                         type="text"
-                        className="bg-forest-700 text-white px-2 py-1 w-full"
+                        className="bg-brand-primary text-white px-2 py-1 w-full"
                         value={attendance[player.id]?.notes || ''}
                         onChange={(e) => updateNotes(player.id, e.target.value)}
                         placeholder="Notes..."
@@ -278,7 +278,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
             <button
               onClick={saveAttendance}
               disabled={saving}
-              className="bg-forest-500 text-white px-6 py-2 hover:bg-forest-400 disabled:bg-forest-700 font-semibold"
+              className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover disabled:bg-brand-primary font-semibold"
             >
               {saving ? 'Saving...' : 'Save Attendance'}
             </button>

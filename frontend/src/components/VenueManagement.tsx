@@ -244,12 +244,12 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     // Modal view
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-          <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Venue Management</h3>
+        <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Venue Management</h3>
             <button
               onClick={onClose}
-              className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
             </button>
@@ -330,45 +330,45 @@ const VenueListContent: React.FC<{
     <>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">Venues</h2>
+          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Venues</h2>
           <p className="text-gray-600 mt-2">{venues.length} venues total</p>
         </div>
         <button
           onClick={handleAddVenue}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 uppercase"
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase"
         >
           + Add Venue
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-forest-800 py-12">Loading venues...</div>
+        <div className="text-center text-brand-primary py-12">Loading venues...</div>
       ) : venues.length === 0 ? (
-        <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
+        <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
           <p className="text-gray-600 text-lg">No venues yet.</p>
           <p className="text-gray-500 mt-2">Click "Add Venue" to create your first venue.</p>
         </div>
       ) : (
-        <div className="border border-forest-200 rounded-md">
+        <div className="border border-brand-secondary rounded-md">
           <table className="min-w-full bg-white">
             <thead>
-              <tr className="border-b border-forest-200">
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+              <tr className="border-b border-brand-secondary">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Venue Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Address
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   City, State
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Fields
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Links
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                   Actions
                 </th>
               </tr>
@@ -377,21 +377,21 @@ const VenueListContent: React.FC<{
               {venues.map((venue) => (
                 <tr key={venue.id} className="border-b border-gray-300 hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-forest-800 font-medium">{venue.name}</div>
+                    <div className="text-brand-primary font-medium">{venue.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-forest-800">{venue.address}</div>
+                    <div className="text-brand-primary">{venue.address}</div>
                     {venue.zip && (
                       <div className="text-gray-500 text-sm">{venue.zip}</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-forest-800">
+                    <div className="text-brand-primary">
                       {venue.city}{venue.city && venue.state && ', '}{venue.state}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-forest-800">
+                    <div className="text-brand-primary">
                       {venue.field_count || 0} field{venue.field_count !== 1 ? 's' : ''}
                     </div>
                   </td>
@@ -402,7 +402,7 @@ const VenueListContent: React.FC<{
                           href={venue.map_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold"
+                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
                         >
                           Map
                         </a>
@@ -412,7 +412,7 @@ const VenueListContent: React.FC<{
                           href={venue.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold"
+                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
                         >
                           Website
                         </a>
@@ -426,7 +426,7 @@ const VenueListContent: React.FC<{
                     <div className="flex space-x-3">
                       <button
                         onClick={() => handleEditVenue(venue)}
-                        className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold"
+                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
                       >
                         Edit
                       </button>
@@ -479,14 +479,14 @@ const VenueForm: React.FC<{
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {selectedVenue ? 'Edit Venue' : 'Create New Venue'}
           </h3>
           <button
             onClick={onClose}
-            className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
           >
             ×
           </button>
@@ -496,15 +496,15 @@ const VenueForm: React.FC<{
           <div className="space-y-6">
             {/* Venue Information */}
             <div>
-              <h4 className="text-forest-800 font-semibold mb-4 uppercase">Venue Information</h4>
+              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Venue Information</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Venue Name *
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -512,13 +512,13 @@ const VenueForm: React.FC<{
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Search Address (Optional)
                   </label>
                   <div className="flex gap-2 mb-4">
                     <input
                       type="text"
-                      className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       value={addressSearch}
                       onChange={(e) => setAddressSearch(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddressSearch())}
@@ -528,20 +528,20 @@ const VenueForm: React.FC<{
                       type="button"
                       onClick={handleAddressSearch}
                       disabled={searchingAddress || !addressSearch.trim()}
-                      className="bg-forest-800 text-white px-4 py-2 hover:bg-forest-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="bg-brand-primary text-white px-4 py-2 hover:bg-brand-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       {searchingAddress ? 'Searching...' : 'Search'}
                     </button>
                   </div>
 
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Venue Address *
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         placeholder="Street Address"
@@ -551,7 +551,7 @@ const VenueForm: React.FC<{
                     <div>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         placeholder="City"
@@ -560,7 +560,7 @@ const VenueForm: React.FC<{
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.state}
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                         placeholder="State"
@@ -568,7 +568,7 @@ const VenueForm: React.FC<{
                       />
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                         value={formData.zip}
                         onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
                         placeholder="Zip"
@@ -579,11 +579,11 @@ const VenueForm: React.FC<{
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Google Maps URL
                   </label>
                   <textarea
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.map_url || ''}
                     onChange={(e) => setFormData({ ...formData, map_url: e.target.value })}
                     placeholder="Paste Google Maps link here (e.g., https://maps.google.com/...)"
@@ -595,12 +595,12 @@ const VenueForm: React.FC<{
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Website
                   </label>
                   <input
                     type="url"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.website || ''}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                     placeholder="https://example.com"
@@ -611,16 +611,16 @@ const VenueForm: React.FC<{
 
             {/* Fields Section */}
             <div>
-              <h4 className="text-forest-800 font-semibold mb-4 uppercase">Fields</h4>
+              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Fields</h4>
 
               {/* Add New Field Form */}
-              <div className="border border-forest-200 rounded-md p-4 mb-4">
+              <div className="border border-brand-secondary rounded-md p-4 mb-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Field Name</label>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Field Name</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
                       value={newField.name}
                       onChange={(e) => setNewField({ ...newField, name: e.target.value })}
                       placeholder="e.g., Field 1"
@@ -628,9 +628,9 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Type</label>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Type</label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
                       value={newField.field_type}
                       onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
                     >
@@ -643,9 +643,9 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Surface</label>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Surface</label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
                       value={newField.surface_type}
                       onChange={(e) => setNewField({ ...newField, surface_type: e.target.value })}
                     >
@@ -658,10 +658,10 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Dimensions</label>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Dimensions</label>
                     <input
                       type="text"
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
                       value={newField.dimensions}
                       onChange={(e) => setNewField({ ...newField, dimensions: e.target.value })}
                       placeholder="e.g., Full, U12"
@@ -669,9 +669,9 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div>
-                    <label className="block text-forest-800 text-sm font-medium mb-1">Status</label>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Status</label>
                     <select
-                      className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
                       value={newField.status}
                       onChange={(e) => setNewField({ ...newField, status: e.target.value as 'available' | 'maintenance' | 'closed' })}
                     >
@@ -685,11 +685,11 @@ const VenueForm: React.FC<{
                     <label className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        className="border border-forest-200 rounded-md"
+                        className="border border-brand-secondary rounded-md"
                         checked={newField.has_lights}
                         onChange={(e) => setNewField({ ...newField, has_lights: e.target.checked })}
                       />
-                      <span className="text-forest-800 text-sm">Has Lights</span>
+                      <span className="text-brand-primary text-sm">Has Lights</span>
                     </label>
                   </div>
 
@@ -697,7 +697,7 @@ const VenueForm: React.FC<{
                     <button
                       type="button"
                       onClick={handleAddField}
-                      className="w-full bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-1 hover:bg-forest-700 uppercase text-sm"
+                      className="w-full bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary uppercase text-sm"
                     >
                       + Add Field
                     </button>
@@ -707,27 +707,27 @@ const VenueForm: React.FC<{
 
               {/* Fields List */}
               {formData.fields && formData.fields.length > 0 && (
-                <div className="border border-forest-200 rounded-md">
+                <div className="border border-brand-secondary rounded-md">
                   <table className="min-w-full bg-white">
                     <thead>
-                      <tr className="border-b border-forest-800">
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Type</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Surface</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Size</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Lights</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Status</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-forest-800 uppercase">Actions</th>
+                      <tr className="border-b border-brand-primary">
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Name</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Type</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Surface</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Size</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Lights</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {formData.fields.map((field, index) => (
                         <tr key={index} className="border-b border-gray-300">
-                          <td className="px-4 py-2 text-forest-800">{field.name}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.field_type}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.surface_type}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.dimensions || '-'}</td>
-                          <td className="px-4 py-2 text-forest-800">{field.has_lights ? 'Yes' : 'No'}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.name}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.field_type}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.surface_type}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.dimensions || '-'}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.has_lights ? 'Yes' : 'No'}</td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-1 text-xs font-semibold uppercase ${
                               field.status === 'available' ? 'bg-green-100 text-green-800' :
@@ -763,13 +763,13 @@ const VenueForm: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
             >
               {selectedVenue ? 'Update Venue' : 'Create Venue'}
             </button>

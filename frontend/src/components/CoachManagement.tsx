@@ -155,12 +155,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   if (onClose) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Coach Management</h3>
+        <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Coach Management</h3>
             <button
               onClick={onClose}
-              className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
             </button>
@@ -172,17 +172,17 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-forest-200 rounded-md focus:outline-none focus:border-forest-600"
+                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <span className="text-forest-800">
+                <span className="text-brand-primary">
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
               <button
                 onClick={handleAddCoach}
-                className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 uppercase font-semibold"
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold"
               >
                 + Add Coach
               </button>
@@ -190,9 +190,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-                  <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">
+                <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl">
+                  <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+                    <h4 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">
                       {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
                     </h4>
                     <button
@@ -200,7 +200,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         setShowForm(false);
                         setSelectedCoach(null);
                       }}
-                      className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                      className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
                     >
                       ×
                     </button>
@@ -208,12 +208,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           First Name *
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.first_name}
                           onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                           required
@@ -221,12 +221,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Last Name *
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.last_name}
                           onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                           required
@@ -234,12 +234,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Email *
                         </label>
                         <input
                           type="email"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
@@ -248,7 +248,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
                       <div className="col-span-2">
                         <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 px-2 py-1">password123</span>
+                          Default password: <span className="font-mono bg-gray-100 border border-brand-primary px-2 py-1">password123</span>
                         </p>
                         <p className="text-gray-500 text-xs mt-1">
                           The coach should change this password on first login
@@ -259,13 +259,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         <button
                           type="button"
                           onClick={() => setShowForm(false)}
-                          className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
                         >
                           {selectedCoach ? 'Update Coach' : 'Create Coach'}
                         </button>
@@ -277,7 +277,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             )}
 
             {loading ? (
-              <div className="text-center text-forest-800 py-12">Loading coaches...</div>
+              <div className="text-center text-brand-primary py-12">Loading coaches...</div>
             ) : filteredCoaches.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-600 mb-4">
@@ -286,30 +286,30 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 {!searchTerm && (
                   <button
                     onClick={handleAddCoach}
-                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-3 hover:bg-forest-700 uppercase font-semibold"
+                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
                   >
                     Add Your First Coach
                   </button>
                 )}
               </div>
             ) : (
-              <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
+              <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
                 <table className="min-w-full border-collapse">
                   <thead>
-                    <tr className="border-b border-forest-200 bg-white">
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                    <tr className="border-b border-brand-secondary bg-white">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Email
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Teams
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -324,17 +324,17 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           <div>
                             <Link
                               to={`/coach/${coach.id}`}
-                              className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                              className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
                             >
                               {coach.first_name} {coach.last_name}
                             </Link>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-forest-800">{coach.email}</div>
+                          <div className="text-brand-primary">{coach.email}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-forest-800">
+                          <div className="text-brand-primary">
                             {coach.team_count > 0 ? (
                               <span className="font-semibold">{coach.team_count}</span>
                             ) : (
@@ -343,20 +343,20 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 border border-forest-800 text-forest-800 text-xs uppercase">
+                          <span className="px-2 py-1 border border-brand-primary text-brand-primary text-xs uppercase">
                             Active
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => handleEditCoach(coach)}
-                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleViewSchedule(coach)}
-                            className="text-forest-800 hover:underline uppercase text-xs"
+                            className="text-brand-primary hover:underline uppercase text-xs"
                           >
                             View Schedule
                           </button>
@@ -373,9 +373,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         {/* Practice Scheduler Modal */}
         {showScheduler && schedulerCoach && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
-              <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+            <div className="bg-white border border-brand-secondary rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
+              <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                   Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
                 </h3>
                 <button
@@ -383,7 +383,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     setShowScheduler(false);
                     setSchedulerCoach(null);
                   }}
-                  className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                  className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
                 >
                   ×
                 </button>
@@ -414,28 +414,28 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">COACH MANAGEMENT</h1>
+        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">COACH MANAGEMENT</h1>
         <p className="text-gray-600 mt-2">Manage all coaches in the system</p>
       </div>
 
-      <div className="bg-white border border-forest-200 rounded-md">
+      <div className="bg-white border border-brand-secondary rounded-md">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-4">
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-forest-200 rounded-md focus:outline-none focus:border-forest-600 w-64"
+                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent w-64"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <span className="text-forest-800">
+                <span className="text-brand-primary">
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
               <button
                 onClick={handleAddCoach}
-                className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-semibold"
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold"
               >
                 + Add Coach
               </button>
@@ -443,9 +443,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-forest-200 rounded-md w-full max-w-2xl">
-                  <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-                    <h4 className="text-lg font-semibold text-forest-800 uppercase tracking-wide">
+                <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl">
+                  <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+                    <h4 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">
                       {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
                     </h4>
                     <button
@@ -453,7 +453,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         setShowForm(false);
                         setSelectedCoach(null);
                       }}
-                      className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                      className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
                     >
                       ×
                     </button>
@@ -461,12 +461,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           First Name *
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.first_name}
                           onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                           required
@@ -474,12 +474,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       </div>
 
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Last Name *
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.last_name}
                           onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                           required
@@ -487,12 +487,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       </div>
 
                       <div className="col-span-2">
-                        <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                           Email *
                         </label>
                         <input
                           type="email"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
@@ -501,7 +501,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
                       <div className="col-span-2">
                         <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-forest-800 px-2 py-1">password123</span>
+                          Default password: <span className="font-mono bg-gray-100 border border-brand-primary px-2 py-1">password123</span>
                         </p>
                         <p className="text-gray-500 text-xs mt-1">
                           The coach should change this password on first login
@@ -512,13 +512,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         <button
                           type="button"
                           onClick={() => setShowForm(false)}
-                          className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
-                          className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase"
+                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
                         >
                           {selectedCoach ? 'Update Coach' : 'Create Coach'}
                         </button>
@@ -530,7 +530,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             )}
 
             {loading ? (
-              <div className="text-center text-forest-800 py-12">Loading coaches...</div>
+              <div className="text-center text-brand-primary py-12">Loading coaches...</div>
             ) : filteredCoaches.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-600 mb-4 text-lg">
@@ -539,30 +539,30 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 {!searchTerm && (
                   <button
                     onClick={handleAddCoach}
-                    className="bg-forest-800 text-white border border-forest-200 rounded-md px-8 py-3 hover:bg-forest-700 uppercase font-semibold text-lg"
+                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-8 py-3 hover:bg-brand-primary uppercase font-semibold text-lg"
                   >
                     Add Your First Coach
                   </button>
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto border border-forest-200 rounded-md bg-white">
+              <div className="overflow-x-auto border border-brand-secondary rounded-md bg-white">
                 <table className="min-w-full border-collapse">
                   <thead>
-                    <tr className="border-b border-forest-200 bg-white">
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                    <tr className="border-b border-brand-secondary bg-white">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Email
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Teams
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -577,37 +577,37 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           <div>
                             <Link
                               to={`/coach/${coach.id}`}
-                              className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                              className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
                             >
                               {coach.first_name} {coach.last_name}
                             </Link>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
                           {coach.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
                           {coach.team_count > 0 ? coach.team_count : '0'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          <span className="px-2 py-1 text-xs text-forest-800 border border-forest-800">
+                          <span className="px-2 py-1 text-xs text-brand-primary border border-brand-primary">
                             Active
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => handleEditCoach(coach)}
-                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleViewSchedule(coach)}
-                            className="text-forest-800 hover:underline mr-4 uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             View Schedule
                           </button>
-                          <button className="text-forest-800 hover:underline uppercase text-xs">
+                          <button className="text-brand-primary hover:underline uppercase text-xs">
                             View Teams
                           </button>
                         </td>
@@ -623,9 +623,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       {/* Practice Scheduler Modal */}
       {showScheduler && schedulerCoach && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
-            <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+          <div className="bg-white border border-brand-secondary rounded-md w-full max-w-7xl max-h-[90vh] overflow-auto">
+            <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
               </h3>
               <button
@@ -633,7 +633,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   setShowScheduler(false);
                   setSchedulerCoach(null);
                 }}
-                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
               >
                 ×
               </button>

@@ -38,36 +38,36 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
   };
   if (teams.length === 0) {
     return (
-      <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
+      <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
         <p className="text-gray-600 text-lg">No teams found. Create your first team to get started.</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-forest-200 rounded-md overflow-hidden bg-white">
+    <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
       <table className="min-w-full border-collapse">
         <thead>
-          <tr className="border-b border-forest-200 bg-white">
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+          <tr className="border-b border-brand-secondary bg-white">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Team Name
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Age Group
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Division
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Head Coach
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Players
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider border-r border-gray-300">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
               Home Field
             </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
               Actions
             </th>
           </tr>
@@ -81,27 +81,27 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                 <button
                   onClick={() => onEdit(team)}
-                  className="text-sm font-medium text-forest-800 hover:underline text-left"
+                  className="text-sm font-medium text-brand-primary hover:underline text-left"
                 >
                   {team.name}
                 </button>
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-200 rounded-md">
+                <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
                   {team.age_group}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-forest-800 border border-forest-200 rounded-md">
+                <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
                   {team.division}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
                 <div>
                   {team.primary_coach_id ? (
                     <Link
                       to={`/coach/${team.primary_coach_id}`}
-                      className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                      className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
                     >
                       {team.coach_name}
                     </Link>
@@ -110,26 +110,26 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                   )}
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
                 {team.player_count}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-forest-800 border-r border-gray-300">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
                 {team.home_field_name || 'Not set'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button
                   onClick={() => onEdit(team)}
-                  className="text-forest-800 hover:underline mr-3 uppercase text-xs">
+                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
                   Edit
                 </button>
                 <button
                   onClick={() => window.location.href = `/teams/${team.id}/roster`}
-                  className="text-forest-800 hover:underline mr-3 uppercase text-xs">
+                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
                   Roster
                 </button>
                 <button
                   onClick={() => handleSchedulePractice(team)}
-                  className="text-forest-800 hover:underline mr-3 uppercase text-xs">
+                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
                   Schedule
                 </button>
                 <button
@@ -139,7 +139,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                 </button>
                 <button
                   onClick={() => onDelete(team.id)}
-                  className="text-forest-800 hover:underline uppercase text-xs"
+                  className="text-brand-primary hover:underline uppercase text-xs"
                 >
                   Archive
                 </button>

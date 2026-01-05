@@ -58,11 +58,11 @@ const PositionReport: React.FC<PositionReportProps> = ({ teamId }) => {
 
       <div className="space-y-6">
         {Object.entries(positionMap).map(([position, data]) => (
-          <div key={position} className="bg-forest-800 p-6">
+          <div key={position} className="bg-brand-primary p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-white">{position}</h3>
               <div className="flex space-x-4">
-                <span className="text-forest-200">
+                <span className="text-brand-light">
                   Total: {getTotalPlayers(data)} players
                 </span>
                 {getTotalPlayers(data) < 2 && (
@@ -73,15 +73,15 @@ const PositionReport: React.FC<PositionReportProps> = ({ teamId }) => {
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <h4 className="text-forest-300 font-semibold mb-2">
+                <h4 className="text-brand-light font-semibold mb-2">
                   Primary ({data.primary_players.length})
                 </h4>
                 <div className="space-y-2">
                   {data.primary_players.length === 0 ? (
-                    <p className="text-forest-500 text-sm">No primary players</p>
+                    <p className="text-brand-muted text-sm">No primary players</p>
                   ) : (
                     data.primary_players.map(player => (
-                      <div key={player.id} className="bg-forest-700 px-3 py-2">
+                      <div key={player.id} className="bg-brand-primary px-3 py-2">
                         <div className="text-white">{player.name}</div>
                         {player.status !== 'active' && (
                           <span className="text-xs text-red-400">{player.status}</span>
@@ -93,15 +93,15 @@ const PositionReport: React.FC<PositionReportProps> = ({ teamId }) => {
               </div>
 
               <div>
-                <h4 className="text-forest-300 font-semibold mb-2">
+                <h4 className="text-brand-light font-semibold mb-2">
                   Secondary ({data.secondary_players.length})
                 </h4>
                 <div className="space-y-2">
                   {data.secondary_players.length === 0 ? (
-                    <p className="text-forest-500 text-sm">No secondary players</p>
+                    <p className="text-brand-muted text-sm">No secondary players</p>
                   ) : (
                     data.secondary_players.map(player => (
-                      <div key={player.id} className="bg-forest-700 px-3 py-2">
+                      <div key={player.id} className="bg-brand-primary px-3 py-2">
                         <div className="text-white">{player.name}</div>
                         {player.status !== 'active' && (
                           <span className="text-xs text-red-400">{player.status}</span>
@@ -113,12 +113,12 @@ const PositionReport: React.FC<PositionReportProps> = ({ teamId }) => {
               </div>
 
               <div>
-                <h4 className="text-forest-300 font-semibold mb-2">
+                <h4 className="text-brand-light font-semibold mb-2">
                   Guest ({data.guest_players.length})
                 </h4>
                 <div className="space-y-2">
                   {data.guest_players.length === 0 ? (
-                    <p className="text-forest-500 text-sm">No guest players</p>
+                    <p className="text-brand-muted text-sm">No guest players</p>
                   ) : (
                     data.guest_players.map(player => (
                       <div key={player.id} className="bg-orange-900 px-3 py-2">

@@ -108,12 +108,12 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
   };
 
   return (
-    <div className="bg-white rounded-md border border-forest-200 p-6">
-      <h2 className="text-xl font-semibold text-forest-800 mb-6 uppercase">Invite Users</h2>
+    <div className="bg-white rounded-md border border-brand-secondary p-6">
+      <h2 className="text-xl font-semibold text-brand-primary mb-6 uppercase">Invite Users</h2>
 
       {/* Method Selection */}
       <div className="mb-6">
-        <label className="block text-sm font-semibold text-forest-800 mb-3 uppercase">
+        <label className="block text-sm font-semibold text-brand-primary mb-3 uppercase">
           Invitation Method
         </label>
         <div className="flex space-x-4">
@@ -122,8 +122,8 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
             onClick={() => setInviteMethod('email')}
             className={`flex-1 py-3 px-4 rounded-md border-2 transition-all uppercase font-medium text-sm ${
               inviteMethod === 'email'
-                ? 'border-forest-600 bg-forest-50 text-forest-800'
-                : 'border-forest-200 hover:border-forest-300 bg-white text-forest-800'
+                ? 'border-brand-primary bg-brand-secondary text-brand-primary'
+                : 'border-brand-secondary hover:border-brand-secondary bg-white text-brand-primary'
             }`}
           >
             <svg className="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,8 +136,8 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
             onClick={() => setInviteMethod('link')}
             className={`flex-1 py-3 px-4 rounded-md border-2 transition-all uppercase font-medium text-sm ${
               inviteMethod === 'link'
-                ? 'border-forest-600 bg-forest-50 text-forest-800'
-                : 'border-forest-200 hover:border-forest-300 bg-white text-forest-800'
+                ? 'border-brand-primary bg-brand-secondary text-brand-primary'
+                : 'border-brand-secondary hover:border-brand-secondary bg-white text-brand-primary'
             }`}
           >
             <svg className="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,7 +153,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
           <>
             {/* Email Fields */}
             <div>
-              <label className="block text-sm font-semibold text-forest-800 mb-3 uppercase">
+              <label className="block text-sm font-semibold text-brand-primary mb-3 uppercase">
                 Email Addresses
               </label>
               <div className="space-y-3">
@@ -164,7 +164,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
                       value={email}
                       onChange={(e) => updateEmail(index, e.target.value)}
                       placeholder="user@example.com"
-                      className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                      className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                       required
                     />
                     {emails.length > 1 && (
@@ -184,7 +184,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
               <button
                 type="button"
                 onClick={addEmailField}
-                className="mt-3 text-sm text-forest-600 hover:text-forest-700 font-semibold uppercase"
+                className="mt-3 text-sm text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
               >
                 + Add another email
               </button>
@@ -192,13 +192,13 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
 
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+              <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                 Role
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
@@ -208,7 +208,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
 
             {/* Personal Message */}
             <div>
-              <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+              <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                 Personal Message (Optional)
               </label>
               <textarea
@@ -216,7 +216,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
                 onChange={(e) => setPersonalMessage(e.target.value)}
                 rows={3}
                 placeholder="Add a personal message to your invitation..."
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
           </>
@@ -224,13 +224,13 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
           <>
             {/* Role Selection for Link */}
             <div>
-              <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+              <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                 Role
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
@@ -240,7 +240,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
 
             {/* Max Uses for Link */}
             <div>
-              <label className="block text-sm font-semibold text-forest-800 mb-2 uppercase">
+              <label className="block text-sm font-semibold text-brand-primary mb-2 uppercase">
                 Maximum Uses (Optional)
               </label>
               <input
@@ -249,7 +249,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
                 onChange={(e) => setMaxUses(e.target.value)}
                 min="1"
                 placeholder="Leave empty for unlimited uses"
-                className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
               <p className="text-sm text-gray-600 mt-1">
                 Set a limit on how many people can join using this link
@@ -258,8 +258,8 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
 
             {/* Generated Link Display */}
             {generatedLink && (
-              <div className="bg-forest-50 border border-forest-200 rounded-md p-4">
-                <p className="text-sm font-semibold text-forest-800 mb-2 uppercase">
+              <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4">
+                <p className="text-sm font-semibold text-brand-primary mb-2 uppercase">
                   Your invitation link is ready!
                 </p>
                 <div className="flex items-center space-x-2">
@@ -267,12 +267,12 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
                     type="text"
                     value={generatedLink}
                     readOnly
-                    className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 text-sm"
+                    className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 text-sm"
                   />
                   <button
                     type="button"
                     onClick={() => navigator.clipboard.writeText(generatedLink)}
-                    className="px-4 py-2 bg-white text-forest-800 border border-forest-200 rounded-md hover:bg-forest-50 font-semibold text-sm uppercase"
+                    className="px-4 py-2 bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-brand-secondary font-semibold text-sm uppercase"
                   >
                     Copy
                   </button>
@@ -299,7 +299,7 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-forest-800 hover:bg-forest-700 text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+          className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
         >
           {loading ? 'Processing...' : inviteMethod === 'email' ? 'Send Invitations' : 'Generate Link'}
         </button>

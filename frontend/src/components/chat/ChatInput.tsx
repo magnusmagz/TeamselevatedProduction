@@ -76,7 +76,7 @@ export default function ChatInput({ onSend, onTyping, disabled, placeholder }: P
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-forest-200 bg-white p-3 flex-shrink-0"
+      className="border-t border-brand-secondary bg-white p-3 flex-shrink-0"
     >
       <div className="flex items-center gap-2">
         <input
@@ -87,12 +87,12 @@ export default function ChatInput({ onSend, onTyping, disabled, placeholder }: P
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder || 'Type a message...'}
-          className="flex-1 px-3 py-2 border border-forest-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+          className="flex-1 px-3 py-2 border border-brand-secondary rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
         />
         <button
           type="submit"
           disabled={disabled || !message.trim()}
-          className="p-2 bg-forest-600 text-white rounded-lg hover:bg-forest-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="p-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           aria-label="Send message"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

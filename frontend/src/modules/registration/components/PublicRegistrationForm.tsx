@@ -171,9 +171,9 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
     const fieldId = `field-${field.field_name}`;
     const hasError = !!errors[field.field_name];
 
-    const inputClasses = `w-full bg-white text-forest-800 border rounded-md ${
-      hasError ? 'border-red-500' : 'border-forest-200'
-    } px-4 py-2 focus:outline-none focus:border-forest-600`;
+    const inputClasses = `w-full bg-white text-brand-primary border rounded-md ${
+      hasError ? 'border-red-500' : 'border-brand-secondary'
+    } px-4 py-2 focus:outline-none focus:border-brand-accent`;
 
     switch (field.field_type) {
       case 'text':
@@ -229,7 +229,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
               checked={formData[field.field_name] || false}
               onChange={(e) => handleFieldChange(field.field_name, e.target.checked)}
             />
-            <label htmlFor={fieldId} className="text-forest-800">
+            <label htmlFor={fieldId} className="text-brand-primary">
               {field.field_label}
             </label>
           </div>
@@ -249,7 +249,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
                   checked={formData[field.field_name] === option}
                   onChange={(e) => handleFieldChange(field.field_name, e.target.value)}
                 />
-                <label htmlFor={`${fieldId}-${option}`} className="text-forest-800">
+                <label htmlFor={`${fieldId}-${option}`} className="text-brand-primary">
                   {option}
                 </label>
               </div>
@@ -279,7 +279,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   if (loading) {
     return (
       <div className="text-center py-12">
-        <div className="text-forest-800">Loading registration form...</div>
+        <div className="text-brand-primary">Loading registration form...</div>
       </div>
     );
   }
@@ -294,8 +294,8 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
   if (submitted) {
     return (
-      <div className="bg-white border border-forest-200 rounded-md p-8 text-center">
-        <h2 className="text-2xl font-bold text-forest-800 mb-4">Registration Submitted!</h2>
+      <div className="bg-white border border-brand-secondary rounded-md p-8 text-center">
+        <h2 className="text-2xl font-bold text-brand-primary mb-4">Registration Submitted!</h2>
         <p className="text-gray-600">
           Thank you for registering for {program.name}.
           You will receive a confirmation email shortly.
@@ -307,9 +307,9 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
   return (
     <div className={embedded ? '' : 'min-h-screen bg-gray-50 py-8'}>
       <div className={embedded ? '' : 'max-w-2xl mx-auto px-4'}>
-        <div className="bg-white border border-forest-200 rounded-md">
+        <div className="bg-white border border-brand-secondary rounded-md">
           {/* Header */}
-          <div className="bg-forest-800 text-white p-6">
+          <div className="bg-brand-primary text-white p-6">
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-2xl font-bold uppercase">{program.name}</h1>
@@ -343,14 +343,14 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
           <form onSubmit={handleSubmit} className="p-6">
             {Object.entries(fieldsBySection).map(([section, fields]) => (
               <div key={section} className="mb-8">
-                <h3 className="text-lg font-semibold text-forest-800 uppercase mb-4 border-b border-forest-200 pb-2">
+                <h3 className="text-lg font-semibold text-brand-primary uppercase mb-4 border-b border-brand-secondary pb-2">
                   {getSectionLabel(section)}
                 </h3>
                 <div className="space-y-4">
                   {fields.map(field => (
                     <div key={field.field_name}>
                       {field.field_type !== 'checkbox' && (
-                        <label htmlFor={`field-${field.field_name}`} className="block text-forest-800 text-sm font-medium mb-2">
+                        <label htmlFor={`field-${field.field_name}`} className="block text-brand-primary text-sm font-medium mb-2">
                           {field.field_label}
                           {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
@@ -367,7 +367,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
             <div className="mt-8 flex justify-between items-center">
               {registrationFee > 0 && (
-                <div className="text-forest-800">
+                <div className="text-brand-primary">
                   <span className="text-sm">Total Due: </span>
                   <span className="text-xl font-bold">${registrationFee.toFixed(2)}</span>
                 </div>
@@ -375,7 +375,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-forest-800 text-white px-8 py-3 rounded-md hover:bg-forest-700 uppercase font-semibold disabled:opacity-50"
+                className="bg-brand-primary text-white px-8 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : (registrationFee > 0 ? 'Continue to Payment' : 'Submit Registration')}
               </button>

@@ -108,22 +108,22 @@ export default function ChatScopeSelector({
   };
 
   return (
-    <div className="border-b border-forest-100 bg-forest-50" ref={dropdownRef}>
+    <div className="border-b border-brand-secondary bg-brand-secondary" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-2 flex items-center justify-between hover:bg-forest-100 transition-colors"
+        className="w-full px-4 py-2 flex items-center justify-between hover:bg-brand-secondary transition-colors"
       >
         <div className="flex items-center gap-2 text-sm">
           {getScopeIcon()}
-          <span className="font-medium text-forest-800">
+          <span className="font-medium text-brand-primary">
             {currentScope?.name || 'Select chat scope'}
           </span>
-          <span className="text-xs text-forest-600 bg-forest-200 px-1.5 py-0.5 rounded">
+          <span className="text-xs text-brand-primary bg-brand-secondary px-1.5 py-0.5 rounded">
             {currentScope?.type === 'league' ? 'League' : 'Team'}
           </span>
         </div>
         <svg
-          className={`w-4 h-4 text-forest-600 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-brand-primary transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -134,23 +134,23 @@ export default function ChatScopeSelector({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 right-0 bg-white border-b border-forest-200 shadow-lg z-10 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 right-0 bg-white border-b border-brand-secondary shadow-lg z-10 max-h-64 overflow-y-auto">
           {/* League option */}
           {currentLeagueId && (
             <button
               onClick={handleSelectLeague}
-              className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-forest-50 text-left ${
-                currentScope?.type === 'league' ? 'bg-forest-100' : ''
+              className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-brand-secondary text-left ${
+                currentScope?.type === 'league' ? 'bg-brand-secondary' : ''
               }`}
             >
-              <svg className="w-4 h-4 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
               <div>
-                <div className="text-sm font-medium text-forest-800">
+                <div className="text-sm font-medium text-brand-primary">
                   {activeContext?.scope_name} (League Chat)
                 </div>
-                <div className="text-xs text-forest-500">
+                <div className="text-xs text-brand-muted">
                   All members in this league
                 </div>
               </div>
@@ -174,14 +174,14 @@ export default function ChatScopeSelector({
               <button
                 key={team.id}
                 onClick={() => handleSelectTeam(team)}
-                className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-forest-50 text-left ${
-                  currentScope?.type === 'team' && currentScope?.id === team.id ? 'bg-forest-100' : ''
+                className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-brand-secondary text-left ${
+                  currentScope?.type === 'team' && currentScope?.id === team.id ? 'bg-brand-secondary' : ''
                 }`}
               >
-                <svg className="w-4 h-4 text-forest-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <div className="text-sm font-medium text-forest-800">
+                <div className="text-sm font-medium text-brand-primary">
                   {team.name}
                 </div>
               </button>

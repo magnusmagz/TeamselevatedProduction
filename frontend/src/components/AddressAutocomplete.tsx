@@ -119,7 +119,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          className={className || "w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"}
+          className={className || "w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"}
         />
         <p className="text-xs text-gray-500 mt-1">
           ⚠️ Google Maps not configured. Add API key for address validation.
@@ -145,7 +145,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className={className || "w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"}
+          className={className || "w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"}
         />
       </Autocomplete>
       {isLoaded && (

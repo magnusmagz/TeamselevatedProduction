@@ -113,7 +113,7 @@ export default function ResetPassword() {
               </p>
               <Link
                 to="/forgot-password"
-                className="block w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 uppercase text-center"
+                className="block w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 uppercase text-center"
               >
                 REQUEST NEW LINK
               </Link>
@@ -141,7 +141,7 @@ export default function ResetPassword() {
               </p>
               <Link
                 to="/login"
-                className="block w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 uppercase text-center"
+                className="block w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 uppercase text-center"
               >
                 GO TO LOGIN
               </Link>
@@ -174,7 +174,7 @@ export default function ResetPassword() {
                   setPasswordError(null);
                 }}
                 placeholder="Create a strong password"
-                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                 required
                 autoFocus
               />
@@ -212,7 +212,7 @@ export default function ResetPassword() {
                   setPasswordError(null);
                 }}
                 placeholder="Confirm your new password"
-                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-forest-600 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border-2 border-gray-300 focus:border-brand-accent focus:outline-none transition-colors"
                 required
               />
             </div>
@@ -232,14 +232,14 @@ export default function ResetPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-forest-600 hover:bg-forest-700 text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'RESETTING...' : 'RESET PASSWORD'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-forest-600 hover:text-forest-700 font-medium">
+            <Link to="/login" className="text-sm text-brand-primary hover:text-brand-primary-hover font-medium">
               Back to login
             </Link>
           </div>

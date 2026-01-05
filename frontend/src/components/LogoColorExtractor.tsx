@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { ColorExtractor, ColorExtractionResult } from '../utils/colorExtractor';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { ColorExtractor, ColorExtractionResult, lightenColor } from '../utils/colorExtractor';
 
 export interface LogoColorData {
   logoBase64: string;
@@ -39,6 +39,20 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
   const [success, setSuccess] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isInitialMount = useRef(true);
+
+  // Auto-regenerate secondary/accent colors when primary changes (after initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    // Only auto-regenerate if we have a logo (user is actively editing)
+    if (logoData) {
+      setSecondaryColor(lightenColor(primaryColor, 40));
+      setAccentColor(lightenColor(primaryColor, 20));
+    }
+  }, [primaryColor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -101,9 +115,10 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
       const colors = await ColorExtractor.extractColorsFromFile(file);
       setExtractedColors(colors);
 
+      // Set primary from extraction, auto-generate secondary as lighter version
       setPrimaryColor(colors.primary);
-      setSecondaryColor(colors.secondary);
-      setAccentColor(colors.accent);
+      setSecondaryColor(lightenColor(colors.primary, 40)); // 40% lighter
+      setAccentColor(lightenColor(colors.primary, 20)); // 20% lighter
     } catch (error) {
       setError('Failed to process image');
       console.error('Logo processing error:', error);
@@ -148,14 +163,14 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
   return (
     <div className="space-y-6">
       {/* Logo Upload Section */}
-      <div className="bg-white border border-forest-200 rounded-md p-6">
-        <h2 className="text-xl font-semibold text-forest-800 mb-4 uppercase">Club Logo</h2>
+      <div className="bg-white border border-brand-secondary rounded-md p-6">
+        <h2 className="text-xl font-semibold text-brand-primary mb-4 uppercase">Club Logo</h2>
 
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 ${isDragOver ? 'border-forest-600 bg-gray-50' : 'border-dashed border-forest-800'} p-8 text-center relative`}
+          className={`border-2 ${isDragOver ? 'border-brand-primary bg-gray-50' : 'border-dashed border-brand-primary'} p-8 text-center relative`}
         >
           <input
             ref={fileInputRef}
@@ -173,11 +188,11 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                 className="mx-auto h-32 w-auto object-contain"
               />
               <div>
-                <p className="text-forest-800 font-medium">{logoFilename}</p>
+                <p className="text-brand-primary font-medium">{logoFilename}</p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 text-forest-800 hover:text-forest-600 uppercase text-sm font-medium"
+                  className="mt-2 text-brand-primary hover:text-brand-primary-hover uppercase text-sm font-medium"
                 >
                   Change Logo
                 </button>
@@ -192,7 +207,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 uppercase font-medium"
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-medium"
                 >
                   Upload Logo
                 </button>
@@ -206,7 +221,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
 
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
-              <div className="text-forest-800">Processing...</div>
+              <div className="text-brand-primary">Processing...</div>
             </div>
           )}
         </div>
@@ -214,13 +229,13 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
 
       {/* Colors Section */}
       {extractedColors && (
-        <div className="bg-white border border-forest-200 rounded-md p-6">
-          <h2 className="text-xl font-semibold text-forest-800 mb-4 uppercase">Brand Colors</h2>
+        <div className="bg-white border border-brand-secondary rounded-md p-6">
+          <h2 className="text-xl font-semibold text-brand-primary mb-4 uppercase">Brand Colors</h2>
           <p className="text-gray-600 mb-6">Colors automatically extracted from your logo. You can adjust them if needed.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Primary Color
               </label>
               <div className="flex space-x-2">
@@ -228,20 +243,20 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="color"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="h-10 w-20 border border-forest-200 rounded-md cursor-pointer"
+                  className="h-10 w-20 border border-brand-secondary rounded-md cursor-pointer"
                 />
                 <input
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent uppercase"
                   placeholder="#000000"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Secondary Color
               </label>
               <div className="flex space-x-2">
@@ -249,20 +264,20 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="color"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="h-10 w-20 border border-forest-200 rounded-md cursor-pointer"
+                  className="h-10 w-20 border border-brand-secondary rounded-md cursor-pointer"
                 />
                 <input
                   type="text"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent uppercase"
                   placeholder="#000000"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Accent Color
               </label>
               <div className="flex space-x-2">
@@ -270,13 +285,13 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                   type="color"
                   value={accentColor}
                   onChange={(e) => setAccentColor(e.target.value)}
-                  className="h-10 w-20 border border-forest-200 rounded-md cursor-pointer"
+                  className="h-10 w-20 border border-brand-secondary rounded-md cursor-pointer"
                 />
                 <input
                   type="text"
                   value={accentColor}
                   onChange={(e) => setAccentColor(e.target.value)}
-                  className="flex-1 bg-white text-forest-800 border border-forest-200 rounded-md px-3 py-1 focus:outline-none focus:border-forest-600 uppercase"
+                  className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent uppercase"
                   placeholder="#000000"
                 />
               </div>
@@ -286,14 +301,14 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
           {/* Extracted Color Palette */}
           {extractedColors.allColors.length > 0 && (
             <div className="mt-6 pt-6 border-t border-gray-300">
-              <h3 className="text-sm font-medium text-forest-800 mb-3 uppercase">Extracted Palette</h3>
+              <h3 className="text-sm font-medium text-brand-primary mb-3 uppercase">Extracted Palette</h3>
               <div className="flex space-x-2">
                 {extractedColors.allColors.map((color, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => setPrimaryColor(color.hex)}
-                    className="h-10 w-10 border border-forest-200 rounded-md hover:scale-110 transition-transform"
+                    className="h-10 w-10 border border-brand-secondary rounded-md hover:scale-110 transition-transform"
                     style={{ backgroundColor: color.hex }}
                     title={`${color.hex} (${Math.round(color.prominence * 100)}%)`}
                   />
@@ -325,7 +340,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-3 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Logo & Colors'}
           </button>

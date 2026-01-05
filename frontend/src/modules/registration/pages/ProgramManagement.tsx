@@ -72,7 +72,7 @@ const ProgramManagement: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">
+          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
             Program Management
           </h1>
           <p className="text-gray-600 mt-2">
@@ -87,7 +87,7 @@ const ProgramManagement: React.FC = () => {
           </div>
           <button
             onClick={handleCreateProgram}
-            className="bg-forest-800 text-white px-6 py-3 rounded-md hover:bg-forest-700 uppercase font-semibold"
+            className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold"
           >
             + Create New Program
           </button>
@@ -95,35 +95,35 @@ const ProgramManagement: React.FC = () => {
 
         {/* Programs List */}
         {loading ? (
-          <div className="text-center py-12 text-forest-800">Loading programs...</div>
+          <div className="text-center py-12 text-brand-primary">Loading programs...</div>
         ) : programs.length === 0 ? (
-          <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
+          <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
             <p className="text-gray-600 text-lg">No programs yet.</p>
             <p className="text-gray-500 mt-2">Create your first program to start accepting registrations.</p>
           </div>
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block border border-forest-200 rounded-md">
+            <div className="hidden md:block border border-brand-secondary rounded-md">
               <table className="min-w-full bg-white">
                 <thead>
-                  <tr className="border-b border-forest-200">
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                  <tr className="border-b border-brand-secondary">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Program Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Dates
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Registrations
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                       Actions
                     </th>
                   </tr>
@@ -132,7 +132,7 @@ const ProgramManagement: React.FC = () => {
                   {programs.map((program) => (
                     <tr key={program.id} className="border-b border-gray-300 hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="text-forest-800 font-medium">{program.name}</div>
+                        <div className="text-brand-primary font-medium">{program.name}</div>
                         {program.description && (
                           <div className="text-gray-500 text-sm mt-1 truncate max-w-xs">
                             {program.description}
@@ -140,12 +140,12 @@ const ProgramManagement: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-forest-800">
+                        <span className="text-brand-primary">
                           {getProgramTypeLabel(program.type)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-forest-800">
+                        <div className="text-sm text-brand-primary">
                           {program.start_date ? (
                             <>
                               {new Date(program.start_date).toLocaleDateString()}
@@ -159,7 +159,7 @@ const ProgramManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-forest-800">
+                        <div className="text-brand-primary">
                           {program.registration_count || 0}
                           {program.capacity && (
                             <span className="text-gray-500"> / {program.capacity}</span>
@@ -175,7 +175,7 @@ const ProgramManagement: React.FC = () => {
                         <div className="flex space-x-3">
                           <button
                             onClick={() => handleEditProgram(program)}
-                            className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold"
+                            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
                           >
                             Edit
                           </button>
@@ -217,10 +217,10 @@ const ProgramManagement: React.FC = () => {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
               {programs.map((program) => (
-                <div key={program.id} className="border border-forest-200 rounded-md bg-white p-4">
+                <div key={program.id} className="border border-brand-secondary rounded-md bg-white p-4">
                   {/* Program Header */}
                   <div className="mb-3">
-                    <h3 className="text-lg font-bold text-forest-800">{program.name}</h3>
+                    <h3 className="text-lg font-bold text-brand-primary">{program.name}</h3>
                     {program.description && (
                       <p className="text-gray-600 text-sm mt-1">{program.description}</p>
                     )}
@@ -230,11 +230,11 @@ const ProgramManagement: React.FC = () => {
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between">
                       <span className="text-gray-600 text-sm font-semibold uppercase">Type:</span>
-                      <span className="text-forest-800 text-sm">{getProgramTypeLabel(program.type)}</span>
+                      <span className="text-brand-primary text-sm">{getProgramTypeLabel(program.type)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 text-sm font-semibold uppercase">Dates:</span>
-                      <span className="text-forest-800 text-sm">
+                      <span className="text-brand-primary text-sm">
                         {program.start_date ? (
                           <>
                             {new Date(program.start_date).toLocaleDateString()}
@@ -249,7 +249,7 @@ const ProgramManagement: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 text-sm font-semibold uppercase">Registrations:</span>
-                      <span className="text-forest-800 text-sm">
+                      <span className="text-brand-primary text-sm">
                         {program.registration_count || 0}
                         {program.capacity && (
                           <span className="text-gray-500"> / {program.capacity}</span>
@@ -268,7 +268,7 @@ const ProgramManagement: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleEditProgram(program)}
-                      className="border border-forest-200 rounded-md text-forest-800 hover:bg-forest-50 py-2 uppercase text-xs font-semibold"
+                      className="border border-brand-secondary rounded-md text-brand-primary hover:bg-brand-secondary py-2 uppercase text-xs font-semibold"
                     >
                       Edit
                     </button>

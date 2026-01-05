@@ -119,14 +119,14 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-forest-800 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="bg-forest-950 px-6 py-4 flex justify-between items-center">
+      <div className="bg-brand-primary w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-brand-primary-dark px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-white">
             {player ? 'Edit Player' : 'Add Player to Roster'}
           </h3>
           <button
             onClick={onClose}
-            className="text-forest-200 hover:text-white text-2xl"
+            className="text-brand-light hover:text-white text-2xl"
           >
             ×
           </button>
@@ -135,30 +135,30 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
         <form onSubmit={handleSubmit} className="p-6">
           {!player && (
             <div className="mb-6">
-              <label className="block text-forest-200 text-sm font-medium mb-2">
+              <label className="block text-brand-light text-sm font-medium mb-2">
                 Search Player *
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  className="w-full bg-forest-700 text-white px-4 py-2"
+                  className="w-full bg-brand-primary text-white px-4 py-2"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyUp={searchPlayers}
                   placeholder="Search by name or email..."
                 />
                 {searchResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-forest-700 border border-forest-600 max-h-48 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-brand-primary border border-brand-primary max-h-48 overflow-y-auto">
                     {searchResults.map(player => (
                       <div
                         key={player.id}
-                        className="px-4 py-2 hover:bg-forest-600 cursor-pointer text-white"
+                        className="px-4 py-2 hover:bg-brand-primary cursor-pointer text-white"
                         onClick={() => selectPlayer(player)}
                       >
                         <div>{player.first_name} {player.last_name}</div>
-                        <div className="text-sm text-forest-400">{player.email}</div>
+                        <div className="text-sm text-brand-muted">{player.email}</div>
                         {player.current_teams && (
-                          <div className="text-xs text-forest-500">
+                          <div className="text-xs text-brand-muted">
                             Current teams: {player.current_teams}
                           </div>
                         )}
@@ -167,14 +167,14 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
                   </div>
                 )}
                 {searching && (
-                  <div className="absolute right-2 top-2 text-forest-400">Searching...</div>
+                  <div className="absolute right-2 top-2 text-brand-muted">Searching...</div>
                 )}
               </div>
             </div>
           )}
 
           <div className="mb-6">
-            <label className="block text-forest-200 text-sm font-medium mb-2">
+            <label className="block text-brand-light text-sm font-medium mb-2">
               Positions * (Select all that apply)
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -183,8 +183,8 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
                   key={position}
                   className={`px-4 py-2 cursor-pointer ${
                     formData.positions.includes(position)
-                      ? 'bg-forest-600 text-white'
-                      : 'bg-forest-700 text-forest-200'
+                      ? 'bg-brand-primary text-white'
+                      : 'bg-brand-primary text-brand-light'
                   }`}
                 >
                   <input
@@ -202,11 +202,11 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
           {formData.positions.length > 0 && (
             <>
               <div className="mb-6">
-                <label className="block text-forest-200 text-sm font-medium mb-2">
+                <label className="block text-brand-light text-sm font-medium mb-2">
                   Primary Position *
                 </label>
                 <select
-                  className="w-full bg-forest-700 text-white px-4 py-2"
+                  className="w-full bg-brand-primary text-white px-4 py-2"
                   value={formData.primary_position}
                   onChange={(e) => setFormData({ ...formData, primary_position: e.target.value })}
                   required
@@ -219,7 +219,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
               </div>
 
               <div className="mb-6">
-                <label className="block text-forest-200 text-sm font-medium mb-2">
+                <label className="block text-brand-light text-sm font-medium mb-2">
                   Position-Specific Jersey Numbers
                 </label>
                 <div className="space-y-2">
@@ -228,7 +228,7 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
                       <span className="text-white w-32">{position}:</span>
                       <input
                         type="number"
-                        className="bg-forest-700 text-white px-4 py-2 w-24"
+                        className="bg-brand-primary text-white px-4 py-2 w-24"
                         value={formData.position_assignments.find(pa => pa.position === position)?.jersey_number || ''}
                         onChange={(e) => updatePositionJersey(position, e.target.value)}
                         min="0"
@@ -244,12 +244,12 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-forest-200 text-sm font-medium mb-2">
+              <label className="block text-brand-light text-sm font-medium mb-2">
                 Primary Jersey Number
               </label>
               <input
                 type="number"
-                className="w-full bg-forest-700 text-white px-4 py-2"
+                className="w-full bg-brand-primary text-white px-4 py-2"
                 value={formData.jersey_number}
                 onChange={(e) => setFormData({ ...formData, jersey_number: e.target.value })}
                 min="0"
@@ -258,12 +258,12 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
             </div>
 
             <div>
-              <label className="block text-forest-200 text-sm font-medium mb-2">
+              <label className="block text-brand-light text-sm font-medium mb-2">
                 Alternate Jersey Number
               </label>
               <input
                 type="number"
-                className="w-full bg-forest-700 text-white px-4 py-2"
+                className="w-full bg-brand-primary text-white px-4 py-2"
                 value={formData.jersey_number_alt}
                 onChange={(e) => setFormData({ ...formData, jersey_number_alt: e.target.value })}
                 min="0"
@@ -274,11 +274,11 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-forest-200 text-sm font-medium mb-2">
+              <label className="block text-brand-light text-sm font-medium mb-2">
                 Team Priority
               </label>
               <select
-                className="w-full bg-forest-700 text-white px-4 py-2"
+                className="w-full bg-brand-primary text-white px-4 py-2"
                 value={formData.team_priority}
                 onChange={(e) => setFormData({ ...formData, team_priority: e.target.value as any })}
               >
@@ -289,11 +289,11 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
             </div>
 
             <div>
-              <label className="block text-forest-200 text-sm font-medium mb-2">
+              <label className="block text-brand-light text-sm font-medium mb-2">
                 Status
               </label>
               <select
-                className="w-full bg-forest-700 text-white px-4 py-2"
+                className="w-full bg-brand-primary text-white px-4 py-2"
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
               >
@@ -308,13 +308,13 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
             <button
               type="button"
               onClick={onClose}
-              className="bg-forest-600 text-white px-6 py-2 hover:bg-forest-500"
+              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-forest-500 text-white px-6 py-2 hover:bg-forest-400 font-semibold"
+              className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
             >
               {player ? 'Update Player' : 'Add Player'}
             </button>

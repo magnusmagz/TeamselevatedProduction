@@ -84,18 +84,18 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
             <div
               className={`max-w-[80%] ${
                 isOwn
-                  ? 'bg-forest-600 text-white rounded-lg rounded-br-sm'
+                  ? 'bg-brand-primary text-white rounded-lg rounded-br-sm'
                   : 'bg-white text-gray-800 rounded-lg rounded-bl-sm border border-gray-200'
               } px-3 py-2 shadow-sm`}
             >
               {/* Sender name for other users */}
               {!isOwn && (
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-xs font-semibold text-forest-700">
+                  <span className="text-xs font-semibold text-brand-primary">
                     {msg.sender}
                   </span>
                   {(msg.role === 'coach' || msg.role === 'league_admin' || msg.role === 'club_admin') && (
-                    <span className="text-xs bg-forest-100 text-forest-700 px-1 rounded">
+                    <span className="text-xs bg-brand-secondary text-brand-primary px-1 rounded">
                       {msg.role === 'coach' ? 'Coach' : 'Admin'}
                     </span>
                   )}
@@ -110,7 +110,7 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
               {/* Timestamp */}
               <div
                 className={`text-xs mt-1 ${
-                  isOwn ? 'text-forest-200' : 'text-gray-400'
+                  isOwn ? 'text-brand-light' : 'text-gray-400'
                 }`}
               >
                 {msg.time || formatTime(msg.timestamp)}

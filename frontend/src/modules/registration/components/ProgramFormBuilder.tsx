@@ -76,27 +76,27 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="border-b border-forest-200 px-6 py-4">
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="border-b border-brand-secondary px-6 py-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
               {program ? 'Edit Program' : 'Create New Program'}
             </h3>
             <button
               onClick={onClose}
-              className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex space-x-8 border-b border-forest-200 -mb-0.5">
+          <div className="flex space-x-8 border-b border-brand-secondary -mb-0.5">
             <button
               onClick={() => setActiveTab('details')}
               className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
                 activeTab === 'details'
-                  ? 'border-forest-800 text-forest-800'
+                  ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -106,7 +106,7 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
               onClick={() => setActiveTab('fields')}
               className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
                 activeTab === 'fields'
-                  ? 'border-forest-800 text-forest-800'
+                  ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -120,12 +120,12 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Program Name *
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Summer Soccer Camp 2024"
@@ -133,11 +133,11 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Program Type *
                   </label>
                   <select
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                   >
@@ -151,11 +151,11 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Description
                   </label>
                   <textarea
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.description || ''}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
@@ -164,60 +164,60 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Start Date
                   </label>
                   <input
                     type="date"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.start_date || ''}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     End Date
                   </label>
                   <input
                     type="date"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Registration Opens
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.registration_opens || ''}
                     onChange={(e) => setFormData({ ...formData, registration_opens: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Registration Closes
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.registration_closes || ''}
                     onChange={(e) => setFormData({ ...formData, registration_closes: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Min Age
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.min_age || ''}
                     onChange={(e) => setFormData({ ...formData, min_age: parseInt(e.target.value) || undefined })}
                     min="0"
@@ -225,12 +225,12 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Max Age
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.max_age || ''}
                     onChange={(e) => setFormData({ ...formData, max_age: parseInt(e.target.value) || undefined })}
                     min="0"
@@ -238,12 +238,12 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Capacity
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.capacity || ''}
                     onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || undefined })}
                     min="1"
@@ -251,11 +251,11 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 </div>
 
                 <div>
-                  <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Status
                   </label>
                   <select
-                    className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -288,17 +288,17 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
           )}
         </div>
 
-        <div className="border-t border-forest-200 px-6 py-4 flex justify-end space-x-4">
+        <div className="border-t border-brand-secondary px-6 py-4 flex justify-end space-x-4">
           <button
             onClick={onClose}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !formData.name}
-            className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
           >
             {saving ? 'Saving...' : (savedProgramId ? 'Update Program' : 'Create Program')}
           </button>

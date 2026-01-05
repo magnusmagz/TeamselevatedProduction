@@ -120,7 +120,7 @@ const CoachProfile: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-forest-800">Loading coach profile...</div>
+        <div className="text-brand-primary">Loading coach profile...</div>
       </div>
     );
   }
@@ -136,7 +136,7 @@ const CoachProfile: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header Section */}
-      <div className="bg-white border border-forest-200 rounded-md p-8 mb-6">
+      <div className="bg-white border border-brand-secondary rounded-md p-8 mb-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           {/* Profile Image */}
           <div className="flex-shrink-0">
@@ -144,11 +144,11 @@ const CoachProfile: React.FC = () => {
               <img
                 src={coach.profile_image_url}
                 alt={`${coach.first_name} ${coach.last_name}`}
-                className="w-40 h-40 rounded-full object-cover border-4 border-forest-200"
+                className="w-40 h-40 rounded-full object-cover border-4 border-brand-secondary"
               />
             ) : (
-              <div className="w-40 h-40 rounded-full bg-forest-100 border-4 border-forest-200 flex items-center justify-center">
-                <span className="text-4xl font-bold text-forest-800">
+              <div className="w-40 h-40 rounded-full bg-brand-secondary border-4 border-brand-secondary flex items-center justify-center">
+                <span className="text-4xl font-bold text-brand-primary">
                   {getInitials(coach.first_name, coach.last_name)}
                 </span>
               </div>
@@ -160,7 +160,7 @@ const CoachProfile: React.FC = () => {
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
               Coach
             </div>
-            <h1 className="text-4xl font-bold text-forest-800 mb-4">
+            <h1 className="text-4xl font-bold text-brand-primary mb-4">
               {coach.first_name} {coach.last_name}
             </h1>
             <div className="space-y-2">
@@ -189,14 +189,14 @@ const CoachProfile: React.FC = () => {
           <div className="flex flex-col gap-2">
             <a
               href={`mailto:${coach.email}`}
-              className="bg-forest-800 text-white px-6 py-2 rounded-md hover:bg-forest-700 font-semibold uppercase text-center"
+              className="bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary font-semibold uppercase text-center"
             >
               Send Message
             </a>
             {(isAdmin() || user?.id === coach.id) && (
               <button
                 onClick={() => setShowEditModal(true)}
-                className="bg-white text-forest-800 border-2 border-forest-800 px-6 py-2 rounded-md hover:bg-forest-50 font-semibold uppercase"
+                className="bg-white text-brand-primary border-2 border-brand-primary px-6 py-2 rounded-md hover:bg-brand-secondary font-semibold uppercase"
               >
                 Edit Profile
               </button>
@@ -206,8 +206,8 @@ const CoachProfile: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border border-forest-200 rounded-md mb-6">
-        <div className="border-b border-forest-200">
+      <div className="bg-white border border-brand-secondary rounded-md mb-6">
+        <div className="border-b border-brand-secondary">
           <div className="flex space-x-8 px-6">
             {(['about', 'teams', 'forms', 'activities', 'resources'] as TabType[]).map((tab) => (
               <button
@@ -230,7 +230,7 @@ const CoachProfile: React.FC = () => {
           {activeTab === 'about' && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+                <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                   Background
                 </h3>
                 {(isAdmin() || user?.id === coach.id) && !coach.coaching_background && (
@@ -253,16 +253,16 @@ const CoachProfile: React.FC = () => {
               {/* Stats */}
               {stats && (
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-forest-50 border border-forest-200 rounded-md p-4 text-center">
-                    <div className="text-3xl font-bold text-forest-800">{stats.total_teams}</div>
+                  <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4 text-center">
+                    <div className="text-3xl font-bold text-brand-primary">{stats.total_teams}</div>
                     <div className="text-sm text-gray-600 uppercase">Total Teams</div>
                   </div>
-                  <div className="bg-forest-50 border border-forest-200 rounded-md p-4 text-center">
-                    <div className="text-3xl font-bold text-forest-800">{stats.active_teams}</div>
+                  <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4 text-center">
+                    <div className="text-3xl font-bold text-brand-primary">{stats.active_teams}</div>
                     <div className="text-sm text-gray-600 uppercase">Active Teams</div>
                   </div>
-                  <div className="bg-forest-50 border border-forest-200 rounded-md p-4 text-center">
-                    <div className="text-3xl font-bold text-forest-800">{stats.total_athletes}</div>
+                  <div className="bg-brand-secondary border border-brand-secondary rounded-md p-4 text-center">
+                    <div className="text-3xl font-bold text-brand-primary">{stats.total_athletes}</div>
                     <div className="text-sm text-gray-600 uppercase">Total Athletes</div>
                   </div>
                 </div>
@@ -272,7 +272,7 @@ const CoachProfile: React.FC = () => {
 
           {activeTab === 'teams' && (
             <div>
-              <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+              <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
                 Teams ({teams.length})
               </h3>
               {teams.length > 0 ? (
@@ -281,9 +281,9 @@ const CoachProfile: React.FC = () => {
                     <Link
                       key={team.id}
                       to={`/team/${team.id}`}
-                      className="bg-white border border-forest-200 rounded-md p-4 hover:border-forest-600 transition-colors"
+                      className="bg-white border border-brand-secondary rounded-md p-4 hover:border-brand-primary transition-colors"
                     >
-                      <h4 className="text-lg font-semibold text-forest-800 mb-2">{team.name}</h4>
+                      <h4 className="text-lg font-semibold text-brand-primary mb-2">{team.name}</h4>
                       <div className="space-y-1 text-sm text-gray-600">
                         {team.age_group && (
                           <div>Age Group: <span className="font-medium">{team.age_group}</span></div>
@@ -314,7 +314,7 @@ const CoachProfile: React.FC = () => {
 
           {activeTab === 'forms' && (
             <div>
-              <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+              <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
                 Forms
               </h3>
               <p className="text-gray-500 italic">No forms available at this time.</p>
@@ -323,7 +323,7 @@ const CoachProfile: React.FC = () => {
 
           {activeTab === 'activities' && (
             <div>
-              <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+              <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
                 Activities
               </h3>
               <p className="text-gray-500 italic">No activities available at this time.</p>
@@ -332,7 +332,7 @@ const CoachProfile: React.FC = () => {
 
           {activeTab === 'resources' && (
             <div>
-              <h3 className="text-xl font-semibold text-forest-800 mb-4 uppercase tracking-wide">
+              <h3 className="text-xl font-semibold text-brand-primary mb-4 uppercase tracking-wide">
                 Resources
               </h3>
               <p className="text-gray-500 italic">No resources available at this time.</p>
@@ -357,7 +357,7 @@ const CoachProfile: React.FC = () => {
       {showArchiveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-md p-8 max-w-md mx-4">
-            <h3 className="text-2xl font-bold text-forest-800 mb-4">Archive Coach?</h3>
+            <h3 className="text-2xl font-bold text-brand-primary mb-4">Archive Coach?</h3>
             <p className="text-gray-700 mb-6">
               Are you sure you want to archive <strong>{coach.first_name} {coach.last_name}</strong>?
             </p>

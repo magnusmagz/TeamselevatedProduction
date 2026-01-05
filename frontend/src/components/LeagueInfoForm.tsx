@@ -103,7 +103,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="text-forest-800">Loading league information...</div>
+        <div className="text-brand-primary">Loading league information...</div>
       </div>
     );
   }
@@ -133,7 +133,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
 
         {/* Basic Information */}
         <div>
-          <h3 className="text-lg font-semibold text-forest-800 mb-4">Basic Information</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-4">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -143,7 +143,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="text"
                 value={league.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 required
               />
             </div>
@@ -156,7 +156,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 value={league.description || ''}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -169,7 +169,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 value={league.website || ''}
                 onChange={(e) => handleInputChange('website', e.target.value)}
                 placeholder="https://example.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -182,7 +182,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 value={league.logo_url || ''}
                 onChange={(e) => handleInputChange('logo_url', e.target.value)}
                 placeholder="https://example.com/logo.png"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
           </div>
@@ -190,7 +190,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
 
         {/* Contact Information */}
         <div>
-          <h3 className="text-lg font-semibold text-forest-800 mb-4">Contact Information</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-4">Contact Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -200,7 +200,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="email"
                 value={league.contact_email || ''}
                 onChange={(e) => handleInputChange('contact_email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -212,7 +212,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="tel"
                 value={league.contact_phone || ''}
                 onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
           </div>
@@ -220,7 +220,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
 
         {/* Address */}
         <div>
-          <h3 className="text-lg font-semibold text-forest-800 mb-4">Address</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-4">Address</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -230,7 +230,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="text"
                 value={league.address || ''}
                 onChange={(e) => handleInputChange('address', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -242,7 +242,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="text"
                 value={league.city || ''}
                 onChange={(e) => handleInputChange('city', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -254,7 +254,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="text"
                 value={league.state || ''}
                 onChange={(e) => handleInputChange('state', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
 
@@ -266,7 +266,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
                 type="text"
                 value={league.zip_code || ''}
                 onChange={(e) => handleInputChange('zip_code', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-forest-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent"
               />
             </div>
           </div>
@@ -277,7 +277,7 @@ const LeagueInfoForm: React.FC<LeagueInfoFormProps> = ({ leagueId }) => {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 bg-forest-600 text-white rounded-md hover:bg-forest-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
+            className="px-6 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed uppercase font-medium text-sm"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

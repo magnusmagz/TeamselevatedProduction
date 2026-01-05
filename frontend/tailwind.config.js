@@ -22,6 +22,17 @@ module.exports = {
           900: '#1a4a35',
           950: '#0d2a1f',
         },
+        // Dynamic brand colors - reference CSS custom properties
+        brand: {
+          primary: 'var(--color-primary)',
+          'primary-hover': 'var(--color-primary-hover)',
+          'primary-dark': 'var(--color-primary-dark)',
+          secondary: 'var(--color-secondary)',
+          'secondary-hover': 'var(--color-secondary-hover)',
+          accent: 'var(--color-accent)',
+          light: 'var(--color-light)',
+          muted: 'var(--color-muted)',
+        },
       },
       borderRadius: {
         'none': '0',

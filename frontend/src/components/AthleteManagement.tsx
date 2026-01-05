@@ -177,12 +177,12 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     // Modal view for when opened from another component
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white border border-forest-200 rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-          <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">Athlete Management</h3>
+        <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Athlete Management</h3>
             <button
               onClick={onClose}
-              className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
             </button>
@@ -230,12 +230,12 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     <div>
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h2 className="text-3xl font-bold text-forest-800 mb-2 uppercase tracking-wide">Athlete Management</h2>
+          <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Athlete Management</h2>
           <p className="text-gray-600">Manage all athletes in your club</p>
         </div>
         <button
           onClick={handleAddAthlete}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-4 py-2 hover:bg-forest-700 font-semibold uppercase"
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
         >
           + Add New Athlete
         </button>
@@ -329,18 +329,18 @@ const AthleteListContent: React.FC<{
 }) => {
   return (
     <>
-      <div className="border border-forest-200 rounded-md bg-white p-6 mb-6">
+      <div className="border border-brand-secondary rounded-md bg-white p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             placeholder="Search athletes..."
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={filterGender}
             onChange={(e) => setFilterGender(e.target.value)}
           >
@@ -351,7 +351,7 @@ const AthleteListContent: React.FC<{
           </select>
 
           <select
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
           >
@@ -367,43 +367,43 @@ const AthleteListContent: React.FC<{
               setFilterGender('');
               setFilterGrade('');
             }}
-            className="bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
           </button>
         </div>
 
-        <div className="mt-4 text-forest-800">
+        <div className="mt-4 text-brand-primary">
           Showing {athletes.length} athletes
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center text-forest-800 py-12">Loading athletes...</div>
+        <div className="text-center text-brand-primary py-12">Loading athletes...</div>
       ) : (
-        <div className="border border-forest-200 rounded-md overflow-hidden">
+        <div className="border border-brand-secondary rounded-md overflow-hidden">
           <table className="min-w-full bg-white">
             <thead>
-              <tr className="border-b border-forest-200">
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+              <tr className="border-b border-brand-secondary">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Age
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Gender
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Team
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Primary Guardian
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase border-r border-gray-300">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Contact
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-forest-800 uppercase w-32">
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase w-32">
                   Actions
                 </th>
               </tr>
@@ -418,7 +418,7 @@ const AthleteListContent: React.FC<{
                     <div>
                       <Link
                         to={`/athlete/${athlete.id}/enhanced`}
-                        className="text-sm font-medium text-forest-800 hover:text-forest-600 hover:underline"
+                        className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
                       >
                         {athlete.first_name} {athlete.middle_initial ? `${athlete.middle_initial}. ` : ''}{athlete.last_name}
                       </Link>
@@ -430,7 +430,7 @@ const AthleteListContent: React.FC<{
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-forest-800">
+                    <div className="text-sm text-brand-primary">
                       {athlete.date_of_birth ? (() => {
                         const age = calculateAge(athlete.date_of_birth);
                         return age !== null ? `${age} years` : 'Invalid date';
@@ -449,14 +449,14 @@ const AthleteListContent: React.FC<{
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-forest-800">{athlete.gender || 'Not set'}</div>
+                    <div className="text-sm text-brand-primary">{athlete.gender || 'Not set'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     <div className="flex items-center space-x-2">
-                      <div className="text-sm text-forest-800 flex flex-wrap gap-1">
+                      <div className="text-sm text-brand-primary flex flex-wrap gap-1">
                         {athleteTeams[athlete.id] && athleteTeams[athlete.id].length > 0 ? (
                           athleteTeams[athlete.id].map((team, idx) => (
-                            <span key={idx} className="bg-forest-100 border border-forest-800 px-2 py-1 text-xs">
+                            <span key={idx} className="bg-brand-secondary border border-brand-primary px-2 py-1 text-xs">
                               {team}
                             </span>
                           ))
@@ -467,7 +467,7 @@ const AthleteListContent: React.FC<{
 
                       <button
                         onClick={() => setShowTeamSelector(athlete.id)}
-                        className="text-forest-800 hover:text-forest-600 font-bold text-lg flex-shrink-0"
+                        className="text-brand-primary hover:text-brand-primary-hover font-bold text-lg flex-shrink-0"
                         title="Add to team"
                       >
                         +
@@ -475,7 +475,7 @@ const AthleteListContent: React.FC<{
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-forest-800">
+                    <div className="text-sm text-brand-primary">
                       {athlete.primary_guardian_name || '-'}
                     </div>
                   </td>
@@ -508,13 +508,13 @@ const AthleteListContent: React.FC<{
                     <div className="flex flex-col space-y-1">
                       <button
                         onClick={() => handleManageGuardians(athlete)}
-                        className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold text-left"
+                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
                       >
                         Guardians
                       </button>
                       <button
                         onClick={() => handleEditAthlete(athlete)}
-                        className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold text-left"
+                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
                       >
                         Edit
                       </button>
@@ -530,14 +530,14 @@ const AthleteListContent: React.FC<{
       {/* Team Selection Modal */}
       {showTeamSelector !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+          <div className="bg-white border border-brand-secondary rounded-md max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Add to Team
               </h3>
               <button
                 onClick={() => setShowTeamSelector(null)}
-                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
               >
                 ×
               </button>
@@ -557,9 +557,9 @@ const AthleteListContent: React.FC<{
                         handleAddToTeam(showTeamSelector, team.id);
                         setShowTeamSelector(null);
                       }}
-                      className="border border-forest-200 rounded-md bg-white hover:bg-forest-50 p-4 text-left transition-colors"
+                      className="border border-brand-secondary rounded-md bg-white hover:bg-brand-secondary p-4 text-left transition-colors"
                     >
-                      <div className="font-semibold text-forest-800 text-lg">
+                      <div className="font-semibold text-brand-primary text-lg">
                         {team.name}
                       </div>
                       {team.age_group && (
