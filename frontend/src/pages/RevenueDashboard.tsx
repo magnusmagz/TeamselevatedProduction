@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface RevenueSummary {
   total_revenue: string;
@@ -30,14 +31,16 @@ interface StatusBreakdown {
  * Shows revenue summary, by program, and by status
  */
 export const RevenueDashboard: React.FC = () => {
+  const { currentClubId } = useOrg();
   const [summary, setSummary] = useState<RevenueSummary | null>(null);
   const [byProgram, setByProgram] = useState<ProgramRevenue[]>([]);
   const [byStatus, setByStatus] = useState<StatusBreakdown>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch revenue summary for club_id=13 (from demo data)
-    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?club_id=13`)
+    // Fetch revenue summary for current club (default to 32 for demo data)
+    const clubId = currentClubId || 32;
+    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?club_id=${clubId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -51,7 +54,7 @@ export const RevenueDashboard: React.FC = () => {
         console.error('Error fetching revenue summary:', err);
         setLoading(false);
       });
-  }, []);
+  }, [currentClubId]);
 
   const formatCurrency = (amount: string | number) => {
     return `$${parseFloat(amount.toString()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

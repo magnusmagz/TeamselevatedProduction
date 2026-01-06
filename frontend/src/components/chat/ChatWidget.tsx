@@ -239,7 +239,7 @@ export default function ChatWidget() {
             </div>
             <button
               onClick={() => setIsExpanded(false)}
-              className="p-1 hover:bg-brand-secondary0 rounded transition-colors"
+              className="p-1 hover:bg-brand-secondary rounded transition-colors"
               aria-label="Close chat"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

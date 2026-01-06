@@ -308,13 +308,13 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
             <button
               type="button"
               onClick={onClose}
-              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
+              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
+              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
             >
               {player ? 'Update Player' : 'Add Player'}
             </button>

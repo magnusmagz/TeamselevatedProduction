@@ -262,19 +262,19 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
         <div className="p-6">
           {/* Step 1: Setup */}
           <div className="bg-gray-50 border border-brand-secondary rounded-md p-4 mb-6">
-            <h4 className="text-brand-primary font-bold mb-4 uppercase">Step 1: Select Venue & Date Range</h4>
+            <h4 className="text-brand-primary font-bold mb-4 uppercase">Step 1: Select Facility & Date Range</h4>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
-                  Venue
+                  Facility
                 </label>
                 <select
                   value={selectedVenue || ''}
                   onChange={(e) => setSelectedVenue(Number(e.target.value))}
                   className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none"
                 >
-                  <option value="">Select venue...</option>
+                  <option value="">Select facility...</option>
                   {venues.map(venue => (
                     <option key={venue.id} value={venue.id}>
                       {venue.name}

@@ -278,7 +278,7 @@ const AttendanceTracker: React.FC<AttendanceTrackerProps> = ({ team }) => {
             <button
               onClick={saveAttendance}
               disabled={saving}
-              className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover disabled:bg-brand-primary font-semibold"
+              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover disabled:opacity-50 font-semibold"
             >
               {saving ? 'Saving...' : 'Save Attendance'}
             </button>

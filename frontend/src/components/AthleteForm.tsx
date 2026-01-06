@@ -1022,7 +1022,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   <button
                     type="button"
                     onClick={() => setCurrentStep(currentStep - 1)}
-                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
+                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
                   >
                     Previous
                   </button>
@@ -1033,7 +1033,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                 <button
                   type="button"
                   onClick={onClose}
-                  className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-secondary0"
+                  className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
                 >
                   Cancel
                 </button>
@@ -1042,14 +1042,14 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   <button
                     type="button"
                     onClick={() => setCurrentStep(currentStep + 1)}
-                    className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
+                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
                   >
                     Next
                   </button>
                 ) : (
                   <button
                     type="submit"
-                    className="bg-brand-secondary0 text-white px-6 py-2 hover:bg-brand-secondary-hover font-semibold"
+                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
                   >
                     {athlete ? 'Update Athlete' : 'Create Athlete'}
                   </button>

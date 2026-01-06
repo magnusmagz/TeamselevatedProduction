@@ -136,7 +136,7 @@ function AppContent() {
                     <Link to="/coaches" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Coaches</Link>
                     <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
                     <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link>
-                    <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Venues</Link>
+                    <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
                     <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
                   </>
                 ) : (

@@ -719,7 +719,7 @@ const TeamCalendar: React.FC = () => {
                           </div>
                           <div className="col-span-2">
                             <div className="text-gray-600">
-                              Venue {practice.venue_id}
+                              Facility {practice.venue_id}
                             </div>
                           </div>
                           <div className="col-span-2">
@@ -944,14 +944,14 @@ const TeamCalendar: React.FC = () => {
 
                 <div>
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Venue
+                    Facility
                   </label>
                   <select
                     value={eventFormData.venue_id || ''}
                     onChange={(e) => setEventFormData({ ...eventFormData, venue_id: e.target.value ? Number(e.target.value) : undefined })}
                     className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   >
-                    <option value="">No Venue</option>
+                    <option value="">No Facility</option>
                     {venues.map(venue => (
                       <option key={venue.id} value={venue.id}>{venue.name}</option>
                     ))}
@@ -960,7 +960,7 @@ const TeamCalendar: React.FC = () => {
 
                 <div className="col-span-2">
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Location (if not a venue)
+                    Location (if not a facility)
                   </label>
                   <input
                     type="text"

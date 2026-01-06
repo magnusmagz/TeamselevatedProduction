@@ -103,7 +103,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   };
 
   const handleDeleteVenue = async (venueId: number) => {
-    if (!window.confirm('Are you sure you want to delete this venue? This will also delete all associated fields.')) {
+    if (!window.confirm('Are you sure you want to delete this facility? This will also delete all associated fields.')) {
       return;
     }
 
@@ -246,7 +246,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Venue Management</h3>
+            <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Facility Management</h3>
             <button
               onClick={onClose}
               className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
@@ -330,23 +330,23 @@ const VenueListContent: React.FC<{
     <>
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Venues</h2>
-          <p className="text-gray-600 mt-2">{venues.length} venues total</p>
+          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Facilities</h2>
+          <p className="text-gray-600 mt-2">{venues.length} facilities total</p>
         </div>
         <button
           onClick={handleAddVenue}
           className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase"
         >
-          + Add Venue
+          + Add Facility
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-brand-primary py-12">Loading venues...</div>
+        <div className="text-center text-brand-primary py-12">Loading facilities...</div>
       ) : venues.length === 0 ? (
         <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
-          <p className="text-gray-600 text-lg">No venues yet.</p>
-          <p className="text-gray-500 mt-2">Click "Add Venue" to create your first venue.</p>
+          <p className="text-gray-600 text-lg">No facilities yet.</p>
+          <p className="text-gray-500 mt-2">Click "Add Facility" to create your first facility.</p>
         </div>
       ) : (
         <div className="border border-brand-secondary rounded-md">
@@ -354,7 +354,7 @@ const VenueListContent: React.FC<{
             <thead>
               <tr className="border-b border-brand-secondary">
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Venue Name
+                  Facility Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Address
@@ -482,7 +482,7 @@ const VenueForm: React.FC<{
       <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
-            {selectedVenue ? 'Edit Venue' : 'Create New Venue'}
+            {selectedVenue ? 'Edit Facility' : 'Create New Facility'}
           </h3>
           <button
             onClick={onClose}
@@ -496,11 +496,11 @@ const VenueForm: React.FC<{
           <div className="space-y-6">
             {/* Venue Information */}
             <div>
-              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Venue Information</h4>
+              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Facility Information</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Venue Name *
+                    Facility Name *
                   </label>
                   <input
                     type="text"
@@ -535,7 +535,7 @@ const VenueForm: React.FC<{
                   </div>
 
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Venue Address *
+                    Facility Address *
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
@@ -590,7 +590,7 @@ const VenueForm: React.FC<{
                     rows={2}
                   />
                   <p className="text-gray-500 text-xs mt-1">
-                    Go to Google Maps, find the venue, click "Share" and copy the link
+                    Go to Google Maps, find the facility, click "Share" and copy the link
                   </p>
                 </div>
 
@@ -771,7 +771,7 @@ const VenueForm: React.FC<{
               type="submit"
               className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
             >
-              {selectedVenue ? 'Update Venue' : 'Create Venue'}
+              {selectedVenue ? 'Update Facility' : 'Create Facility'}
             </button>
           </div>
         </form>

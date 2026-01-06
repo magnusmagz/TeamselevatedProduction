@@ -403,18 +403,18 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                   </div>
                 </div>
 
-                {/* Venue and Field Selection */}
+                {/* Facility and Field Selection */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
                     <label className="block text-brand-primary font-medium mb-2 uppercase text-sm">
-                      Venue
+                      Facility
                     </label>
                     <select
                       value={selectedVenue || ''}
                       onChange={(e) => setSelectedVenue(Number(e.target.value))}
                       className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                     >
-                      <option value="">Select a venue...</option>
+                      <option value="">Select a facility...</option>
                       {venues.map(venue => (
                         <option key={venue.id} value={venue.id}>
                           {venue.name}

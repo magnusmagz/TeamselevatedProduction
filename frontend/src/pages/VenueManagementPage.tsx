@@ -93,7 +93,7 @@ const VenueManagementPage: React.FC = () => {
   };
 
   const handleDeleteVenue = async (venueId: number) => {
-    if (!window.confirm('Are you sure you want to delete this venue? This will also delete all associated fields.')) {
+    if (!window.confirm('Are you sure you want to delete this facility? This will also delete all associated fields.')) {
       return;
     }
 
@@ -161,27 +161,27 @@ const VenueManagementPage: React.FC = () => {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">VENUE MANAGEMENT</h1>
-          <p className="text-gray-600 mt-2">Manage your club's venues and fields</p>
+          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">FACILITY MANAGEMENT</h1>
+          <p className="text-gray-600 mt-2">Manage your club's facilities and fields</p>
         </div>
 
         {/* Search and Actions Bar */}
         <div className="mb-6 flex justify-between items-center">
-          <div className="text-gray-600">{venues.length} venues total</div>
+          <div className="text-gray-600">{venues.length} facilities total</div>
           <button
             onClick={handleAddVenue}
             className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
           >
-            + Add New Venue
+            + Add Facility
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center text-brand-primary py-12">Loading venues...</div>
+          <div className="text-center text-brand-primary py-12">Loading facilities...</div>
         ) : venues.length === 0 ? (
           <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
-            <p className="text-gray-600 text-lg">No venues yet.</p>
-            <p className="text-gray-500 mt-2">Click "Add New Venue" to create your first venue.</p>
+            <p className="text-gray-600 text-lg">No facilities yet.</p>
+            <p className="text-gray-500 mt-2">Click "Add Facility" to create your first facility.</p>
           </div>
         ) : (
           <div className="border border-brand-secondary rounded-md">
@@ -189,7 +189,7 @@ const VenueManagementPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-brand-secondary">
                   <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                    Venue Name
+                    Facility Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                     Address
@@ -324,7 +324,7 @@ const VenueForm: React.FC<{
       <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
-            {selectedVenue ? 'Edit Venue' : 'Create New Venue'}
+            {selectedVenue ? 'Edit Facility' : 'Create New Facility'}
           </h3>
           <button
             onClick={onClose}
@@ -338,11 +338,11 @@ const VenueForm: React.FC<{
           <div className="space-y-6">
             {/* Venue Information */}
             <div>
-              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Venue Information</h4>
+              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Facility Information</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Venue Name *
+                    Facility Name *
                   </label>
                   <input
                     type="text"
@@ -415,7 +415,7 @@ const VenueForm: React.FC<{
                     rows={2}
                   />
                   <p className="text-gray-500 text-xs mt-1">
-                    Go to Google Maps, find the venue, click "Share" and copy the link
+                    Go to Google Maps, find the facility, click "Share" and copy the link
                   </p>
                 </div>
 
@@ -572,7 +572,7 @@ const VenueForm: React.FC<{
               type="submit"
               className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
             >
-              {selectedVenue ? 'Update Venue' : 'Create Venue'}
+              {selectedVenue ? 'Update Facility' : 'Create Facility'}
             </button>
           </div>
         </form>
