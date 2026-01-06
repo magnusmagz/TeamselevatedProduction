@@ -436,7 +436,7 @@ const TeamCalendar: React.FC = () => {
       {/* Header */}
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Team Calendar</h1>
+          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Club Calendar</h1>
           <p className="text-gray-600 mt-2">View all team practices and events</p>
         </div>
         <button
