@@ -86,7 +86,12 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const fetchAvailableTeams = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.teams) {
         setAvailableTeams(data.teams);

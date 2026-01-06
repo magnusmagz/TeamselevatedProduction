@@ -159,7 +159,12 @@ const TeamCalendar: React.FC = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.teams) {
         setAllTeams(data.teams);

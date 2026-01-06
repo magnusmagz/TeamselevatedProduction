@@ -54,7 +54,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
   const fetchCoachTeams = async (coachId: number) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?primary_coach_id=${coachId}`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?primary_coach_id=${coachId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.teams && data.teams.length > 0) {
         return data.teams[0]; // Return the first team

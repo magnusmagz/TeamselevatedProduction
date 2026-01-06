@@ -41,10 +41,15 @@ const TeamManagement: React.FC = () => {
 
   const fetchTeams = async () => {
     try {
+      const token = localStorage.getItem('auth_token');
       const queryParams = new URLSearchParams(
         Object.entries(filters).filter(([_, v]) => v !== '')
       );
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?${queryParams}`);
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?${queryParams}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       setTeams(data.teams || []);
     } catch (error) {
@@ -68,9 +73,13 @@ const TeamManagement: React.FC = () => {
     if (!window.confirm('Are you sure you want to archive this team?')) return;
 
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/legacy/teams-gateway.php?id=${teamId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ reason: 'Manual archive' })
       });
 
@@ -88,11 +97,15 @@ const TeamManagement: React.FC = () => {
       : `${API_URL}/legacy/teams-gateway.php`;
 
     const method = selectedTeam ? 'PUT' : 'POST';
+    const token = localStorage.getItem('auth_token');
 
     try {
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(teamData)
       });
 

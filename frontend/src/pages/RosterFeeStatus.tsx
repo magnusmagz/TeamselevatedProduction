@@ -80,10 +80,15 @@ export const RosterFeeStatus: React.FC = () => {
         }
 
         // Fetch teams
-        const teamRes = await fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId}`);
+        const token = localStorage.getItem('auth_token');
+        const teamRes = await fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const teamData = await teamRes.json();
-        if (Array.isArray(teamData)) {
-          setTeams(teamData);
+        if (teamData.teams) {
+          setTeams(teamData.teams);
         }
       } catch (err) {
         console.error('Error fetching filters:', err);
