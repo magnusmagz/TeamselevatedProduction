@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrg } from '../contexts/OrgContext';
 
 const ProfileMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
+  const { isClubAdmin } = useOrg();
   const navigate = useNavigate();
 
   // Close dropdown when clicking outside
@@ -57,6 +59,15 @@ const ProfileMenu: React.FC = () => {
             >
               My Profile
             </Link>
+            {isClubAdmin && (
+              <Link
+                to="/club-profile"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+              >
+                Club Settings
+              </Link>
+            )}
             <button
               onClick={handleSignOut}
               className="w-full text-left px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
