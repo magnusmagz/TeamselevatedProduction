@@ -103,7 +103,7 @@ try {
 
             $stmt = $connection->prepare("
                 UPDATE user_club_access
-                SET role = ?, updated_at = CURRENT_TIMESTAMP
+                SET role = ?
                 WHERE club_profile_id = ? AND user_id = ? AND active = true
             ");
             $stmt->execute([$newRole, $clubId, $userId]);
