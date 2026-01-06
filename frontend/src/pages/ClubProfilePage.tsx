@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
+import ClubUserManagement from '../components/ClubUserManagement';
+import ClubDocuments from '../components/ClubDocuments';
 
 interface ClubProfile {
   id?: number;
@@ -24,7 +26,7 @@ interface ClubProfile {
 const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'info' | 'branding'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'branding' | 'documents' | 'users'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<ClubProfile>({
@@ -112,6 +114,26 @@ const ClubProfilePage: React.FC = () => {
               }`}
             >
               Branding
+            </button>
+            <button
+              onClick={() => setActiveTab('documents')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'documents'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Documents
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'users'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              User Management
             </button>
           </nav>
         </div>
@@ -292,6 +314,14 @@ const ClubProfilePage: React.FC = () => {
                   }
                 }}
               />
+            )}
+
+            {activeTab === 'documents' && (
+              <ClubDocuments />
+            )}
+
+            {activeTab === 'users' && (
+              <ClubUserManagement />
             )}
           </>
         )}
