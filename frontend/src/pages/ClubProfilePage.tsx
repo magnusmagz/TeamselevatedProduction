@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
 import ClubDocuments from '../components/ClubDocuments';
+import { clearBrandingCache } from '../components/BrandingLogo';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ClubProfile {
   id?: number;
@@ -26,6 +28,7 @@ interface ClubProfile {
 const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
+  const { updateTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<'info' | 'branding' | 'documents' | 'users'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,7 +84,11 @@ const ClubProfilePage: React.FC = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Profile saved:', result);
-        // Could show a success message here
+        // Clear branding cache and trigger refresh so header updates
+        clearBrandingCache();
+        if (formData.primary_color) {
+          updateTheme(formData.primary_color);
+        }
       }
     } catch (error) {
       console.error('Error saving club profile:', error);
@@ -322,6 +329,11 @@ const ClubProfilePage: React.FC = () => {
                   if (response.ok) {
                     setFormData(updatedData);
                     console.log('Brand settings saved successfully');
+                    // Clear branding cache and trigger refresh so header updates
+                    clearBrandingCache();
+                    if (data.primaryColor) {
+                      updateTheme(data.primaryColor);
+                    }
                   } else {
                     throw new Error('Failed to save brand settings');
                   }
