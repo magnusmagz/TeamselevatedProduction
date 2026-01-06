@@ -46,7 +46,12 @@ const ClubProfilePage: React.FC = () => {
 
   const fetchClubProfile = async () => {
     try {
-      const response = await fetch(`${API_URL}/club-profile-gateway.php`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.id) {
         setFormData(data);
@@ -63,9 +68,13 @@ const ClubProfilePage: React.FC = () => {
     setSaving(true);
 
     try {
-      const response = await fetch(`${API_URL}/club-profile-gateway.php`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
 
@@ -300,9 +309,13 @@ const ClubProfilePage: React.FC = () => {
                     accent_color: data.accentColor
                   };
 
-                  const response = await fetch(`${API_URL}/club-profile-gateway.php`, {
+                  const token = localStorage.getItem('auth_token');
+                  const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify(updatedData)
                   });
 
