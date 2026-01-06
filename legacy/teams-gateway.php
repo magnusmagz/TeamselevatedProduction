@@ -116,7 +116,7 @@ try {
                 }
 
                 // Apply club scoping - only show teams from clubs user has access to
-                $clubScope = $auth->getClubScopeWhereClause($connection, 't.club_id');
+                $clubScope = $auth->getClubScopeWhereClause('t.club_id');
                 $query .= " " . $clubScope['where'];
                 $params = array_merge($params, $clubScope['params']);
 
