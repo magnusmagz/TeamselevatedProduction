@@ -1,0 +1,22 @@
+{
+    "emails": [
+        {
+            "id": "2025-09-26_19-44-34_1",
+            "to": "coach1@teamselevated.com",
+            "subject": "Invitation: Team Dinner @ Sep 27, 2025",
+            "type": "invite",
+            "timestamp": "2025-09-26 19:44:34",
+            "html_file": "2025-09-26_19-44-34_1.html",
+            "ical_file": "2025-09-26_19-44-34_1.ics"
+        },
+        {
+            "id": "2025-09-26_19-44-34_2",
+            "to": "coach2@teamselevated.com",
+            "subject": "Invitation: Team Dinner @ Sep 27, 2025",
+            "type": "invite",
+            "timestamp": "2025-09-26 19:44:34",
+            "html_file": "2025-09-26_19-44-34_2.html",
+            "ical_file": "2025-09-26_19-44-34_2.ics"
+        }
+    ]
+}
