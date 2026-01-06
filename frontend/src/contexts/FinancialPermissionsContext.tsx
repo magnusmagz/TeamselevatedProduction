@@ -15,7 +15,6 @@ interface FinancialPermissions {
 }
 
 interface UserRoles {
-  is_league_admin: boolean;
   is_club_admin: boolean;
   is_treasurer: boolean;
   is_coach: boolean;
@@ -54,7 +53,6 @@ const defaultPermissions: FinancialPermissions = {
 };
 
 const defaultRoles: UserRoles = {
-  is_league_admin: false,
   is_club_admin: false,
   is_treasurer: false,
   is_coach: false,
@@ -144,7 +142,7 @@ export const FinancialPermissionsProvider: React.FC<Props> = ({ children }) => {
     return false;
   };
 
-  const isFinancialAdmin = roles.is_league_admin || roles.is_club_admin || roles.is_treasurer;
+  const isFinancialAdmin = roles.is_club_admin || roles.is_treasurer;
 
   const value: FinancialPermissionsContextType = {
     permissions,

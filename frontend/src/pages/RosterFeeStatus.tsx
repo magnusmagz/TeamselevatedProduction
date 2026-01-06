@@ -57,30 +57,30 @@ export const RosterFeeStatus: React.FC = () => {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
 
-  const [viewMode, setViewMode] = useState<'program' | 'team' | 'league'>(
-    (searchParams.get('mode') as 'program' | 'team' | 'league') || 'league'
+  const [viewMode, setViewMode] = useState<'program' | 'team' | 'club'>(
+    (searchParams.get('mode') as 'program' | 'team' | 'club') || 'club'
   );
   const [selectedProgram, setSelectedProgram] = useState<string>(searchParams.get('program_id') || '');
   const [selectedTeam, setSelectedTeam] = useState<string>(searchParams.get('team_id') || '');
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'all');
 
-  const leagueId = activeContext?.scope_id;
+  const clubId = activeContext?.scope_id;
 
   // Fetch programs and teams for filters
   useEffect(() => {
-    if (!leagueId) return;
+    if (!clubId) return;
 
     const fetchFilters = async () => {
       try {
         // Fetch programs
-        const progRes = await fetch(`${API_URL}/api/programs.php?league_id=${leagueId}`);
+        const progRes = await fetch(`${API_URL}/api/programs.php?club_id=${clubId}`);
         const progData = await progRes.json();
         if (progData.success) {
           setPrograms(progData.programs || []);
         }
 
         // Fetch teams
-        const teamRes = await fetch(`${API_URL}/legacy/teams-gateway.php?league_id=${leagueId}`);
+        const teamRes = await fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId}`);
         const teamData = await teamRes.json();
         if (Array.isArray(teamData)) {
           setTeams(teamData);
@@ -91,11 +91,11 @@ export const RosterFeeStatus: React.FC = () => {
     };
 
     fetchFilters();
-  }, [API_URL, leagueId]);
+  }, [API_URL, clubId]);
 
   // Fetch roster data
   useEffect(() => {
-    if (!leagueId) return;
+    if (!clubId) return;
 
     const fetchRoster = async () => {
       setLoading(true);
@@ -109,7 +109,7 @@ export const RosterFeeStatus: React.FC = () => {
         } else if (viewMode === 'team' && selectedTeam) {
           url += `team_id=${selectedTeam}`;
         } else {
-          url += `league_id=${leagueId}`;
+          url += `club_id=${clubId}`;
         }
 
         if (statusFilter && statusFilter !== 'all') {
@@ -142,7 +142,7 @@ export const RosterFeeStatus: React.FC = () => {
     if (selectedTeam && viewMode === 'team') params.team_id = selectedTeam;
     if (statusFilter !== 'all') params.status = statusFilter;
     setSearchParams(params);
-  }, [API_URL, leagueId, viewMode, selectedProgram, selectedTeam, statusFilter, setSearchParams]);
+  }, [API_URL, clubId, viewMode, selectedProgram, selectedTeam, statusFilter, setSearchParams]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -201,10 +201,10 @@ export const RosterFeeStatus: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  if (!leagueId) {
+  if (!clubId) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Please select a league to view roster fee status.</p>
+        <p className="text-gray-500">Please select a club to view roster fee status.</p>
       </div>
     );
   }
@@ -238,13 +238,13 @@ export const RosterFeeStatus: React.FC = () => {
             <select
               value={viewMode}
               onChange={(e) => {
-                setViewMode(e.target.value as 'program' | 'team' | 'league');
+                setViewMode(e.target.value as 'program' | 'team' | 'club');
                 setSelectedProgram('');
                 setSelectedTeam('');
               }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-brand-accent focus:border-brand-accent"
             >
-              <option value="league">All Athletes (League)</option>
+              <option value="club">All Athletes (Club)</option>
               <option value="program">By Program</option>
               <option value="team">By Team</option>
             </select>

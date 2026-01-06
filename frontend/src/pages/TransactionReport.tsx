@@ -55,7 +55,7 @@ export const TransactionReport: React.FC = () => {
 
   // Fetch programs for filter dropdown
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?league_id=13`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.programs) {
@@ -73,7 +73,7 @@ export const TransactionReport: React.FC = () => {
   const fetchTransactions = () => {
     setLoading(true);
 
-    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?league_id=13`;
+    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=13`;
     if (selectedProgram) url += `&program_id=${selectedProgram}`;
     if (selectedStatus) url += `&status=${selectedStatus}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;
@@ -120,7 +120,7 @@ export const TransactionReport: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?league_id=13&export=csv`;
+    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=13&export=csv`;
     if (selectedProgram) url += `&program_id=${selectedProgram}`;
     if (selectedStatus) url += `&status=${selectedStatus}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;

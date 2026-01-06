@@ -1,16 +1,15 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
 interface RoleContext {
-  role: 'league_admin' | 'club_admin' | 'coach' | 'parent' | 'player';
-  scope_type: 'league' | 'club' | 'team';
+  role: 'club_admin' | 'coach' | 'parent' | 'player';
+  scope_type: 'club' | 'team';
   scope_id: number;
   scope_name: string;
-  league_id?: number;
 }
 
 interface Organization {
   orgId: number | null;
-  orgType: 'league' | 'club' | null;
+  orgType: 'club' | null;
   orgName: string | null;
 }
 
@@ -32,7 +31,7 @@ interface AuthContextType {
   updateUser: (userData: Partial<User>) => void;
   refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
-  switchContext: (scopeId: number, scopeType: 'league' | 'club') => Promise<void>;
+  switchContext: (scopeId: number, scopeType: 'club') => Promise<void>;
   hasPermission: (permission: string) => boolean;
   isSuperAdmin: () => boolean;
 }
@@ -139,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const switchContext = async (scopeId: number, scopeType: 'league' | 'club') => {
+  const switchContext = async (scopeId: number, scopeType: 'club') => {
     try {
       console.log('[AuthContext] switchContext - Switching to:', { scopeId, scopeType });
       setIsLoading(true);
@@ -196,13 +195,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Permission mapping (simplified - can be expanded)
     const permissionRoleMap: { [key: string]: string[] } = {
-      'create_league': ['super_admin'],
-      'manage_league': ['super_admin', 'league_admin'],
-      'create_club': ['super_admin', 'league_admin'],
-      'manage_club': ['super_admin', 'league_admin', 'club_admin'],
-      'create_team': ['super_admin', 'league_admin', 'club_admin'],
-      'manage_team': ['super_admin', 'league_admin', 'club_admin', 'coach'],
-      'view_team': ['super_admin', 'league_admin', 'club_admin', 'coach', 'parent'],
+      'create_club': ['super_admin'],
+      'manage_club': ['super_admin', 'club_admin'],
+      'create_team': ['super_admin', 'club_admin'],
+      'manage_team': ['super_admin', 'club_admin', 'coach'],
+      'view_team': ['super_admin', 'club_admin', 'coach', 'parent'],
     };
 
     const requiredRoles = permissionRoleMap[permission] || [];

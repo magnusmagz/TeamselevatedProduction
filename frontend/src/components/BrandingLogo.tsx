@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 interface BrandingData {
   logo_url: string | null;
   name: string;
-  context_type: 'league' | 'club' | 'team';
+  context_type: 'club' | 'team';
   context_id: number;
   primary_color?: string;
   secondary_color?: string;
@@ -13,7 +13,7 @@ interface BrandingData {
 }
 
 interface BrandingLogoProps {
-  contextType?: 'league' | 'club' | 'team';
+  contextType?: 'club' | 'team';
   contextId?: number;
   fallbackToText?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -43,7 +43,7 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
   className = ''
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const { activeContext, currentLeagueId, currentClubId } = useOrg();
+  const { activeContext, currentClubId } = useOrg();
   const { brandingVersion } = useTheme();
 
   const [branding, setBranding] = useState<BrandingData | null>(null);
@@ -52,16 +52,8 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
 
   // Determine context from props or OrgContext
-  const effectiveContextType = contextType || activeContext?.scope_type || 'league';
-  const effectiveContextId = contextId || (() => {
-    if (contextType === 'league' || activeContext?.scope_type === 'league') {
-      return currentLeagueId;
-    }
-    if (contextType === 'club' || activeContext?.scope_type === 'club') {
-      return currentClubId;
-    }
-    return currentLeagueId; // Default fallback
-  })();
+  const effectiveContextType = contextType || activeContext?.scope_type || 'club';
+  const effectiveContextId = contextId || currentClubId;
 
   // Size classes
   const sizeClasses = {

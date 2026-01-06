@@ -6,13 +6,12 @@ interface RoleContext {
   scope_type: string;
   scope_id: number;
   scope_name: string;
-  league_id?: number;
 }
 
 interface Props {
   currentScope: ChatScope | null;
   onScopeChange: (scope: ChatScope) => void;
-  currentLeagueId: number | null;
+  currentClubId: number | null;
   activeContext: RoleContext | null;
 }
 
@@ -24,7 +23,7 @@ interface Team {
 export default function ChatScopeSelector({
   currentScope,
   onScopeChange,
-  currentLeagueId,
+  currentClubId,
   activeContext
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,10 +35,10 @@ export default function ChatScopeSelector({
 
   // Fetch teams when dropdown opens
   useEffect(() => {
-    if (isOpen && currentLeagueId && teams.length === 0) {
+    if (isOpen && currentClubId && teams.length === 0) {
       fetchTeams();
     }
-  }, [isOpen, currentLeagueId]);
+  }, [isOpen, currentClubId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function ChatScopeSelector({
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?league_id=${currentLeagueId}`, {
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${currentClubId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -72,11 +71,11 @@ export default function ChatScopeSelector({
     }
   };
 
-  const handleSelectLeague = () => {
-    if (currentLeagueId && activeContext) {
+  const handleSelectClub = () => {
+    if (currentClubId && activeContext) {
       onScopeChange({
-        type: 'league',
-        id: currentLeagueId,
+        type: 'club',
+        id: currentClubId,
         name: activeContext.scope_name
       });
       setIsOpen(false);
@@ -93,7 +92,7 @@ export default function ChatScopeSelector({
   };
 
   const getScopeIcon = () => {
-    if (currentScope?.type === 'league') {
+    if (currentScope?.type === 'club') {
       return (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -119,7 +118,7 @@ export default function ChatScopeSelector({
             {currentScope?.name || 'Select chat scope'}
           </span>
           <span className="text-xs text-brand-primary bg-brand-secondary px-1.5 py-0.5 rounded">
-            {currentScope?.type === 'league' ? 'League' : 'Team'}
+            {currentScope?.type === 'club' ? 'Club' : 'Team'}
           </span>
         </div>
         <svg
@@ -135,12 +134,12 @@ export default function ChatScopeSelector({
       {/* Dropdown */}
       {isOpen && (
         <div className="absolute left-0 right-0 bg-white border-b border-brand-secondary shadow-lg z-10 max-h-64 overflow-y-auto">
-          {/* League option */}
-          {currentLeagueId && (
+          {/* Club option */}
+          {currentClubId && (
             <button
-              onClick={handleSelectLeague}
+              onClick={handleSelectClub}
               className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-brand-secondary text-left ${
-                currentScope?.type === 'league' ? 'bg-brand-secondary' : ''
+                currentScope?.type === 'club' ? 'bg-brand-secondary' : ''
               }`}
             >
               <svg className="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,10 +147,10 @@ export default function ChatScopeSelector({
               </svg>
               <div>
                 <div className="text-sm font-medium text-brand-primary">
-                  {activeContext?.scope_name} (League Chat)
+                  {activeContext?.scope_name} (Club Chat)
                 </div>
                 <div className="text-xs text-brand-muted">
-                  All members in this league
+                  All members in this club
                 </div>
               </div>
             </button>

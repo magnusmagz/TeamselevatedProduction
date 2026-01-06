@@ -43,7 +43,7 @@ function applyThemeToDOM(colors: ThemeColors) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { currentLeagueId } = useOrg();
+  const { currentClubId } = useOrg();
   const [colors, setColors] = useState<ThemeColors>(() => {
     // Generate default palette
     const palette = generateColorPalette(DEFAULT_PRIMARY);
@@ -54,11 +54,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
-  // Fetch league branding on mount and when league changes
+  // Fetch club branding on mount and when club changes
   useEffect(() => {
     const fetchBranding = async () => {
-      if (!currentLeagueId) {
-        // No league selected, use defaults
+      if (!currentClubId) {
+        // No club selected, use defaults
         const defaultPalette = generateColorPalette(DEFAULT_PRIMARY);
         setColors(defaultPalette);
         applyThemeToDOM(defaultPalette);
@@ -68,12 +68,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const response = await fetch(
-          `${API_URL}/api/organization-branding.php?context_type=league&context_id=${currentLeagueId}`
+          `${API_URL}/api/organization-branding.php?context_type=club&context_id=${currentClubId}`
         );
         const data = await response.json();
 
         if (data.success && data.branding?.primary_color) {
-          // Generate palette from league's primary color
+          // Generate palette from club's primary color
           const palette = generateColorPalette(data.branding.primary_color);
           setColors(palette);
           applyThemeToDOM(palette);
@@ -84,7 +84,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           applyThemeToDOM(defaultPalette);
         }
       } catch (error) {
-        console.error('Error fetching league branding:', error);
+        console.error('Error fetching club branding:', error);
         // On error, use defaults
         const defaultPalette = generateColorPalette(DEFAULT_PRIMARY);
         setColors(defaultPalette);
@@ -95,7 +95,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchBranding();
-  }, [currentLeagueId, API_URL]);
+  }, [currentClubId, API_URL]);
 
   /**
    * Update theme colors immediately (called when branding is saved)

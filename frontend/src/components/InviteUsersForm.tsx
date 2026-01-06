@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 
 interface InviteUsersFormProps {
-  leagueId?: number;
   clubId?: number;
   onSuccess?: () => void;
 }
 
-export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteUsersFormProps) {
+export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormProps) {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [inviteMethod, setInviteMethod] = useState<'email' | 'link'>('email');
   const [emails, setEmails] = useState<string[]>(['']);
@@ -54,7 +53,6 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            leagueId,
             clubId,
             emails: validEmails,
             role,
@@ -82,7 +80,6 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            leagueId,
             clubId,
             role,
             maxUses: maxUses ? parseInt(maxUses) : null,
@@ -202,7 +199,6 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
-                {leagueId && <option value="league_admin">League Admin</option>}
               </select>
             </div>
 
@@ -234,7 +230,6 @@ export default function InviteUsersForm({ leagueId, clubId, onSuccess }: InviteU
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
-                {leagueId && <option value="league_admin">League Admin</option>}
               </select>
             </div>
 

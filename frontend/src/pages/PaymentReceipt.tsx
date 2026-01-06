@@ -229,7 +229,7 @@ export const PaymentReceipt: React.FC = () => {
 
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-4 text-center text-sm text-gray-500 border-t">
-            <p>Questions about your payment? Contact the league administrator.</p>
+            <p>Questions about your payment? Contact the club administrator.</p>
             <p className="mt-1">A copy of this receipt has been sent to {receipt.guardian_email}</p>
           </div>
         </div>

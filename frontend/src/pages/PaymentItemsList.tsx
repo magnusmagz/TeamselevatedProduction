@@ -40,7 +40,7 @@ export const PaymentItemsList: React.FC = () => {
 
   // Fetch available programs and seasons
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?league_id=13`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.programs) {
@@ -60,7 +60,7 @@ export const PaymentItemsList: React.FC = () => {
   useEffect(() => {
     setLoading(true);
 
-    let url = `${process.env.REACT_APP_API_URL}/api/payment-items.php?league_id=13`;
+    let url = `${process.env.REACT_APP_API_URL}/api/payment-items.php?club_id=13`;
     if (selectedProgramId) {
       url += `&program_id=${selectedProgramId}`;
     }

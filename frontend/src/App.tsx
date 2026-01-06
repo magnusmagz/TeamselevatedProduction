@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import LeagueSelector from './components/LeagueSelector';
+// LeagueSelector removed - clubs are now the top-level entity
 import BrandingLogo from './components/BrandingLogo';
 import ProfileMenu from './components/ProfileMenu';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,7 +34,7 @@ import DocumentManager from './components/DocumentManager';
 import ExpirationDashboard from './components/ExpirationDashboard';
 import Invitations from './pages/Invitations';
 import AcceptInvitation from './pages/AcceptInvitation';
-import LeagueSettings from './pages/LeagueSettings';
+// LeagueSettings removed - use ClubProfilePage for club settings
 import UserProfile from './pages/UserProfile';
 import CoachProfile from './pages/CoachProfile';
 import { useParams } from 'react-router-dom';
@@ -105,10 +105,10 @@ const TeamRosterPage: React.FC = () => {
 
 function AppContent() {
   const { user } = useAuth();
-  const { isLeagueAdmin, isClubAdmin } = useOrg();
+  const { isClubAdmin } = useOrg();
 
-  // Determine if user has admin capabilities (league or club admin)
-  const isAdmin = isLeagueAdmin || isClubAdmin;
+  // Determine if user has admin capabilities
+  const isAdmin = isClubAdmin;
 
   return (
     <div className="min-h-screen bg-white">
@@ -122,7 +122,6 @@ function AppContent() {
                   <BrandingLogo size="xl" fallbackToText={true} />
                 </Link>
                 <div className="flex items-center space-x-4">
-                  <LeagueSelector />
                   <ProfileMenu />
                 </div>
               </div>
@@ -247,11 +246,7 @@ function AppContent() {
           } />
           <Route path="/club-profile" element={<ClubProfilePage />} />
           <Route path="/program-management" element={<ProgramManagement />} />
-          <Route path="/league-settings" element={
-            <ProtectedRoute>
-              <LeagueSettings />
-            </ProtectedRoute>
-          } />
+          {/* LeagueSettings route removed - use /club-profile for club settings */}
           <Route path="/profile" element={
             <ProtectedRoute>
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -36,8 +36,8 @@ export const RevenueDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch revenue summary for league_id=13 (from demo data)
-    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?league_id=13`)
+    // Fetch revenue summary for club_id=13 (from demo data)
+    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?club_id=13`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {

@@ -248,7 +248,7 @@ const ExpirationDashboard: React.FC = () => {
           </li>
           <li className="flex items-center text-brand-primary">
             <span className="w-2 h-2 bg-brand-primary mr-3"></span>
-            Generate compliance report for league requirements
+            Generate compliance report for club requirements
           </li>
           <li className="flex items-center text-brand-primary">
             <span className="w-2 h-2 bg-brand-primary mr-3"></span>

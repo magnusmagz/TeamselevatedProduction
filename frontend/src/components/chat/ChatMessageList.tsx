@@ -94,7 +94,7 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
                   <span className="text-xs font-semibold text-brand-primary">
                     {msg.sender}
                   </span>
-                  {(msg.role === 'coach' || msg.role === 'league_admin' || msg.role === 'club_admin') && (
+                  {(msg.role === 'coach' || msg.role === 'club_admin') && (
                     <span className="text-xs bg-brand-secondary text-brand-primary px-1 rounded">
                       {msg.role === 'coach' ? 'Coach' : 'Admin'}
                     </span>

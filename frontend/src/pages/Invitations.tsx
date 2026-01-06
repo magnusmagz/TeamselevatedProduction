@@ -4,7 +4,7 @@ import InviteUsersForm from '../components/InviteUsersForm';
 import InvitationDashboard from '../components/InvitationDashboard';
 
 export default function Invitations() {
-  const { activeContext, currentLeagueId, currentClubId } = useOrg();
+  const { activeContext, currentClubId } = useOrg();
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -19,7 +19,6 @@ export default function Invitations() {
         {/* Invite Form - Left Column */}
         <div className="lg:col-span-1">
           <InviteUsersForm
-            leagueId={currentLeagueId || undefined}
             clubId={currentClubId || undefined}
           />
         </div>
@@ -27,7 +26,6 @@ export default function Invitations() {
         {/* Dashboard - Right Column */}
         <div className="lg:col-span-2">
           <InvitationDashboard
-            leagueId={currentLeagueId || undefined}
             clubId={currentClubId || undefined}
           />
         </div>

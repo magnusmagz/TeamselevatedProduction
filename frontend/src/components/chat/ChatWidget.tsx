@@ -7,7 +7,7 @@ import ChatMessageList from './ChatMessageList';
 import ChatInput from './ChatInput';
 
 export type ChatScope = {
-  type: 'league' | 'team';
+  type: 'club' | 'team';
   id: number;
   name: string;
 };
@@ -21,7 +21,7 @@ interface Message {
   time: string;
   channel: string;
   role?: string;
-  scopeType: 'league' | 'team';
+  scopeType: 'club' | 'team';
   scopeId: number;
 }
 
@@ -32,7 +32,7 @@ interface TypingUser {
 
 export default function ChatWidget() {
   const { user } = useAuth();
-  const { activeContext, currentLeagueId } = useOrg();
+  const { activeContext, currentClubId } = useOrg();
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -44,7 +44,7 @@ export default function ChatWidget() {
   // Chat scope - defaults to current context
   const [scope, setScope] = useState<ChatScope | null>(null);
 
-  // Available teams for team-level chat (when in league context)
+  // Available teams for team-level chat (when in club context)
   const [availableTeams, setAvailableTeams] = useState<Array<{id: number; name: string}>>([]);
 
   // Initialize scope based on current context
@@ -56,16 +56,16 @@ export default function ChatWidget() {
           id: activeContext.scope_id,
           name: activeContext.scope_name
         });
-      } else if (activeContext.scope_type === 'league' || activeContext.scope_type === 'club') {
-        // Default to league-wide chat
+      } else if (activeContext.scope_type === 'club') {
+        // Default to club-wide chat
         setScope({
-          type: 'league',
-          id: currentLeagueId || activeContext.scope_id,
+          type: 'club',
+          id: currentClubId || activeContext.scope_id,
           name: activeContext.scope_name
         });
       }
     }
-  }, [activeContext, currentLeagueId, scope]);
+  }, [activeContext, currentClubId, scope]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -252,7 +252,7 @@ export default function ChatWidget() {
           <ChatScopeSelector
             currentScope={scope}
             onScopeChange={handleScopeChange}
-            currentLeagueId={currentLeagueId}
+            currentClubId={currentClubId}
             activeContext={activeContext}
           />
 

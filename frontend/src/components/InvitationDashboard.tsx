@@ -22,11 +22,10 @@ interface InvitationLink {
 }
 
 interface InvitationDashboardProps {
-  leagueId?: number;
   clubId?: number;
 }
 
-export default function InvitationDashboard({ leagueId, clubId }: InvitationDashboardProps) {
+export default function InvitationDashboard({ clubId }: InvitationDashboardProps) {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [invitationLinks, setInvitationLinks] = useState<InvitationLink[]>([]);
@@ -36,7 +35,7 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
 
   useEffect(() => {
     fetchInvitations();
-  }, [leagueId, clubId, filter]);
+  }, [clubId, filter]);
 
   const fetchInvitations = async () => {
     try {
@@ -44,7 +43,6 @@ export default function InvitationDashboard({ leagueId, clubId }: InvitationDash
       const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams();
 
-      if (leagueId) params.append('leagueId', leagueId.toString());
       if (clubId) params.append('clubId', clubId.toString());
       if (filter !== 'all') params.append('status', filter);
 

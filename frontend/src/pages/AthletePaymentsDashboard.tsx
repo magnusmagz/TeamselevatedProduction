@@ -49,7 +49,7 @@ interface Invoice {
 export const AthletePaymentsDashboard: React.FC = () => {
   const { athleteId } = useParams<{ athleteId: string }>();
   const navigate = useNavigate();
-  const { isLeagueAdmin, isClubAdmin } = useOrg();
+  const { isClubAdmin } = useOrg();
   const [athlete, setAthlete] = useState<AthleteInfo | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -57,7 +57,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'payments' | 'invoices'>('payments');
 
   // Admins can always view amounts, others can view their own athletes
-  const canViewAmounts = isLeagueAdmin || isClubAdmin || true; // For now, allow all authenticated users
+  const canViewAmounts = isClubAdmin || true; // For now, allow all authenticated users
 
   useEffect(() => {
     if (!athleteId) return;

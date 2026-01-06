@@ -30,7 +30,7 @@ export default function GetStarted() {
   const [createdData, setCreatedData] = useState<any>(null);
 
   const roles = [
-    { id: 'league', label: 'I am a League' },
+    { id: 'club', label: 'I am a Club' },
     { id: 'team', label: 'I am a Team' },
     { id: 'coach', label: 'I am a Coach' },
     { id: 'administrator', label: 'I am an Administrator' },
@@ -67,43 +67,7 @@ export default function GetStarted() {
     setError(null);
 
     try {
-      // If creating a league, use the dedicated league setup endpoint
-      if (selectedRoles.includes('league')) {
-        const response = await fetch(`${API_URL}/api/league-setup.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            leagueName: formData.organizationName,
-            userName: formData.yourName,
-            userEmail: formData.email,
-            userPhone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zipCode: formData.zipCode,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to create league');
-        }
-
-        // Store the JWT token for immediate login
-        if (data.token) {
-          localStorage.setItem('auth_token', data.token);
-          await refreshAuth();
-          navigate('/dashboard');
-          return;
-        }
-
-        setCreatedData(data);
-        setStep('success');
-        return;
-      }
-
-      // For other organization types, use the original endpoint
+      // For all organization types, use the organization gateway endpoint
       const response = await fetch(`${API_URL}/api/organization-gateway.php?action=create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -254,7 +218,7 @@ export default function GetStarted() {
                   value={formData.organizationName}
                   onChange={handleInputChange}
                   required
-                  placeholder="Enter your organization, team, or league name"
+                  placeholder="Enter your organization, team, or club name"
                   className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
@@ -291,7 +255,7 @@ export default function GetStarted() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  Phone Number {selectedRoles.includes('league') ? '(Optional but helpful)' : '(Optional)'}
+                  Phone Number {selectedRoles.includes('club') ? '(Optional but helpful)' : '(Optional)'}
                 </label>
                 <input
                   type="tel"
@@ -303,10 +267,10 @@ export default function GetStarted() {
                 />
               </div>
 
-              {selectedRoles.includes('league') && (
+              {selectedRoles.includes('club') && (
                 <>
                   <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase">League Address (Optional but helpful)</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase">Club Address (Optional but helpful)</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">

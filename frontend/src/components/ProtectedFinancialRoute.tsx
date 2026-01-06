@@ -11,14 +11,14 @@ interface Props {
 /**
  * ProtectedFinancialRoute
  * Protects financial pages based on user permissions
- * Uses OrgContext to determine admin status (league_admin or club_admin have financial access)
+ * Uses OrgContext to determine admin status (club_admin has financial access)
  */
 export const ProtectedFinancialRoute: React.FC<Props> = ({
   children,
   requiredPermission = 'any'
 }) => {
   const { user, isLoading: authLoading } = useAuth();
-  const { isLeagueAdmin, isClubAdmin } = useOrg();
+  const { isClubAdmin } = useOrg();
 
   // Show loading while checking auth
   if (authLoading) {
@@ -34,8 +34,8 @@ export const ProtectedFinancialRoute: React.FC<Props> = ({
     return <Navigate to="/login" replace />;
   }
 
-  // League admins and club admins have full financial access
-  const hasAccess = isLeagueAdmin || isClubAdmin;
+  // Club admins have full financial access
+  const hasAccess = isClubAdmin;
 
   if (!hasAccess) {
     return (
@@ -57,7 +57,7 @@ export const ProtectedFinancialRoute: React.FC<Props> = ({
           <h2 className="mt-4 text-lg font-medium text-gray-900">Access Restricted</h2>
           <p className="mt-2 text-sm text-gray-500">
             You don't have permission to view this financial data.
-            Please contact your league administrator if you need access.
+            Please contact your club administrator if you need access.
           </p>
           <button
             onClick={() => window.history.back()}

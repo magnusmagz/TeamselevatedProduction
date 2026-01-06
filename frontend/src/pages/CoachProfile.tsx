@@ -25,7 +25,6 @@ interface CoachTeam {
   skill_level: string;
   season_name: string | null;
   club_name: string | null;
-  league_name: string | null;
   athlete_count: number;
 }
 
@@ -110,7 +109,7 @@ const CoachProfile: React.FC = () => {
   };
 
   const isAdmin = () => {
-    return user?.activeRole?.role === 'league_admin' || user?.activeRole?.role === 'club_admin' || user?.system_role === 'super_admin';
+    return user?.activeRole?.role === 'club_admin' || user?.system_role === 'super_admin';
   };
 
   const getInitials = (firstName: string, lastName: string) => {

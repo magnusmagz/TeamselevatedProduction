@@ -109,7 +109,7 @@ export const PaymentCheckout: React.FC = () => {
 
   // Fetch available payment plans
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&league_id=13`)
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=13`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
