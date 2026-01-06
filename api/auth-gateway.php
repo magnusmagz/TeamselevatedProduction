@@ -687,11 +687,11 @@ function handleSwitchContext($db, $input) {
     }
 
     $scopeId = (int)$input['scope_id'];
-    $scopeType = $input['scope_type']; // 'league' or 'club'
+    $scopeType = $input['scope_type'];
 
-    if (!in_array($scopeType, ['league', 'club'])) {
+    if ($scopeType !== 'club') {
         http_response_code(400);
-        echo json_encode(['error' => 'scope_type must be "league" or "club"']);
+        echo json_encode(['error' => 'scope_type must be "club"']);
         return;
     }
 
@@ -707,30 +707,15 @@ function handleSwitchContext($db, $input) {
         return;
     }
 
-    // Verify user has access to the requested scope
-    $hasAccess = false;
-
-    if ($scopeType === 'league') {
-        // Check if user has any league role for this league
-        $stmt = $db->prepare('
-            SELECT COUNT(*) as count
-            FROM user_league_access
-            WHERE user_id = ? AND league_id = ? AND active = TRUE
-        ');
-        $stmt->execute([$userId, $scopeId]);
-        $result = $stmt->fetch();
-        $hasAccess = $result['count'] > 0;
-    } else {
-        // Check if user has any club role for this club
-        $stmt = $db->prepare('
-            SELECT COUNT(*) as count
-            FROM user_club_access
-            WHERE user_id = ? AND club_profile_id = ? AND active = TRUE
-        ');
-        $stmt->execute([$userId, $scopeId]);
-        $result = $stmt->fetch();
-        $hasAccess = $result['count'] > 0;
-    }
+    // Verify user has access to the requested club
+    $stmt = $db->prepare('
+        SELECT COUNT(*) as count
+        FROM user_club_access
+        WHERE user_id = ? AND club_profile_id = ? AND active = TRUE
+    ');
+    $stmt->execute([$userId, $scopeId]);
+    $result = $stmt->fetch();
+    $hasAccess = $result['count'] > 0;
 
     if (!$hasAccess) {
         http_response_code(403);

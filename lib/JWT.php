@@ -21,7 +21,7 @@ class JWT {
      * @param string $email User's email
      * @param string $name User's full name
      * @param int|null $activeContextScopeId Optional specific scope to set as active context
-     * @param string|null $activeContextType Optional scope type ('league' or 'club')
+     * @param string|null $activeContextType Optional scope type ('club')
      * @return string Signed JWT token with full organizational context
      */
     public static function generateEnhanced($connection, $userId, $email, $name, $activeContextScopeId = null, $activeContextType = null) {
@@ -38,7 +38,7 @@ class JWT {
      * @param PDO $connection Database connection
      * @param int|string $userId User's database ID
      * @param int|null $activeContextScopeId Optional scope ID to set as active
-     * @param string|null $activeContextType Optional scope type ('league' or 'club')
+     * @param string|null $activeContextType Optional scope type ('club')
      * @return array Organizational context with roles and active context
      */
     public static function buildOrganizationalContext($connection, $userId, $activeContextScopeId = null, $activeContextType = null) {
@@ -48,19 +48,9 @@ class JWT {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         $systemRole = $user['system_role'] ?? 'user';
 
-        // Get all league-level roles
-        $stmt = $connection->prepare("
-            SELECT ula.role, ula.league_id, l.name as league_name
-            FROM user_league_access ula
-            JOIN leagues l ON ula.league_id = l.id
-            WHERE ula.user_id = ? AND ula.active = TRUE
-        ");
-        $stmt->execute([$userId]);
-        $leagueRoles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         // Get all club-level roles
         $stmt = $connection->prepare("
-            SELECT uca.role, uca.club_profile_id as club_id, c.name as club_name, c.league_id
+            SELECT uca.role, uca.club_profile_id as club_id, c.name as club_name
             FROM user_club_access uca
             JOIN club_profile c ON uca.club_profile_id = c.id
             WHERE uca.user_id = ? AND uca.active = TRUE
@@ -70,22 +60,12 @@ class JWT {
 
         // Build roles array
         $roles = [];
-        foreach ($leagueRoles as $lr) {
-            $roles[] = [
-                'role' => $lr['role'],
-                'scope_type' => 'league',
-                'scope_id' => (int)$lr['league_id'],
-                'scope_name' => $lr['league_name']
-            ];
-        }
-
         foreach ($clubRoles as $cr) {
             $roles[] = [
                 'role' => $cr['role'],
                 'scope_type' => 'club',
                 'scope_id' => (int)$cr['club_id'],
-                'scope_name' => $cr['club_name'],
-                'league_id' => (int)$cr['league_id']
+                'scope_name' => $cr['club_name']
             ];
         }
 

@@ -2,7 +2,7 @@
 /**
  * Clubs Gateway API
  *
- * Fetch clubs for a league
+ * Fetch clubs (league hierarchy removed - clubs are now top-level)
  */
 
 header("Access-Control-Allow-Origin: *");
@@ -37,20 +37,13 @@ try {
         exit();
     }
 
-    $leagueId = $_GET['league_id'] ?? null;
+    // Get clubs user has access to
+    $clubScope = $auth->getClubScopeWhereClause($connection, 'id');
 
-    if (!$leagueId) {
-        http_response_code(400);
-        echo json_encode(['error' => 'League ID is required']);
-        exit();
-    }
-
-    // Fetch clubs for the league
     $stmt = $connection->prepare("
         SELECT
             id,
             name,
-            league_id,
             address_line1,
             city,
             state,
@@ -58,11 +51,11 @@ try {
             phone,
             email
         FROM club_profile
-        WHERE league_id = ?
+        " . $clubScope['where'] . "
         ORDER BY name
     ");
 
-    $stmt->execute([$leagueId]);
+    $stmt->execute($clubScope['params']);
     $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([

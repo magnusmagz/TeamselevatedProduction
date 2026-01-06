@@ -128,13 +128,12 @@ try {
                 ];
                 $gradeLevel = $gradeMap[$athleteGrade] ?? null;
 
-                // Create athlete record (with placeholder address since it's required)
+                // Create athlete record (address will be collected later)
                 $stmt = $connection->prepare("
                     INSERT INTO athletes (
                         first_name, last_name, date_of_birth, gender,
-                        home_address_line1, city, state, zip_code,
                         grade_level, created_at, active_status
-                    ) VALUES (?, ?, ?, ?, 'TBD', 'TBD', 'TBD', 'TBD', ?, NOW(), TRUE)
+                    ) VALUES (?, ?, ?, ?, ?, NOW(), TRUE)
                 ");
                 $stmt->execute([
                     $athleteFirst,
@@ -148,8 +147,8 @@ try {
                 // Link athlete to guardian
                 $stmt = $connection->prepare("
                     INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship_type,
-                        is_primary_contact, created_at
+                        athlete_id, guardian_id, relationship,
+                        is_primary, created_at
                     ) VALUES (?, ?, 'Guardian', TRUE, NOW())
                 ");
                 $stmt->execute([$athlete_id, $guardian_id]);

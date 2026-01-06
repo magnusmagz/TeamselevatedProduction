@@ -101,18 +101,21 @@ try {
                 // Insert fields if provided
                 if (!empty($data['fields'])) {
                     $field_stmt = $connection->prepare("
-                        INSERT INTO fields (venue_id, name, field_type, surface, size, lights, status)
+                        INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
 
                     foreach ($data['fields'] as $field) {
+                        // Explicitly convert has_lights to boolean for PostgreSQL
+                        $hasLights = filter_var($field['has_lights'] ?? $field['lights'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                         $field_stmt->execute([
                             $venue_id,
                             $field['name'],
                             $field['field_type'] ?? 'Soccer',
-                            $field['surface'] ?? 'Grass',
-                            $field['size'] ?? null,
-                            $field['lights'] ?? false,
+                            $field['surface_type'] ?? $field['surface'] ?? 'Grass',
+                            $field['dimensions'] ?? $field['size'] ?? null,
+                            $hasLights ? 't' : 'f',  // PostgreSQL boolean format
                             $field['status'] ?? 'available'
                         ]);
                     }
@@ -165,18 +168,21 @@ try {
                 // Insert new fields
                 if (!empty($data['fields'])) {
                     $field_stmt = $connection->prepare("
-                        INSERT INTO fields (venue_id, name, field_type, surface, size, lights, status)
+                        INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
 
                     foreach ($data['fields'] as $field) {
+                        // Explicitly convert has_lights to boolean for PostgreSQL
+                        $hasLights = filter_var($field['has_lights'] ?? $field['lights'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                         $field_stmt->execute([
                             $venue_id,
                             $field['name'],
                             $field['field_type'] ?? 'Soccer',
-                            $field['surface'] ?? 'Grass',
-                            $field['size'] ?? null,
-                            $field['lights'] ?? false,
+                            $field['surface_type'] ?? $field['surface'] ?? 'Grass',
+                            $field['dimensions'] ?? $field['size'] ?? null,
+                            $hasLights ? 't' : 'f',  // PostgreSQL boolean format
                             $field['status'] ?? 'available'
                         ]);
                     }
