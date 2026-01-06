@@ -43,7 +43,7 @@ try {
             }
 
             // Check if user can access this club
-            if (!$auth->canAccessClub($connection, $clubId)) {
+            if (!$auth->canAccessClub($clubId)) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Access denied']);
                 exit();
