@@ -317,7 +317,8 @@ const TeamCalendar: React.FC = () => {
       'bg-orange-100 text-orange-800 border-orange-300',
       'bg-pink-100 text-pink-800 border-pink-300',
     ];
-    const index = teams.indexOf(teamName) % colors.length;
+    const teamIndex = allTeams.findIndex(t => t.name === teamName);
+    const index = (teamIndex >= 0 ? teamIndex : 0) % colors.length;
     return colors[index];
   };
 
@@ -437,7 +438,7 @@ const TeamCalendar: React.FC = () => {
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Club Calendar</h1>
-          <p className="text-gray-600 mt-2">View all team practices and events</p>
+          <p className="text-gray-600 mt-2">View all club practices and events</p>
         </div>
         <button
           onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
@@ -522,8 +523,8 @@ const TeamCalendar: React.FC = () => {
               className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 focus:outline-none focus:border-brand-accent"
             >
               <option value="all">All Teams</option>
-              {teams.map(team => (
-                <option key={team} value={team}>{team}</option>
+              {allTeams.map(team => (
+                <option key={team.id} value={team.name}>{team.name}</option>
               ))}
             </select>
           </div>
@@ -743,16 +744,16 @@ const TeamCalendar: React.FC = () => {
         )}
 
         {/* Legend */}
-        {teams.length > 0 && (
+        {allTeams.length > 0 && (
           <div className="mt-6">
             <h3 className="text-brand-primary font-bold uppercase mb-2">Teams</h3>
             <div className="flex flex-wrap gap-2">
-              {teams.map(team => (
+              {allTeams.map(team => (
                 <div
-                  key={team}
-                  className={`px-3 py-1 text-sm border ${getTeamColor(team)}`}
+                  key={team.id}
+                  className={`px-3 py-1 text-sm border ${getTeamColor(team.name)}`}
                 >
-                  {team}
+                  {team.name}
                 </div>
               ))}
             </div>
