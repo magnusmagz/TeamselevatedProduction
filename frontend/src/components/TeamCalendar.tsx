@@ -802,8 +802,8 @@ const TeamCalendar: React.FC = () => {
 
       {/* Event Form Modal */}
       {showEventForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-brand-secondary rounded-md max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-brand-secondary rounded-md max-w-2xl w-full my-8">
             <div className="border-b border-brand-secondary px-6 py-4">
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 {selectedEvent ? 'Edit Event' : 'Add New Event'}
