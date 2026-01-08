@@ -65,7 +65,7 @@ try {
                 }
 
                 // Check if user has access to this team's club
-                if ($team['club_id'] && !$auth->canAccessClub($connection, $team['club_id'])) {
+                if ($team['club_id'] && !$auth->canAccessClub($team['club_id'])) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     exit();
