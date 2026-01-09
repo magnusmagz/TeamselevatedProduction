@@ -479,6 +479,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                 accentColor: formData.accent_color
               }}
               onSave={handleBrandingUpdate}
+              title="Team Logo"
             />
           )}
 

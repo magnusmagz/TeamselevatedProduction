@@ -63,7 +63,12 @@ const TeamRosterPage: React.FC = () => {
   React.useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await fetch(`${API_URL}/legacy/teams-gateway.php?id=${teamId}`);
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_URL}/legacy/teams-gateway.php?id=${teamId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const data = await response.json();
         if (data.id && data.name) {
           setTeam({ id: data.id, name: data.name });

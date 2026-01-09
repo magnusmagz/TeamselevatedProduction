@@ -135,7 +135,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                 <button
                   onClick={() => handleSmartSchedule(team)}
                   className="text-blue-600 hover:underline mr-3 uppercase text-xs font-bold">
-                  Smart 🆕
+                  Smart
                 </button>
                 <button
                   onClick={() => onDelete(team.id)}

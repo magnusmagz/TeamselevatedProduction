@@ -21,8 +21,10 @@ interface Team {
   id: number;
   team_id: number;
   user_id: number;
+  athlete_id: number;
   jersey_number?: string;
   position?: string;
+  primary_position?: string;
   team_name: string;
   created_at: string;
 }
@@ -108,7 +110,9 @@ const AthleteProfileEnhanced: React.FC = () => {
         const teamsData = await teamsResponse.json();
 
         if (teamsData.success) {
-          const athleteTeams = teamsData.team_players.filter((tp: Team) => tp.user_id === parseInt(athleteId));
+          const athleteTeams = teamsData.team_players
+            .filter((tp: Team) => tp.athlete_id === parseInt(athleteId))
+            .map((tp: Team) => ({ ...tp, position: tp.primary_position }));
           setTeams(athleteTeams);
         }
 
@@ -428,7 +432,7 @@ const AthleteProfileEnhanced: React.FC = () => {
                         {guardian.first_name} {guardian.last_name}
                       </span>
                       <span className="text-xs px-2 py-1 bg-gray-100">
-                        {guardian.is_primary_contact ? 'PRIMARY' : guardian.relationship_type.toUpperCase()}
+                        {guardian.is_primary_contact ? 'PRIMARY' : (guardian.relationship_type || 'GUARDIAN').toUpperCase()}
                       </span>
                     </div>
                     <div className="text-sm text-gray-600">
@@ -606,11 +610,7 @@ const AthleteProfileEnhanced: React.FC = () => {
         </div>
       </div>
 
-      {/* Contact Button */}
-      <button className="w-full bg-white border border-brand-secondary rounded-md text-brand-primary py-3 px-6 font-bold uppercase hover:bg-brand-primary hover:text-white transition-colors">
-        Contact Family
-      </button>
-    </div>
+      </div>
   );
 };
 

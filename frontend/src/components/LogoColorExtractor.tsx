@@ -19,12 +19,14 @@ interface LogoColorExtractorProps {
   };
   onSave?: (data: LogoColorData) => Promise<void>;
   maxFileSize?: number;
+  title?: string;
 }
 
 export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
   initialData = {},
   onSave,
-  maxFileSize = 2 * 1024 * 1024 // 2MB default
+  maxFileSize = 2 * 1024 * 1024, // 2MB default
+  title = 'Club Logo'
 }) => {
   const [logoData, setLogoData] = useState<string | undefined>(initialData.logoData);
   const [logoFilename, setLogoFilename] = useState<string | undefined>(initialData.logoFilename);
@@ -164,7 +166,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
     <div className="space-y-6">
       {/* Logo Upload Section */}
       <div className="bg-white border border-brand-secondary rounded-md p-6">
-        <h2 className="text-xl font-semibold text-brand-primary mb-4 uppercase">Club Logo</h2>
+        <h2 className="text-xl font-semibold text-brand-primary mb-4 uppercase">{title}</h2>
 
         <div
           onDragOver={handleDragOver}
