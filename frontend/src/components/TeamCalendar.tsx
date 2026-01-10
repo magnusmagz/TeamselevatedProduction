@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AttendanceModal from './AttendanceModal';
 
 interface Practice {
   id: number;
@@ -63,6 +64,8 @@ const TeamCalendar: React.FC = () => {
   const [sendInvites, setSendInvites] = useState(true);
   const [sendUpdates, setSendUpdates] = useState(true);
   const [changesSummary, setChangesSummary] = useState<string>('');
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [attendanceEventId, setAttendanceEventId] = useState<number | null>(null);
   const [eventFormData, setEventFormData] = useState<Event>({
     name: '',
     type: 'event',
@@ -1030,15 +1033,28 @@ const TeamCalendar: React.FC = () => {
               </div>
 
               <div className="flex justify-between">
-                <div>
+                <div className="flex gap-2">
                   {selectedEvent && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteEvent(selectedEvent.id!)}
-                      className="px-4 py-2 border border-red-200 rounded-md text-red-600 hover:bg-red-50 font-semibold uppercase"
-                    >
-                      Delete
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEvent(selectedEvent.id!)}
+                        className="px-4 py-2 border border-red-200 rounded-md text-red-600 hover:bg-red-50 font-semibold uppercase"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttendanceEventId(selectedEvent.id!);
+                          setShowAttendanceModal(true);
+                          setShowEventForm(false);
+                        }}
+                        className="px-4 py-2 border border-green-200 rounded-md text-green-600 hover:bg-green-50 font-semibold uppercase"
+                      >
+                        Take Attendance
+                      </button>
+                    </>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -1069,6 +1085,22 @@ const TeamCalendar: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Attendance Modal */}
+      {showAttendanceModal && attendanceEventId && selectedEvent && (
+        <AttendanceModal
+          eventId={attendanceEventId}
+          eventName={selectedEvent.name}
+          eventDate={selectedEvent.event_date}
+          onClose={() => {
+            setShowAttendanceModal(false);
+            setAttendanceEventId(null);
+          }}
+          onSave={() => {
+            fetchEvents();
+          }}
+        />
       )}
     </div>
   );
