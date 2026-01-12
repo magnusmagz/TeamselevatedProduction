@@ -31,7 +31,8 @@ try {
                 $club_id = $_GET['club_id'] ?? 1; // Default to club 1 for now
                 $stmt = $connection->prepare("
                     SELECT p.*,
-                           (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status != 'rejected') as registration_count
+                           (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status != 'rejected') as registration_count,
+                           (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status = 'pending') as pending_count
                     FROM programs p
                     WHERE p.club_id = ?
                     ORDER BY p.created_at DESC
