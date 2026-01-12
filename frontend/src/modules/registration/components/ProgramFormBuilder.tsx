@@ -22,7 +22,8 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
     registration_closes: '',
     min_age: undefined,
     max_age: undefined,
-    capacity: undefined
+    capacity: undefined,
+    registration_fee: undefined
   });
 
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -248,6 +249,24 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                     onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || undefined })}
                     min="1"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                    Registration Fee
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md pl-7 pr-4 py-2 focus:outline-none focus:border-brand-accent"
+                      value={formData.registration_fee || ''}
+                      onChange={(e) => setFormData({ ...formData, registration_fee: parseFloat(e.target.value) || undefined })}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
 
                 <div>

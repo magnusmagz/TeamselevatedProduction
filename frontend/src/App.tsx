@@ -51,6 +51,8 @@ import { RegistrationCart } from './pages/RegistrationCart';
 import { MultiPaymentCheckout } from './pages/MultiPaymentCheckout';
 import { RosterFeeStatus } from './pages/RosterFeeStatus';
 import { FamilyInvoices } from './pages/FamilyInvoices';
+import { DemoPaymentPage } from './pages/DemoPaymentPage';
+import { PaymentPage } from './pages/PaymentPage';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 
 // Team Roster Page Component
@@ -337,6 +339,12 @@ function AppContent() {
               </main>
             </ProtectedRoute>
           } />
+
+          {/* Demo payment page - public, no auth required */}
+          <Route path="/pay/demo" element={<DemoPaymentPage />} />
+
+          {/* Real payment page - public, fetches invoice by ID */}
+          <Route path="/pay/:invoiceId" element={<PaymentPage />} />
         </Routes>
 
         {/* Chat Widget - only visible when logged in */}

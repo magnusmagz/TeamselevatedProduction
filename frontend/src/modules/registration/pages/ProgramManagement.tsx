@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
+import RegistrationsModal from '../components/RegistrationsModal';
 
 const ProgramManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
@@ -9,6 +10,7 @@ const ProgramManagement: React.FC = () => {
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [embedProgram, setEmbedProgram] = useState<Program | null>(null);
+  const [registrationsProgram, setRegistrationsProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -159,12 +161,20 @@ const ProgramManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-brand-primary">
-                          {program.registration_count || 0}
-                          {program.capacity && (
-                            <span className="text-gray-500"> / {program.capacity}</span>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => setRegistrationsProgram(program)}
+                          className="text-brand-primary hover:text-blue-600 underline"
+                        >
+                          {program.registration_count || 0} registrations
+                        </button>
+                        {(program.pending_count ?? 0) > 0 && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            {program.pending_count} pending
+                          </span>
+                        )}
+                        {program.capacity && (
+                          <span className="text-gray-500 ml-1">/ {program.capacity}</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`uppercase text-xs font-semibold ${getStatusColor(program.status)}`}>
@@ -247,14 +257,24 @@ const ProgramManagement: React.FC = () => {
                         )}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-600 text-sm font-semibold uppercase">Registrations:</span>
-                      <span className="text-brand-primary text-sm">
-                        {program.registration_count || 0}
-                        {program.capacity && (
-                          <span className="text-gray-500"> / {program.capacity}</span>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => setRegistrationsProgram(program)}
+                          className="text-brand-primary text-sm hover:text-blue-600 underline"
+                        >
+                          {program.registration_count || 0} registrations
+                        </button>
+                        {(program.pending_count ?? 0) > 0 && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            {program.pending_count} pending
+                          </span>
                         )}
-                      </span>
+                        {program.capacity && (
+                          <span className="text-gray-500 ml-1">/ {program.capacity}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 text-sm font-semibold uppercase">Status:</span>
@@ -322,6 +342,17 @@ const ProgramManagement: React.FC = () => {
           <EmbedCodeModal
             program={embedProgram}
             onClose={() => setEmbedProgram(null)}
+          />
+        )}
+
+        {/* Registrations Modal */}
+        {registrationsProgram && (
+          <RegistrationsModal
+            program={registrationsProgram}
+            onClose={() => {
+              setRegistrationsProgram(null);
+              fetchPrograms(); // Refresh counts after approval/rejection
+            }}
           />
         )}
       </div>

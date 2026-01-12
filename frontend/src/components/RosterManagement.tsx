@@ -113,12 +113,21 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    console.log('Drop event triggered, draggedItem:', draggedItem);
-    if (draggedItem) {
-      console.log('Adding athlete to team:', draggedItem);
-      await addAthleteToTeam(draggedItem);
-      setDraggedItem(null);
+
+    // Get athlete ID from dataTransfer (more reliable than React state)
+    const athleteId = e.dataTransfer.getData('text/plain');
+    console.log('Drop event triggered, athleteId from dataTransfer:', athleteId);
+
+    if (athleteId) {
+      const athlete = availableAthletes.find(a => a.id.toString() === athleteId);
+      if (athlete) {
+        console.log('Adding athlete to team:', athlete);
+        await addAthleteToTeam(athlete);
+      } else {
+        console.error('Athlete not found in availableAthletes:', athleteId);
+      }
     }
+    setDraggedItem(null);
   };
 
   const addAthleteToTeam = async (athlete: Athlete) => {

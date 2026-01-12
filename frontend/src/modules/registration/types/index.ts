@@ -16,10 +16,12 @@ export interface Program {
   min_age?: number;
   max_age?: number;
   capacity?: number;
+  registration_fee?: number;
   current_enrolled?: number;
   status: ProgramStatus;
   embed_code?: string;
   registration_count?: number;
+  pending_count?: number;
   created_at?: string;
   updated_at?: string;
 }
