@@ -18,7 +18,7 @@ interface RosterManagementProps {
 }
 
 const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [roster, setRoster] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableAthletes, setAvailableAthletes] = useState<Athlete[]>([]);
@@ -104,13 +104,17 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
         })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (data.success) {
         await fetchRoster();
       } else {
-        console.error('Failed to add athlete to team');
+        console.error('Failed to add athlete:', data.error || data.message);
+        alert('Failed to add athlete: ' + (data.error || data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error adding athlete to team:', error);
+      alert('Error adding athlete to team');
     } finally {
       setAddingAthleteId(null);
     }
