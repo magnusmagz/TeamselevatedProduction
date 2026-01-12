@@ -29,14 +29,14 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     try {
       const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}`);
       const data = await response.json();
-      if (data.success && data.team_players) {
-        // Transform team_players data to athlete format
-        const athletes = data.team_players.map((tp: any) => ({
-          id: tp.user_id,
-          first_name: tp.first_name,
-          last_name: tp.last_name,
-          email: tp.email,
-          created_at: tp.created_at || ''
+      if (data.success && data.team_members) {
+        // Transform team_members data to athlete format
+        const athletes = data.team_members.map((tm: any) => ({
+          id: tm.athlete_id,
+          first_name: tm.first_name,
+          last_name: tm.last_name,
+          email: tm.email || '',
+          created_at: tm.created_at || ''
         }));
         setRoster(athletes);
       }
