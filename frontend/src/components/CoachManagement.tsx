@@ -35,6 +35,8 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewingTeamsCoach, setViewingTeamsCoach] = useState<Coach | null>(null);
+  const [coachTeams, setCoachTeams] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     fetchCoaches();
@@ -68,6 +70,24 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     } catch (error) {
       console.error('Error fetching coach teams:', error);
       return null;
+    }
+  };
+
+  const handleViewTeams = async (coach: Coach) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?primary_coach_id=${coach.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      setCoachTeams(data.teams || []);
+      setViewingTeamsCoach(coach);
+    } catch (error) {
+      console.error('Error fetching coach teams:', error);
+      setCoachTeams([]);
+      setViewingTeamsCoach(coach);
     }
   };
 
@@ -612,7 +632,10 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           >
                             View Schedule
                           </button>
-                          <button className="text-brand-primary hover:underline uppercase text-xs">
+                          <button
+                            onClick={() => handleViewTeams(coach)}
+                            className="text-brand-primary hover:underline uppercase text-xs"
+                          >
                             View Teams
                           </button>
                         </td>
@@ -654,6 +677,52 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   }}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Teams Modal */}
+      {viewingTeamsCoach && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-brand-secondary rounded-md w-full max-w-lg">
+            <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
+                Teams for {viewingTeamsCoach.first_name} {viewingTeamsCoach.last_name}
+              </h3>
+              <button
+                onClick={() => {
+                  setViewingTeamsCoach(null);
+                  setCoachTeams([]);
+                }}
+                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6">
+              {coachTeams.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No teams assigned to this coach.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {coachTeams.map((team) => (
+                    <li key={team.id} className="p-3 border border-brand-secondary rounded-md">
+                      <span className="font-medium text-brand-primary">{team.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="border-t border-brand-secondary px-6 py-4">
+              <button
+                onClick={() => {
+                  setViewingTeamsCoach(null);
+                  setCoachTeams([]);
+                }}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

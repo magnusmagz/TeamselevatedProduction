@@ -24,6 +24,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const [availableAthletes, setAvailableAthletes] = useState<Athlete[]>([]);
   const [allAthletes, setAllAthletes] = useState<Athlete[]>([]);
   const [addingAthleteId, setAddingAthleteId] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const fetchRoster = async () => {
     try {
@@ -120,6 +121,32 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, athlete: Athlete) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', athlete.id.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const athleteId = e.dataTransfer.getData('text/plain');
+    if (athleteId) {
+      const athlete = availableAthletes.find(a => a.id.toString() === athleteId);
+      if (athlete) {
+        await handleAddAthlete(athlete);
+      }
+    }
+  };
 
   return (
     <div>
@@ -144,7 +171,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               {availableAthletes.map((athlete) => (
                 <div
                   key={athlete.id}
-                  className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100 transition-colors flex justify-between items-center"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, athlete)}
+                  className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100 transition-colors flex justify-between items-center cursor-grab active:cursor-grabbing"
                 >
                   <div>
                     <div className="font-medium text-brand-primary">
@@ -176,7 +205,14 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           </div>
 
           {/* Team Roster */}
-          <div className="bg-white border-2 border-brand-primary p-4">
+          <div
+            className={`bg-white border-2 p-4 transition-colors ${
+              isDragOver ? 'border-green-500 bg-green-50' : 'border-brand-primary'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <h3 className="text-xl font-bold text-brand-primary mb-4 uppercase tracking-wide">
               Team Roster ({roster.length} players)
             </h3>
@@ -205,8 +241,10 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                 </div>
               ))}
               {roster.length === 0 && (
-                <div className="text-center py-8 border-2 border-dashed border-gray-300 text-gray-500">
-                  Click "Add →" on an athlete to add them to the team
+                <div className={`text-center py-8 border-2 border-dashed transition-colors ${
+                  isDragOver ? 'border-green-500 text-green-600' : 'border-gray-300 text-gray-500'
+                }`}>
+                  Drag athletes here or click "Add →"
                 </div>
               )}
             </div>
