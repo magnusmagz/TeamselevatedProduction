@@ -29,9 +29,12 @@ try {
             $program_id = $_GET['program_id'] ?? 0;
 
             $stmt = $connection->prepare("
-                SELECT r.*, p.name as program_name
+                SELECT r.*, p.name as program_name,
+                       i.id as invoice_id, i.invoice_number, i.total_amount, i.status as invoice_status
                 FROM registrations r
                 LEFT JOIN programs p ON r.program_id = p.id
+                LEFT JOIN athlete_payments ap ON ap.athlete_id = r.athlete_id AND ap.program_id = r.program_id
+                LEFT JOIN invoices i ON i.athlete_payment_id = ap.id
                 WHERE r.program_id = ?
                 ORDER BY r.submitted_at DESC
             ");
