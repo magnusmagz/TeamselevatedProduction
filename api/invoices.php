@@ -286,13 +286,17 @@ try {
                 }
             } elseif ($athlete_payment_id && isset($payment)) {
                 // Auto-create line item from payment
+                // Use item_name if available, otherwise use program name or generic description
+                $description = $payment['item_name']
+                    ?? ($payment['program_name'] ? $payment['program_name'] . ' Registration' : 'Registration Fee');
+
                 $pdo->prepare("
                     INSERT INTO invoice_items (invoice_id, payment_item_id, description, quantity, unit_price, line_total)
                     VALUES (:invoice_id, :payment_item_id, :description, 1, :unit_price, :line_total)
                 ")->execute([
                     'invoice_id' => $invoice_id,
                     'payment_item_id' => $payment['payment_item_id'],
-                    'description' => $payment['item_name'],
+                    'description' => $description,
                     'unit_price' => $payment['final_amount'],
                     'line_total' => $payment['final_amount']
                 ]);
