@@ -162,7 +162,7 @@ function handleCreateOrganization($conn, $input) {
         // 4. Assign roles to user
         // Map frontend role names to database role names
         $roleMapping = [
-            'league' => 'league_admin',
+            'club' => 'club_admin',
             'team' => 'team_manager',
             'coach' => 'coach',
             'administrator' => 'administrator',

@@ -202,11 +202,11 @@ try {
                         pi.name as item_name,
                         pi.id as payment_item_id,
                         p.id as program_id,
-                        p.league_id
+                        p.name as program_name
                     FROM athlete_payments ap
                     JOIN athletes a ON ap.athlete_id = a.id
-                    JOIN payment_items pi ON ap.payment_item_id = pi.id
-                    JOIN programs p ON ap.program_id = p.id
+                    LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
+                    LEFT JOIN programs p ON ap.program_id = p.id
                     WHERE ap.id = :id
                 ";
                 $stmt = $pdo->prepare($query);
@@ -218,7 +218,7 @@ try {
                 }
 
                 $athlete_id = $payment['athlete_id'];
-                $league_id = $payment['league_id'];
+                $league_id = null; // leagues not used
                 $subtotal = floatval($payment['base_amount']);
                 $discount = floatval($payment['discount_amount']) + floatval($payment['scholarship_amount']);
                 $total = floatval($payment['final_amount']);
@@ -286,13 +286,17 @@ try {
                 }
             } elseif ($athlete_payment_id && isset($payment)) {
                 // Auto-create line item from payment
+                // Use item_name if available, otherwise use program name or generic description
+                $description = $payment['item_name']
+                    ?? ($payment['program_name'] ? $payment['program_name'] . ' Registration' : 'Registration Fee');
+
                 $pdo->prepare("
                     INSERT INTO invoice_items (invoice_id, payment_item_id, description, quantity, unit_price, line_total)
                     VALUES (:invoice_id, :payment_item_id, :description, 1, :unit_price, :line_total)
                 ")->execute([
                     'invoice_id' => $invoice_id,
                     'payment_item_id' => $payment['payment_item_id'],
-                    'description' => $payment['item_name'],
+                    'description' => $description,
                     'unit_price' => $payment['final_amount'],
                     'line_total' => $payment['final_amount']
                 ]);

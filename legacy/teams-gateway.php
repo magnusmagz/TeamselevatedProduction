@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 try {
     $db = Database::getInstance();
@@ -20,6 +21,9 @@ try {
     echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit();
 }
+
+// Require authentication for all endpoints
+$auth = AuthMiddleware::requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
@@ -36,7 +40,7 @@ try {
     switch ($method) {
         case 'GET':
             if ($team_id) {
-                // Get specific team
+                // Get specific team - check if user has access
                 $stmt = $connection->prepare("
                     SELECT t.*,
                            s.name as season_name,
@@ -49,10 +53,24 @@ try {
                     WHERE t.id = ?
                     GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                              t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
-                             t.logo_url, t.status, t.created_at, t.updated_at, s.name, u.first_name, u.last_name
+                             t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, s.name, u.first_name, u.last_name
                 ");
                 $stmt->execute([$team_id]);
                 $team = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$team) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Team not found']);
+                    exit();
+                }
+
+                // Check if user has access to this team's club
+                if ($team['club_id'] && !$auth->canAccessClub($team['club_id'])) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Access denied']);
+                    exit();
+                }
+
                 echo json_encode($team);
             } else {
                 // Get all teams with filters
@@ -97,9 +115,14 @@ try {
                     $params[] = $primary_coach_id;
                 }
 
+                // Apply club scoping - only show teams from clubs user has access to
+                $clubScope = $auth->getClubScopeWhereClause('t.club_id');
+                $query .= " " . $clubScope['where'];
+                $params = array_merge($params, $clubScope['params']);
+
                 $query .= " GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                                      t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
-                                     t.logo_url, t.status, t.created_at, t.updated_at, s.name, u.first_name, u.last_name
+                                     t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, s.name, u.first_name, u.last_name
                             ORDER BY t.created_at DESC";
 
                 $stmt = $connection->prepare($query);
@@ -113,13 +136,31 @@ try {
         case 'POST':
             $data = json_decode(file_get_contents("php://input"), true);
 
+            // Determine club_id from active context
+            $clubId = null;
+
+            // Get active context from auth
+            $activeContext = $auth->getActiveContext();
+
+            if ($activeContext && $activeContext->scope_type === 'club') {
+                $clubId = $activeContext->scope_id;
+            }
+
+            // Check if user can create teams
+            if (!$auth->can('create_team', $clubId, 'club')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'You do not have permission to create teams']);
+                exit();
+            }
+
             // program_id is optional, defaults to null
             $program_id = $data['program_id'] ?? null;
 
             $stmt = $connection->prepare("
                 INSERT INTO teams (name, program_id, season_id, primary_coach_id, age_group, division,
-                                 max_players, team_color, logo_url, skill_level, gender, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 max_players, team_color, logo_url, skill_level, gender, status,
+                                 club_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -134,7 +175,8 @@ try {
                 $data['logo_url'] ?? null,
                 $data['skill_level'] ?? 'Beginner',
                 $data['gender'] ?? 'Mixed',
-                $data['status'] ?? 'forming'
+                $data['status'] ?? 'forming',
+                $clubId
             ]);
 
             echo json_encode([
@@ -147,6 +189,24 @@ try {
         case 'PUT':
             if (!$team_id) {
                 throw new Exception('Team ID required for update');
+            }
+
+            // Get team to check access
+            $stmt = $connection->prepare("SELECT club_id FROM teams WHERE id = ?");
+            $stmt->execute([$team_id]);
+            $team = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$team) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Team not found']);
+                exit();
+            }
+
+            // Check if user can edit this team
+            if (!$auth->can('edit_team', $team['club_id'], 'club')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'You do not have permission to edit this team']);
+                exit();
             }
 
             $data = json_decode(file_get_contents("php://input"), true);
@@ -182,6 +242,24 @@ try {
         case 'DELETE':
             if (!$team_id) {
                 throw new Exception('Team ID required for deletion');
+            }
+
+            // Get team to check access
+            $stmt = $connection->prepare("SELECT club_id FROM teams WHERE id = ?");
+            $stmt->execute([$team_id]);
+            $team = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$team) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Team not found']);
+                exit();
+            }
+
+            // Check if user can delete this team
+            if (!$auth->can('delete_team', $team['club_id'], 'club')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'You do not have permission to delete this team']);
+                exit();
             }
 
             $stmt = $connection->prepare("DELETE FROM teams WHERE id = ?");

@@ -29,9 +29,12 @@ try {
             $program_id = $_GET['program_id'] ?? 0;
 
             $stmt = $connection->prepare("
-                SELECT r.*, p.name as program_name
+                SELECT r.*, p.name as program_name,
+                       i.id as invoice_id, i.invoice_number, i.total_amount, i.status as invoice_status
                 FROM registrations r
                 LEFT JOIN programs p ON r.program_id = p.id
+                LEFT JOIN athlete_payments ap ON ap.athlete_id = r.athlete_id AND ap.program_id = r.program_id
+                LEFT JOIN invoices i ON i.athlete_payment_id = ap.id
                 WHERE r.program_id = ?
                 ORDER BY r.submitted_at DESC
             ");
@@ -52,7 +55,7 @@ try {
 
             // Validate program exists and is open for registration
             $stmt = $connection->prepare("
-                SELECT id, status, registration_closes
+                SELECT id, status, registration_closes, registration_fee
                 FROM programs
                 WHERE id = ? AND status = 'published'
             ");
@@ -128,13 +131,12 @@ try {
                 ];
                 $gradeLevel = $gradeMap[$athleteGrade] ?? null;
 
-                // Create athlete record (with placeholder address since it's required)
+                // Create athlete record (address will be collected later)
                 $stmt = $connection->prepare("
                     INSERT INTO athletes (
                         first_name, last_name, date_of_birth, gender,
-                        home_address_line1, city, state, zip_code,
                         grade_level, created_at, active_status
-                    ) VALUES (?, ?, ?, ?, 'TBD', 'TBD', 'TBD', 'TBD', ?, NOW(), TRUE)
+                    ) VALUES (?, ?, ?, ?, ?, NOW(), TRUE)
                 ");
                 $stmt->execute([
                     $athleteFirst,
@@ -148,8 +150,8 @@ try {
                 // Link athlete to guardian
                 $stmt = $connection->prepare("
                     INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship_type,
-                        is_primary_contact, created_at
+                        athlete_id, guardian_id, relationship,
+                        is_primary, created_at
                     ) VALUES (?, ?, 'Guardian', TRUE, NOW())
                 ");
                 $stmt->execute([$athlete_id, $guardian_id]);
@@ -183,51 +185,61 @@ try {
                 $payment_amount = 0;
                 $sibling_discount = 0;
                 $sibling_discount_applied = false;
+                $payment_item_id = null;
 
+                // Use payment_item if exists, otherwise fall back to program's registration_fee
                 if ($paymentItem) {
                     $payment_amount = floatval($paymentItem['base_price']);
+                    $payment_item_id = $paymentItem['id'];
+                } elseif ($program['registration_fee']) {
+                    $payment_amount = floatval($program['registration_fee']);
+                }
 
-                    // Check for sibling discount
-                    // First, get sibling discount settings for this payment item
-                    $stmt = $connection->prepare("
-                        SELECT sibling_discount_enabled, sibling_discount_type, sibling_discount_value
-                        FROM payment_items WHERE id = ?
-                    ");
-                    $stmt->execute([$paymentItem['id']]);
-                    $discountSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($payment_amount > 0) {
+                    // Only process payment if there's a fee
 
-                    if ($discountSettings && $discountSettings['sibling_discount_enabled']) {
-                        // Find other athletes linked to the same guardian
+                    // Check for sibling discount (only if using payment_item with discount settings)
+                    if ($payment_item_id) {
                         $stmt = $connection->prepare("
-                            SELECT DISTINCT ag.athlete_id
-                            FROM athlete_guardians ag
-                            WHERE ag.guardian_id = ? AND ag.athlete_id != ?
+                            SELECT sibling_discount_enabled, sibling_discount_type, sibling_discount_value
+                            FROM payment_items WHERE id = ?
                         ");
-                        $stmt->execute([$guardian_id, $athlete_id]);
-                        $siblingIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        $stmt->execute([$payment_item_id]);
+                        $discountSettings = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                        if (!empty($siblingIds)) {
-                            // Check if any siblings are registered for the same program
-                            $placeholders = implode(',', array_fill(0, count($siblingIds), '?'));
+                        if ($discountSettings && $discountSettings['sibling_discount_enabled']) {
+                            // Find other athletes linked to the same guardian
                             $stmt = $connection->prepare("
-                                SELECT COUNT(*) FROM registrations
-                                WHERE program_id = ? AND athlete_id IN ($placeholders) AND status = 'approved'
+                                SELECT DISTINCT ag.athlete_id
+                                FROM athlete_guardians ag
+                                WHERE ag.guardian_id = ? AND ag.athlete_id != ?
                             ");
-                            $params = array_merge([$data['program_id']], $siblingIds);
-                            $stmt->execute($params);
-                            $registeredSiblingCount = $stmt->fetchColumn();
+                            $stmt->execute([$guardian_id, $athlete_id]);
+                            $siblingIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                            if ($registeredSiblingCount > 0) {
-                                // Apply sibling discount
-                                $discountType = $discountSettings['sibling_discount_type'];
-                                $discountValue = floatval($discountSettings['sibling_discount_value']);
+                            if (!empty($siblingIds)) {
+                                // Check if any siblings are registered for the same program
+                                $placeholders = implode(',', array_fill(0, count($siblingIds), '?'));
+                                $stmt = $connection->prepare("
+                                    SELECT COUNT(*) FROM registrations
+                                    WHERE program_id = ? AND athlete_id IN ($placeholders) AND status = 'approved'
+                                ");
+                                $params = array_merge([$data['program_id']], $siblingIds);
+                                $stmt->execute($params);
+                                $registeredSiblingCount = $stmt->fetchColumn();
 
-                                if ($discountType === 'percentage') {
-                                    $sibling_discount = round($payment_amount * ($discountValue / 100), 2);
-                                } else {
-                                    $sibling_discount = min($discountValue, $payment_amount);
+                                if ($registeredSiblingCount > 0) {
+                                    // Apply sibling discount
+                                    $discountType = $discountSettings['sibling_discount_type'];
+                                    $discountValue = floatval($discountSettings['sibling_discount_value']);
+
+                                    if ($discountType === 'percentage') {
+                                        $sibling_discount = round($payment_amount * ($discountValue / 100), 2);
+                                    } else {
+                                        $sibling_discount = min($discountValue, $payment_amount);
+                                    }
+                                    $sibling_discount_applied = true;
                                 }
-                                $sibling_discount_applied = true;
                             }
                         }
                     }
@@ -244,7 +256,7 @@ try {
                     ");
                     $stmt->execute([
                         $athlete_id,
-                        $paymentItem['id'],
+                        $payment_item_id,  // Can be null if using program's registration_fee
                         $data['program_id'],
                         $payment_amount,
                         $sibling_discount,
@@ -286,19 +298,85 @@ try {
             $registration_id = $_GET['id'] ?? 0;
             $data = json_decode(file_get_contents("php://input"), true);
 
+            // Get registration details
             $stmt = $connection->prepare("
-                UPDATE registrations
-                SET status = ?, reviewed_at = NOW(), reviewed_by = ?
-                WHERE id = ?
+                SELECT r.*, p.registration_fee
+                FROM registrations r
+                JOIN programs p ON r.program_id = p.id
+                WHERE r.id = ?
             ");
+            $stmt->execute([$registration_id]);
+            $registration = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $stmt->execute([
-                $data['status'],
-                $data['reviewed_by'] ?? null,
-                $registration_id
-            ]);
+            if (!$registration) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Registration not found']);
+                exit();
+            }
 
-            echo json_encode(['success' => true, 'message' => 'Registration updated']);
+            $connection->beginTransaction();
+
+            try {
+                // Update registration status
+                $stmt = $connection->prepare("
+                    UPDATE registrations
+                    SET status = ?, reviewed_at = NOW(), reviewed_by = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([
+                    $data['status'],
+                    $data['reviewed_by'] ?? null,
+                    $registration_id
+                ]);
+
+                $athlete_payment_id = null;
+
+                // If approving, ensure athlete_payment exists
+                if ($data['status'] === 'approved') {
+                    // Check if athlete_payment already exists
+                    $stmt = $connection->prepare("
+                        SELECT id FROM athlete_payments
+                        WHERE athlete_id = ? AND program_id = ?
+                    ");
+                    $stmt->execute([$registration['athlete_id'], $registration['program_id']]);
+                    $existingPayment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($existingPayment) {
+                        $athlete_payment_id = $existingPayment['id'];
+                    } elseif ($registration['registration_fee'] && floatval($registration['registration_fee']) > 0) {
+                        // Create athlete_payment from program's registration_fee
+                        $fee = floatval($registration['registration_fee']);
+                        $stmt = $connection->prepare("
+                            INSERT INTO athlete_payments (
+                                athlete_id, payment_item_id, program_id,
+                                base_amount, discount_amount, scholarship_amount, final_amount,
+                                status, amount_paid, amount_remaining, created_at
+                            ) VALUES (?, NULL, ?, ?, 0, 0, ?, 'pending', 0, ?, NOW())
+                        ");
+                        $stmt->execute([
+                            $registration['athlete_id'],
+                            $registration['program_id'],
+                            $fee,
+                            $fee,
+                            $fee
+                        ]);
+                        $athlete_payment_id = $connection->lastInsertId();
+                    }
+                }
+
+                $connection->commit();
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Registration updated',
+                    'athlete_payment_id' => $athlete_payment_id
+                ]);
+
+            } catch (Exception $e) {
+                $connection->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => $e->getMessage()]);
+            }
             break;
 
         case 'DELETE':

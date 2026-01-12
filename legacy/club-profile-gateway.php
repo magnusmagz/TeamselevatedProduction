@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 try {
     $db = Database::getInstance();
@@ -21,14 +22,48 @@ try {
     exit();
 }
 
+// Require authentication
+$auth = AuthMiddleware::requireAuth();
+
+// Get the user's active club from context
+$activeContext = $auth->getActiveContext();
+$clubId = null;
+
+if ($activeContext && $activeContext->scope_type === 'club') {
+    $clubId = $activeContext->scope_id;
+}
+
+if (!$clubId) {
+    http_response_code(400);
+    echo json_encode(['error' => 'No active club context']);
+    exit();
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     switch ($method) {
         case 'GET':
-            // Get club profile (there should only be one)
-            $stmt = $connection->prepare("SELECT * FROM club_profile LIMIT 1");
-            $stmt->execute();
+            // Get club profile for user's active club
+            $stmt = $connection->prepare("
+                SELECT
+                    id,
+                    name as club_name,
+                    address_line1 as address,
+                    city,
+                    state,
+                    zip_code as zip,
+                    website,
+                    phone,
+                    email,
+                    logo_url as logo_data,
+                    primary_color,
+                    secondary_color,
+                    description
+                FROM club_profile
+                WHERE id = ?
+            ");
+            $stmt->execute([$clubId]);
             $club = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($club) {
@@ -55,77 +90,46 @@ try {
             break;
 
         case 'PUT':
+            // Check if user can manage this club
+            if (!$auth->can('manage_club', $clubId, 'club')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'You do not have permission to edit this club']);
+                exit();
+            }
+
             $data = json_decode(file_get_contents("php://input"), true);
 
-            // Check if profile exists
-            $stmt = $connection->prepare("SELECT id FROM club_profile LIMIT 1");
-            $stmt->execute();
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($existing) {
-                // Update existing profile
-                $stmt = $connection->prepare("
-                    UPDATE club_profile
-                    SET club_name = ?,
-                        address = ?,
-                        city = ?,
-                        state = ?,
-                        zip = ?,
-                        website = ?,
-                        phone = ?,
-                        email = ?,
-                        logo_data = ?,
-                        logo_filename = ?,
-                        primary_color = ?,
-                        secondary_color = ?,
-                        accent_color = ?,
-                        latitude = ?,
-                        longitude = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([
-                    $data['club_name'],
-                    $data['address'],
-                    $data['city'],
-                    $data['state'],
-                    $data['zip'],
-                    $data['website'] ?? null,
-                    $data['phone'] ?? null,
-                    $data['email'] ?? null,
-                    $data['logo_data'] ?? null,
-                    $data['logo_filename'] ?? null,
-                    $data['primary_color'] ?? null,
-                    $data['secondary_color'] ?? null,
-                    $data['accent_color'] ?? null,
-                    $data['latitude'] ?? null,
-                    $data['longitude'] ?? null,
-                    $existing['id']
-                ]);
-            } else {
-                // Create new profile
-                $stmt = $connection->prepare("
-                    INSERT INTO club_profile
-                    (club_name, address, city, state, zip, website, phone, email, logo_data, logo_filename, primary_color, secondary_color, accent_color, latitude, longitude)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $data['club_name'],
-                    $data['address'],
-                    $data['city'],
-                    $data['state'],
-                    $data['zip'],
-                    $data['website'] ?? null,
-                    $data['phone'] ?? null,
-                    $data['email'] ?? null,
-                    $data['logo_data'] ?? null,
-                    $data['logo_filename'] ?? null,
-                    $data['primary_color'] ?? null,
-                    $data['secondary_color'] ?? null,
-                    $data['accent_color'] ?? null,
-                    $data['latitude'] ?? null,
-                    $data['longitude'] ?? null
-                ]);
-            }
+            // Update existing profile
+            $stmt = $connection->prepare("
+                UPDATE club_profile
+                SET name = ?,
+                    address_line1 = ?,
+                    city = ?,
+                    state = ?,
+                    zip_code = ?,
+                    website = ?,
+                    phone = ?,
+                    email = ?,
+                    logo_url = ?,
+                    primary_color = ?,
+                    secondary_color = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $data['club_name'],
+                $data['address'] ?? null,
+                $data['city'] ?? null,
+                $data['state'] ?? null,
+                $data['zip'] ?? null,
+                $data['website'] ?? null,
+                $data['phone'] ?? null,
+                $data['email'] ?? null,
+                $data['logo_data'] ?? null,
+                $data['primary_color'] ?? null,
+                $data['secondary_color'] ?? null,
+                $clubId
+            ]);
 
             echo json_encode([
                 'success' => true,

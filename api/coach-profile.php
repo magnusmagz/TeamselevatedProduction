@@ -73,12 +73,12 @@ function isAdmin($pdo, $userId) {
         return true;
     }
 
-    // Check if league admin or club admin
+    // Check if club admin
     $stmt = $pdo->prepare("
         SELECT role
-        FROM user_league_access
+        FROM user_club_access
         WHERE user_id = :user_id
-        AND role IN ('league_admin', 'club_admin')
+        AND role = 'club_admin'
         LIMIT 1
     ");
     $stmt->execute(['user_id' => $userId]);
@@ -131,12 +131,10 @@ if ($method === 'GET') {
                 t.skill_level,
                 s.name as season_name,
                 c.name as club_name,
-                l.name as league_name,
                 (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) as athlete_count
             FROM teams t
             LEFT JOIN seasons s ON t.season_id = s.id
             LEFT JOIN club_profile c ON t.club_id = c.id
-            LEFT JOIN leagues l ON t.league_id = l.id
             WHERE t.primary_coach_id = :coach_id
             ORDER BY t.created_at DESC
         ");

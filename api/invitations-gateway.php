@@ -1,7 +1,7 @@
 <?php
 /**
  * Invitations Gateway API
- * Handles invitation management for leagues and clubs
+ * Handles invitation management for clubs
  */
 
 header('Content-Type: application/json');
@@ -69,20 +69,13 @@ function handleSendInvitations($conn, $input, $userId) {
 
     $emails = $input['emails'];
     $role = $input['role'] ?? 'coach';
-    $leagueId = $input['leagueId'] ?? null;
     $clubId = $input['clubId'] ?? null;
     $personalMessage = $input['personalMessage'] ?? '';
 
-    // Validate: must have either leagueId or clubId
-    if (!$leagueId && !$clubId) {
+    // Validate: must have clubId
+    if (!$clubId) {
         http_response_code(400);
-        return ['error' => 'Either leagueId or clubId is required'];
-    }
-
-    // Validate: can't have both
-    if ($leagueId && $clubId) {
-        http_response_code(400);
-        return ['error' => 'Cannot invite to both league and club simultaneously'];
+        return ['error' => 'clubId is required'];
     }
 
     // Get inviter info
@@ -97,19 +90,11 @@ function handleSendInvitations($conn, $input, $userId) {
 
     $inviterName = trim($inviter['first_name'] . ' ' . $inviter['last_name']);
 
-    // Get organization name
-    $orgName = '';
-    if ($leagueId) {
-        $stmt = $conn->prepare('SELECT name FROM leagues WHERE id = :id');
-        $stmt->execute(['id' => $leagueId]);
-        $org = $stmt->fetch();
-        $orgName = $org['name'] ?? 'Unknown League';
-    } else {
-        $stmt = $conn->prepare('SELECT name FROM club_profile WHERE id = :id');
-        $stmt->execute(['id' => $clubId]);
-        $org = $stmt->fetch();
-        $orgName = $org['name'] ?? 'Unknown Club';
-    }
+    // Get club name
+    $stmt = $conn->prepare('SELECT name FROM club_profile WHERE id = :id');
+    $stmt->execute(['id' => $clubId]);
+    $org = $stmt->fetch();
+    $orgName = $org['name'] ?? 'Unknown Club';
 
     $sentInvitations = [];
     $errors = [];
@@ -126,13 +111,11 @@ function handleSendInvitations($conn, $input, $userId) {
             $stmt = $conn->prepare('
                 SELECT id FROM invitations
                 WHERE email = :email
-                  AND league_id IS NOT DISTINCT FROM :league_id
-                  AND club_profile_id IS NOT DISTINCT FROM :club_id
+                  AND club_profile_id = :club_id
                   AND status = \'pending\'
             ');
             $stmt->execute([
                 'email' => $email,
-                'league_id' => $leagueId,
                 'club_id' => $clubId
             ]);
             $existing = $stmt->fetch();
@@ -147,17 +130,16 @@ function handleSendInvitations($conn, $input, $userId) {
 
             $stmt = $conn->prepare('
                 INSERT INTO invitations (
-                    league_id, club_profile_id, email, role, status,
+                    club_profile_id, email, role, status,
                     invited_by, personal_message, expires_at, created_at
                 ) VALUES (
-                    :league_id, :club_id, :email, :role, \'pending\',
+                    :club_id, :email, :role, \'pending\',
                     :invited_by, :message, :expires_at, CURRENT_TIMESTAMP
                 )
                 RETURNING id
             ');
 
             $stmt->execute([
-                'league_id' => $leagueId,
                 'club_id' => $clubId,
                 'email' => $email,
                 'role' => $role,
@@ -208,21 +190,14 @@ function handleSendInvitations($conn, $input, $userId) {
  * POST ?action=create-link
  */
 function handleCreateLink($conn, $input, $userId) {
-    $leagueId = $input['leagueId'] ?? null;
     $clubId = $input['clubId'] ?? null;
     $role = $input['role'] ?? 'coach';
     $maxUses = $input['maxUses'] ?? null;
 
-    // Validate: must have either leagueId or clubId
-    if (!$leagueId && !$clubId) {
+    // Validate: must have clubId
+    if (!$clubId) {
         http_response_code(400);
-        return ['error' => 'Either leagueId or clubId is required'];
-    }
-
-    // Validate: can't have both
-    if ($leagueId && $clubId) {
-        http_response_code(400);
-        return ['error' => 'Cannot create link for both league and club'];
+        return ['error' => 'clubId is required'];
     }
 
     // Generate unique code
@@ -248,17 +223,16 @@ function handleCreateLink($conn, $input, $userId) {
 
     $stmt = $conn->prepare('
         INSERT INTO invitation_links (
-            league_id, club_profile_id, code, role, created_by,
+            club_profile_id, code, role, created_by,
             max_uses, expires_at, created_at
         ) VALUES (
-            :league_id, :club_id, :code, :role, :created_by,
+            :club_id, :code, :role, :created_by,
             :max_uses, :expires_at, CURRENT_TIMESTAMP
         )
         RETURNING id
     ');
 
     $stmt->execute([
-        'league_id' => $leagueId,
         'club_id' => $clubId,
         'code' => $code,
         'role' => $role,
@@ -284,10 +258,9 @@ function handleCreateLink($conn, $input, $userId) {
 
 /**
  * List invitations
- * GET ?action=list&leagueId=X or &clubId=X&status=pending
+ * GET ?action=list&clubId=X&status=pending
  */
 function handleListInvitations($conn, $userId) {
-    $leagueId = $_GET['leagueId'] ?? null;
     $clubId = $_GET['clubId'] ?? null;
     $status = $_GET['status'] ?? null;
 
@@ -295,10 +268,6 @@ function handleListInvitations($conn, $userId) {
     $where = ['invited_by = :user_id'];
     $params = ['user_id' => $userId];
 
-    if ($leagueId) {
-        $where[] = 'league_id = :league_id';
-        $params['league_id'] = $leagueId;
-    }
     if ($clubId) {
         $where[] = 'club_profile_id = :club_id';
         $params['club_id'] = $clubId;
@@ -314,7 +283,7 @@ function handleListInvitations($conn, $userId) {
         SELECT
             i.id, i.email, i.role, i.status, i.personal_message,
             i.created_at, i.accepted_at, i.expires_at,
-            i.league_id, i.club_profile_id,
+            i.club_profile_id,
             u.first_name || ' ' || u.last_name as inviter_name
         FROM invitations i
         LEFT JOIN users u ON i.invited_by = u.id
@@ -329,10 +298,6 @@ function handleListInvitations($conn, $userId) {
     $where = ['created_by = :user_id', 'is_active = TRUE'];
     $params = ['user_id' => $userId];
 
-    if ($leagueId) {
-        $where[] = 'league_id = :league_id';
-        $params['league_id'] = $leagueId;
-    }
     if ($clubId) {
         $where[] = 'club_profile_id = :club_id';
         $params['club_id'] = $clubId;
@@ -380,12 +345,10 @@ function handleGetInvitationInfo($conn) {
         $stmt = $conn->prepare('
             SELECT
                 i.id, i.email, i.role, i.personal_message, i.status, i.expires_at,
-                i.league_id, i.club_profile_id,
-                l.name as league_name,
+                i.club_profile_id,
                 c.name as club_name,
                 u.first_name || \' \' || u.last_name as inviter_name
             FROM invitations i
-            LEFT JOIN leagues l ON i.league_id = l.id
             LEFT JOIN club_profile c ON i.club_profile_id = c.id
             LEFT JOIN users u ON i.invited_by = u.id
             WHERE i.id = :id
@@ -414,8 +377,8 @@ function handleGetInvitationInfo($conn) {
             'invitationId' => $invitation['id'],
             'email' => $invitation['email'],
             'role' => $invitation['role'],
-            'organizationName' => $invitation['league_name'] ?: $invitation['club_name'],
-            'organizationType' => $invitation['league_id'] ? 'league' : 'club',
+            'organizationName' => $invitation['club_name'],
+            'organizationType' => 'club',
             'inviterName' => $invitation['inviter_name'],
             'personalMessage' => $invitation['personal_message']
         ];
@@ -425,12 +388,10 @@ function handleGetInvitationInfo($conn) {
             SELECT
                 il.id, il.code, il.role, il.max_uses, il.uses_count,
                 il.expires_at, il.is_active,
-                il.league_id, il.club_profile_id,
-                l.name as league_name,
+                il.club_profile_id,
                 c.name as club_name,
                 u.first_name || \' \' || u.last_name as creator_name
             FROM invitation_links il
-            LEFT JOIN leagues l ON il.league_id = l.id
             LEFT JOIN club_profile c ON il.club_profile_id = c.id
             LEFT JOIN users u ON il.created_by = u.id
             WHERE il.code = :code
@@ -464,8 +425,8 @@ function handleGetInvitationInfo($conn) {
             'invitationId' => $link['id'],
             'code' => $link['code'],
             'role' => $link['role'],
-            'organizationName' => $link['league_name'] ?: $link['club_name'],
-            'organizationType' => $link['league_id'] ? 'league' : 'club',
+            'organizationName' => $link['club_name'],
+            'organizationType' => 'club',
             'creatorName' => $link['creator_name'],
             'usesRemaining' => $link['max_uses'] ? ($link['max_uses'] - $link['uses_count']) : null
         ];
@@ -488,9 +449,8 @@ function handleAcceptInvitation($conn, $input) {
     if ($id) {
         // Accept email invitation
         $stmt = $conn->prepare('
-            SELECT i.*, l.name as league_name, c.name as club_name
+            SELECT i.*, c.name as club_name
             FROM invitations i
-            LEFT JOIN leagues l ON i.league_id = l.id
             LEFT JOIN club_profile c ON i.club_profile_id = c.id
             WHERE i.id = :id AND i.status = \'pending\'
         ');
@@ -509,15 +469,13 @@ function handleAcceptInvitation($conn, $input) {
 
         $invitationEmail = $invitation['email'];
         $role = $invitation['role'];
-        $leagueId = $invitation['league_id'];
         $clubId = $invitation['club_profile_id'];
 
     } elseif ($code) {
         // Accept via shareable link
         $stmt = $conn->prepare('
-            SELECT il.*, l.name as league_name, c.name as club_name
+            SELECT il.*, c.name as club_name
             FROM invitation_links il
-            LEFT JOIN leagues l ON il.league_id = l.id
             LEFT JOIN club_profile c ON il.club_profile_id = c.id
             WHERE il.code = :code AND il.is_active = TRUE
         ');
@@ -546,7 +504,6 @@ function handleAcceptInvitation($conn, $input) {
 
         $invitationEmail = strtolower(trim($email));
         $role = $link['role'];
-        $leagueId = $link['league_id'];
         $clubId = $link['club_profile_id'];
 
     } else {
@@ -588,32 +545,17 @@ function handleAcceptInvitation($conn, $input) {
         $userId = $result['id'];
     }
 
-    // Grant access based on organization type
-    if ($leagueId) {
-        // League invitation - add to user_league_access
-        $stmt = $conn->prepare('
-            INSERT INTO user_league_access (user_id, league_id, role, granted_at)
-            VALUES (:user_id, :league_id, :role, CURRENT_TIMESTAMP)
-            ON CONFLICT (user_id, league_id, role) DO NOTHING
-        ');
-        $stmt->execute([
-            'user_id' => $userId,
-            'league_id' => $leagueId,
-            'role' => $role
-        ]);
-    } else {
-        // Club invitation - add to user_club_access
-        $stmt = $conn->prepare('
-            INSERT INTO user_club_access (user_id, club_profile_id, role, granted_at)
-            VALUES (:user_id, :club_profile_id, :role, CURRENT_TIMESTAMP)
-            ON CONFLICT (user_id, club_profile_id, role) DO NOTHING
-        ');
-        $stmt->execute([
-            'user_id' => $userId,
-            'club_profile_id' => $clubId,
-            'role' => $role
-        ]);
-    }
+    // Grant club access
+    $stmt = $conn->prepare('
+        INSERT INTO user_club_access (user_id, club_profile_id, role, granted_at)
+        VALUES (:user_id, :club_profile_id, :role, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id, club_profile_id, role) DO NOTHING
+    ');
+    $stmt->execute([
+        'user_id' => $userId,
+        'club_profile_id' => $clubId,
+        'role' => $role
+    ]);
 
     // Mark invitation as accepted (if email invitation)
     if ($id) {
@@ -638,9 +580,6 @@ function handleAcceptInvitation($conn, $input) {
     // Generate login token for the user
     $userName = $name ?: ($existingUser ? '' : $name);
     $additionalClaims = [];
-    if ($leagueId) {
-        $additionalClaims['league_id'] = $leagueId;
-    }
     if ($clubId) {
         $additionalClaims['club_id'] = $clubId;
     }
@@ -671,10 +610,9 @@ function handleResendInvitation($conn, $input, $userId) {
 
     // Get invitation
     $stmt = $conn->prepare('
-        SELECT i.*, l.name as league_name, c.name as club_name,
+        SELECT i.*, c.name as club_name,
                u.first_name || \' \' || u.last_name as inviter_name
         FROM invitations i
-        LEFT JOIN leagues l ON i.league_id = l.id
         LEFT JOIN club_profile c ON i.club_profile_id = c.id
         LEFT JOIN users u ON i.invited_by = u.id
         WHERE i.id = :id AND i.invited_by = :user_id
@@ -696,7 +634,7 @@ function handleResendInvitation($conn, $input, $userId) {
     $appUrl = getenv('APP_URL') ?: 'https://teams-elevated.netlify.app';
     $invitationLink = "$appUrl/accept-invitation?id=" . $invitation['id'];
 
-    $orgName = $invitation['league_name'] ?: $invitation['club_name'];
+    $orgName = $invitation['club_name'];
 
     // Send email
     $emailSender = new Email();

@@ -73,7 +73,7 @@ try {
             try {
                 // Insert venue
                 $stmt = $db->prepare("
-                    INSERT INTO venues (name, address, city, state, zip, map_url, website)
+                    INSERT INTO venues (name, address, city, state, zip_code, map_url, website)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
@@ -81,7 +81,7 @@ try {
                     $data['address'],
                     $data['city'] ?? null,
                     $data['state'] ?? null,
-                    $data['zip'] ?? null,
+                    $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
                     $data['website'] ?? null
                 ]);
@@ -91,7 +91,7 @@ try {
                 // Insert fields if provided
                 if (!empty($data['fields'])) {
                     $field_stmt = $db->prepare("
-                        INSERT INTO fields (venue_id, name, field_type, surface, size, lights, status)
+                        INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
 
@@ -100,9 +100,9 @@ try {
                             $venue_id,
                             $field['name'],
                             $field['field_type'] ?? 'Soccer',
-                            $field['surface'] ?? 'Grass',
-                            $field['size'] ?? null,
-                            $field['lights'] ?? false,
+                            $field['surface_type'] ?? $field['surface'] ?? 'Grass',
+                            $field['dimensions'] ?? $field['size'] ?? null,
+                            $field['has_lights'] ?? $field['lights'] ?? false,
                             $field['status'] ?? 'available'
                         ]);
                     }
@@ -132,7 +132,7 @@ try {
                     // Update venue
                     $stmt = $db->prepare("
                         UPDATE venues
-                        SET name = ?, address = ?, city = ?, state = ?, zip = ?, map_url = ?, website = ?
+                        SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?
                         WHERE id = ?
                     ");
                     $stmt->execute([
@@ -140,7 +140,7 @@ try {
                         $data['address'],
                         $data['city'] ?? null,
                         $data['state'] ?? null,
-                        $data['zip'] ?? null,
+                        $data['zip_code'] ?? $data['zip'] ?? null,
                         $data['map_url'] ?? null,
                         $data['website'] ?? null,
                         $venue_id
@@ -153,7 +153,7 @@ try {
                     // Insert new fields
                     if (!empty($data['fields'])) {
                         $field_stmt = $db->prepare("
-                            INSERT INTO fields (venue_id, name, field_type, surface, size, lights, status)
+                            INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
                             VALUES (?, ?, ?, ?, ?, ?, ?)
                         ");
 
@@ -162,9 +162,9 @@ try {
                                 $venue_id,
                                 $field['name'],
                                 $field['field_type'] ?? 'Soccer',
-                                $field['surface'] ?? 'Grass',
-                                $field['size'] ?? null,
-                                $field['lights'] ?? false,
+                                $field['surface_type'] ?? $field['surface'] ?? 'Grass',
+                                $field['dimensions'] ?? $field['size'] ?? null,
+                                $field['has_lights'] ?? $field['lights'] ?? false,
                                 $field['status'] ?? 'available'
                             ]);
                         }

@@ -108,8 +108,8 @@ try {
                     INSERT INTO programs (
                         club_id, name, type, description,
                         start_date, end_date, registration_opens, registration_closes,
-                        min_age, max_age, capacity, status, embed_code
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_age, max_age, capacity, status, embed_code, registration_fee
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
 
                 $stmt->execute([
@@ -125,7 +125,8 @@ try {
                     !empty($data['max_age']) ? $data['max_age'] : null,
                     !empty($data['capacity']) ? $data['capacity'] : null,
                     $data['status'] ?? 'draft',
-                    $embed_code
+                    $embed_code,
+                    !empty($data['registration_fee']) ? $data['registration_fee'] : null
                 ]);
 
                 $program_id = $connection->lastInsertId();
@@ -211,7 +212,7 @@ try {
                     name = ?, type = ?, description = ?,
                     start_date = ?, end_date = ?,
                     registration_opens = ?, registration_closes = ?,
-                    min_age = ?, max_age = ?, capacity = ?, status = ?
+                    min_age = ?, max_age = ?, capacity = ?, status = ?, registration_fee = ?
                 WHERE id = ?
             ");
 
@@ -227,6 +228,7 @@ try {
                 !empty($data['max_age']) ? $data['max_age'] : null,
                 !empty($data['capacity']) ? $data['capacity'] : null,
                 $data['status'] ?? 'draft',
+                !empty($data['registration_fee']) ? $data['registration_fee'] : null,
                 $program_id
             ]);
 
