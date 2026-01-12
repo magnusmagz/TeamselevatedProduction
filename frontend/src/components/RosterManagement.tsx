@@ -23,9 +23,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const [loading, setLoading] = useState(true);
   const [availableAthletes, setAvailableAthletes] = useState<Athlete[]>([]);
   const [allAthletes, setAllAthletes] = useState<Athlete[]>([]);
-  const [showDragDropView, setShowDragDropView] = useState(true);
-  const [draggedItem, setDraggedItem] = useState<Athlete | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [addingAthleteId, setAddingAthleteId] = useState<number | null>(null);
 
   const fetchRoster = async () => {
     try {
@@ -93,46 +91,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, athlete: Athlete) => {
-    console.log('Drag started for athlete:', athlete);
-    setDraggedItem(athlete);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', athlete.id.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    setIsDragOver(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-
-    // Get athlete ID from dataTransfer (more reliable than React state)
-    const athleteId = e.dataTransfer.getData('text/plain');
-    console.log('Drop event triggered, athleteId from dataTransfer:', athleteId);
-
-    if (athleteId) {
-      const athlete = availableAthletes.find(a => a.id.toString() === athleteId);
-      if (athlete) {
-        console.log('Adding athlete to team:', athlete);
-        await addAthleteToTeam(athlete);
-      } else {
-        console.error('Athlete not found in availableAthletes:', athleteId);
-      }
-    }
-    setDraggedItem(null);
-  };
-
-  const addAthleteToTeam = async (athlete: Athlete) => {
+  const handleAddAthlete = async (athlete: Athlete) => {
+    setAddingAthleteId(athlete.id);
     try {
-      // Create team_player relationship
       const response = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,12 +105,14 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       });
 
       if (response.ok) {
-        fetchRoster();
+        await fetchRoster();
       } else {
         console.error('Failed to add athlete to team');
       }
     } catch (error) {
       console.error('Error adding athlete to team:', error);
+    } finally {
+      setAddingAthleteId(null);
     }
   };
 
@@ -177,16 +140,27 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               {availableAthletes.map((athlete) => (
                 <div
                   key={athlete.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, athlete)}
-                  className="bg-gray-50 border border-gray-300 p-3 cursor-move hover:bg-gray-100 transition-colors"
+                  className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100 transition-colors flex justify-between items-center"
                 >
-                  <div className="font-medium text-brand-primary">
-                    {athlete.first_name} {athlete.last_name}
+                  <div>
+                    <div className="font-medium text-brand-primary">
+                      {athlete.first_name} {athlete.last_name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {athlete.email}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {athlete.email}
-                  </div>
+                  <button
+                    onClick={() => handleAddAthlete(athlete)}
+                    disabled={addingAthleteId === athlete.id}
+                    className="bg-brand-primary text-white px-3 py-1 rounded text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {addingAthleteId === athlete.id ? (
+                      'Adding...'
+                    ) : (
+                      <>Add <span aria-hidden="true">→</span></>
+                    )}
+                  </button>
                 </div>
               ))}
               {availableAthletes.length === 0 && (
@@ -198,16 +172,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           </div>
 
           {/* Team Roster */}
-          <div
-            className={`bg-white border-2 p-4 transition-colors ${
-              isDragOver
-                ? 'border-brand-primary bg-brand-secondary'
-                : 'border-brand-primary'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
+          <div className="bg-white border-2 border-brand-primary p-4">
             <h3 className="text-xl font-bold text-brand-primary mb-4 uppercase tracking-wide">
               Team Roster ({roster.length} players)
             </h3>
@@ -236,12 +201,8 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                 </div>
               ))}
               {roster.length === 0 && (
-                <div className={`text-center py-8 border-2 border-dashed transition-colors ${
-                  isDragOver
-                    ? 'border-brand-primary text-brand-primary bg-brand-secondary'
-                    : 'border-gray-300 text-gray-500'
-                }`}>
-                  Drop athletes here to add them to the team
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 text-gray-500">
+                  Click "Add →" on an athlete to add them to the team
                 </div>
               )}
             </div>
