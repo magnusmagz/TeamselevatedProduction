@@ -298,19 +298,85 @@ try {
             $registration_id = $_GET['id'] ?? 0;
             $data = json_decode(file_get_contents("php://input"), true);
 
+            // Get registration details
             $stmt = $connection->prepare("
-                UPDATE registrations
-                SET status = ?, reviewed_at = NOW(), reviewed_by = ?
-                WHERE id = ?
+                SELECT r.*, p.registration_fee
+                FROM registrations r
+                JOIN programs p ON r.program_id = p.id
+                WHERE r.id = ?
             ");
+            $stmt->execute([$registration_id]);
+            $registration = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $stmt->execute([
-                $data['status'],
-                $data['reviewed_by'] ?? null,
-                $registration_id
-            ]);
+            if (!$registration) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Registration not found']);
+                exit();
+            }
 
-            echo json_encode(['success' => true, 'message' => 'Registration updated']);
+            $connection->beginTransaction();
+
+            try {
+                // Update registration status
+                $stmt = $connection->prepare("
+                    UPDATE registrations
+                    SET status = ?, reviewed_at = NOW(), reviewed_by = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([
+                    $data['status'],
+                    $data['reviewed_by'] ?? null,
+                    $registration_id
+                ]);
+
+                $athlete_payment_id = null;
+
+                // If approving, ensure athlete_payment exists
+                if ($data['status'] === 'approved') {
+                    // Check if athlete_payment already exists
+                    $stmt = $connection->prepare("
+                        SELECT id FROM athlete_payments
+                        WHERE athlete_id = ? AND program_id = ?
+                    ");
+                    $stmt->execute([$registration['athlete_id'], $registration['program_id']]);
+                    $existingPayment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($existingPayment) {
+                        $athlete_payment_id = $existingPayment['id'];
+                    } elseif ($registration['registration_fee'] && floatval($registration['registration_fee']) > 0) {
+                        // Create athlete_payment from program's registration_fee
+                        $fee = floatval($registration['registration_fee']);
+                        $stmt = $connection->prepare("
+                            INSERT INTO athlete_payments (
+                                athlete_id, payment_item_id, program_id,
+                                base_amount, discount_amount, scholarship_amount, final_amount,
+                                status, amount_paid, amount_remaining, created_at
+                            ) VALUES (?, NULL, ?, ?, 0, 0, ?, 'pending', 0, ?, NOW())
+                        ");
+                        $stmt->execute([
+                            $registration['athlete_id'],
+                            $registration['program_id'],
+                            $fee,
+                            $fee,
+                            $fee
+                        ]);
+                        $athlete_payment_id = $connection->lastInsertId();
+                    }
+                }
+
+                $connection->commit();
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Registration updated',
+                    'athlete_payment_id' => $athlete_payment_id
+                ]);
+
+            } catch (Exception $e) {
+                $connection->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => $e->getMessage()]);
+            }
             break;
 
         case 'DELETE':
