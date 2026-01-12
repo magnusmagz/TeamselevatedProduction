@@ -52,7 +52,7 @@ try {
 
             // Validate program exists and is open for registration
             $stmt = $connection->prepare("
-                SELECT id, status, registration_closes
+                SELECT id, status, registration_closes, registration_fee
                 FROM programs
                 WHERE id = ? AND status = 'published'
             ");
@@ -182,51 +182,61 @@ try {
                 $payment_amount = 0;
                 $sibling_discount = 0;
                 $sibling_discount_applied = false;
+                $payment_item_id = null;
 
+                // Use payment_item if exists, otherwise fall back to program's registration_fee
                 if ($paymentItem) {
                     $payment_amount = floatval($paymentItem['base_price']);
+                    $payment_item_id = $paymentItem['id'];
+                } elseif ($program['registration_fee']) {
+                    $payment_amount = floatval($program['registration_fee']);
+                }
 
-                    // Check for sibling discount
-                    // First, get sibling discount settings for this payment item
-                    $stmt = $connection->prepare("
-                        SELECT sibling_discount_enabled, sibling_discount_type, sibling_discount_value
-                        FROM payment_items WHERE id = ?
-                    ");
-                    $stmt->execute([$paymentItem['id']]);
-                    $discountSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($payment_amount > 0) {
+                    // Only process payment if there's a fee
 
-                    if ($discountSettings && $discountSettings['sibling_discount_enabled']) {
-                        // Find other athletes linked to the same guardian
+                    // Check for sibling discount (only if using payment_item with discount settings)
+                    if ($payment_item_id) {
                         $stmt = $connection->prepare("
-                            SELECT DISTINCT ag.athlete_id
-                            FROM athlete_guardians ag
-                            WHERE ag.guardian_id = ? AND ag.athlete_id != ?
+                            SELECT sibling_discount_enabled, sibling_discount_type, sibling_discount_value
+                            FROM payment_items WHERE id = ?
                         ");
-                        $stmt->execute([$guardian_id, $athlete_id]);
-                        $siblingIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        $stmt->execute([$payment_item_id]);
+                        $discountSettings = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                        if (!empty($siblingIds)) {
-                            // Check if any siblings are registered for the same program
-                            $placeholders = implode(',', array_fill(0, count($siblingIds), '?'));
+                        if ($discountSettings && $discountSettings['sibling_discount_enabled']) {
+                            // Find other athletes linked to the same guardian
                             $stmt = $connection->prepare("
-                                SELECT COUNT(*) FROM registrations
-                                WHERE program_id = ? AND athlete_id IN ($placeholders) AND status = 'approved'
+                                SELECT DISTINCT ag.athlete_id
+                                FROM athlete_guardians ag
+                                WHERE ag.guardian_id = ? AND ag.athlete_id != ?
                             ");
-                            $params = array_merge([$data['program_id']], $siblingIds);
-                            $stmt->execute($params);
-                            $registeredSiblingCount = $stmt->fetchColumn();
+                            $stmt->execute([$guardian_id, $athlete_id]);
+                            $siblingIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                            if ($registeredSiblingCount > 0) {
-                                // Apply sibling discount
-                                $discountType = $discountSettings['sibling_discount_type'];
-                                $discountValue = floatval($discountSettings['sibling_discount_value']);
+                            if (!empty($siblingIds)) {
+                                // Check if any siblings are registered for the same program
+                                $placeholders = implode(',', array_fill(0, count($siblingIds), '?'));
+                                $stmt = $connection->prepare("
+                                    SELECT COUNT(*) FROM registrations
+                                    WHERE program_id = ? AND athlete_id IN ($placeholders) AND status = 'approved'
+                                ");
+                                $params = array_merge([$data['program_id']], $siblingIds);
+                                $stmt->execute($params);
+                                $registeredSiblingCount = $stmt->fetchColumn();
 
-                                if ($discountType === 'percentage') {
-                                    $sibling_discount = round($payment_amount * ($discountValue / 100), 2);
-                                } else {
-                                    $sibling_discount = min($discountValue, $payment_amount);
+                                if ($registeredSiblingCount > 0) {
+                                    // Apply sibling discount
+                                    $discountType = $discountSettings['sibling_discount_type'];
+                                    $discountValue = floatval($discountSettings['sibling_discount_value']);
+
+                                    if ($discountType === 'percentage') {
+                                        $sibling_discount = round($payment_amount * ($discountValue / 100), 2);
+                                    } else {
+                                        $sibling_discount = min($discountValue, $payment_amount);
+                                    }
+                                    $sibling_discount_applied = true;
                                 }
-                                $sibling_discount_applied = true;
                             }
                         }
                     }
@@ -243,7 +253,7 @@ try {
                     ");
                     $stmt->execute([
                         $athlete_id,
-                        $paymentItem['id'],
+                        $payment_item_id,  // Can be null if using program's registration_fee
                         $data['program_id'],
                         $payment_amount,
                         $sibling_discount,
