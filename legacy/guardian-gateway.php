@@ -120,6 +120,11 @@ try {
                 }
 
                 // Link guardian to athlete
+                // Convert boolean values properly for PostgreSQL
+                $isPrimary = filter_var($input['is_primary_contact'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $canPickup = filter_var($input['can_pickup'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                $emergencyContact = filter_var($input['emergency_contact'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                 $stmt = $pdo->prepare("
                     INSERT INTO athlete_guardians (
                         athlete_id, guardian_id, relationship,
@@ -130,9 +135,9 @@ try {
                     $athleteId,
                     $guardianId,
                     $relationship_type,
-                    $input['is_primary_contact'] ?? false,
-                    $input['can_pickup'] ?? true,
-                    $input['emergency_contact'] ?? false
+                    $isPrimary,
+                    $canPickup,
+                    $emergencyContact
                 ]);
 
                 $pdo->commit();
