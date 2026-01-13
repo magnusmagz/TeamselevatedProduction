@@ -101,7 +101,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
       last_name: '',
       email: '',
       mobile_phone: '',
-      relationship_type: 'Mother'
+      relationship_type: 'Parent'
     },
     emergency_contacts: [{
       contact_name: '',
@@ -643,10 +643,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       onChange={(e) => handleGuardianChange('relationship_type', e.target.value)}
                       required
                     >
-                      <option value="Mother">Mother</option>
-                      <option value="Father">Father</option>
-                      <option value="Stepparent">Stepparent</option>
-                      <option value="Grandparent">Grandparent</option>
+                      <option value="Parent">Parent</option>
                       <option value="Guardian">Guardian</option>
                       <option value="Other">Other</option>
                     </select>

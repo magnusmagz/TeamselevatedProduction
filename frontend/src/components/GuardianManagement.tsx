@@ -39,7 +39,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
     email: '',
     mobile_phone: '',
     work_phone: '',
-    relationship_type: 'Mother',
+    relationship_type: 'Parent',
     is_primary_contact: false,
     has_legal_custody: true,
     can_authorize_medical: true,
@@ -77,7 +77,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
           email: '',
           mobile_phone: '',
           work_phone: '',
-          relationship_type: 'Mother',
+          relationship_type: 'Parent',
           is_primary_contact: false,
           has_legal_custody: true,
           can_authorize_medical: true,
@@ -454,10 +454,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                       onChange={(e) => handleChange('relationship_type', e.target.value)}
                       required
                     >
-                      <option value="Mother">Mother</option>
-                      <option value="Father">Father</option>
-                      <option value="Stepparent">Stepparent</option>
-                      <option value="Grandparent">Grandparent</option>
+                      <option value="Parent">Parent</option>
                       <option value="Guardian">Guardian</option>
                       <option value="Other">Other</option>
                     </select>
