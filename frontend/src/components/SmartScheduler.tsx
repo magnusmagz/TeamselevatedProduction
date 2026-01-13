@@ -34,6 +34,8 @@ interface SmartSchedulerProps {
 }
 
 const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+
   // State
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<number | null>(null);
@@ -74,27 +76,19 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
   const fetchVenues = async () => {
     try {
-      // Mock venues for demo
-      const mockVenues = [
-        {
-          id: 1,
-          name: 'Main Sports Complex',
-          fields: [
-            { id: 1, name: 'Field 1', venue_id: 1 },
-            { id: 2, name: 'Field 2', venue_id: 1 },
-            { id: 3, name: 'Field 3', venue_id: 1 }
-          ]
-        },
-        {
-          id: 2,
-          name: 'Community Park',
-          fields: [
-            { id: 4, name: 'North Field', venue_id: 2 },
-            { id: 5, name: 'South Field', venue_id: 2 }
-          ]
-        }
-      ];
-      setVenues(mockVenues);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const venueData = await response.json();
+
+      // Fetch fields for each venue
+      const venuesWithFields = await Promise.all(
+        venueData.map(async (venue: Venue) => {
+          const fieldResponse = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
+          const venueDetails = await fieldResponse.json();
+          return venueDetails;
+        })
+      );
+
+      setVenues(venuesWithFields);
     } catch (error) {
       console.error('Error fetching venues:', error);
     }
