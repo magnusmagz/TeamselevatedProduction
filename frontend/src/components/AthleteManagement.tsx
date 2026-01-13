@@ -153,6 +153,29 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     }
   };
 
+  const handleArchiveAthlete = async (athlete: Athlete) => {
+    if (!window.confirm(`Are you sure you want to archive ${athlete.first_name} ${athlete.last_name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        fetchAthletes();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to archive athlete');
+      }
+    } catch (error) {
+      console.error('Error archiving athlete:', error);
+      alert('Error archiving athlete');
+    }
+  };
+
   const calculateAge = (dob: string) => {
     if (!dob || dob === 'null' || dob === 'undefined') {
       return null;
@@ -206,6 +229,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
               handleAddAthlete={handleAddAthlete}
               handleEditAthlete={handleEditAthlete}
               handleManageGuardians={handleManageGuardians}
+              handleArchiveAthlete={handleArchiveAthlete}
               calculateAge={calculateAge}
               athleteTeams={athleteTeams}
               showTeamSelector={showTeamSelector}
@@ -258,6 +282,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         handleAddAthlete={handleAddAthlete}
         handleEditAthlete={handleEditAthlete}
         handleManageGuardians={handleManageGuardians}
+        handleArchiveAthlete={handleArchiveAthlete}
         calculateAge={calculateAge}
         athleteTeams={athleteTeams}
         showTeamSelector={showTeamSelector}
@@ -307,6 +332,7 @@ const AthleteListContent: React.FC<{
   handleAddAthlete: () => void;
   handleEditAthlete: (athlete: Athlete) => void;
   handleManageGuardians: (athlete: Athlete) => void;
+  handleArchiveAthlete: (athlete: Athlete) => void;
   calculateAge: (dob: string) => number | null;
   athleteTeams: { [key: number]: string[] };
   showTeamSelector: number | null;
@@ -325,6 +351,7 @@ const AthleteListContent: React.FC<{
   handleAddAthlete,
   handleEditAthlete,
   handleManageGuardians,
+  handleArchiveAthlete,
   calculateAge,
   athleteTeams,
   showTeamSelector,
@@ -522,6 +549,12 @@ const AthleteListContent: React.FC<{
                         className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleArchiveAthlete(athlete)}
+                        className="text-red-600 hover:text-red-800 uppercase text-xs font-semibold text-left"
+                      >
+                        Archive
                       </button>
                     </div>
                   </td>
