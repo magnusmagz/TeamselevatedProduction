@@ -78,7 +78,7 @@ interface AthleteFormProps {
 }
 
 const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose }) => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<AthleteFormData>({
     first_name: '',
@@ -139,10 +139,53 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
       setFormData({
         ...athlete,
         guardian: athlete.guardians?.[0] || formData.guardian,
-        emergency_contacts: athlete.emergency_contacts || formData.emergency_contacts
+        emergency_contacts: athlete.emergency_contacts || formData.emergency_contacts,
+        medical: athlete.medical || formData.medical
       });
+
+      // Fetch medical data if editing existing athlete
+      if (athlete.id) {
+        fetchMedicalData(athlete.id);
+      }
     }
   }, [athlete]);
+
+  const fetchMedicalData = async (athleteId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`);
+      const data = await response.json();
+      if (data.success && data.medical && data.medical.exists) {
+        setFormData(prev => ({
+          ...prev,
+          medical: {
+            allergies: data.medical.allergies || '',
+            allergy_severity: data.medical.allergy_severity || 'none',
+            medical_conditions: data.medical.medical_conditions || '',
+            medications: data.medical.medications || '',
+            has_asthma: data.medical.has_asthma || false,
+            inhaler_location: data.medical.inhaler_location || '',
+            has_epipen: data.medical.has_epipen || false,
+            epipen_location: data.medical.epipen_location || '',
+            physician_name: data.medical.physician_name || '',
+            physician_phone: data.medical.physician_phone || '',
+            physician_address: data.medical.physician_address || '',
+            insurance_provider: data.medical.insurance_provider || '',
+            insurance_policy_number: data.medical.insurance_policy_number || '',
+            insurance_group_number: data.medical.insurance_group_number || '',
+            last_physical_date: data.medical.last_physical_date || '',
+            physical_expiry_date: data.medical.physical_expiry_date || '',
+            height_inches: data.medical.height_inches || undefined,
+            weight_lbs: data.medical.weight_lbs || undefined,
+            blood_type: data.medical.blood_type || '',
+            emergency_treatment_consent: data.medical.emergency_treatment_consent ?? true,
+            special_instructions: data.medical.special_instructions || ''
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching medical data:', error);
+    }
+  };
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({
