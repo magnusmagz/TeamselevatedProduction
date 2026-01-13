@@ -552,7 +552,7 @@ const AthleteListContent: React.FC<{
                       </button>
                       <button
                         onClick={() => handleArchiveAthlete(athlete)}
-                        className="text-red-600 hover:text-red-800 uppercase text-xs font-semibold text-left"
+                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
                       >
                         Archive
                       </button>
