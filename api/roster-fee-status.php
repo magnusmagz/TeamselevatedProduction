@@ -23,6 +23,7 @@ try {
     $program_id = $_GET['program_id'] ?? null;
     $team_id = $_GET['team_id'] ?? null;
     $league_id = $_GET['league_id'] ?? null;
+    $club_id = $_GET['club_id'] ?? null;
     $status_filter = $_GET['status'] ?? null; // paid, partial, unpaid, all
 
     // Build query based on grouping
@@ -139,8 +140,46 @@ try {
         $params = ['league_id' => $league_id];
         $programName = 'All Programs';
 
+    } elseif ($club_id) {
+        // Get all athletes in club with payment status
+        $query = "
+            SELECT
+                a.id as athlete_id,
+                a.first_name,
+                a.last_name,
+                a.date_of_birth,
+                g.first_name as guardian_first,
+                g.last_name as guardian_last,
+                g.email as guardian_email,
+                g.mobile_phone as guardian_phone,
+                COALESCE(SUM(ap.final_amount), 0) as total_owed,
+                COALESCE(SUM(ap.amount_paid), 0) as total_paid,
+                COALESCE(SUM(ap.amount_remaining), 0) as total_remaining,
+                CASE
+                    WHEN COALESCE(SUM(ap.amount_remaining), 0) = 0 AND COALESCE(SUM(ap.final_amount), 0) > 0 THEN 'paid'
+                    WHEN COALESCE(SUM(ap.amount_paid), 0) > 0 THEN 'partial'
+                    ELSE 'unpaid'
+                END as payment_status,
+                COUNT(DISTINCT ap.program_id) as program_count
+            FROM athletes a
+            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
+            LEFT JOIN guardians g ON ag.guardian_id = g.id
+            LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
+            LEFT JOIN programs p ON ap.program_id = p.id
+            WHERE p.club_id = :club_id
+            GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
+                     g.first_name, g.last_name, g.email, g.mobile_phone
+            ORDER BY a.last_name, a.first_name
+        ";
+        $params = ['club_id' => $club_id];
+
+        // Get club name for context
+        $clubStmt = $pdo->prepare("SELECT name FROM clubs WHERE id = :id");
+        $clubStmt->execute(['id' => $club_id]);
+        $programName = $clubStmt->fetchColumn() ?: 'All Athletes';
+
     } else {
-        throw new Exception('program_id, team_id, or league_id is required');
+        throw new Exception('program_id, team_id, league_id, or club_id is required');
     }
 
     $stmt = $pdo->prepare($query);
