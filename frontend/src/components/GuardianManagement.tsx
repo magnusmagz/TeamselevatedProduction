@@ -30,7 +30,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
   onUpdate,
   onClose
 }) => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
   const [formData, setFormData] = useState<Guardian>({
