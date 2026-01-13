@@ -89,7 +89,7 @@ try {
                 $params = [];
 
                 if ($search) {
-                    $query .= " AND t.name LIKE ?";
+                    $query .= " AND t.name ILIKE ?";
                     $params[] = "%$search%";
                 }
 
