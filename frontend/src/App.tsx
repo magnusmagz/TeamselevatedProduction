@@ -8,6 +8,8 @@ import BrandingLogo from './components/BrandingLogo';
 import ProfileMenu from './components/ProfileMenu';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
+import ProtectedSuperAdminRoute from './components/ProtectedSuperAdminRoute';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import { ChatWidget } from './components/chat';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -146,6 +148,9 @@ function AppContent() {
                     {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
                     <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
                     <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
+                    {user?.system_role === 'super_admin' && (
+                      <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
+                    )}
                   </>
                 ) : (
                   <>
@@ -154,6 +159,9 @@ function AppContent() {
                     <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
                     {/* Documents hidden for later development */}
                     {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
+                    {user?.system_role === 'super_admin' && (
+                      <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
+                    )}
                   </>
                 )}
               </div>
@@ -347,6 +355,13 @@ function AppContent() {
 
           {/* Real payment page - public, fetches invoice by ID */}
           <Route path="/pay/:invoiceId" element={<PaymentPage />} />
+
+          {/* Super Admin route */}
+          <Route path="/super-admin" element={
+            <ProtectedSuperAdminRoute>
+              <SuperAdminDashboard />
+            </ProtectedSuperAdminRoute>
+          } />
         </Routes>
 
         {/* Chat Widget - only visible when logged in */}
