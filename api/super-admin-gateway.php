@@ -56,6 +56,10 @@ try {
             handleGetUsers($pdo);
             break;
 
+        case 'athletes':
+            handleGetAthletes($pdo);
+            break;
+
         case 'user-details':
             $userId = $_GET['id'] ?? null;
             if (!$userId) {
@@ -386,5 +390,52 @@ function handleRemoveClubAccess($pdo, $userId, $clubId) {
     }
 
     echo json_encode(['success' => true, 'message' => 'User removed from club']);
+}
+
+/**
+ * Get all athletes with club and team info
+ */
+function handleGetAthletes($pdo) {
+    $search = $_GET['search'] ?? '';
+
+    $sql = "
+        SELECT
+            a.id,
+            a.first_name,
+            a.last_name,
+            a.email,
+            a.date_of_birth,
+            a.gender,
+            a.active_status,
+            a.created_at,
+            c.id as club_id,
+            c.name as club_name,
+            (
+                SELECT string_agg(t.name, ', ' ORDER BY t.name)
+                FROM team_members tm
+                JOIN teams t ON tm.team_id = t.id
+                WHERE tm.athlete_id = a.id
+            ) as team_names
+        FROM athletes a
+        LEFT JOIN club_profile c ON a.club_id = c.id
+        WHERE 1=1
+    ";
+
+    $params = [];
+
+    if ($search) {
+        $sql .= " AND (a.first_name ILIKE ? OR a.last_name ILIKE ? OR a.email ILIKE ?)";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+    }
+
+    $sql .= " ORDER BY a.last_name ASC, a.first_name ASC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode(['success' => true, 'athletes' => $athletes]);
 }
 ?>

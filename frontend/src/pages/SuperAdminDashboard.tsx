@@ -4,10 +4,11 @@ import ClubsList from '../components/superadmin/ClubsList';
 import ClubDetails from '../components/superadmin/ClubDetails';
 import UsersList from '../components/superadmin/UsersList';
 import UserDetails from '../components/superadmin/UserDetails';
+import AthletesList from '../components/superadmin/AthletesList';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
-type Tab = 'overview' | 'clubs' | 'users';
+type Tab = 'overview' | 'clubs' | 'users' | 'athletes';
 
 interface Stats {
   total_clubs: number;
@@ -83,6 +84,20 @@ interface ClubRole {
   club_name: string;
 }
 
+interface Athlete {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  active_status: boolean;
+  created_at: string;
+  club_id: number | null;
+  club_name: string | null;
+  team_names: string | null;
+}
+
 const SuperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
@@ -104,6 +119,10 @@ const SuperAdminDashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserDetailData | null>(null);
   const [userClubRoles, setUserClubRoles] = useState<ClubRole[]>([]);
   const [userDetailsLoading, setUserDetailsLoading] = useState(false);
+
+  // Athletes state
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [athletesLoading, setAthletesLoading] = useState(false);
 
   const getAuthHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -207,6 +226,25 @@ const SuperAdminDashboard: React.FC = () => {
     }
   }, []);
 
+  // Fetch athletes
+  const fetchAthletes = useCallback(async (search = '') => {
+    setAthletesLoading(true);
+    try {
+      const url = search
+        ? `${API_URL}/api/super-admin-gateway.php?action=athletes&search=${encodeURIComponent(search)}`
+        : `${API_URL}/api/super-admin-gateway.php?action=athletes`;
+      const response = await fetch(url, { headers: getAuthHeaders() });
+      const data = await response.json();
+      if (data.success) {
+        setAthletes(data.athletes);
+      }
+    } catch (error) {
+      console.error('Error fetching athletes:', error);
+    } finally {
+      setAthletesLoading(false);
+    }
+  }, []);
+
   // Update system role
   const handleToggleSuperAdmin = async (userId: number, makeSuperAdmin: boolean) => {
     try {
@@ -301,13 +339,16 @@ const SuperAdminDashboard: React.FC = () => {
       fetchClubs();
     } else if (activeTab === 'users' && users.length === 0) {
       fetchUsers();
+    } else if (activeTab === 'athletes' && athletes.length === 0) {
+      fetchAthletes();
     }
-  }, [activeTab, clubs.length, users.length, fetchClubs, fetchUsers]);
+  }, [activeTab, clubs.length, users.length, athletes.length, fetchClubs, fetchUsers, fetchAthletes]);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'clubs', label: 'Clubs' },
     { key: 'users', label: 'Users' },
+    { key: 'athletes', label: 'Athletes' },
   ];
 
   return (
@@ -358,6 +399,14 @@ const SuperAdminDashboard: React.FC = () => {
           onViewDetails={fetchUserDetails}
           onToggleSuperAdmin={handleToggleSuperAdmin}
           onSearch={fetchUsers}
+        />
+      )}
+
+      {activeTab === 'athletes' && (
+        <AthletesList
+          athletes={athletes}
+          loading={athletesLoading}
+          onSearch={fetchAthletes}
         />
       )}
 
