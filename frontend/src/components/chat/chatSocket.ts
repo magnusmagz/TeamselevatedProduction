@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { ChatScope } from './ChatWidget';
 
-const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'http://localhost:5001';
+// Chat server URL - production Heroku app, localhost fallback for development
+const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'https://teamselevated-chat-a1a81c3e1a90.herokuapp.com';
 
 let socket: Socket | null = null;
 let currentScope: ChatScope | null = null;

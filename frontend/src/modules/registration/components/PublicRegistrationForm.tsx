@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Program, FormField } from '../types';
 
 interface PaymentItem {
@@ -17,7 +16,6 @@ interface PublicRegistrationFormProps {
 
 const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCode, embedded = false }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
-  const navigate = useNavigate();
   const [program, setProgram] = useState<Program | null>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -132,13 +130,8 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // If there's a payment required, redirect to checkout
-        if (result.athlete_payment_id && result.payment_amount > 0) {
-          navigate(`/payment/checkout/${result.athlete_id}/${result.athlete_payment_id}`);
-        } else {
-          // No payment required, show success
-          setSubmitted(true);
-        }
+        // Always show success/thank you message - registration is pending approval
+        setSubmitted(true);
       } else {
         console.error('Registration error:', result);
         alert(`Error: ${result.error || 'An error occurred. Please try again.'}`);
@@ -294,12 +287,29 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
   if (submitted) {
     return (
-      <div className="bg-white border border-brand-secondary rounded-md p-8 text-center">
-        <h2 className="text-2xl font-bold text-brand-primary mb-4">Registration Submitted!</h2>
-        <p className="text-gray-600">
-          Thank you for registering for {program.name}.
-          You will receive a confirmation email shortly.
-        </p>
+      <div className={embedded ? '' : 'min-h-screen bg-gray-50 py-8'}>
+        <div className={embedded ? '' : 'max-w-2xl mx-auto px-4'}>
+          <div className="bg-white border border-brand-secondary rounded-md p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-brand-primary mb-4">Registration Submitted!</h2>
+            <p className="text-gray-600 mb-4">
+              Thank you for registering for <span className="font-semibold">{program.name}</span>.
+            </p>
+            <div className="bg-gray-50 rounded-md p-4 mb-4">
+              <p className="text-gray-700 text-sm">
+                Your registration is now <span className="font-semibold text-amber-600">pending review</span>.
+                Once approved, you will receive an email with payment instructions and a link to complete your registration.
+              </p>
+            </div>
+            <p className="text-gray-500 text-sm">
+              If you have any questions, please contact the program administrator.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -377,7 +387,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
                 disabled={submitting}
                 className="bg-brand-primary text-white px-8 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : (registrationFee > 0 ? 'Continue to Payment' : 'Submit Registration')}
+                {submitting ? 'Submitting...' : 'Submit Registration'}
               </button>
             </div>
           </form>

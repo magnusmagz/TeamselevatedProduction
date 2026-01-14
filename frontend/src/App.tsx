@@ -142,7 +142,8 @@ function AppContent() {
                     <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
                     <Link to="/coaches" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Coaches</Link>
                     <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
-                    <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link>
+                    {/* Documents hidden for later development */}
+                    {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
                     <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
                     <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
                   </>
@@ -151,7 +152,8 @@ function AppContent() {
                     <Link to="/dashboard" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">My Teams</Link>
                     <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
                     <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
-                    <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link>
+                    {/* Documents hidden for later development */}
+                    {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
                   </>
                 )}
               </div>

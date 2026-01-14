@@ -45,7 +45,7 @@ interface CalendarDay {
 type ViewMode = 'month' | 'week' | 'schedule';
 
 const TeamCalendar: React.FC = () => {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [practices, setPractices] = useState<Practice[]>([]);

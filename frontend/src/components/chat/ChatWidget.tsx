@@ -32,7 +32,12 @@ interface TypingUser {
 
 export default function ChatWidget() {
   const { user } = useAuth();
-  const { activeContext, currentClubId } = useOrg();
+  const { activeContext, currentClubId, isClubAdmin } = useOrg();
+
+  // Check if user is a coach or admin (only they can use chat)
+  const isCoachOrAdmin = isClubAdmin ||
+    activeContext?.role === 'coach' ||
+    activeContext?.role === 'club_admin';
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -200,8 +205,8 @@ export default function ChatWidget() {
     });
   }, [user, activeChannel]);
 
-  // Don't render if no user
-  if (!user) return null;
+  // Don't render if no user or user is not a coach/admin
+  if (!user || !isCoachOrAdmin) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
@@ -218,7 +223,7 @@ export default function ChatWidget() {
 
           {/* Unread badge */}
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 bg-brand-secondary text-brand-primary text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border border-brand-primary">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}

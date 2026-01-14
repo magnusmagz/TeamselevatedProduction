@@ -31,7 +31,7 @@ export default function ChatScopeSelector({
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
   // Fetch teams when dropdown opens
   useEffect(() => {
