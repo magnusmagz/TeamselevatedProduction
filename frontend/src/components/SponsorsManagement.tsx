@@ -51,6 +51,23 @@ const SponsorsManagement: React.FC = () => {
 
   const [formData, setFormData] = useState<Sponsor>(emptyFormData);
 
+  // Auto-prefix URLs with https:// if missing
+  const normalizeUrl = (url: string): string => {
+    if (!url || url.trim() === '') return '';
+    const trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
+  const handleUrlBlur = (field: keyof Sponsor) => {
+    const value = formData[field];
+    if (typeof value === 'string' && value) {
+      setFormData({ ...formData, [field]: normalizeUrl(value) });
+    }
+  };
+
   useEffect(() => {
     if (currentClubId) {
       fetchSponsors();
@@ -343,11 +360,12 @@ const SponsorsManagement: React.FC = () => {
                         Website
                       </label>
                       <input
-                        type="url"
+                        type="text"
                         className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                         value={formData.website || ''}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                        placeholder="https://example.com"
+                        onBlur={() => handleUrlBlur('website')}
+                        placeholder="example.com"
                       />
                     </div>
 
@@ -466,11 +484,12 @@ const SponsorsManagement: React.FC = () => {
                           Link 1 URL
                         </label>
                         <input
-                          type="url"
+                          type="text"
                           className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.link_1_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_1_url: e.target.value })}
-                          placeholder="https://..."
+                          onBlur={() => handleUrlBlur('link_1_url')}
+                          placeholder="example.com/page"
                         />
                       </div>
                     </div>
@@ -494,11 +513,12 @@ const SponsorsManagement: React.FC = () => {
                           Link 2 URL
                         </label>
                         <input
-                          type="url"
+                          type="text"
                           className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.link_2_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_2_url: e.target.value })}
-                          placeholder="https://..."
+                          onBlur={() => handleUrlBlur('link_2_url')}
+                          placeholder="example.com/page"
                         />
                       </div>
                     </div>
@@ -522,11 +542,12 @@ const SponsorsManagement: React.FC = () => {
                           Link 3 URL
                         </label>
                         <input
-                          type="url"
+                          type="text"
                           className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
                           value={formData.link_3_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_3_url: e.target.value })}
-                          placeholder="https://..."
+                          onBlur={() => handleUrlBlur('link_3_url')}
+                          placeholder="example.com/page"
                         />
                       </div>
                     </div>

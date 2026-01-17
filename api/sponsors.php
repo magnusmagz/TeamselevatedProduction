@@ -16,6 +16,18 @@ $db = $database->getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Helper function to normalize URLs
+function normalizeUrl($url) {
+    if (empty($url) || trim($url) === '') {
+        return null;
+    }
+    $url = trim($url);
+    if (!preg_match('/^https?:\/\//i', $url)) {
+        return 'https://' . $url;
+    }
+    return $url;
+}
+
 try {
     switch ($method) {
         case 'GET':
@@ -91,18 +103,18 @@ try {
             $stmt->execute([
                 $data['club_id'],
                 $data['name'],
-                $data['website'] ?? null,
+                normalizeUrl($data['website'] ?? null),
                 $data['contact_name'] ?? null,
                 $data['contact_email'] ?? null,
                 $data['contact_phone'] ?? null,
                 $data['logo_data'] ?? null,
                 $data['logo_filename'] ?? null,
                 $data['link_1_label'] ?? null,
-                $data['link_1_url'] ?? null,
+                normalizeUrl($data['link_1_url'] ?? null),
                 $data['link_2_label'] ?? null,
-                $data['link_2_url'] ?? null,
+                normalizeUrl($data['link_2_url'] ?? null),
                 $data['link_3_label'] ?? null,
-                $data['link_3_url'] ?? null,
+                normalizeUrl($data['link_3_url'] ?? null),
                 $displayOrder,
                 $data['is_active'] ?? true,
                 $data['created_by'] ?? null
@@ -177,18 +189,18 @@ try {
 
             $stmt->execute([
                 $data['name'],
-                $data['website'] ?? null,
+                normalizeUrl($data['website'] ?? null),
                 $data['contact_name'] ?? null,
                 $data['contact_email'] ?? null,
                 $data['contact_phone'] ?? null,
                 $data['logo_data'] ?? null,
                 $data['logo_filename'] ?? null,
                 $data['link_1_label'] ?? null,
-                $data['link_1_url'] ?? null,
+                normalizeUrl($data['link_1_url'] ?? null),
                 $data['link_2_label'] ?? null,
-                $data['link_2_url'] ?? null,
+                normalizeUrl($data['link_2_url'] ?? null),
                 $data['link_3_label'] ?? null,
-                $data['link_3_url'] ?? null,
+                normalizeUrl($data['link_3_url'] ?? null),
                 $data['is_active'] ?? true,
                 $data['updated_by'] ?? null,
                 $data['id']
