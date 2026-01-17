@@ -27,6 +27,7 @@ import CoachManagement from './components/CoachManagement';
 // import SeasonsPage from './components/SeasonsPage';  // Replaced with unified ProgramManagement
 import UnifiedProgramManagement from './components/ProgramManagement';
 import VenueManagement from './components/VenueManagement';
+import SponsorsManagement from './components/SponsorsManagement';
 import ClubProfilePage from './pages/ClubProfilePage';
 import TeamCalendar from './components/TeamCalendar';
 import RosterManagement from './components/RosterManagement';
@@ -147,6 +148,7 @@ function AppContent() {
                     {/* Documents hidden for later development */}
                     {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
                     <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
+                    <Link to="/sponsors" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Sponsors</Link>
                     <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
                     {user?.system_role === 'super_admin' && (
                       <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
@@ -260,6 +262,13 @@ function AppContent() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <VenueManagement />
             </main>
+          } />
+          <Route path="/sponsors" element={
+            <ProtectedRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <SponsorsManagement />
+              </main>
+            </ProtectedRoute>
           } />
           <Route path="/club-profile" element={<ClubProfilePage />} />
           <Route path="/program-management" element={<ProgramManagement />} />
