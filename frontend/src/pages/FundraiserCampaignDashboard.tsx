@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
 
+interface CampaignUpdate {
+  id: number;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
 interface Campaign {
   id: number;
   club_id: number;
@@ -24,6 +31,7 @@ interface Campaign {
   progress_percent: number;
   days_remaining: number;
   is_active: boolean;
+  updates?: CampaignUpdate[];
 }
 
 interface Donation {
@@ -473,7 +481,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {campaign.updates?.map((update: any) => (
+                      {campaign.updates?.map((update) => (
                         <div key={update.id} className="border-l-4 border-brand-primary pl-4 py-2">
                           <h4 className="font-medium text-gray-900">{update.title}</h4>
                           <p className="text-sm text-gray-500 mb-2">{formatDate(update.created_at)}</p>
