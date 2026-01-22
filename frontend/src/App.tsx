@@ -57,6 +57,57 @@ import { FamilyInvoices } from './pages/FamilyInvoices';
 import { DemoPaymentPage } from './pages/DemoPaymentPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
+// Fundraiser Campaign pages
+import { FundraiserCampaign } from './pages/FundraiserCampaign';
+import { DonationSuccess } from './pages/DonationSuccess';
+import { FundraiserCampaignsList } from './pages/FundraiserCampaignsList';
+import { FundraiserCampaignForm } from './pages/FundraiserCampaignForm';
+import { FundraiserCampaignDashboard } from './pages/FundraiserCampaignDashboard';
+
+// Fundraiser Admin Wrapper Component
+const FundraiserAdminWrapper: React.FC<{ children: (props: { clubId: number; clubSlug: string; userId: number }) => React.ReactNode }> = ({ children }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const { user } = useAuth();
+  const { currentClubId } = useOrg();
+  const [clubSlug, setClubSlug] = React.useState<string>('');
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchClubSlug = async () => {
+      if (!currentClubId) return;
+      try {
+        const response = await fetch(`${API_URL}/api/clubs.php?action=get&id=${currentClubId}`);
+        const data = await response.json();
+        if (data.slug) {
+          setClubSlug(data.slug);
+        }
+      } catch (error) {
+        console.error('Error fetching club slug:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClubSlug();
+  }, [currentClubId, API_URL]);
+
+  if (!currentClubId || !user) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center text-gray-500 py-12">Please select a club to manage fundraisers.</div>
+      </main>
+    );
+  }
+
+  if (loading) {
+    return (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center text-brand-primary py-12">Loading...</div>
+      </main>
+    );
+  }
+
+  return <>{children({ clubId: currentClubId, clubSlug, userId: user.id })}</>;
+};
 
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
@@ -149,6 +200,7 @@ function AppContent() {
                     {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
                     <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
                     <Link to="/sponsors" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Sponsors</Link>
+                    <Link to="/admin/fundraisers" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Fundraisers</Link>
                     <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
                     {user?.system_role === 'super_admin' && (
                       <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
@@ -364,6 +416,56 @@ function AppContent() {
 
           {/* Real payment page - public, fetches invoice by ID */}
           <Route path="/pay/:invoiceId" element={<PaymentPage />} />
+
+          {/* Fundraiser Campaign routes - public */}
+          <Route path="/donate/:clubSlug/campaign/:campaignSlug" element={<FundraiserCampaign />} />
+          <Route path="/donate/thank-you/:donationId" element={<DonationSuccess />} />
+
+          {/* Fundraiser Campaign routes - admin */}
+          <Route path="/admin/fundraisers" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <FundraiserAdminWrapper>
+                {({ clubId, clubSlug }) => (
+                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <FundraiserCampaignsList clubId={clubId} clubSlug={clubSlug} />
+                  </main>
+                )}
+              </FundraiserAdminWrapper>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/admin/fundraisers/new" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <FundraiserAdminWrapper>
+                {({ clubId, clubSlug, userId }) => (
+                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <FundraiserCampaignForm clubId={clubId} clubSlug={clubSlug} userId={userId} />
+                  </main>
+                )}
+              </FundraiserAdminWrapper>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/admin/fundraisers/:id" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <FundraiserAdminWrapper>
+                {({ clubSlug, userId }) => (
+                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <FundraiserCampaignDashboard clubSlug={clubSlug} userId={userId} />
+                  </main>
+                )}
+              </FundraiserAdminWrapper>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/admin/fundraisers/:id/edit" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <FundraiserAdminWrapper>
+                {({ clubId, clubSlug, userId }) => (
+                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <FundraiserCampaignForm clubId={clubId} clubSlug={clubSlug} userId={userId} />
+                  </main>
+                )}
+              </FundraiserAdminWrapper>
+            </ProtectedFinancialRoute>
+          } />
 
           {/* Super Admin route */}
           <Route path="/super-admin" element={

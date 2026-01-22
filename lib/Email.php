@@ -628,4 +628,128 @@ HTML;
 
         return $text;
     }
+
+    /**
+     * Send donation receipt email
+     *
+     * @param string $to Recipient email
+     * @param string $donorName Donor's name
+     * @param float $amount Donation amount
+     * @param string $campaignTitle Campaign title
+     * @param string $clubName Club name
+     * @param int $donationId Donation ID for reference
+     * @param string $transactionId Payment transaction ID
+     * @return bool Success status
+     */
+    public function sendDonationReceipt($to, $donorName, $amount, $campaignTitle, $clubName, $donationId, $transactionId) {
+        $subject = "Thank you for your donation to $campaignTitle";
+
+        $amountFormatted = '$' . number_format($amount, 2);
+        $date = date('F j, Y');
+
+        $htmlBody = $this->getDonationReceiptTemplate($donorName, $amountFormatted, $campaignTitle, $clubName, $donationId, $transactionId, $date);
+        $textBody = "Thank you for your donation!\n\n" .
+                    "Dear $donorName,\n\n" .
+                    "Thank you for your generous donation of $amountFormatted to $campaignTitle.\n\n" .
+                    "Donation Details:\n" .
+                    "- Amount: $amountFormatted\n" .
+                    "- Campaign: $campaignTitle\n" .
+                    "- Organization: $clubName\n" .
+                    "- Date: $date\n" .
+                    "- Reference #: DON-$donationId\n" .
+                    "- Transaction ID: $transactionId\n\n" .
+                    "Your support makes a real difference. Thank you for being part of our community!\n\n" .
+                    "Best regards,\n" .
+                    "$clubName\n" .
+                    "via Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * Donation receipt email template
+     */
+    private function getDonationReceiptTemplate($donorName, $amount, $campaignTitle, $clubName, $donationId, $transactionId, $date) {
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .receipt-box { background: white; border: 2px solid #12443E; border-radius: 8px; padding: 25px; margin: 20px 0; }
+        .receipt-header { text-align: center; border-bottom: 2px dashed #ddd; padding-bottom: 15px; margin-bottom: 15px; }
+        .receipt-header h2 { color: #12443E; margin: 0; }
+        .amount-display { font-size: 36px; color: #12443E; font-weight: bold; text-align: center; margin: 20px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .detail-label { color: #666; }
+        .detail-value { font-weight: 500; }
+        .thank-you { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Thank You!</h1>
+            <p style="margin: 0; opacity: 0.9;">Your donation has been received</p>
+        </div>
+        <div class="content">
+            <p>Dear {$donorName},</p>
+            <p>Thank you for your generous donation to <strong>{$campaignTitle}</strong>. Your support means the world to us!</p>
+
+            <div class="receipt-box">
+                <div class="receipt-header">
+                    <h2>Donation Receipt</h2>
+                    <p style="color: #666; margin: 5px 0 0 0;">Keep this for your records</p>
+                </div>
+
+                <div class="amount-display">{$amount}</div>
+
+                <div style="margin-top: 20px;">
+                    <div class="detail-row">
+                        <span class="detail-label">Campaign</span>
+                        <span class="detail-value">{$campaignTitle}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Organization</span>
+                        <span class="detail-value">{$clubName}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date</span>
+                        <span class="detail-value">{$date}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Reference #</span>
+                        <span class="detail-value">DON-{$donationId}</span>
+                    </div>
+                    <div class="detail-row" style="border-bottom: none;">
+                        <span class="detail-label">Transaction ID</span>
+                        <span class="detail-value" style="font-family: monospace; font-size: 12px;">{$transactionId}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="thank-you">
+                <strong>Your support makes a real difference!</strong><br>
+                Thank you for being part of our community and helping us reach our goals.
+            </div>
+
+            <p style="color: #666; font-size: 14px;">
+                If you have any questions about your donation, please contact {$clubName} directly.
+            </p>
+        </div>
+        <div class="footer">
+            <p>This receipt was sent via Teams Elevated</p>
+            <p>&copy; 2025 Teams Elevated. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    }
 }
