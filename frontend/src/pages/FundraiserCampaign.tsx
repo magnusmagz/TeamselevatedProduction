@@ -19,6 +19,7 @@ interface Campaign {
   slug: string;
   description: string;
   image_url: string | null;
+  image_data: string | null;
   goal_amount: number;
   amount_raised: number;
   donor_count: number;
@@ -130,10 +131,10 @@ export const FundraiserCampaign: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Hero Image */}
-        {campaign.image_url && (
+        {(campaign.image_data || campaign.image_url) && (
           <div className="w-full h-64 md:h-80 bg-gray-200 relative">
             <img
-              src={campaign.image_url}
+              src={campaign.image_data || campaign.image_url || ''}
               alt={campaign.title}
               className="w-full h-full object-cover"
             />
@@ -175,10 +176,10 @@ export const FundraiserCampaign: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Image */}
-      {campaign.image_url ? (
+      {(campaign.image_data || campaign.image_url) ? (
         <div className="w-full h-64 md:h-96 bg-gray-200 relative">
           <img
-            src={campaign.image_url}
+            src={campaign.image_data || campaign.image_url || ''}
             alt={campaign.title}
             className="w-full h-full object-cover"
           />
