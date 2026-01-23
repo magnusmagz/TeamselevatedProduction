@@ -81,7 +81,7 @@ try {
             $includeEnded = isset($_GET['include_ended']) && $_GET['include_ended'] === 'true';
 
             $sql = "
-                SELECT fc.*, u.name as created_by_name
+                SELECT fc.*, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
                 FROM fundraiser_campaigns fc
                 LEFT JOIN users u ON fc.created_by = u.id
                 WHERE fc.club_id = ? AND fc.deleted_at IS NULL
@@ -142,7 +142,7 @@ try {
 
             if ($id) {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, u.name as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
@@ -151,7 +151,7 @@ try {
                 $stmt->execute([$id]);
             } else {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, u.name as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
@@ -177,7 +177,7 @@ try {
 
             // Get recent updates
             $stmt = $db->prepare("
-                SELECT cu.*, u.name as author_name
+                SELECT cu.*, CONCAT(u.first_name, ' ', u.last_name) as author_name
                 FROM campaign_updates cu
                 LEFT JOIN users u ON cu.created_by = u.id
                 WHERE cu.campaign_id = ? AND cu.deleted_at IS NULL
