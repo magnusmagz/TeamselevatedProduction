@@ -5,7 +5,8 @@ interface CampaignFormData {
   title: string;
   slug: string;
   description: string;
-  image_url: string;
+  image_data: string;
+  image_filename: string;
   goal_amount: string;
   start_date: string;
   end_date: string;
@@ -13,6 +14,7 @@ interface CampaignFormData {
   show_donor_amounts: boolean;
   show_progress: boolean;
   allow_comments: boolean;
+  allow_exceed_goal: boolean;
   status: string;
 }
 
@@ -45,7 +47,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
     title: '',
     slug: '',
     description: '',
-    image_url: '',
+    image_data: '',
+    image_filename: '',
     goal_amount: '',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
@@ -53,6 +56,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
     show_donor_amounts: true,
     show_progress: true,
     allow_comments: true,
+    allow_exceed_goal: true,
     status: 'draft'
   });
 
@@ -70,7 +74,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
             title: data.title || '',
             slug: data.slug || '',
             description: data.description || '',
-            image_url: data.image_url || '',
+            image_data: data.image_data || data.image_url || '',
+            image_filename: data.image_filename || '',
             goal_amount: data.goal_amount?.toString() || '',
             start_date: data.start_date || '',
             end_date: data.end_date || '',
@@ -78,6 +83,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
             show_donor_amounts: data.show_donor_amounts ?? true,
             show_progress: data.show_progress ?? true,
             allow_comments: data.allow_comments ?? true,
+            allow_exceed_goal: data.allow_exceed_goal ?? true,
             status: data.status || 'draft'
           });
         }
@@ -111,6 +117,35 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
       // Auto-generate slug only if it hasn't been manually edited
       slug: prev.slug === generateSlug(prev.title) || !prev.slug ? generateSlug(value) : prev.slug
     }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image file size must be less than 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({
+          ...formData,
+          image_data: reader.result as string,
+          image_filename: file.name
+        });
+        setError(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({
+      ...formData,
+      image_data: '',
+      image_filename: ''
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent, publish = false) => {
@@ -151,7 +186,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
         title: formData.title.trim(),
         slug: formData.slug || generateSlug(formData.title),
         description: formData.description.trim(),
-        image_url: formData.image_url.trim() || null,
+        image_data: formData.image_data || null,
+        image_filename: formData.image_filename || null,
         goal_amount: goalAmount,
         start_date: formData.start_date,
         end_date: formData.end_date,
@@ -159,6 +195,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
         show_donor_amounts: formData.show_donor_amounts,
         show_progress: formData.show_progress,
         allow_comments: formData.allow_comments,
+        allow_exceed_goal: formData.allow_exceed_goal,
         status: publish ? 'active' : formData.status,
         created_by: userId
       };
@@ -212,32 +249,32 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
       <div className="mb-6">
         <Link
           to="/admin/fundraisers"
-          className="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm"
+          className="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm uppercase"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Campaigns
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">
           {isEditing ? 'Edit Campaign' : 'Create New Campaign'}
         </h1>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
           {error}
         </div>
       )}
 
       <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
         {/* Basic Info */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Campaign Details</h2>
+        <div className="bg-white rounded-md border border-brand-secondary p-6">
+          <h2 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Campaign Details</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Campaign Title *
               </label>
               <input
@@ -246,12 +283,12 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 onChange={(e) => handleTitleChange(e.target.value)}
                 required
                 placeholder="e.g., New Court Floors"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 URL Slug
               </label>
               <div className="flex items-center gap-2">
@@ -261,13 +298,13 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                   value={formData.slug}
                   onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })}
                   placeholder="new-court-floors"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand-accent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Description
               </label>
               <textarea
@@ -275,44 +312,57 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={4}
                 placeholder="Tell supporters why this campaign matters..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent resize-none"
               />
             </div>
 
+            {/* Image Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hero Image URL
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                Campaign Image
               </label>
-              <input
-                type="url"
-                value={formData.image_url}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-              />
-              {formData.image_url && (
-                <div className="mt-2">
-                  <img
-                    src={formData.image_url}
-                    alt="Preview"
-                    className="h-32 w-full object-cover rounded-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
+              <div className="border border-brand-secondary rounded-md p-4">
+                {formData.image_data ? (
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={formData.image_data}
+                      alt="Campaign preview"
+                      className="h-24 max-w-48 object-contain rounded"
+                    />
+                    <div>
+                      <p className="text-sm text-gray-600">{formData.image_filename}</p>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="text-red-600 hover:text-red-500 text-sm mt-1"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="w-full text-brand-primary"
+                    />
+                    <p className="text-gray-500 text-xs mt-2">Max file size: 5MB. Recommended: PNG or JPG, 1200x630px for best display.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Goal & Dates */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Goal & Timeline</h2>
+        <div className="bg-white rounded-md border border-brand-secondary p-6">
+          <h2 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Goal & Timeline</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Fundraising Goal *
               </label>
               <div className="relative">
@@ -325,13 +375,13 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                   min="1"
                   step="1"
                   placeholder="5000"
-                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md pl-8 pr-4 py-2 focus:outline-none focus:border-brand-accent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 Start Date *
               </label>
               <input
@@ -339,12 +389,12 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                 required
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                 End Date *
               </label>
               <input
@@ -353,15 +403,15 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                 required
                 min={formData.start_date}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
               />
             </div>
           </div>
         </div>
 
         {/* Privacy Settings */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy Settings</h2>
+        <div className="bg-white rounded-md border border-brand-secondary p-6">
+          <h2 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Privacy Settings</h2>
 
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
@@ -369,10 +419,10 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 type="checkbox"
                 checked={formData.show_progress}
                 onChange={(e) => setFormData({ ...formData, show_progress: e.target.checked })}
-                className="w-5 h-5 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                className="w-4 h-4 border border-brand-secondary rounded"
               />
               <div>
-                <p className="font-medium text-gray-900">Show progress bar</p>
+                <p className="font-medium text-brand-primary">Show progress bar</p>
                 <p className="text-sm text-gray-500">Display amount raised and progress toward goal</p>
               </div>
             </label>
@@ -382,10 +432,10 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 type="checkbox"
                 checked={formData.show_donor_names}
                 onChange={(e) => setFormData({ ...formData, show_donor_names: e.target.checked })}
-                className="w-5 h-5 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                className="w-4 h-4 border border-brand-secondary rounded"
               />
               <div>
-                <p className="font-medium text-gray-900">Show donor names</p>
+                <p className="font-medium text-brand-primary">Show donor names</p>
                 <p className="text-sm text-gray-500">Display supporter names on the donor wall</p>
               </div>
             </label>
@@ -395,10 +445,10 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 type="checkbox"
                 checked={formData.show_donor_amounts}
                 onChange={(e) => setFormData({ ...formData, show_donor_amounts: e.target.checked })}
-                className="w-5 h-5 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                className="w-4 h-4 border border-brand-secondary rounded"
               />
               <div>
-                <p className="font-medium text-gray-900">Show donation amounts</p>
+                <p className="font-medium text-brand-primary">Show donation amounts</p>
                 <p className="text-sm text-gray-500">Display individual donation amounts publicly</p>
               </div>
             </label>
@@ -408,11 +458,24 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                 type="checkbox"
                 checked={formData.allow_comments}
                 onChange={(e) => setFormData({ ...formData, allow_comments: e.target.checked })}
-                className="w-5 h-5 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                className="w-4 h-4 border border-brand-secondary rounded"
               />
               <div>
-                <p className="font-medium text-gray-900">Allow donor messages</p>
+                <p className="font-medium text-brand-primary">Allow donor messages</p>
                 <p className="text-sm text-gray-500">Let donors leave public messages with their donations</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.allow_exceed_goal}
+                onChange={(e) => setFormData({ ...formData, allow_exceed_goal: e.target.checked })}
+                className="w-4 h-4 border border-brand-secondary rounded"
+              />
+              <div>
+                <p className="font-medium text-brand-primary">Allow donations to exceed goal</p>
+                <p className="text-sm text-gray-500">Continue accepting donations after goal is reached</p>
               </div>
             </label>
           </div>
@@ -422,7 +485,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
         <div className="flex items-center justify-between gap-4 pt-4">
           <Link
             to="/admin/fundraisers"
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold"
           >
             Cancel
           </Link>
@@ -431,7 +494,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save as Draft'}
             </button>
@@ -440,7 +503,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
               type="button"
               onClick={(e) => handleSubmit(e, true)}
               disabled={saving}
-              className="px-6 py-3 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover disabled:opacity-50"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary-hover uppercase font-semibold disabled:opacity-50"
             >
               {saving ? 'Publishing...' : isEditing ? 'Save & Publish' : 'Publish Campaign'}
             </button>

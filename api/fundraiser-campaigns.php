@@ -226,11 +226,11 @@ try {
 
             $stmt = $db->prepare("
                 INSERT INTO fundraiser_campaigns (
-                    club_id, title, slug, description, image_url,
+                    club_id, title, slug, description, image_url, image_data, image_filename,
                     goal_amount, start_date, end_date,
-                    show_donor_names, show_donor_amounts, show_progress, allow_comments,
+                    show_donor_names, show_donor_amounts, show_progress, allow_comments, allow_exceed_goal,
                     status, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -239,6 +239,8 @@ try {
                 $slug,
                 $data['description'] ?? null,
                 $data['image_url'] ?? null,
+                $data['image_data'] ?? null,
+                $data['image_filename'] ?? null,
                 $data['goal_amount'],
                 $data['start_date'],
                 $data['end_date'],
@@ -246,6 +248,7 @@ try {
                 $data['show_donor_amounts'] ?? true,
                 $data['show_progress'] ?? true,
                 $data['allow_comments'] ?? true,
+                $data['allow_exceed_goal'] ?? true,
                 $data['status'] ?? 'draft',
                 $data['created_by'] ?? null
             ]);
@@ -295,38 +298,75 @@ try {
                 $slug = generateSlug($data['title'], $db, $campaign['club_id'], $data['id']);
             }
 
+            // Build dynamic update query based on provided fields
+            $updateFields = [];
+            $updateValues = [];
+
+            if (isset($data['title'])) {
+                $updateFields[] = 'title = ?';
+                $updateValues[] = $data['title'];
+            }
+            $updateFields[] = 'slug = ?';
+            $updateValues[] = $slug;
+
+            if (isset($data['description'])) {
+                $updateFields[] = 'description = ?';
+                $updateValues[] = $data['description'];
+            }
+            if (array_key_exists('image_data', $data)) {
+                $updateFields[] = 'image_data = ?';
+                $updateValues[] = $data['image_data'];
+            }
+            if (array_key_exists('image_filename', $data)) {
+                $updateFields[] = 'image_filename = ?';
+                $updateValues[] = $data['image_filename'];
+            }
+            if (isset($data['goal_amount'])) {
+                $updateFields[] = 'goal_amount = ?';
+                $updateValues[] = $data['goal_amount'];
+            }
+            if (isset($data['start_date'])) {
+                $updateFields[] = 'start_date = ?';
+                $updateValues[] = $data['start_date'];
+            }
+            if (isset($data['end_date'])) {
+                $updateFields[] = 'end_date = ?';
+                $updateValues[] = $data['end_date'];
+            }
+            if (isset($data['show_donor_names'])) {
+                $updateFields[] = 'show_donor_names = ?';
+                $updateValues[] = $data['show_donor_names'] ? 'true' : 'false';
+            }
+            if (isset($data['show_donor_amounts'])) {
+                $updateFields[] = 'show_donor_amounts = ?';
+                $updateValues[] = $data['show_donor_amounts'] ? 'true' : 'false';
+            }
+            if (isset($data['show_progress'])) {
+                $updateFields[] = 'show_progress = ?';
+                $updateValues[] = $data['show_progress'] ? 'true' : 'false';
+            }
+            if (isset($data['allow_comments'])) {
+                $updateFields[] = 'allow_comments = ?';
+                $updateValues[] = $data['allow_comments'] ? 'true' : 'false';
+            }
+            if (isset($data['allow_exceed_goal'])) {
+                $updateFields[] = 'allow_exceed_goal = ?';
+                $updateValues[] = $data['allow_exceed_goal'] ? 'true' : 'false';
+            }
+            if (isset($data['status'])) {
+                $updateFields[] = 'status = ?';
+                $updateValues[] = $data['status'];
+            }
+
+            $updateValues[] = $data['id'];
+
             $stmt = $db->prepare("
                 UPDATE fundraiser_campaigns SET
-                    title = COALESCE(?, title),
-                    slug = ?,
-                    description = COALESCE(?, description),
-                    image_url = COALESCE(?, image_url),
-                    goal_amount = COALESCE(?, goal_amount),
-                    start_date = COALESCE(?, start_date),
-                    end_date = COALESCE(?, end_date),
-                    show_donor_names = COALESCE(?, show_donor_names),
-                    show_donor_amounts = COALESCE(?, show_donor_amounts),
-                    show_progress = COALESCE(?, show_progress),
-                    allow_comments = COALESCE(?, allow_comments),
-                    status = COALESCE(?, status)
+                    " . implode(', ', $updateFields) . "
                 WHERE id = ? AND deleted_at IS NULL
             ");
 
-            $stmt->execute([
-                $data['title'] ?? null,
-                $slug,
-                $data['description'] ?? null,
-                $data['image_url'] ?? null,
-                $data['goal_amount'] ?? null,
-                $data['start_date'] ?? null,
-                $data['end_date'] ?? null,
-                isset($data['show_donor_names']) ? ($data['show_donor_names'] ? 'true' : 'false') : null,
-                isset($data['show_donor_amounts']) ? ($data['show_donor_amounts'] ? 'true' : 'false') : null,
-                isset($data['show_progress']) ? ($data['show_progress'] ? 'true' : 'false') : null,
-                isset($data['allow_comments']) ? ($data['allow_comments'] ? 'true' : 'false') : null,
-                $data['status'] ?? null,
-                $data['id']
-            ]);
+            $stmt->execute($updateValues);
 
             echo json_encode([
                 'success' => true,
