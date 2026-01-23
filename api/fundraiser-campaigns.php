@@ -142,7 +142,7 @@ try {
 
             if ($id) {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.club_name, u.name as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, u.name as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
@@ -151,7 +151,7 @@ try {
                 $stmt->execute([$id]);
             } else {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.club_name, u.name as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, u.name as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
