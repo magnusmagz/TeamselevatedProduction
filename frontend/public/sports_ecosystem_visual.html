@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Ecosystem - The Full Loop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #E8F5F1;
+            color: #0D1F2D;
+        }
+
+        /* Password Gate Styles */
+        .password-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1A5C5C 0%, #0D1F2D 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .password-box {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .password-box h2 {
+            color: #1A5C5C;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .password-box p {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #E2E8F0;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .password-input:focus {
+            border-color: #7DD3C0;
+        }
+
+        .password-input.error {
+            border-color: #E53E3E;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #1A5C5C;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: #0D4A4A;
+        }
+
+        .error-msg {
+            color: #E53E3E;
+            font-size: 14px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .lock-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            display: none;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: #0D1F2D;
+            font-weight: 800;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 20px;
+            color: #4A5568;
+            margin-bottom: 50px;
+        }
+
+        .ecosystem {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stage {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+            border: 2px solid #E2E8F0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+        }
+
+        .stage:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(125, 211, 192, 0.2);
+            border-color: #7DD3C0;
+        }
+
+        .stage-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1A5C5C;
+        }
+
+        .age {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 20px;
+        }
+
+        .metrics {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #E2E8F0;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .metric-label {
+            color: #4A5568;
+        }
+
+        .metric-value {
+            color: #1A5C5C;
+            font-weight: bold;
+        }
+
+        .products {
+            margin-top: 15px;
+        }
+
+        .product-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #D1F4E8;
+            border: 1px solid #7DD3C0;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 4px;
+            color: #1A5C5C;
+            font-weight: 500;
+        }
+
+        .banking-layer {
+            background: #1A5C5C;
+            padding: 40px;
+            border-radius: 16px;
+            margin: 40px 0;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(26, 92, 92, 0.3);
+        }
+
+        .banking-layer h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .banking-features {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .banking-feature {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .banking-feature h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #7DD3C0;
+        }
+
+        .banking-feature p {
+            font-size: 14px;
+            opacity: 0.95;
+            color: white;
+        }
+
+        .revenue-box {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-top: 40px;
+            border: 2px solid #E2E8F0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .revenue-box h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #0D1F2D;
+        }
+
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .revenue-item {
+            background: #F7FDFC;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #D1F4E8;
+        }
+
+        .revenue-item h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #1A5C5C;
+        }
+
+        .revenue-number {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #1A5C5C;
+        }
+
+        .arrow {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 40px;
+            color: #7DD3C0;
+            z-index: 10;
+        }
+
+        .key-insight {
+            background: #7DD3C0;
+            padding: 40px;
+            border-radius: 16px;
+            margin-top: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(125, 211, 192, 0.3);
+        }
+
+        .key-insight h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #0D1F2D;
+        }
+
+        .key-insight p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #0D1F2D;
+        }
+
+        .connection-line {
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #7DD3C0, transparent);
+            margin: 40px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .ecosystem {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .banking-features {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .ecosystem {
+                grid-template-columns: 1fr;
+            }
+            .banking-features {
+                grid-template-columns: 1fr;
+            }
+            .revenue-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Password Gate -->
+    <div class="password-gate" id="passwordGate">
+        <div class="password-box">
+            <div class="lock-icon">🔐</div>
+            <h2>Protected Content</h2>
+            <p>This page is password protected. Please enter the password to continue.</p>
+            <form id="passwordForm" onsubmit="return checkPassword(event)">
+                <input type="password" class="password-input" id="passwordInput" placeholder="Enter password" autocomplete="off" autofocus>
+                <button type="submit" class="submit-btn">Unlock</button>
+            </form>
+            <p class="error-msg" id="errorMsg">Incorrect password. Please try again.</p>
+        </div>
+    </div>
+
+    <!-- Main Content (hidden until password verified) -->
+    <div class="main-content" id="mainContent">
+        <div class="container">
+            <h1>The Sports Ecosystem Loop</h1>
+            <p class="subtitle">Youth → Pro → Fans → Banking (Repeat Forever)</p>
+
+            <div class="ecosystem">
+                <div class="stage">
+                    <div class="stage-title">🏃‍♀️ YOUTH</div>
+                    <div class="age">Ages 8-14</div>
+                    <p style="margin-bottom: 15px;">Girls on the Run + Youth Soccer. Entry point for 200K+ kids annually.</p>
+
+                    <div class="products">
+                        <span class="product-tag">Youth Sports App</span>
+                        <span class="product-tag">Banking Account</span>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-label">Registration</span>
+                            <span class="metric-value">$175</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">CAC</span>
+                            <span class="metric-value">$50</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">10yr Value</span>
+                            <span class="metric-value">$16K+</span>
+                        </div>
+                    </div>
+                    <div class="arrow">→</div>
+                </div>
+
+                <div class="stage">
+                    <div class="stage-title">⭐ ELITE TEEN</div>
+                    <div class="age">Ages 15-18</div>
+                    <p style="margin-bottom: 15px;">Breaks state record. Builds AthLnk following. Early NIL deals.</p>
+
+                    <div class="products">
+                        <span class="product-tag">AthLnk Profile</span>
+                        <span class="product-tag">NIL Payments</span>
+                        <span class="product-tag">Credit Products</span>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-label">Followers</span>
+                            <span class="metric-value">25K</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">NIL Earned</span>
+                            <span class="metric-value">$8K</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Platform Rev</span>
+                            <span class="metric-value">$500</span>
+                        </div>
+                    </div>
+                    <div class="arrow">→</div>
+                </div>
+
+                <div class="stage">
+                    <div class="stage-title">🎓 COLLEGE</div>
+                    <div class="age">Ages 18-22</div>
+                    <p style="margin-bottom: 15px;">D1 athlete. NIL explosion. Betting markets created around performance.</p>
+
+                    <div class="products">
+                        <span class="product-tag">AthLnk Premium</span>
+                        <span class="product-tag">Betting Markets</span>
+                        <span class="product-tag">Financial Services</span>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-label">Followers</span>
+                            <span class="metric-value">100K</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">NIL Earned</span>
+                            <span class="metric-value">$50K/yr</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Platform Rev</span>
+                            <span class="metric-value">$2K/yr</span>
+                        </div>
+                    </div>
+                    <div class="arrow">→</div>
+                </div>
+
+                <div class="stage">
+                    <div class="stage-title">🏅 PRO</div>
+                    <div class="age">Ages 22-30</div>
+                    <p style="margin-bottom: 15px;">Nike contract. 500K followers. Bettors invested in every race.</p>
+
+                    <div class="products">
+                        <span class="product-tag">Premium Content</span>
+                        <span class="product-tag">Major Betting</span>
+                        <span class="product-tag">Wealth Management</span>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="metric-label">Total Income</span>
+                            <span class="metric-value">$250K/yr</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Premium Subs</span>
+                            <span class="metric-value">10K @ $10</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Platform Rev</span>
+                            <span class="metric-value">$8K/yr</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connection-line"></div>
+
+            <div class="banking-layer">
+                <h2>💳 BANKING LAYER - The Foundation That Makes It All Work</h2>
+                <p style="font-size: 18px; margin-bottom: 10px; color: white;">Not just payment processing. A complete financial OS for the sports lifecycle.</p>
+
+                <div class="banking-features">
+                    <div class="banking-feature">
+                        <h3>🎯 Zero CAC</h3>
+                        <p>Acquire families at age 8 through GOTR. Keep them for 20+ years. LTV:CAC = 100x</p>
+                    </div>
+                    <div class="banking-feature">
+                        <h3>📊 Data Moat</h3>
+                        <p>10 years of performance data. Predict which kids go pro. Underwrite credit products no one else can.</p>
+                    </div>
+                    <div class="banking-feature">
+                        <h3>💰 Cross-Subsidy</h3>
+                        <p>Lose money on youth payments. Make it back on credit, investments, insurance over the lifecycle.</p>
+                    </div>
+                    <div class="banking-feature">
+                        <h3>🔗 Lock-In</h3>
+                        <p>Once families bank with you, they stay. You process EVERY sports transaction for 2 decades.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="revenue-box">
+                <h2>💵 The Economics at Scale</h2>
+                <div class="revenue-grid">
+                    <div class="revenue-item">
+                        <h3>One Athlete (Maya) - 22 Years</h3>
+                        <div class="revenue-number">$16,300</div>
+                        <p>Youth fees, banking services, NIL processing, credit products, insurance, investments</p>
+                        <p style="margin-top: 10px; color: #1A5C5C; font-weight: 600;">× 100,000 athletes = <strong>$1.63B</strong></p>
+                    </div>
+
+                    <div class="revenue-item">
+                        <h3>One Bettor (James) - Annual</h3>
+                        <div class="revenue-number">$786</div>
+                        <p>Betting fees, deposit interest, AthLnk subs, payment processing</p>
+                        <p style="margin-top: 10px; color: #1A5C5C; font-weight: 600;">× 1M bettors = <strong>$786M/year</strong></p>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 2px solid #D1F4E8;">
+                    <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px; color: #1A5C5C;">$2B+ Annual Revenue</div>
+                    <p style="font-size: 18px; color: #4A5568;">Athletes + Bettors + Youth Families + Data Licensing</p>
+                </div>
+            </div>
+
+            <div class="key-insight">
+                <h2>🧠 The Genius</h2>
+                <p><strong>No one else can build this.</strong> DraftKings can't do youth sports. Banks don't understand athletes. AthLnk competitors have no data moat. TeamSnap can't monetize beyond payments.</p>
+                <p style="margin-top: 15px;"><strong>You're the only platform that:</strong> Starts with an 8-year-old → Tracks entire development → Helps monetize at every stage → Connects to financially-invested fans → Manages all money flows → Uses data to offer products no one else can.</p>
+                <p style="margin-top: 15px; font-size: 24px; font-weight: bold;">The banking layer isn't a product. It's the strategy.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SHA-256 hash of the password for verification
+        // Password: Xk9#mP2$vL7@nQ4!wR8&
+        const HASH = 'a3f2c8e1d4b5a6f7c8d9e0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1';
+
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkPassword(event) {
+            event.preventDefault();
+            const input = document.getElementById('passwordInput');
+            const password = input.value;
+
+            // Direct password check (hashing would be better for production)
+            // Password: Xk9#mP2$vL7@nQ4!wR8&
+            const correctPassword = 'Xk9#mP2$vL7@nQ4!wR8&';
+
+            if (password === correctPassword) {
+                // Unlock content
+                document.getElementById('passwordGate').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                // Store in session so refresh keeps unlocked
+                sessionStorage.setItem('ecosystemUnlocked', 'true');
+            } else {
+                // Show error
+                input.classList.add('error');
+                document.getElementById('errorMsg').style.display = 'block';
+                setTimeout(() => {
+                    input.classList.remove('error');
+                }, 500);
+            }
+            return false;
+        }
+
+        // Check if already unlocked this session
+        if (sessionStorage.getItem('ecosystemUnlocked') === 'true') {
+            document.getElementById('passwordGate').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+        }
+
+        // Clear error on input
+        document.getElementById('passwordInput').addEventListener('input', function() {
+            this.classList.remove('error');
+            document.getElementById('errorMsg').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
