@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth Sports Tryout Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'orbitron': ['Orbitron', 'sans-serif'],
+                    },
+                    colors: {
+                        forest: {
+                            50: '#f0fdf9',
+                            100: '#d1f5e8',
+                            200: '#a3ebd1',
+                            300: '#6edeb5',
+                            400: '#3fcb9a',
+                            500: '#2bb382',
+                            600: '#12443e',
+                            700: '#236f4f',
+                            800: '#12443e',
+                            900: '#1a4a35',
+                            950: '#0d2a1f',
+                        },
+                        brand: {
+                            primary: '#12443e',
+                            'primary-hover': '#0d2a1f',
+                            'primary-dark': '#0a2a25',
+                            secondary: '#a3ebd1',
+                            'secondary-hover': '#6edeb5',
+                            accent: '#3fcb9a',
+                            light: '#d1f5e8',
+                            muted: '#6edeb5',
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+        .flow-scroll {
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .flow-scroll::-webkit-scrollbar { height: 8px; }
+        .flow-scroll::-webkit-scrollbar-track { background: #d1f5e8; border-radius: 4px; }
+        .flow-scroll::-webkit-scrollbar-thumb { background: #3fcb9a; border-radius: 4px; }
+        .flow-scroll::-webkit-scrollbar-thumb:hover { background: #12443e; }
+
+        .phase-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .phase-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(18, 68, 62, 0.15);
+        }
+
+        .arrow-right {
+            width: 0; height: 0;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            border-left: 16px solid #12443e;
+        }
+        .arrow-down {
+            width: 0; height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 16px solid #12443e;
+        }
+
+        /* Actor badges */
+        .actor-parent { background-color: #ddd6fe; color: #5b21b6; }
+        .actor-athlete { background-color: #fce7f3; color: #9d174d; }
+        .actor-coach { background-color: #fef3c7; color: #92400e; }
+        .actor-admin { background-color: #dbeafe; color: #1e40af; }
+        .actor-system { background-color: #e9d5ff; color: #6b21a8; }
+
+        /* Status badges */
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-evaluated { background-color: #dbeafe; color: #1e40af; }
+        .status-offered { background-color: #e9d5ff; color: #6b21a8; }
+        .status-accepted { background-color: #d1fae5; color: #065f46; }
+        .status-declined { background-color: #fee2e2; color: #991b1b; }
+        .status-waitlist { background-color: #f3f4f6; color: #374151; }
+
+        /* Decision diamond */
+        .decision-diamond {
+            width: 120px;
+            height: 120px;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .decision-diamond-content {
+            transform: rotate(-45deg);
+            text-align: center;
+        }
+
+        /* Branch connector */
+        .branch-line {
+            position: relative;
+        }
+        .branch-line::before {
+            content: '';
+            position: absolute;
+            background: #12443e;
+        }
+    </style>
+</head>
+<body class="bg-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-brand-primary text-white py-6 px-8">
+        <div class="max-w-full">
+            <h1 class="font-orbitron text-3xl font-bold uppercase tracking-wide">Youth Sports Tryout Flow</h1>
+            <p class="text-brand-light mt-2">Two-step registration: Tryout → Evaluation → Offer → Season Registration</p>
+        </div>
+    </header>
+
+    <!-- Legend -->
+    <div class="bg-forest-100 border-b-2 border-brand-secondary px-8 py-4">
+        <div class="flex flex-wrap items-center gap-6">
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Actors:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="actor-parent px-3 py-1 text-xs font-medium uppercase">Parent</span>
+                <span class="actor-athlete px-3 py-1 text-xs font-medium uppercase">Athlete</span>
+                <span class="actor-coach px-3 py-1 text-xs font-medium uppercase">Coach</span>
+                <span class="actor-admin px-3 py-1 text-xs font-medium uppercase">Admin</span>
+                <span class="actor-system px-3 py-1 text-xs font-medium uppercase">System</span>
+            </div>
+            <span class="text-gray-300">|</span>
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Statuses:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="status-pending px-3 py-1 text-xs font-medium uppercase">Pending</span>
+                <span class="status-evaluated px-3 py-1 text-xs font-medium uppercase">Evaluated</span>
+                <span class="status-offered px-3 py-1 text-xs font-medium uppercase">Offered</span>
+                <span class="status-accepted px-3 py-1 text-xs font-medium uppercase">Accepted</span>
+                <span class="status-declined px-3 py-1 text-xs font-medium uppercase">Declined</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section: Step 1 - Tryout Registration -->
+    <div class="px-8 pt-8 pb-4">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="bg-brand-primary text-white px-4 py-2 font-orbitron font-bold uppercase text-sm">
+                Step 1: Tryout Registration
+            </div>
+            <div class="flex-1 h-0.5 bg-brand-secondary"></div>
+        </div>
+    </div>
+
+    <div class="flow-scroll px-8 pb-8">
+        <div class="flex items-start gap-0 min-w-max">
+
+            <!-- Phase 1: Tryout Discovery -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">1</span>
+                        <div>
+                            <span class="text-xl mr-2">🔍</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Discovery</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Parent finds tryout opportunity</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Browse competitive programs</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Check age/skill requirements</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Review tryout dates & location</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Understand evaluation criteria</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Tryout Registration -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">2</span>
+                        <div>
+                            <span class="text-xl mr-2">📝</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Register</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Sign up for tryout (no season commitment)</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Player info & emergency contact</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Position preferences</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Experience level / past teams</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Sign tryout waiver</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="status-pending px-2 py-1 text-xs font-medium uppercase">→ Pending</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Tryout Fee -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">3</span>
+                        <div>
+                            <span class="text-xl mr-2">💳</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Tryout Fee</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Pay tryout fee (optional, typically $25-50)</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Tryout fee only (not season)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Covers facility & evaluator costs</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Non-refundable typically</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Receive confirmation email</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Tryout Day -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">4</span>
+                        <div>
+                            <span class="text-xl mr-2">⚽</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Tryout Day</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Athlete attends and performs</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Check-in & receive number</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Skills drills & assessment</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Scrimmage / game situations</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Multiple evaluators observe</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-athlete px-2 py-1 text-xs font-medium uppercase">Athlete</span>
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Evaluation -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-blue-300 w-72 flex-shrink-0">
+                    <div class="bg-blue-600 text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">5</span>
+                        <div>
+                            <span class="text-xl mr-2">📊</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Evaluation</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Coaches score and rank players</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500">✓</span>
+                                <span>Technical skills (1-5)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500">✓</span>
+                                <span>Tactical awareness (1-5)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500">✓</span>
+                                <span>Physical fitness (1-5)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-blue-500">✓</span>
+                                <span>Attitude / coachability (1-5)</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                            <span class="status-evaluated px-2 py-1 text-xs font-medium uppercase">→ Evaluated</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 6: Selection Decision -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-purple-300 w-72 flex-shrink-0">
+                    <div class="bg-purple-600 text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">6</span>
+                        <div>
+                            <span class="text-xl mr-2">🎯</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Selection</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Coaches finalize roster decisions</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-500">✓</span>
+                                <span>Review all evaluations</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-500">✓</span>
+                                <span>Rank players by score</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-500">✓</span>
+                                <span>Select roster (top N players)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-purple-500">✓</span>
+                                <span>Identify waitlist players</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                            <span class="actor-admin px-2 py-1 text-xs font-medium uppercase">Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Decision Branch Section -->
+    <div class="px-8 py-6 bg-gray-50 border-y-2 border-brand-secondary">
+        <div class="flex items-center justify-center gap-8">
+            <div class="text-center">
+                <div class="bg-green-100 border-2 border-green-400 rounded-lg p-4 mb-2">
+                    <div class="text-2xl mb-1">✅</div>
+                    <div class="font-orbitron text-green-700 font-semibold uppercase text-sm">Offer Sent</div>
+                    <div class="text-green-600 text-xs mt-1">Top ranked players</div>
+                </div>
+                <span class="status-offered px-3 py-1 text-xs font-medium uppercase">→ Offered</span>
+            </div>
+
+            <div class="text-center">
+                <div class="bg-yellow-100 border-2 border-yellow-400 rounded-lg p-4 mb-2">
+                    <div class="text-2xl mb-1">⏳</div>
+                    <div class="font-orbitron text-yellow-700 font-semibold uppercase text-sm">Waitlist</div>
+                    <div class="text-yellow-600 text-xs mt-1">Bubble players</div>
+                </div>
+                <span class="status-waitlist px-3 py-1 text-xs font-medium uppercase">→ Waitlist</span>
+            </div>
+
+            <div class="text-center">
+                <div class="bg-red-100 border-2 border-red-400 rounded-lg p-4 mb-2">
+                    <div class="text-2xl mb-1">❌</div>
+                    <div class="font-orbitron text-red-700 font-semibold uppercase text-sm">Not Selected</div>
+                    <div class="text-red-600 text-xs mt-1">Redirect to rec program</div>
+                </div>
+                <span class="status-declined px-3 py-1 text-xs font-medium uppercase">→ Rejected</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section: Step 2 - Offer Response -->
+    <div class="px-8 pt-8 pb-4">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="bg-brand-accent text-brand-primary px-4 py-2 font-orbitron font-bold uppercase text-sm">
+                Step 2: Offer Response & Season Registration
+            </div>
+            <div class="flex-1 h-0.5 bg-brand-secondary"></div>
+        </div>
+    </div>
+
+    <div class="flow-scroll px-8 pb-8">
+        <div class="flex items-start gap-0 min-w-max">
+
+            <!-- Phase 7: Offer Notification -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">7</span>
+                        <div>
+                            <span class="text-xl mr-2">📧</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Offer Sent</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">System sends offer to parent/athlete</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Congratulations email</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Team placement details</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Season fee amount</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Accept/Decline deadline (48h)</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                            <span class="status-offered px-2 py-1 text-xs font-medium uppercase">Offered</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 8: Accept/Decline -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-purple-300 w-72 flex-shrink-0">
+                    <div class="bg-purple-600 text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">8</span>
+                        <div>
+                            <span class="text-xl mr-2">🤔</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Decision</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Parent/athlete responds to offer</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500 font-bold">✓</span>
+                                <span class="text-green-700 font-medium">Accept → Continue to Step 9</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-red-500 font-bold">✗</span>
+                                <span class="text-red-700">Decline → Spot to waitlist</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-yellow-500 font-bold">⏰</span>
+                                <span class="text-yellow-700">No response → Offer expires</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="actor-athlete px-2 py-1 text-xs font-medium uppercase">Athlete</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 9: Season Registration -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-green-300 w-72 flex-shrink-0">
+                    <div class="bg-green-600 text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">9</span>
+                        <div>
+                            <span class="text-xl mr-2">📋</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Season Reg</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Complete full season registration</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Medical forms & insurance</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Season liability waiver</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Uniform size selection</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Emergency contacts</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="status-accepted px-2 py-1 text-xs font-medium uppercase">Accepted</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 10: Season Payment -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-green-300 w-72 flex-shrink-0">
+                    <div class="bg-green-600 text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">10</span>
+                        <div>
+                            <span class="text-xl mr-2">💰</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Season Fee</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Pay season registration fee</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Full payment or payment plan</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Apply scholarships/discounts</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Invoice generated</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Payment confirmation</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 11: Team Assignment -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-accent w-72 flex-shrink-0 ring-2 ring-brand-accent ring-offset-2">
+                    <div class="bg-brand-accent text-brand-primary px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">11</span>
+                        <div>
+                            <span class="text-xl mr-2">🏆</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Welcome!</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Officially on the team roster</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Added to team roster</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Welcome email from coach</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Practice schedule shared</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Team communication access</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Status Flow Diagram -->
+    <div class="bg-forest-50 border-t-2 border-brand-secondary px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Registration Status Flow</h2>
+        <div class="bg-white border-2 border-brand-secondary p-6 rounded-lg overflow-x-auto">
+            <div class="flex items-center justify-center gap-2 min-w-max text-sm">
+                <div class="status-pending px-4 py-2 rounded font-medium">Pending</div>
+                <span class="text-gray-400">→</span>
+                <div class="status-evaluated px-4 py-2 rounded font-medium">Evaluated</div>
+                <span class="text-gray-400">→</span>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="status-offered px-4 py-2 rounded font-medium">Offered</div>
+                    <div class="text-xs text-gray-500">(or Waitlist/Rejected)</div>
+                </div>
+                <span class="text-gray-400">→</span>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="status-accepted px-4 py-2 rounded font-medium">Accepted</div>
+                    <div class="text-xs text-gray-500">(or Declined/Expired)</div>
+                </div>
+                <span class="text-gray-400">→</span>
+                <div class="bg-brand-accent text-brand-primary px-4 py-2 rounded font-medium">Rostered</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison: Rec vs Competitive -->
+    <div class="px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Recreational vs. Competitive Tryout Flow</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div class="bg-white border-2 border-brand-secondary p-6 rounded-lg">
+                <h3 class="font-orbitron text-lg font-semibold text-brand-primary uppercase mb-4 flex items-center gap-2">
+                    <span class="text-2xl">🏃</span> Recreational Program
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="text-green-500 text-xl">✓</span>
+                        <span>No tryout required</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-green-500 text-xl">✓</span>
+                        <span>All players placed on teams</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-green-500 text-xl">✓</span>
+                        <span>Single-step registration</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-green-500 text-xl">✓</span>
+                        <span>Pay fee → Assigned to team</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-green-500 text-xl">✓</span>
+                        <span>Skills assessment for placement only</span>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="text-xs text-gray-500 uppercase font-semibold mb-2">Flow:</div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="bg-gray-100 px-2 py-1 rounded">Register</span>
+                        <span>→</span>
+                        <span class="bg-gray-100 px-2 py-1 rounded">Pay</span>
+                        <span>→</span>
+                        <span class="bg-green-100 px-2 py-1 rounded">Team</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white border-2 border-purple-300 p-6 rounded-lg">
+                <h3 class="font-orbitron text-lg font-semibold text-purple-700 uppercase mb-4 flex items-center gap-2">
+                    <span class="text-2xl">🏆</span> Competitive / Travel
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-500 text-xl">✓</span>
+                        <span>Tryout required</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-500 text-xl">✓</span>
+                        <span>Limited roster spots</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-500 text-xl">✓</span>
+                        <span>Two-step registration</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-500 text-xl">✓</span>
+                        <span>Tryout → Offer → Accept → Pay</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-500 text-xl">✓</span>
+                        <span>Evaluation determines selection</span>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="text-xs text-gray-500 uppercase font-semibold mb-2">Flow:</div>
+                    <div class="flex items-center gap-2 text-xs flex-wrap">
+                        <span class="bg-purple-100 px-2 py-1 rounded">Tryout Reg</span>
+                        <span>→</span>
+                        <span class="bg-purple-100 px-2 py-1 rounded">Evaluate</span>
+                        <span>→</span>
+                        <span class="bg-purple-100 px-2 py-1 rounded">Offer</span>
+                        <span>→</span>
+                        <span class="bg-purple-100 px-2 py-1 rounded">Accept</span>
+                        <span>→</span>
+                        <span class="bg-purple-100 px-2 py-1 rounded">Pay</span>
+                        <span>→</span>
+                        <span class="bg-green-100 px-2 py-1 rounded">Team</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Data Model Section -->
+    <div class="bg-gray-50 border-t-2 border-brand-secondary px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Tryout Program Configuration</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Program Settings</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Linked Season Program</li>
+                    <li>• Tryout Date(s) & Location</li>
+                    <li>• Tryout Fee ($25-50)</li>
+                    <li>• Season Fee (post-acceptance)</li>
+                    <li>• Roster Spots Available</li>
+                    <li>• Offer Expiration (24-72 hrs)</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Evaluation Criteria</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Technical Skills (1-5)</li>
+                    <li>• Tactical Awareness (1-5)</li>
+                    <li>• Physical Fitness (1-5)</li>
+                    <li>• Attitude/Coachability (1-5)</li>
+                    <li>• Game Intelligence (1-5)</li>
+                    <li>• Custom criteria as needed</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Notifications</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Tryout confirmation email</li>
+                    <li>• Tryout reminder (24hr before)</li>
+                    <li>• Offer letter email</li>
+                    <li>• Waitlist notification</li>
+                    <li>• Rejection / redirect to rec</li>
+                    <li>• Acceptance confirmation</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-brand-primary text-brand-light py-4 px-8 text-center text-sm">
+        Youth Sports Tryout Flow Diagram — TeamsElevated
+    </footer>
+
+</body>
+</html>
