@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth Sports Admin Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'orbitron': ['Orbitron', 'sans-serif'],
+                    },
+                    colors: {
+                        forest: {
+                            50: '#f0fdf9',
+                            100: '#d1f5e8',
+                            200: '#a3ebd1',
+                            300: '#6edeb5',
+                            400: '#3fcb9a',
+                            500: '#2bb382',
+                            600: '#12443e',
+                            700: '#236f4f',
+                            800: '#12443e',
+                            900: '#1a4a35',
+                            950: '#0d2a1f',
+                        },
+                        brand: {
+                            primary: '#12443e',
+                            'primary-hover': '#0d2a1f',
+                            'primary-dark': '#0a2a25',
+                            secondary: '#a3ebd1',
+                            'secondary-hover': '#6edeb5',
+                            accent: '#3fcb9a',
+                            light: '#d1f5e8',
+                            muted: '#6edeb5',
+                        },
+                    },
+                    borderRadius: {
+                        'none': '0',
+                        'sm': '0.25rem',
+                        DEFAULT: '0.25rem',
+                        'md': '0.25rem',
+                        'lg': '0.5rem',
+                        'xl': '0.75rem',
+                    }
+                },
+            },
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .flow-scroll {
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .flow-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-track {
+            background: #d1f5e8;
+            border-radius: 4px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-thumb {
+            background: #3fcb9a;
+            border-radius: 4px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-thumb:hover {
+            background: #12443e;
+        }
+
+        .timeline-connector {
+            position: relative;
+        }
+
+        .arrow-right {
+            width: 0;
+            height: 0;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            border-left: 16px solid #12443e;
+        }
+
+        .phase-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .phase-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(18, 68, 62, 0.15);
+        }
+
+        /* Actor badges */
+        .actor-admin { background-color: #fce7f3; color: #9d174d; }
+        .actor-registrar { background-color: #dbeafe; color: #1e40af; }
+        .actor-treasurer { background-color: #fef3c7; color: #92400e; }
+        .actor-coordinator { background-color: #d1f5e8; color: #12443e; }
+        .actor-system { background-color: #e9d5ff; color: #6b21a8; }
+
+        /* Task type badges */
+        .task-setup { background-color: #dbeafe; color: #1e40af; }
+        .task-review { background-color: #fef3c7; color: #92400e; }
+        .task-action { background-color: #d1fae5; color: #065f46; }
+        .task-monitor { background-color: #e9d5ff; color: #6b21a8; }
+    </style>
+</head>
+<body class="bg-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-brand-primary text-white py-6 px-8">
+        <div class="max-w-full">
+            <h1 class="font-orbitron text-3xl font-bold uppercase tracking-wide">Youth Sports Admin Flow</h1>
+            <p class="text-brand-light mt-2">Administrative tasks supporting the registration lifecycle</p>
+        </div>
+    </header>
+
+    <!-- Legend -->
+    <div class="bg-forest-100 border-b-2 border-brand-secondary px-8 py-4">
+        <div class="flex flex-wrap items-center gap-6">
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Roles:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="actor-admin px-3 py-1 text-xs font-medium uppercase">Admin</span>
+                <span class="actor-registrar px-3 py-1 text-xs font-medium uppercase">Registrar</span>
+                <span class="actor-treasurer px-3 py-1 text-xs font-medium uppercase">Treasurer</span>
+                <span class="actor-coordinator px-3 py-1 text-xs font-medium uppercase">Coordinator</span>
+                <span class="actor-system px-3 py-1 text-xs font-medium uppercase">System</span>
+            </div>
+            <span class="text-gray-300">|</span>
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Task Type:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="task-setup px-3 py-1 text-xs font-medium uppercase">Setup</span>
+                <span class="task-review px-3 py-1 text-xs font-medium uppercase">Review</span>
+                <span class="task-action px-3 py-1 text-xs font-medium uppercase">Action</span>
+                <span class="task-monitor px-3 py-1 text-xs font-medium uppercase">Monitor</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horizontal Flow Container -->
+    <div class="flow-scroll p-8">
+        <div class="flex items-start gap-0 min-w-max">
+
+            <!-- Phase 1: Program Setup -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">1</span>
+                        <div>
+                            <span class="text-xl mr-2">⚙️</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Program Setup</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Configure season, divisions, and pricing before registration opens</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Create program (league, camp, clinic)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Set age groups & divisions</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Define registration fees</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Set capacity limits per division</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Configure payment plans</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Set registration open/close dates</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-admin px-2 py-1 text-xs font-medium uppercase">Admin</span>
+                            <span class="task-setup px-2 py-1 text-xs font-medium uppercase">Setup</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Form & Waiver Config -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">2</span>
+                        <div>
+                            <span class="text-xl mr-2">📋</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Forms & Waivers</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Build registration forms and required documents</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Build registration form fields</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Add liability waiver</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Add medical authorization</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Add photo/media release</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Add code of conduct</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Test form end-to-end</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-registrar px-2 py-1 text-xs font-medium uppercase">Registrar</span>
+                            <span class="task-setup px-2 py-1 text-xs font-medium uppercase">Setup</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Coach Recruitment -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">3</span>
+                        <div>
+                            <span class="text-xl mr-2">🧑‍🏫</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Coach Recruitment</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Recruit, verify, and certify coaches</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Post volunteer coach openings</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Collect coach applications</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Run background checks</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Verify certifications (CPR, etc.)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Assign safety training</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Approve & onboard coaches</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-coordinator px-2 py-1 text-xs font-medium uppercase">Coordinator</span>
+                            <span class="task-action px-2 py-1 text-xs font-medium uppercase">Action</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Registration Monitoring -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">4</span>
+                        <div>
+                            <span class="text-xl mr-2">📊</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Registration Ops</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Monitor registrations and handle exceptions</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Monitor sign-ups by division</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Manage waitlists</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Verify age/documents</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Process scholarship requests</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Apply discount codes</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Handle special requests</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-registrar px-2 py-1 text-xs font-medium uppercase">Registrar</span>
+                            <span class="task-monitor px-2 py-1 text-xs font-medium uppercase">Monitor</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Payment Management -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">5</span>
+                        <div>
+                            <span class="text-xl mr-2">💰</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Payment Mgmt</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Process payments, refunds, and financial tracking</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Record cash/check payments</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Handle failed payments</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Process refund requests</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Track outstanding balances</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Send payment reminders</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Generate revenue reports</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-treasurer px-2 py-1 text-xs font-medium uppercase">Treasurer</span>
+                            <span class="task-action px-2 py-1 text-xs font-medium uppercase">Action</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 6: Team Formation -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">6</span>
+                        <div>
+                            <span class="text-xl mr-2">👥</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Team Formation</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Evaluate players, run draft, build rosters</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Schedule player evaluations</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Record evaluation scores</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Run draft (snake method)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Handle sibling requests</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Assign coaches to teams</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Finalize & publish rosters</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-coordinator px-2 py-1 text-xs font-medium uppercase">Coordinator</span>
+                            <span class="task-action px-2 py-1 text-xs font-medium uppercase">Action</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 7: Schedule & Facilities -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">7</span>
+                        <div>
+                            <span class="text-xl mr-2">📅</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Scheduling</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Create schedules and assign facilities</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Book facilities/fields</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Create practice schedule</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Create game schedule</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Assign teams to time slots</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Publish schedules to parents</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Order equipment/uniforms</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-admin px-2 py-1 text-xs font-medium uppercase">Admin</span>
+                            <span class="task-setup px-2 py-1 text-xs font-medium uppercase">Setup</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 8: Season Kickoff -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-80 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">8</span>
+                        <div>
+                            <span class="text-xl mr-2">📣</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Season Kickoff</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Send communications and prepare for Day 1</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Send team assignments</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Distribute coach packets</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Send welcome emails</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Share emergency contacts</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Distribute uniforms</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Send Day 1 reminders</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-admin px-2 py-1 text-xs font-medium uppercase">Admin</span>
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                            <span class="task-action px-2 py-1 text-xs font-medium uppercase">Action</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 9: Ongoing Operations -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-accent w-80 flex-shrink-0 ring-2 ring-brand-accent ring-offset-2">
+                    <div class="bg-brand-accent text-brand-primary px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">9</span>
+                        <div>
+                            <span class="text-xl mr-2">🔄</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Season Ops</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Ongoing management throughout the season</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Handle schedule changes</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Manage rainouts/cancellations</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Process mid-season adds</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Track attendance</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Resolve parent issues</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Document incidents</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-admin px-2 py-1 text-xs font-medium uppercase">Admin</span>
+                            <span class="actor-coordinator px-2 py-1 text-xs font-medium uppercase">Coordinator</span>
+                            <span class="task-monitor px-2 py-1 text-xs font-medium uppercase">Monitor</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="bg-forest-50 border-t-2 border-brand-secondary px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Admin Roles & Responsibilities</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span class="actor-admin px-2 py-1 text-xs">Admin</span>
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Program setup</li>
+                    <li>• Facility booking</li>
+                    <li>• Schedule creation</li>
+                    <li>• Communications</li>
+                    <li>• Issue resolution</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span class="actor-registrar px-2 py-1 text-xs">Registrar</span>
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Form configuration</li>
+                    <li>• Registration monitoring</li>
+                    <li>• Waitlist management</li>
+                    <li>• Document verification</li>
+                    <li>• Database maintenance</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span class="actor-treasurer px-2 py-1 text-xs">Treasurer</span>
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Payment processing</li>
+                    <li>• Refund management</li>
+                    <li>• Financial reporting</li>
+                    <li>• Scholarship tracking</li>
+                    <li>• Budget oversight</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span class="actor-coordinator px-2 py-1 text-xs">Coordinator</span>
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Coach recruitment</li>
+                    <li>• Background checks</li>
+                    <li>• Player evaluations</li>
+                    <li>• Team formation</li>
+                    <li>• Draft management</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span class="actor-system px-2 py-1 text-xs">System</span>
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Auto-notifications</li>
+                    <li>• Payment reminders</li>
+                    <li>• Waitlist alerts</li>
+                    <li>• Report generation</li>
+                    <li>• Document storage</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Compliance Section -->
+    <div class="bg-white border-t-2 border-brand-secondary px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Compliance & Safety Checklist</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <div class="bg-forest-50 border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Coach Requirements</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Background check (annual)</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> CPR certification</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> First aid training</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Abuse prevention training</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Concussion protocol training</li>
+                </ul>
+            </div>
+
+            <div class="bg-forest-50 border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Player Requirements</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Signed liability waiver</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Medical authorization</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Emergency contacts on file</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Age verification (birth cert)</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Insurance info on file</li>
+                </ul>
+            </div>
+
+            <div class="bg-forest-50 border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3">Organization Requirements</h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Liability insurance active</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Waivers stored securely (7+ yrs)</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Incident reporting process</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Code of conduct published</li>
+                    <li class="flex items-center gap-2"><input type="checkbox" class="accent-brand-accent"> Weather/rainout policy</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-brand-primary text-brand-light py-4 px-8 text-center text-sm">
+        Youth Sports Admin Flow Diagram — TeamsElevated
+    </footer>
+
+</body>
+</html>
