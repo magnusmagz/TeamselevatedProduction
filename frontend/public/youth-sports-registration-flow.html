@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth Sports Registration Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'orbitron': ['Orbitron', 'sans-serif'],
+                    },
+                    colors: {
+                        forest: {
+                            50: '#f0fdf9',
+                            100: '#d1f5e8',
+                            200: '#a3ebd1',
+                            300: '#6edeb5',
+                            400: '#3fcb9a',
+                            500: '#2bb382',
+                            600: '#12443e',
+                            700: '#236f4f',
+                            800: '#12443e',
+                            900: '#1a4a35',
+                            950: '#0d2a1f',
+                        },
+                        brand: {
+                            primary: '#12443e',
+                            'primary-hover': '#0d2a1f',
+                            'primary-dark': '#0a2a25',
+                            secondary: '#a3ebd1',
+                            'secondary-hover': '#6edeb5',
+                            accent: '#3fcb9a',
+                            light: '#d1f5e8',
+                            muted: '#6edeb5',
+                        },
+                    },
+                    borderRadius: {
+                        'none': '0',
+                        'sm': '0.25rem',
+                        DEFAULT: '0.25rem',
+                        'md': '0.25rem',
+                        'lg': '0.5rem',
+                        'xl': '0.75rem',
+                    }
+                },
+            },
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Horizontal scrolling container */
+        .flow-scroll {
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .flow-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-track {
+            background: #d1f5e8;
+            border-radius: 4px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-thumb {
+            background: #3fcb9a;
+            border-radius: 4px;
+        }
+
+        .flow-scroll::-webkit-scrollbar-thumb:hover {
+            background: #12443e;
+        }
+
+        /* Timeline connector */
+        .timeline-connector {
+            position: relative;
+        }
+
+        /* Arrow indicator */
+        .arrow-right {
+            width: 0;
+            height: 0;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            border-left: 16px solid #12443e;
+        }
+
+        /* Phase card hover */
+        .phase-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .phase-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(18, 68, 62, 0.15);
+        }
+
+        /* Actor badges */
+        .actor-parent { background-color: #ddd6fe; color: #5b21b6; }
+        .actor-org { background-color: #d1f5e8; color: #12443e; }
+        .actor-coach { background-color: #fef3c7; color: #92400e; }
+        .actor-system { background-color: #fce7f3; color: #9d174d; }
+
+        /* Communication badges */
+        .comm-email { background-color: #dbeafe; color: #1e40af; }
+        .comm-sms { background-color: #d1fae5; color: #065f46; }
+        .comm-portal { background-color: #ffedd5; color: #9a3412; }
+    </style>
+</head>
+<body class="bg-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-brand-primary text-white py-6 px-8">
+        <div class="max-w-full">
+            <h1 class="font-orbitron text-3xl font-bold uppercase tracking-wide">Youth Sports Registration Flow</h1>
+            <p class="text-brand-light mt-2">The complete journey from program discovery to first practice</p>
+        </div>
+    </header>
+
+    <!-- Legend -->
+    <div class="bg-forest-100 border-b-2 border-brand-secondary px-8 py-4">
+        <div class="flex flex-wrap items-center gap-6">
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Actors:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="actor-parent px-3 py-1 text-xs font-medium uppercase">Parent</span>
+                <span class="actor-org px-3 py-1 text-xs font-medium uppercase">Organization</span>
+                <span class="actor-coach px-3 py-1 text-xs font-medium uppercase">Coach</span>
+                <span class="actor-system px-3 py-1 text-xs font-medium uppercase">System</span>
+            </div>
+            <span class="text-gray-300">|</span>
+            <span class="text-sm font-semibold text-brand-primary uppercase tracking-wide">Channels:</span>
+            <div class="flex flex-wrap gap-3">
+                <span class="comm-email px-3 py-1 text-xs font-medium uppercase">Email</span>
+                <span class="comm-sms px-3 py-1 text-xs font-medium uppercase">SMS</span>
+                <span class="comm-portal px-3 py-1 text-xs font-medium uppercase">Portal</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horizontal Flow Container -->
+    <div class="flow-scroll p-8">
+        <div class="flex items-start gap-0 min-w-max">
+
+            <!-- Phase 1: Discovery -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">1</span>
+                        <div>
+                            <span class="text-xl mr-2">🔍</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Discovery</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Parent finds and evaluates the youth sports program</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Browse organization website</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Review programs & age divisions</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Check season dates & schedules</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Compare pricing options</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Registration -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">2</span>
+                        <div>
+                            <span class="text-xl mr-2">📝</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Registration</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Complete form with player & guardian info</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Player: name, DOB, school</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Parent contact details</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Emergency contacts</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Medical info & insurance</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Waivers -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">3</span>
+                        <div>
+                            <span class="text-xl mr-2">📋</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Waivers</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Review and sign required legal documents</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Injury liability waiver</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Medical treatment auth</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Photo/media release</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Code of conduct</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="actor-org px-2 py-1 text-xs font-medium uppercase">Org</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Payment -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">4</span>
+                        <div>
+                            <span class="text-xl mr-2">💳</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Payment</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Invoice generated, parent completes payment</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Itemized invoice created</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Apply discounts/codes</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Select payment method</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Payment plan option</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Confirmation -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">5</span>
+                        <div>
+                            <span class="text-xl mr-2">✅</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Confirmation</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Registration confirmed, access granted</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Confirmation email sent</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Payment receipt</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Portal access granted</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Documents stored</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-system px-2 py-1 text-xs font-medium uppercase">System</span>
+                            <span class="comm-email px-2 py-1 text-xs font-medium uppercase">Email</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 6: Team Assignment -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">6</span>
+                        <div>
+                            <span class="text-xl mr-2">👥</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Team Assignment</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Players assigned to teams and coaches</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Assign to team/division</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Coach assigned</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Practice schedule created</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Roster finalized</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <span class="actor-org px-2 py-1 text-xs font-medium uppercase">Organization</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 7: Welcome -->
+            <div class="timeline-connector flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-secondary w-72 flex-shrink-0">
+                    <div class="bg-brand-primary text-white px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">7</span>
+                        <div>
+                            <span class="text-xl mr-2">👋</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Welcome</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Coach introduces and shares team info</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Welcome email from coach</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Team expectations shared</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Volunteer opportunities</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Equipment/uniform info</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                            <span class="comm-email px-2 py-1 text-xs font-medium uppercase">Email</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-10 flex items-center justify-center">
+                    <div class="arrow-right"></div>
+                </div>
+            </div>
+
+            <!-- Phase 8: Day 1 -->
+            <div class="flex items-center">
+                <div class="phase-card bg-white border-2 border-brand-accent w-72 flex-shrink-0 ring-2 ring-brand-accent ring-offset-2">
+                    <div class="bg-brand-accent text-brand-primary px-4 py-3 flex items-center gap-3">
+                        <span class="text-2xl">8</span>
+                        <div>
+                            <span class="text-xl mr-2">🏆</span>
+                            <span class="font-orbitron font-semibold uppercase text-sm">Day 1</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-gray-600 text-sm mb-3">Final reminders, player arrives for first session</p>
+                        <ul class="text-sm space-y-1">
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Reminder notification</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>What to bring checklist</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Location & parking info</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-brand-accent">✓</span>
+                                <span>Season begins!</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                            <span class="actor-coach px-2 py-1 text-xs font-medium uppercase">Coach</span>
+                            <span class="actor-parent px-2 py-1 text-xs font-medium uppercase">Parent</span>
+                            <span class="comm-sms px-2 py-1 text-xs font-medium uppercase">SMS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="bg-forest-50 border-t-2 border-brand-secondary px-8 py-8">
+        <h2 class="font-orbitron text-xl font-bold text-brand-primary uppercase tracking-wide mb-6">Key Components Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span>📄</span> Required Forms
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Registration form</li>
+                    <li>• Liability waiver</li>
+                    <li>• Medical authorization</li>
+                    <li>• Photo release</li>
+                    <li>• Code of conduct</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span>💰</span> Payment Options
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Credit/debit card</li>
+                    <li>• ACH bank transfer</li>
+                    <li>• Check/cash</li>
+                    <li>• Payment plans</li>
+                    <li>• Financial aid</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span>📱</span> Communication
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• Email notifications</li>
+                    <li>• SMS/text alerts</li>
+                    <li>• Parent portal</li>
+                    <li>• Team apps</li>
+                    <li>• Push notifications</li>
+                </ul>
+            </div>
+
+            <div class="bg-white border-2 border-brand-secondary p-5">
+                <h3 class="font-orbitron text-sm font-semibold text-brand-primary uppercase mb-3 flex items-center gap-2">
+                    <span>🔧</span> Common Platforms
+                </h3>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li>• LeagueApps</li>
+                    <li>• Sports Connect</li>
+                    <li>• TeamSnap</li>
+                    <li>• SportsEngine</li>
+                    <li>• Jersey Watch</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-brand-primary text-brand-light py-4 px-8 text-center text-sm">
+        Youth Sports Registration Flow Diagram — TeamsElevated
+    </footer>
+
+</body>
+</html>
