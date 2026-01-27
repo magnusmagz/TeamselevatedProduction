@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 interface PaymentDetails {
   athlete_id: number;
@@ -37,8 +37,14 @@ interface Installment {
 export const PaymentCheckout: React.FC = () => {
   const { athleteId, paymentId } = useParams<{ athleteId: string; paymentId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Banking feature demo flag - enabled via ?bank URL parameter
+  const showBankingFeature = searchParams.has('bank');
+  const PROCESSING_FEE_RATE = 0.03; // 3%
 
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [useElevatedAccount, setUseElevatedAccount] = useState(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +142,10 @@ export const PaymentCheckout: React.FC = () => {
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
+
+  // Calculate processing fee (only shown when banking feature is enabled)
+  const processingFee = paymentDetails ? paymentDetails.amount * PROCESSING_FEE_RATE : 0;
+  const totalWithFee = paymentDetails ? paymentDetails.amount + (useElevatedAccount ? 0 : processingFee) : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,12 +338,132 @@ export const PaymentCheckout: React.FC = () => {
               </>
             )}
 
+            {/* Processing Fee (shown when banking feature enabled) */}
+            {showBankingFeature && !useElevatedAccount && (
+              <div className="flex justify-between text-gray-600">
+                <span>Processing Fee (3%):</span>
+                <span>{formatCurrency(processingFee)}</span>
+              </div>
+            )}
+
+            {showBankingFeature && useElevatedAccount && (
+              <div className="flex justify-between text-green-600">
+                <span className="flex items-center gap-2">
+                  Processing Fee
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">Waived</span>
+                </span>
+                <span className="line-through text-gray-400">{formatCurrency(processingFee)}</span>
+              </div>
+            )}
+
             <div className="border-t pt-2 mt-2 flex justify-between">
               <span className="text-lg font-bold">Total Amount:</span>
-              <span className="text-2xl font-bold text-blue-600">{formatCurrency(paymentDetails.amount)}</span>
+              <span className="text-2xl font-bold text-blue-600">
+                {formatCurrency(showBankingFeature ? totalWithFee : paymentDetails.amount)}
+              </span>
             </div>
           </div>
         </div>
+
+        {/* Elevated Account Upsell - Airline Style (only shown with ?bank flag) */}
+        {showBankingFeature && (
+          <div className="bg-gradient-to-r from-brand-primary to-forest-700 rounded-lg overflow-hidden mb-6 shadow-lg">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-brand-accent text-brand-primary text-xs font-bold px-2 py-0.5 rounded uppercase">
+                      Save {formatCurrency(processingFee)}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Waive Processing Fees with Elevated Account
+                  </h3>
+                  <p className="text-brand-light text-sm mb-4">
+                    Pay directly from your bank account and skip the 3% processing fee.
+                    Plus, enjoy faster refunds and seamless payment tracking.
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">💰</div>
+                      <div className="text-xs text-brand-light">No Processing Fees</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">⚡</div>
+                      <div className="text-xs text-brand-light">Instant Payments</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">🔒</div>
+                      <div className="text-xs text-brand-light">Bank-Level Security</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setUseElevatedAccount(true)}
+                      className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                        useElevatedAccount
+                          ? 'bg-white text-brand-primary'
+                          : 'bg-brand-accent text-brand-primary hover:bg-brand-light'
+                      }`}
+                    >
+                      {useElevatedAccount ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Elevated Account Selected
+                        </span>
+                      ) : (
+                        'Link Bank Account & Save'
+                      )}
+                    </button>
+                    {useElevatedAccount && (
+                      <button
+                        type="button"
+                        onClick={() => setUseElevatedAccount(false)}
+                        className="text-white/70 hover:text-white text-sm underline"
+                      >
+                        Use card instead
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trust badges */}
+            <div className="bg-black/20 px-6 py-3 flex items-center justify-between text-xs text-brand-light">
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                256-bit encryption
+              </span>
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                FDIC Insured
+              </span>
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Powered by Plaid
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Payment Plan Selection */}
         {paymentPlans.length > 0 && (
@@ -431,36 +561,100 @@ export const PaymentCheckout: React.FC = () => {
           )}
 
           {/* Payment Method Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('card')}
-                className={`flex-1 py-3 px-4 border-2 rounded font-semibold ${
-                  paymentMethod === 'card'
-                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                Credit/Debit Card
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('ach')}
-                className={`flex-1 py-3 px-4 border-2 rounded font-semibold ${
-                  paymentMethod === 'ach'
-                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                Bank Account (ACH)
-              </button>
+          {showBankingFeature && useElevatedAccount ? (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+              <div className="bg-brand-light border-2 border-brand-accent rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-brand-primary rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-brand-primary">Elevated Account</div>
+                    <div className="text-sm text-gray-600">Processing fee waived</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-green-600 font-semibold">-{formatCurrency(processingFee)}</div>
+                    <div className="text-xs text-gray-500">You save</div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                You'll be prompted to securely link your bank account via Plaid.
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex-1 py-3 px-4 border-2 rounded font-semibold ${
+                    paymentMethod === 'card'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900'
+                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  Credit/Debit Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('ach')}
+                  className={`flex-1 py-3 px-4 border-2 rounded font-semibold ${
+                    paymentMethod === 'ach'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900'
+                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  Bank Account (ACH)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Elevated Account - Bank Linking Placeholder */}
+          {showBankingFeature && useElevatedAccount && (
+            <div className="space-y-4 mb-6">
+              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Link Your Bank Account</h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  Securely connect your bank account to make fee-free payments.
+                  We use Plaid, trusted by millions, to securely link your account.
+                </p>
+                <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Read-only access
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    We never store credentials
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Cancel anytime
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Card Details */}
-          {paymentMethod === 'card' && (
+          {paymentMethod === 'card' && !useElevatedAccount && (
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
@@ -529,7 +723,7 @@ export const PaymentCheckout: React.FC = () => {
             </div>
           )}
 
-          {paymentMethod === 'ach' && (
+          {paymentMethod === 'ach' && !useElevatedAccount && (
             <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
               <p className="text-sm text-blue-800">
                 ACH payment processing is coming soon. Please use a credit/debit card for now.
@@ -559,20 +753,41 @@ export const PaymentCheckout: React.FC = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={processing || (paymentMethod === 'ach')}
+            disabled={processing || (paymentMethod === 'ach' && !useElevatedAccount)}
             className={`w-full py-3 px-4 rounded font-semibold text-white ${
-              processing || (paymentMethod === 'ach')
+              processing || (paymentMethod === 'ach' && !useElevatedAccount)
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+                : useElevatedAccount
+                  ? 'bg-brand-primary hover:bg-brand-primary-hover'
+                  : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            {processing ? 'Processing...' : `Pay ${formatCurrency(paymentDetails.amount)}`}
+            {processing ? 'Processing...' : (
+              useElevatedAccount
+                ? `Pay ${formatCurrency(paymentDetails.amount)} with Elevated Account`
+                : `Pay ${formatCurrency(showBankingFeature ? totalWithFee : paymentDetails.amount)}`
+            )}
           </button>
+
+          {showBankingFeature && !useElevatedAccount && (
+            <p className="text-xs text-center mt-2 text-gray-500">
+              Includes {formatCurrency(processingFee)} processing fee •
+              <button
+                type="button"
+                onClick={() => setUseElevatedAccount(true)}
+                className="text-brand-primary hover:underline ml-1"
+              >
+                Waive with Elevated Account
+              </button>
+            </p>
+          )}
 
           <p className="text-xs text-gray-500 text-center mt-4">
             {isDemoMode
               ? '🧪 Demo mode - No real charges will be made'
-              : '🔒 Secure payment processing powered by Maverick Payments'}
+              : useElevatedAccount
+                ? '🔒 Secure bank connection powered by Plaid'
+                : '🔒 Secure payment processing powered by Maverick Payments'}
           </p>
         </form>
       </div>
