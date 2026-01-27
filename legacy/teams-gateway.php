@@ -45,15 +45,18 @@ try {
                     SELECT t.*,
                            s.name as season_name,
                            CONCAT(u.first_name, ' ', u.last_name) as coach_name,
+                           f.name as home_field_name,
                            COUNT(DISTINCT tm.id) as player_count
                     FROM teams t
                     LEFT JOIN seasons s ON t.season_id = s.id
                     LEFT JOIN users u ON t.primary_coach_id = u.id
                     LEFT JOIN team_members tm ON t.id = tm.team_id
+                    LEFT JOIN fields f ON t.home_field_id = f.id
                     WHERE t.id = ?
                     GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                              t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
-                             t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, s.name, u.first_name, u.last_name
+                             t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, t.home_field_id,
+                             s.name, u.first_name, u.last_name, f.name
                 ");
                 $stmt->execute([$team_id]);
                 $team = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -78,11 +81,13 @@ try {
                     SELECT t.*,
                            s.name as season_name,
                            CONCAT(u.first_name, ' ', u.last_name) as coach_name,
+                           f.name as home_field_name,
                            COUNT(DISTINCT tm.id) as player_count
                     FROM teams t
                     LEFT JOIN seasons s ON t.season_id = s.id
                     LEFT JOIN users u ON t.primary_coach_id = u.id
                     LEFT JOIN team_members tm ON t.id = tm.team_id
+                    LEFT JOIN fields f ON t.home_field_id = f.id
                     WHERE 1=1
                 ";
 
@@ -122,7 +127,8 @@ try {
 
                 $query .= " GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                                      t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
-                                     t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, s.name, u.first_name, u.last_name
+                                     t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, t.home_field_id,
+                                     s.name, u.first_name, u.last_name, f.name
                             ORDER BY t.created_at DESC";
 
                 $stmt = $connection->prepare($query);
@@ -214,7 +220,8 @@ try {
             $stmt = $connection->prepare("
                 UPDATE teams
                 SET name = ?, age_group = ?, division = ?, season_id = ?, primary_coach_id = ?,
-                    max_players = ?, team_color = ?, logo_url = ?, skill_level = ?, gender = ?, status = ?
+                    max_players = ?, team_color = ?, logo_url = ?, skill_level = ?, gender = ?, status = ?,
+                    home_field_id = ?
                 WHERE id = ?
             ");
 
@@ -230,6 +237,7 @@ try {
                 $data['skill_level'] ?? 'Beginner',
                 $data['gender'] ?? 'Mixed',
                 $data['status'] ?? 'forming',
+                isset($data['home_field_id']) && $data['home_field_id'] ? $data['home_field_id'] : null,
                 $team_id
             ]);
 
