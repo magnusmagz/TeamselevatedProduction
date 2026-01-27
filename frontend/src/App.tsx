@@ -56,6 +56,7 @@ import { RosterFeeStatus } from './pages/RosterFeeStatus';
 import { FamilyInvoices } from './pages/FamilyInvoices';
 import { DemoPaymentPage } from './pages/DemoPaymentPage';
 import { PaymentPage } from './pages/PaymentPage';
+import { TeamDetailPage } from './pages/TeamDetailPage';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 // Fundraiser Campaign pages
 import { FundraiserCampaign } from './pages/FundraiserCampaign';
@@ -270,6 +271,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/calendar" element={<ProtectedRoute><TeamCalendar /></ProtectedRoute>} />
+          <Route path="/team/:teamId" element={<TeamDetailPage />} />
           <Route path="/teams/:teamId/roster" element={<TeamRosterPage />} />
           <Route path="/athlete/:athleteId" element={<AthleteProfile />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />

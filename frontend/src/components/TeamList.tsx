@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import SmartScheduler from './SmartScheduler';
 
@@ -22,7 +22,6 @@ interface TeamListProps {
 }
 
 const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
-  const navigate = useNavigate();
   const [showScheduler, setShowScheduler] = useState(false);
   const [showSmartScheduler, setShowSmartScheduler] = useState(false);
   const [selectedTeamForSchedule, setSelectedTeamForSchedule] = useState<Team | null>(null);
@@ -79,12 +78,12 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
               className="border-b border-gray-300 hover:bg-gray-50"
             >
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <button
-                  onClick={() => onEdit(team)}
+                <Link
+                  to={`/team/${team.id}`}
                   className="text-sm font-medium text-brand-primary hover:underline text-left"
                 >
                   {team.name}
-                </button>
+                </Link>
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                 <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
