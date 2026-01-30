@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TeamList from './TeamList';
+import TryoutCreationWizard from '../modules/registration/components/TryoutCreationWizard';
+import TryoutManagement from '../modules/registration/components/TryoutManagement';
 
 interface Program {
   id?: number;
@@ -19,6 +21,7 @@ interface Program {
   status: 'draft' | 'published' | 'closed' | 'cancelled';
   team_count?: number;
   player_count?: number;
+  registration_count?: number;
 }
 
 const ProgramManagement: React.FC = () => {
@@ -31,6 +34,10 @@ const ProgramManagement: React.FC = () => {
   const [filterSeason, setFilterSeason] = useState<string>('');
   const [showTeams, setShowTeams] = useState(false);
   const [selectedProgramForTeams, setSelectedProgramForTeams] = useState<Program | null>(null);
+
+  // Tryout-specific state
+  const [showTryoutWizard, setShowTryoutWizard] = useState(false);
+  const [managingTryout, setManagingTryout] = useState<Program | null>(null);
 
   const [formData, setFormData] = useState<Program>({
     name: '',
@@ -126,6 +133,19 @@ const ProgramManagement: React.FC = () => {
     setShowTeams(true);
   };
 
+  const handleCreateTryout = () => {
+    setShowTryoutWizard(true);
+  };
+
+  const handleTryoutCreated = (tryoutId: number) => {
+    setShowTryoutWizard(false);
+    fetchPrograms();
+  };
+
+  const handleManageTryout = (program: Program) => {
+    setManagingTryout(program);
+  };
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
@@ -142,12 +162,20 @@ const ProgramManagement: React.FC = () => {
           </h2>
           <p className="text-gray-600">Manage your club's programs and seasons</p>
         </div>
-        <button
-          onClick={handleAddProgram}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
-        >
-          + Add New Program
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleCreateTryout}
+            className="bg-brand-accent text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-accent-hover font-semibold uppercase"
+          >
+            + Create Tryout
+          </button>
+          <button
+            onClick={handleAddProgram}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
+          >
+            + Add New Program
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -220,27 +248,44 @@ const ProgramManagement: React.FC = () => {
                   {new Date(program.registration_opens).toLocaleDateString()}
                 </div>
               )}
-              <div>
-                <span className="font-semibold">Teams:</span> {program.team_count || 0}
-              </div>
-              <div>
-                <span className="font-semibold">Players:</span> {program.player_count || 0}
-              </div>
+              {program.type === 'tryout' ? (
+                <div>
+                  <span className="font-semibold">Registrations:</span> {program.registration_count || 0}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <span className="font-semibold">Teams:</span> {program.team_count || 0}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Players:</span> {program.player_count || 0}
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex gap-2 flex-wrap">
               <button
                 onClick={() => handleEditProgram(program)}
                 className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
               >
                 Edit
               </button>
-              <button
-                onClick={() => handleManageTeams(program)}
-                className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-              >
-                Teams ({program.team_count || 0})
-              </button>
+              {program.type === 'tryout' ? (
+                <button
+                  onClick={() => handleManageTryout(program)}
+                  className="text-brand-accent hover:text-brand-accent-hover uppercase text-xs font-semibold"
+                >
+                  Manage Tryout
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleManageTeams(program)}
+                  className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+                >
+                  Teams ({program.team_count || 0})
+                </button>
+              )}
               {program.team_count === 0 && (
                 <button
                   onClick={() => handleDeleteProgram(program.id!)}
@@ -426,6 +471,25 @@ const ProgramManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tryout Creation Wizard */}
+      {showTryoutWizard && (
+        <TryoutCreationWizard
+          clubId={1}
+          onComplete={handleTryoutCreated}
+          onCancel={() => setShowTryoutWizard(false)}
+        />
+      )}
+
+      {/* Tryout Management Modal */}
+      {managingTryout && (
+        <TryoutManagement
+          programId={managingTryout.id!}
+          programName={managingTryout.name}
+          currentUserId={1}
+          onClose={() => setManagingTryout(null)}
+        />
       )}
     </div>
   );
