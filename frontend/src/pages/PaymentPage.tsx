@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 interface Invoice {
   id: number;
@@ -62,7 +62,13 @@ interface Contributor {
  */
 export const PaymentPage: React.FC = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
+  const [searchParams] = useSearchParams();
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+
+  // Banking feature demo flag
+  const showBankingFeature = searchParams.has('bank');
+  const PROCESSING_FEE_RATE = 0.03; // 3% processing fee
+  const [useElevatedAccount, setUseElevatedAccount] = useState(false);
 
   // Invoice data state
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -144,6 +150,17 @@ export const PaymentPage: React.FC = () => {
     return Math.max(0, baseAmount - getTotalContributions());
   };
 
+  // Calculate processing fee (only applies when banking feature is enabled and not using Elevated Account)
+  const getProcessingFee = () => {
+    if (!showBankingFeature || useElevatedAccount) return 0;
+    return getEffectiveAmount() * PROCESSING_FEE_RATE;
+  };
+
+  // Get total with processing fee
+  const getTotalWithFee = () => {
+    return getEffectiveAmount() + getProcessingFee();
+  };
+
   // Enable crowdfunding (in real app, this would save to backend)
   const enableCrowdfunding = () => {
     setIsCrowdfunded(true);
@@ -215,7 +232,12 @@ export const PaymentPage: React.FC = () => {
 
   const getAmountDueToday = () => {
     const plan = getSelectedPlanDetails();
-    return plan?.payments[0].amount || 0;
+    const baseAmount = plan?.payments[0].amount || 0;
+    // Add processing fee if banking feature is enabled and not using Elevated Account
+    if (showBankingFeature && !useElevatedAccount) {
+      return baseAmount + (baseAmount * PROCESSING_FEE_RATE);
+    }
+    return baseAmount;
   };
 
   const handleProceedToPayment = () => {
@@ -632,10 +654,32 @@ export const PaymentPage: React.FC = () => {
                     <span className="text-gray-600">Plan:</span>
                     <span className="font-semibold">{plan?.name}</span>
                   </div>
-                  <div className="flex justify-between items-center text-lg">
+                  {showBankingFeature && (
+                    <>
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span className="text-gray-600">Subtotal:</span>
+                        <span>{formatCurrency(plan?.payments[0].amount || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm mb-2">
+                        <span className="text-gray-600">
+                          Processing Fee
+                          {useElevatedAccount && <span className="text-emerald-600 ml-1">(Waived)</span>}
+                        </span>
+                        <span className={useElevatedAccount ? 'text-gray-400 line-through' : 'text-red-600'}>
+                          +{formatCurrency((plan?.payments[0].amount || 0) * PROCESSING_FEE_RATE)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-center text-lg border-t border-gray-200 pt-2">
                     <span className="font-semibold">Due Today:</span>
                     <span className="font-bold text-brand-primary">{formatCurrency(getAmountDueToday())}</span>
                   </div>
+                  {showBankingFeature && useElevatedAccount && (
+                    <p className="text-xs text-emerald-600 mt-1 text-right">
+                      Saving {formatCurrency((plan?.payments[0].amount || 0) * PROCESSING_FEE_RATE)} with Elevated Account
+                    </p>
+                  )}
                   {plan && plan.payments.length > 1 && (
                     <p className="text-xs text-gray-500 mt-2">
                       + {plan.payments.length - 1} future payment(s) of {formatCurrency(plan.payments[1].amount)}
@@ -859,12 +903,33 @@ export const PaymentPage: React.FC = () => {
                 <tfoot>
                   <tr className="border-t">
                     <td className="pt-4 font-bold text-gray-900">
-                      {isSplit || isCrowdfunded ? 'Your Total' : 'Total'}
+                      {isSplit || isCrowdfunded ? 'Your Subtotal' : 'Subtotal'}
                     </td>
                     <td className="pt-4 text-right font-bold text-xl text-brand-primary">
                       {formatCurrency(getEffectiveAmount())}
                     </td>
                   </tr>
+                  {showBankingFeature && (
+                    <tr>
+                      <td className="pt-2 text-gray-600">
+                        Processing Fee (3%)
+                        {useElevatedAccount && (
+                          <span className="ml-2 text-emerald-600 text-sm font-medium">WAIVED</span>
+                        )}
+                      </td>
+                      <td className={`pt-2 text-right ${useElevatedAccount ? 'text-gray-400 line-through' : 'text-red-600 font-semibold'}`}>
+                        +{formatCurrency(getEffectiveAmount() * PROCESSING_FEE_RATE)}
+                      </td>
+                    </tr>
+                  )}
+                  {showBankingFeature && (
+                    <tr>
+                      <td className="pt-2 font-bold text-gray-900">Total Due</td>
+                      <td className="pt-2 text-right font-bold text-xl text-brand-primary">
+                        {formatCurrency(getTotalWithFee())}
+                      </td>
+                    </tr>
+                  )}
                 </tfoot>
               </table>
             </div>
@@ -983,6 +1048,131 @@ export const PaymentPage: React.FC = () => {
               </div>
             )}
 
+            {/* Banking Feature Upsell - Only shown with ?bank URL parameter */}
+            {showBankingFeature && (
+              <div className="mx-6 my-4 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-lg">
+                {/* Gradient Header */}
+                <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-white font-semibold text-sm">Save on Processing Fees</span>
+                    </div>
+                    <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      Save {formatCurrency(getEffectiveAmount() * PROCESSING_FEE_RATE)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card Content */}
+                <div className="bg-gradient-to-b from-emerald-50 to-white p-4">
+                  {/* Fee Breakdown */}
+                  <div className="flex items-center justify-between mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                    <div>
+                      <p className="text-sm text-gray-600">Card Processing Fee (3%)</p>
+                      <p className="text-xs text-gray-400">Standard fee for card payments</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-semibold ${useElevatedAccount ? 'text-gray-400 line-through' : 'text-red-600'}`}>
+                        +{formatCurrency(getEffectiveAmount() * PROCESSING_FEE_RATE)}
+                      </p>
+                      {useElevatedAccount && (
+                        <p className="text-sm text-emerald-600 font-semibold">WAIVED</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Elevated Account Option */}
+                  <label className={`block p-4 rounded-xl cursor-pointer transition-all border-2 ${
+                    useElevatedAccount
+                      ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-emerald-300'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        useElevatedAccount ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
+                      }`}>
+                        {useElevatedAccount && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={useElevatedAccount}
+                        onChange={(e) => setUseElevatedAccount(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900">Pay with Elevated Account</span>
+                          <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                            RECOMMENDED
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Waive the {formatCurrency(getEffectiveAmount() * PROCESSING_FEE_RATE)} processing fee by linking your bank account
+                        </p>
+
+                        {/* Benefits */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>No processing fees</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Instant transfers</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Bank-level security</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Easy future payments</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Trust Badges */}
+                  <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>256-bit encryption</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <span>FDIC protected</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Trusted by 10k+ families</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Payment Options */}
             <div className="p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Choose Payment Option</h2>
@@ -1041,6 +1231,24 @@ export const PaymentPage: React.FC = () => {
               >
                 Continue to Payment - {formatCurrency(getAmountDueToday())} Due Today
               </button>
+
+              {/* Show fee savings reminder */}
+              {showBankingFeature && !useElevatedAccount && (
+                <p className="text-center text-sm text-emerald-600 mt-2 font-medium">
+                  Includes {formatCurrency(getProcessingFee())} processing fee -
+                  <button
+                    onClick={() => setUseElevatedAccount(true)}
+                    className="underline ml-1 hover:text-emerald-700"
+                  >
+                    waive with Elevated Account
+                  </button>
+                </p>
+              )}
+              {showBankingFeature && useElevatedAccount && (
+                <p className="text-center text-sm text-emerald-600 mt-2 font-medium">
+                  You're saving {formatCurrency(getEffectiveAmount() * PROCESSING_FEE_RATE)} with Elevated Account!
+                </p>
+              )}
 
               <p className="text-center text-sm text-gray-500 mt-4">
                 Secure payment processing

@@ -31,6 +31,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   const [offers, setOffers] = useState<TryoutOffer[]>([]);
   const [sessions, setSessions] = useState<TryoutSession[]>([]);
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
+  const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -58,8 +59,16 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
         setSessions(await sessRes.json());
         setCriteria(await critRes.json());
       } else if (activeTab === 'rankings') {
-        const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=rankings&program_id=${programId}`);
-        setRankings(await res.json());
+        const token = localStorage.getItem('auth_token');
+        const [rankRes, teamsRes] = await Promise.all([
+          fetch(`${API_URL}/registration/tryouts-api.php?path=rankings&program_id=${programId}`),
+          fetch(`${API_URL}/legacy/teams-gateway.php?club_id=1`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+        setRankings(await rankRes.json());
+        const teamsData = await teamsRes.json();
+        setTeams(teamsData.teams || []);
       } else if (activeTab === 'offers') {
         const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=offers&program_id=${programId}`);
         setOffers(await res.json());
@@ -303,6 +312,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                 {activeTab === 'rankings' && (
                   <RankingsTable
                     rankings={rankings}
+                    teams={teams}
                     onSendOffers={handleSendOffers}
                     getStatusBadge={getStatusBadge}
                   />
@@ -489,16 +499,19 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
 
 interface RankingsTableProps {
   rankings: TryoutRanking[];
+  teams: { id: number; name: string }[];
   onSendOffers: (ids: number[], type: 'roster' | 'waitlist' | 'not_selected', teamId?: number) => void;
   getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
 
 const RankingsTable: React.FC<RankingsTableProps> = ({
   rankings,
+  teams,
   onSendOffers,
   getStatusBadge
 }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | undefined>(undefined);
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev =>
@@ -526,25 +539,50 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
     <div>
       {/* Action Bar */}
       {selectedIds.length > 0 && (
-        <div className="mb-4 p-4 bg-gray-50 rounded-md flex items-center justify-between">
-          <span className="text-brand-primary font-medium">
-            {selectedIds.length} athlete{selectedIds.length !== 1 ? 's' : ''} selected
-          </span>
-          <div className="flex space-x-2">
+        <div className="mb-4 p-4 bg-gray-50 rounded-md">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-brand-primary font-medium">
+              {selectedIds.length} athlete{selectedIds.length !== 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <select
+              value={selectedTeamId || ''}
+              onChange={(e) => setSelectedTeamId(e.target.value ? Number(e.target.value) : undefined)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="">Select Team...</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
             <button
-              onClick={() => onSendOffers(selectedIds, 'roster')}
+              onClick={() => {
+                if (!selectedTeamId) {
+                  alert('Please select a team for roster offers');
+                  return;
+                }
+                onSendOffers(selectedIds, 'roster', selectedTeamId);
+                setSelectedIds([]);
+              }}
               className="px-3 py-2 bg-green-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-green-700"
             >
               Send Roster Offer
             </button>
             <button
-              onClick={() => onSendOffers(selectedIds, 'waitlist')}
+              onClick={() => {
+                onSendOffers(selectedIds, 'waitlist');
+                setSelectedIds([]);
+              }}
               className="px-3 py-2 bg-yellow-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-yellow-700"
             >
               Waitlist
             </button>
             <button
-              onClick={() => onSendOffers(selectedIds, 'not_selected')}
+              onClick={() => {
+                onSendOffers(selectedIds, 'not_selected');
+                setSelectedIds([]);
+              }}
               className="px-3 py-2 bg-gray-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-gray-700"
             >
               Not Selected
@@ -697,13 +735,13 @@ const OffersTable: React.FC<OffersTableProps> = ({
                     onClick={() => onUpdateOffer(offer.id!, 'accepted')}
                     className="text-green-600 hover:text-green-700 text-sm font-semibold uppercase"
                   >
-                    Mark Accepted
+                    Accept
                   </button>
                   <button
                     onClick={() => onUpdateOffer(offer.id!, 'declined')}
                     className="text-red-600 hover:text-red-700 text-sm font-semibold uppercase"
                   >
-                    Mark Declined
+                    Decline
                   </button>
                 </div>
               )}

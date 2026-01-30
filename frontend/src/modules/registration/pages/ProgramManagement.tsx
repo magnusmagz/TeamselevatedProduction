@@ -3,15 +3,21 @@ import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
 import RegistrationsModal from '../components/RegistrationsModal';
+import TryoutCreationWizard from '../components/TryoutCreationWizard';
+import TryoutManagement from '../components/TryoutManagement';
+import { useAuth } from '../../../hooks/useAuth';
 
 const ProgramManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [embedProgram, setEmbedProgram] = useState<Program | null>(null);
   const [registrationsProgram, setRegistrationsProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTryoutWizard, setShowTryoutWizard] = useState(false);
+  const [manageTryoutProgram, setManageTryoutProgram] = useState<Program | null>(null);
 
   useEffect(() => {
     fetchPrograms();
@@ -87,12 +93,20 @@ const ProgramManagement: React.FC = () => {
           <div className="text-gray-600">
             {programs.length} program{programs.length !== 1 ? 's' : ''}
           </div>
-          <button
-            onClick={handleCreateProgram}
-            className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold"
-          >
-            + Create New Program
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleCreateProgram}
+              className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold"
+            >
+              + Create New Program
+            </button>
+            <button
+              onClick={() => setShowTryoutWizard(true)}
+              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 uppercase font-semibold"
+            >
+              + Create Tryout
+            </button>
+          </div>
         </div>
 
         {/* Programs List */}
@@ -189,6 +203,14 @@ const ProgramManagement: React.FC = () => {
                           >
                             Edit
                           </button>
+                          {program.type === 'tryout' && (
+                            <button
+                              onClick={() => setManageTryoutProgram(program)}
+                              className="text-green-600 hover:text-green-500 uppercase text-xs font-semibold"
+                            >
+                              Manage Tryout
+                            </button>
+                          )}
                           {program.status === 'published' && (
                             <>
                               <button
@@ -292,6 +314,14 @@ const ProgramManagement: React.FC = () => {
                     >
                       Edit
                     </button>
+                    {program.type === 'tryout' && (
+                      <button
+                        onClick={() => setManageTryoutProgram(program)}
+                        className="border border-green-200 rounded-md text-green-600 hover:bg-green-50 py-2 uppercase text-xs font-semibold"
+                      >
+                        Manage Tryout
+                      </button>
+                    )}
                     {program.status === 'published' && (
                       <>
                         <button
@@ -352,6 +382,31 @@ const ProgramManagement: React.FC = () => {
             onClose={() => {
               setRegistrationsProgram(null);
               fetchPrograms(); // Refresh counts after approval/rejection
+            }}
+          />
+        )}
+
+        {/* Tryout Creation Wizard */}
+        {showTryoutWizard && (
+          <TryoutCreationWizard
+            clubId={1}
+            onComplete={(tryoutId) => {
+              setShowTryoutWizard(false);
+              fetchPrograms();
+            }}
+            onCancel={() => setShowTryoutWizard(false)}
+          />
+        )}
+
+        {/* Tryout Management */}
+        {manageTryoutProgram && manageTryoutProgram.id && (
+          <TryoutManagement
+            programId={manageTryoutProgram.id}
+            programName={manageTryoutProgram.name}
+            currentUserId={user?.id || 0}
+            onClose={() => {
+              setManageTryoutProgram(null);
+              fetchPrograms();
             }}
           />
         )}

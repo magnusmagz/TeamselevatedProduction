@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fundraiser Campaign - UI Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-primary': '#12443E',
+                        'brand-primary-hover': '#0d332f',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .mockup-section {
+            border: 3px dashed #ccc;
+            margin: 40px 0;
+            padding: 20px;
+            background: #fafafa;
+        }
+        .mockup-label {
+            background: #333;
+            color: white;
+            padding: 8px 16px;
+            font-weight: bold;
+            margin: -20px -20px 20px -20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-6xl mx-auto py-8 px-4">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Fundraiser Campaigns - UI Mockup</h1>
+        <p class="text-gray-600 mb-8">Preview of all screens for the fundraiser campaign feature</p>
+
+        <!-- ==================== PUBLIC CAMPAIGN PAGE ==================== -->
+        <div class="mockup-section">
+            <div class="mockup-label">1. PUBLIC CAMPAIGN PAGE - /donate/wildcats/campaign/new-court-floors</div>
+
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <!-- Hero Image -->
+                <div class="h-64 bg-gradient-to-r from-brand-primary to-emerald-700 relative">
+                    <div class="absolute inset-0 bg-black/30"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-6 text-white">
+                        <p class="text-white/70 mb-1">Wildcats Basketball Club</p>
+                        <h1 class="text-3xl font-bold">New Court Floors Fund</h1>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Main Content -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <!-- Description -->
+                            <div class="bg-white rounded-lg p-6 border border-gray-100">
+                                <h2 class="text-lg font-semibold text-gray-900 mb-4">About this campaign</h2>
+                                <p class="text-gray-600">
+                                    Help us replace the worn-out court floors at our main gym! Our current floors are over 15 years old and showing significant wear. New floors will provide a safer playing surface for our athletes and improve the overall experience for players and spectators alike.
+                                </p>
+                                <p class="text-gray-600 mt-4">
+                                    Your donation will go directly toward purchasing professional-grade hardwood flooring and installation. Every contribution, no matter the size, brings us closer to our goal!
+                                </p>
+                                <div class="mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
+                                    Ends March 15, 2026
+                                </div>
+                            </div>
+
+                            <!-- Donor Wall Preview -->
+                            <div class="bg-white rounded-lg p-6 border border-gray-100">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    Recent Supporters <span class="text-sm font-normal text-gray-500">(24)</span>
+                                </h3>
+                                <div class="space-y-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-semibold text-sm">JS</div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <p class="font-medium text-gray-900">John Smith</p>
+                                                <span class="text-brand-primary font-semibold">$100</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 italic">"Go Wildcats! Happy to support the team."</p>
+                                            <p class="text-xs text-gray-400 mt-1">2 hours ago</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-semibold text-sm">?</div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <p class="font-medium text-gray-900">Anonymous</p>
+                                                <span class="text-brand-primary font-semibold">$250</span>
+                                            </div>
+                                            <p class="text-xs text-gray-400 mt-1">5 hours ago</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-semibold text-sm">MJ</div>
+                                        <div class="flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <p class="font-medium text-gray-900">Maria Johnson</p>
+                                                <span class="text-brand-primary font-semibold">$50</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 italic">"Best of luck with the fundraiser!"</p>
+                                            <p class="text-xs text-gray-400 mt-1">1 day ago</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="w-full mt-4 py-2 text-brand-primary hover:text-brand-primary-hover text-sm font-medium">
+                                    Show all 24 supporters
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar -->
+                        <div class="space-y-6">
+                            <!-- Progress Card -->
+                            <div class="bg-white rounded-lg p-6 border border-gray-100">
+                                <div class="mb-4">
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-3xl font-bold text-brand-primary">$3,250</span>
+                                        <span class="text-gray-500">raised of $5,000 goal</span>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full bg-brand-primary rounded-full" style="width: 65%"></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1 text-sm text-gray-500">
+                                        <span>65% funded</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-900">24</p>
+                                        <p class="text-sm text-gray-500">Donors</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-900">18</p>
+                                        <p class="text-sm text-gray-500">Days left</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Share Section -->
+                            <div class="bg-white rounded-lg p-6 border border-gray-100">
+                                <h3 class="font-semibold text-gray-900 mb-3">Share this campaign</h3>
+                                <div class="flex gap-2">
+                                    <button class="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                        Copy Link
+                                    </button>
+                                    <button class="p-2 bg-blue-600 rounded-lg text-white">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                                    </button>
+                                    <button class="p-2 bg-black rounded-lg text-white">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Donation Form -->
+                            <div class="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                                <div class="bg-brand-primary text-white p-4">
+                                    <h3 class="font-semibold">Make a Donation</h3>
+                                    <p class="text-sm text-white/70">Support New Court Floors Fund</p>
+                                </div>
+                                <div class="p-6 space-y-4">
+                                    <!-- Amount buttons -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-3">Choose your donation amount</label>
+                                        <div class="grid grid-cols-4 gap-2 mb-3">
+                                            <button class="py-3 px-4 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">$25</button>
+                                            <button class="py-3 px-4 rounded-lg font-semibold bg-brand-primary text-white">$50</button>
+                                            <button class="py-3 px-4 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">$100</button>
+                                            <button class="py-3 px-4 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">$250</button>
+                                        </div>
+                                        <div class="relative">
+                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                            <input type="text" placeholder="Other amount" class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg">
+                                        </div>
+                                    </div>
+
+                                    <!-- Name & Email -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                        <input type="text" placeholder="John Smith" class="w-full border border-gray-300 rounded-lg px-4 py-3">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                                        <input type="email" placeholder="john@example.com" class="w-full border border-gray-300 rounded-lg px-4 py-3">
+                                    </div>
+
+                                    <!-- Comment -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Leave a message (optional)</label>
+                                        <textarea rows="2" placeholder="Share why you're supporting..." class="w-full border border-gray-300 rounded-lg px-4 py-3 resize-none"></textarea>
+                                    </div>
+
+                                    <!-- Anonymous checkbox -->
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" class="w-4 h-4 text-brand-primary rounded">
+                                        <span class="text-sm text-gray-700">Make my donation anonymous</span>
+                                    </label>
+
+                                    <!-- Card fields -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+                                        <input type="text" placeholder="4242 4242 4242 4242" class="w-full border border-gray-300 rounded-lg px-4 py-3">
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <input type="text" placeholder="MM" class="border border-gray-300 rounded-lg px-4 py-3">
+                                        <input type="text" placeholder="YY" class="border border-gray-300 rounded-lg px-4 py-3">
+                                        <input type="text" placeholder="CVV" class="border border-gray-300 rounded-lg px-4 py-3">
+                                    </div>
+
+                                    <button class="w-full py-4 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg font-semibold text-lg">
+                                        Donate $50
+                                    </button>
+                                    <p class="text-xs text-gray-500 text-center">Secure payment processing</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== DONATION SUCCESS PAGE ==================== -->
+        <div class="mockup-section">
+            <div class="mockup-label">2. DONATION SUCCESS PAGE - /donate/thank-you/:donationId</div>
+
+            <div class="max-w-lg mx-auto">
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="bg-green-500 p-6 text-center">
+                        <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-2xl font-bold text-white">Thank You!</h1>
+                        <p class="text-white/90 mt-1">Your donation was successful</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                            <p class="text-sm text-gray-500 mb-1">Donation Amount</p>
+                            <p class="text-3xl font-bold text-brand-primary">$50.00</p>
+                        </div>
+                        <div class="space-y-3 mb-6">
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-500">Campaign</span>
+                                <span class="font-medium text-gray-900">New Court Floors Fund</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-500">Organization</span>
+                                <span class="font-medium text-gray-900">Wildcats Basketball Club</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-gray-100">
+                                <span class="text-gray-500">Date</span>
+                                <span class="text-gray-900">January 22, 2026</span>
+                            </div>
+                            <div class="flex justify-between py-2">
+                                <span class="text-gray-500">Reference #</span>
+                                <span class="font-mono text-sm text-gray-900">DON-12345</span>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                                <div>
+                                    <p class="font-medium text-green-800">Receipt sent!</p>
+                                    <p class="text-sm text-green-600">A receipt has been emailed to john@example.com</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="font-medium text-gray-900 mb-3">Help spread the word</p>
+                        <div class="flex gap-2">
+                            <button class="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium">
+                                Copy Link
+                            </button>
+                            <button class="p-2 bg-blue-600 rounded-lg text-white">FB</button>
+                            <button class="p-2 bg-black rounded-lg text-white">X</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ADMIN CAMPAIGN LIST ==================== -->
+        <div class="mockup-section">
+            <div class="mockup-label">3. ADMIN: CAMPAIGN LIST - /admin/fundraisers</div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Fundraiser Campaigns</h1>
+                        <p class="text-gray-500">Create and manage goal-based fundraising campaigns</p>
+                    </div>
+                    <button class="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        New Campaign
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-500">Total Raised</p>
+                        <p class="text-2xl font-bold text-brand-primary">$8,750</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-500">Total Donors</p>
+                        <p class="text-2xl font-bold text-gray-900">47</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-500">Active Campaigns</p>
+                        <p class="text-2xl font-bold text-green-600">2</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-500">Total Campaigns</p>
+                        <p class="text-2xl font-bold text-gray-900">5</p>
+                    </div>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="flex gap-2 mb-6">
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white">All (5)</button>
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">Active</button>
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">Draft</button>
+                    <button class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">Ended</button>
+                </div>
+
+                <!-- Campaign List -->
+                <div class="space-y-4">
+                    <!-- Campaign Item 1 -->
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <a href="#" class="text-lg font-semibold text-gray-900 hover:text-brand-primary">New Court Floors Fund</a>
+                                    <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">Active</span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium text-brand-primary">$3,250 raised</span>
+                                        <span class="text-gray-500">65% of $5,000</span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full bg-brand-primary rounded-full" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-6 text-sm text-gray-500">
+                                    <span>24 donors</span>
+                                    <span>18 days left</span>
+                                    <span>Jan 1 - Mar 15, 2026</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 ml-4">
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg" title="Dashboard">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                </button>
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg" title="Edit">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                </button>
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg" title="View Page">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campaign Item 2 -->
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <a href="#" class="text-lg font-semibold text-gray-900 hover:text-brand-primary">Summer Training Camp Scholarships</a>
+                                    <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">Active</span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium text-brand-primary">$5,500 raised</span>
+                                        <span class="text-gray-500">110% of $5,000</span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full bg-brand-primary rounded-full" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-6 text-sm text-gray-500">
+                                    <span>23 donors</span>
+                                    <span>32 days left</span>
+                                    <span>Jan 15 - Feb 28, 2026</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 ml-4">
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></button>
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campaign Item 3 - Draft -->
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <a href="#" class="text-lg font-semibold text-gray-900 hover:text-brand-primary">New Uniforms 2026</a>
+                                    <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">Draft</span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium text-brand-primary">$0 raised</span>
+                                        <span class="text-gray-500">0% of $3,000</span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full bg-brand-primary rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-6 text-sm text-gray-500">
+                                    <span>0 donors</span>
+                                    <span>Starts Apr 1, 2026</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 ml-4">
+                                <button class="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ADMIN CREATE/EDIT FORM ==================== -->
+        <div class="mockup-section">
+            <div class="mockup-label">4. ADMIN: CREATE/EDIT CAMPAIGN - /admin/fundraisers/new</div>
+
+            <div class="bg-white rounded-lg shadow p-6 max-w-3xl">
+                <div class="mb-6">
+                    <a href="#" class="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        Back to Campaigns
+                    </a>
+                    <h1 class="text-2xl font-bold text-gray-900">Create New Campaign</h1>
+                </div>
+
+                <!-- Campaign Details -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Campaign Details</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Campaign Title *</label>
+                            <input type="text" placeholder="e.g., New Court Floors" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="New Court Floors Fund">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">URL Slug</label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-500 text-sm">/donate/wildcats/campaign/</span>
+                                <input type="text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" value="new-court-floors-fund">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea rows="4" placeholder="Tell supporters why this campaign matters..." class="w-full border border-gray-300 rounded-lg px-4 py-3 resize-none">Help us replace the worn-out court floors at our main gym! Our current floors are over 15 years old and showing significant wear.</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Hero Image URL</label>
+                            <input type="url" placeholder="https://example.com/image.jpg" class="w-full border border-gray-300 rounded-lg px-4 py-3">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Goal & Timeline -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Goal & Timeline</h2>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fundraising Goal *</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                <input type="number" placeholder="5000" class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg" value="5000">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                            <input type="date" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="2026-01-01">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+                            <input type="date" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="2026-03-15">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Settings -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Privacy Settings</h2>
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-5 h-5 text-brand-primary rounded">
+                            <div>
+                                <p class="font-medium text-gray-900">Show progress bar</p>
+                                <p class="text-sm text-gray-500">Display amount raised and progress toward goal</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-5 h-5 text-brand-primary rounded">
+                            <div>
+                                <p class="font-medium text-gray-900">Show donor names</p>
+                                <p class="text-sm text-gray-500">Display supporter names on the donor wall</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-5 h-5 text-brand-primary rounded">
+                            <div>
+                                <p class="font-medium text-gray-900">Show donation amounts</p>
+                                <p class="text-sm text-gray-500">Display individual donation amounts publicly</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-5 h-5 text-brand-primary rounded">
+                            <div>
+                                <p class="font-medium text-gray-900">Allow donor messages</p>
+                                <p class="text-sm text-gray-500">Let donors leave public messages with their donations</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-between pt-4">
+                    <button class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">Cancel</button>
+                    <div class="flex items-center gap-3">
+                        <button class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">Save as Draft</button>
+                        <button class="px-6 py-3 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover">Publish Campaign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ADMIN CAMPAIGN DASHBOARD ==================== -->
+        <div class="mockup-section">
+            <div class="mockup-label">5. ADMIN: CAMPAIGN DASHBOARD - /admin/fundraisers/:id</div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="mb-6">
+                    <a href="#" class="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        Back to Campaigns
+                    </a>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-2xl font-bold text-gray-900">New Court Floors Fund</h1>
+                                <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-700 rounded-full">Active</span>
+                            </div>
+                            <p class="text-gray-500 mt-1">Wildcats Basketball Club</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                Edit
+                            </button>
+                            <button class="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                View Page
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Main Content -->
+                    <div class="col-span-2 space-y-6">
+                        <!-- Share Link -->
+                        <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Share Link</label>
+                            <div class="flex gap-2">
+                                <input type="text" readonly value="https://teamselevated.com/donate/wildcats/campaign/new-court-floors-fund" class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-600">
+                                <button class="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- Tabs -->
+                        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div class="border-b border-gray-200">
+                                <div class="flex">
+                                    <button class="px-6 py-3 font-medium text-sm text-brand-primary border-b-2 border-brand-primary">Donations (24)</button>
+                                    <button class="px-6 py-3 font-medium text-sm text-gray-500 hover:text-gray-700">Updates (2)</button>
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <!-- Export button -->
+                                <div class="mb-4 flex justify-end">
+                                    <button class="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                        Export CSV
+                                    </button>
+                                </div>
+
+                                <!-- Donations list -->
+                                <div class="space-y-3">
+                                    <div class="border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-start justify-between">
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-medium text-gray-900">John Smith</span>
+                                                    <span class="text-lg font-semibold text-brand-primary">$100.00</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500">john.smith@email.com</p>
+                                                <p class="text-sm text-gray-600 mt-2 italic">"Go Wildcats! Happy to support the team."</p>
+                                                <p class="text-xs text-gray-400 mt-1">Jan 22, 2026 at 2:30 PM</p>
+                                            </div>
+                                            <button class="text-sm text-brand-primary hover:text-brand-primary-hover">Resend Receipt</button>
+                                        </div>
+                                    </div>
+                                    <div class="border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-start justify-between">
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-medium text-gray-900">Anonymous</span>
+                                                    <span class="text-lg font-semibold text-brand-primary">$250.00</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500">anonymous@email.com</p>
+                                                <p class="text-xs text-gray-400 mt-1">Jan 22, 2026 at 10:15 AM</p>
+                                            </div>
+                                            <button class="text-sm text-brand-primary hover:text-brand-primary-hover">Resend Receipt</button>
+                                        </div>
+                                    </div>
+                                    <div class="border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-start justify-between">
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-medium text-gray-900">Maria Johnson</span>
+                                                    <span class="text-lg font-semibold text-brand-primary">$50.00</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500">maria.j@email.com</p>
+                                                <p class="text-sm text-gray-600 mt-2 italic">"Best of luck with the fundraiser!"</p>
+                                                <p class="text-xs text-gray-400 mt-1">Jan 21, 2026 at 4:45 PM</p>
+                                            </div>
+                                            <button class="text-sm text-brand-primary hover:text-brand-primary-hover">Resend Receipt</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Progress -->
+                        <div class="bg-white rounded-lg p-6 border border-gray-100">
+                            <div class="mb-4">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-3xl font-bold text-brand-primary">$3,250</span>
+                                    <span class="text-gray-500">raised of $5,000 goal</span>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-brand-primary rounded-full" style="width: 65%"></div>
+                                </div>
+                                <div class="flex justify-between mt-1 text-sm text-gray-500">
+                                    <span>65% funded</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                                <div>
+                                    <p class="text-2xl font-bold text-gray-900">24</p>
+                                    <p class="text-sm text-gray-500">Donors</p>
+                                </div>
+                                <div>
+                                    <p class="text-2xl font-bold text-gray-900">18</p>
+                                    <p class="text-sm text-gray-500">Days left</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Campaign Details -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4">
+                            <h3 class="font-semibold text-gray-900 mb-3">Campaign Details</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Start Date</span>
+                                    <span class="text-gray-900">Jan 1, 2026</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">End Date</span>
+                                    <span class="text-gray-900">Mar 15, 2026</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Status</span>
+                                    <span class="text-gray-900">Active</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- End Campaign -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-4">
+                            <h3 class="font-semibold text-gray-900 mb-3">Manage Campaign</h3>
+                            <button class="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50">
+                                End Campaign Early
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-500 py-8 border-t mt-8">
+            <p>Fundraiser Campaign Mockups - Teams Elevated</p>
+            <p class="text-sm mt-1">Open this file in a browser to preview the UI design</p>
+        </div>
+    </div>
+</body>
+</html>
