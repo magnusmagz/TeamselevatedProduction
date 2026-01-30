@@ -147,6 +147,7 @@ export interface TryoutRanking {
   last_name: string;
   date_of_birth?: string;
   tryout_status?: TryoutStatus;
+  tryout_number?: string;
   overall_score?: number;
   ranking?: number;
   evaluation_count: number;

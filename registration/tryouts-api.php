@@ -145,6 +145,7 @@ function handleGet($connection, $path) {
                     r.id,
                     r.athlete_id,
                     r.tryout_status,
+                    r.tryout_number,
                     r.overall_score,
                     r.ranking,
                     a.first_name,

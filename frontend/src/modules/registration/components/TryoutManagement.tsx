@@ -458,6 +458,7 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
     <table className="w-full">
       <thead>
         <tr className="border-b border-brand-secondary">
+          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
@@ -468,6 +469,9 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
       <tbody>
         {registrations.map(reg => (
           <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
+            <td className="py-3 px-4 font-bold text-lg text-brand-primary">
+              {reg.tryout_number || '-'}
+            </td>
             <td className="py-3 px-4 font-medium">
               {reg.first_name} {reg.last_name}
             </td>
@@ -603,6 +607,7 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
               />
             </th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Rank</th>
+            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Score</th>
@@ -623,6 +628,9 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
               </td>
               <td className="py-3 px-4 font-bold text-brand-primary">
                 #{index + 1}
+              </td>
+              <td className="py-3 px-4 font-bold text-lg">
+                {ranking.tryout_number || '-'}
               </td>
               <td className="py-3 px-4 font-medium">
                 {ranking.first_name} {ranking.last_name}
