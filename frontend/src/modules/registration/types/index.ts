@@ -114,6 +114,7 @@ export interface TryoutRegistration {
   date_of_birth?: string;
   gender?: string;
   tryout_status?: TryoutStatus;
+  tryout_number?: string;
   overall_score?: number;
   ranking?: number;
   assigned_team_id?: number;

@@ -85,6 +85,7 @@ function handleGet($connection, $path) {
                     r.id,
                     r.athlete_id,
                     r.tryout_status,
+                    r.tryout_number,
                     r.overall_score,
                     r.ranking,
                     r.assigned_team_id,
@@ -391,16 +392,19 @@ function handlePost($connection, $path) {
             break;
 
         case 'check-in':
-            // Check in athlete at tryout
+            // Check in athlete at tryout with optional tryout number
+            $tryoutNumber = $data['tryout_number'] ?? null;
+
             $stmt = $connection->prepare("
                 UPDATE registrations
-                SET tryout_status = 'checked_in'
+                SET tryout_status = 'checked_in',
+                    tryout_number = COALESCE(?, tryout_number)
                 WHERE id = ? AND (tryout_status IS NULL OR tryout_status = 'registered')
             ");
-            $stmt->execute([$data['registration_id']]);
+            $stmt->execute([$tryoutNumber, $data['registration_id']]);
 
             if ($stmt->rowCount() > 0) {
-                echo json_encode(['success' => true, 'message' => 'Athlete checked in']);
+                echo json_encode(['success' => true, 'message' => 'Athlete checked in', 'tryout_number' => $tryoutNumber]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Athlete already checked in or not found']);
             }

@@ -71,12 +71,15 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     }
   };
 
-  const handleCheckIn = async (registrationId: number) => {
+  const handleCheckIn = async (registrationId: number, tryoutNumber?: string) => {
     try {
       const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registration_id: registrationId })
+        body: JSON.stringify({
+          registration_id: registrationId,
+          tryout_number: tryoutNumber
+        })
       });
 
       if (response.ok) {
@@ -340,8 +343,8 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
 // Sub-components for each tab
 interface RegistrationsTableProps {
   registrations: TryoutRegistration[];
-  onCheckIn: (id: number) => void;
-  getStatusBadge: (status?: TryoutStatus) => JSX.Element;
+  onCheckIn: (id: number, tryoutNumber?: string) => void;
+  getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
 
 const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
@@ -349,6 +352,12 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
   onCheckIn,
   getStatusBadge
 }) => {
+  const [tryoutNumbers, setTryoutNumbers] = React.useState<Record<number, string>>({});
+
+  const handleTryoutNumberChange = (id: number, value: string) => {
+    setTryoutNumbers(prev => ({ ...prev, [id]: value }));
+  };
+
   if (registrations.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -361,6 +370,7 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
     <table className="w-full">
       <thead>
         <tr className="border-b border-brand-secondary">
+          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Tryout #</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">DOB</th>
           <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
@@ -371,6 +381,19 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
       <tbody>
         {registrations.map(reg => (
           <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
+            <td className="py-3 px-4">
+              {reg.tryout_status === 'checked_in' || (reg.tryout_status && reg.tryout_status !== 'registered') ? (
+                <span className="font-bold text-lg text-brand-primary">{reg.tryout_number || '-'}</span>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="#"
+                  value={tryoutNumbers[reg.id] || ''}
+                  onChange={(e) => handleTryoutNumberChange(reg.id, e.target.value)}
+                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center font-bold"
+                />
+              )}
+            </td>
             <td className="py-3 px-4 font-medium">
               {reg.first_name} {reg.last_name}
             </td>
@@ -386,7 +409,7 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
             <td className="py-3 px-4">
               {(!reg.tryout_status || reg.tryout_status === 'registered') && (
                 <button
-                  onClick={() => onCheckIn(reg.id)}
+                  onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
                   className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
                 >
                   Check In
@@ -404,7 +427,7 @@ interface EvaluationsTableProps {
   registrations: TryoutRegistration[];
   criteria: EvaluationCriterion[];
   onEvaluate: (reg: TryoutRegistration) => void;
-  getStatusBadge: (status?: TryoutStatus) => JSX.Element;
+  getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
 
 const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
@@ -445,8 +468,8 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
               {reg.evaluation_count || 0} evaluation{(reg.evaluation_count || 0) !== 1 ? 's' : ''}
             </td>
             <td className="py-3 px-4">
-              {reg.overall_score ? (
-                <span className="font-medium text-brand-primary">{reg.overall_score.toFixed(1)}</span>
+              {reg.overall_score != null ? (
+                <span className="font-medium text-brand-primary">{Number(reg.overall_score).toFixed(1)}</span>
               ) : '-'}
             </td>
             <td className="py-3 px-4">
@@ -467,7 +490,7 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
 interface RankingsTableProps {
   rankings: TryoutRanking[];
   onSendOffers: (ids: number[], type: 'roster' | 'waitlist' | 'not_selected', teamId?: number) => void;
-  getStatusBadge: (status?: TryoutStatus) => JSX.Element;
+  getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
 
 const RankingsTable: React.FC<RankingsTableProps> = ({
@@ -571,12 +594,12 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
               </td>
               <td className="py-3 px-4">
                 <span className="font-bold text-lg text-brand-primary">
-                  {ranking.avg_score?.toFixed(1) || '-'}
+                  {ranking.avg_score != null ? Number(ranking.avg_score).toFixed(1) : '-'}
                 </span>
               </td>
               <td className="py-3 px-4 text-gray-600 text-sm">
-                {ranking.min_score && ranking.max_score
-                  ? `${ranking.min_score.toFixed(1)} - ${ranking.max_score.toFixed(1)}`
+                {ranking.min_score != null && ranking.max_score != null
+                  ? `${Number(ranking.min_score).toFixed(1)} - ${Number(ranking.max_score).toFixed(1)}`
                   : '-'}
               </td>
               <td className="py-3 px-4">
