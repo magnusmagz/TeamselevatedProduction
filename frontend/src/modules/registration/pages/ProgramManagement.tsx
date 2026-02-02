@@ -17,6 +17,7 @@ const ProgramManagement: React.FC = () => {
   const [registrationsProgram, setRegistrationsProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTryoutWizard, setShowTryoutWizard] = useState(false);
+  const [editingTryout, setEditingTryout] = useState<Program | null>(null);
   const [manageTryoutProgram, setManageTryoutProgram] = useState<Program | null>(null);
 
   useEffect(() => {
@@ -41,8 +42,12 @@ const ProgramManagement: React.FC = () => {
   };
 
   const handleEditProgram = (program: Program) => {
-    setSelectedProgram(program);
-    setShowFormBuilder(true);
+    if (program.type === 'tryout') {
+      setEditingTryout(program);
+    } else {
+      setSelectedProgram(program);
+      setShowFormBuilder(true);
+    }
   };
 
   const handleDeleteProgram = async (id: number) => {
@@ -395,6 +400,19 @@ const ProgramManagement: React.FC = () => {
               fetchPrograms();
             }}
             onCancel={() => setShowTryoutWizard(false)}
+          />
+        )}
+
+        {/* Tryout Edit Wizard */}
+        {editingTryout && (
+          <TryoutCreationWizard
+            clubId={1}
+            existingProgram={editingTryout}
+            onComplete={() => {
+              setEditingTryout(null);
+              fetchPrograms();
+            }}
+            onCancel={() => setEditingTryout(null)}
           />
         )}
 

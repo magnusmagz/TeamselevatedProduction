@@ -65,8 +65,10 @@ const EvaluationCriteriaBuilder: React.FC<EvaluationCriteriaBuilderProps> = ({
       return;
     }
 
+    // Only match by id if both have defined ids, or by tempId if both have tempIds
     const existingIndex = criteria.findIndex(
-      c => c.id === criterion.id || c.tempId === criterion.tempId
+      c => (c.id !== undefined && criterion.id !== undefined && c.id === criterion.id) ||
+           (c.tempId && criterion.tempId && c.tempId === criterion.tempId)
     );
 
     if (existingIndex >= 0) {
@@ -247,12 +249,12 @@ const CriterionEditor: React.FC<CriterionEditorProps> = ({ criterion, onSave, on
               </label>
               <select
                 className="w-full border border-brand-secondary rounded-md px-3 py-2"
-                value={form.max_score}
+                value={String(form.max_score)}
                 onChange={(e) => setForm({ ...form, max_score: parseInt(e.target.value) })}
               >
-                <option value={3}>1-3</option>
-                <option value={5}>1-5</option>
-                <option value={10}>1-10</option>
+                <option value="3">1-3</option>
+                <option value="5">1-5</option>
+                <option value="10">1-10</option>
               </select>
             </div>
 
@@ -262,13 +264,13 @@ const CriterionEditor: React.FC<CriterionEditorProps> = ({ criterion, onSave, on
               </label>
               <select
                 className="w-full border border-brand-secondary rounded-md px-3 py-2"
-                value={form.weight}
+                value={String(form.weight)}
                 onChange={(e) => setForm({ ...form, weight: parseFloat(e.target.value) })}
               >
-                <option value={0.5}>0.5x (Low)</option>
-                <option value={1.0}>1.0x (Normal)</option>
-                <option value={1.5}>1.5x (High)</option>
-                <option value={2.0}>2.0x (Very High)</option>
+                <option value="0.5">0.5x (Low)</option>
+                <option value="1">1.0x (Normal)</option>
+                <option value="1.5">1.5x (High)</option>
+                <option value="2">2.0x (Very High)</option>
               </select>
             </div>
           </div>

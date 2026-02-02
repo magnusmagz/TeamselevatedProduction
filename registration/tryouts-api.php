@@ -606,6 +606,101 @@ function handlePut($connection, $path) {
     $id = $_GET['id'] ?? 0;
 
     switch ($path) {
+        case 'update':
+            // Update tryout program with sessions and criteria
+            $connection->beginTransaction();
+
+            try {
+                // Update the program
+                $stmt = $connection->prepare("
+                    UPDATE programs SET
+                        name = ?,
+                        description = ?,
+                        start_date = ?,
+                        end_date = ?,
+                        registration_opens = ?,
+                        registration_closes = ?,
+                        min_age = ?,
+                        max_age = ?,
+                        capacity = ?,
+                        status = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ");
+                $stmt->execute([
+                    $data['name'],
+                    $data['description'] ?? null,
+                    $data['start_date'] ?? null,
+                    $data['end_date'] ?? null,
+                    $data['registration_opens'] ?? null,
+                    $data['registration_closes'] ?? null,
+                    $data['min_age'] ?? null,
+                    $data['max_age'] ?? null,
+                    $data['capacity'] ?? null,
+                    $data['status'] ?? 'published',
+                    $id
+                ]);
+
+                // Update sessions - delete existing and insert new
+                if (isset($data['sessions'])) {
+                    $stmt = $connection->prepare("DELETE FROM tryout_sessions WHERE program_id = ?");
+                    $stmt->execute([$id]);
+
+                    if (!empty($data['sessions'])) {
+                        $session_stmt = $connection->prepare("
+                            INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        foreach ($data['sessions'] as $session) {
+                            $session_stmt->execute([
+                                $id,
+                                $session['session_date'],
+                                $session['start_time'] ?? null,
+                                $session['end_time'] ?? null,
+                                $session['location'] ?? null,
+                                $session['venue_id'] ?? null
+                            ]);
+                        }
+                    }
+                }
+
+                // Update evaluation criteria - delete existing and insert new
+                if (isset($data['criteria'])) {
+                    $stmt = $connection->prepare("DELETE FROM tryout_evaluation_criteria WHERE program_id = ?");
+                    $stmt->execute([$id]);
+
+                    if (!empty($data['criteria'])) {
+                        $criteria_stmt = $connection->prepare("
+                            INSERT INTO tryout_evaluation_criteria (program_id, name, description, max_score, weight, display_order)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        foreach ($data['criteria'] as $index => $criterion) {
+                            $criteria_stmt->execute([
+                                $id,
+                                $criterion['name'],
+                                $criterion['description'] ?? null,
+                                $criterion['max_score'] ?? 5,
+                                $criterion['weight'] ?? 1.00,
+                                $criterion['display_order'] ?? $index
+                            ]);
+                        }
+                    }
+                }
+
+                $connection->commit();
+
+                echo json_encode([
+                    'success' => true,
+                    'id' => $id,
+                    'message' => 'Tryout updated successfully'
+                ]);
+
+            } catch (Exception $e) {
+                $connection->rollBack();
+                throw $e;
+            }
+            break;
+
         case 'sessions':
             $stmt = $connection->prepare("
                 UPDATE tryout_sessions

@@ -31,7 +31,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   const [offers, setOffers] = useState<TryoutOffer[]>([]);
   const [sessions, setSessions] = useState<TryoutSession[]>([]);
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
-  const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
+  const [teams, setTeams] = useState<{ id: number; name: string; age_group?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -503,7 +503,7 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
 
 interface RankingsTableProps {
   rankings: TryoutRanking[];
-  teams: { id: number; name: string }[];
+  teams: { id: number; name: string; age_group?: string }[];
   onSendOffers: (ids: number[], type: 'roster' | 'waitlist' | 'not_selected', teamId?: number) => void;
   getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
@@ -531,6 +531,69 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
     }
   };
 
+  // Calculate average age of selected athletes
+  const getAverageAge = (): number | null => {
+    const selectedRankings = rankings.filter(r => selectedIds.includes(r.id));
+    if (selectedRankings.length === 0) return null;
+
+    const ages = selectedRankings
+      .filter(r => r.date_of_birth)
+      .map(r => {
+        const dob = new Date(r.date_of_birth!);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        return age;
+      });
+
+    if (ages.length === 0) return null;
+    return Math.round(ages.reduce((sum, age) => sum + age, 0) / ages.length);
+  };
+
+  // Parse age group, handling "U6" or "6" formats
+  const parseAgeGroup = (ageGroup: string | undefined): number => {
+    if (!ageGroup) return 999;
+    // Remove 'U' or 'u' prefix if present
+    const numStr = ageGroup.replace(/^[Uu]/, '');
+    const num = parseInt(numStr);
+    return isNaN(num) ? 999 : num;
+  };
+
+  // Sort teams: closest to athlete age first, then by U low to high
+  const getSortedTeams = () => {
+    const avgAge = getAverageAge();
+    return [...teams].sort((a, b) => {
+      const ageA = parseAgeGroup(a.age_group);
+      const ageB = parseAgeGroup(b.age_group);
+
+      if (avgAge !== null) {
+        // Sort by distance from athlete's age first
+        const distA = Math.abs(ageA - avgAge);
+        const distB = Math.abs(ageB - avgAge);
+        if (distA !== distB) return distA - distB;
+      }
+
+      // Then sort by age group low to high
+      return ageA - ageB;
+    });
+  };
+
+  // Calculate age from date of birth
+  const calculateAge = (dob: string | undefined): number | null => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   if (rankings.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -556,8 +619,12 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
               className="px-3 py-2 border border-gray-300 rounded-md text-sm"
             >
               <option value="">Select Team...</option>
-              {teams.map(team => (
-                <option key={team.id} value={team.id}>{team.name}</option>
+              {getSortedTeams().map(team => (
+                <option key={team.id} value={team.id}>
+                  {team.age_group
+                    ? `U${team.age_group.toString().replace(/^[Uu]/, '')} - ${team.name}`
+                    : team.name}
+                </option>
               ))}
             </select>
             <button
@@ -609,6 +676,8 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Rank</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
+            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Age</th>
+            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Next Yr</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Score</th>
             <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Range</th>
@@ -634,6 +703,12 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
               </td>
               <td className="py-3 px-4 font-medium">
                 {ranking.first_name} {ranking.last_name}
+              </td>
+              <td className="py-3 px-4 text-gray-600">
+                {calculateAge(ranking.date_of_birth) ?? '-'}
+              </td>
+              <td className="py-3 px-4 text-gray-600">
+                {calculateAge(ranking.date_of_birth) != null ? calculateAge(ranking.date_of_birth)! + 1 : '-'}
               </td>
               <td className="py-3 px-4 text-gray-600">
                 {ranking.evaluation_count}

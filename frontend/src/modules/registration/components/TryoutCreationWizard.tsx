@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { EvaluationCriterion, TryoutSession } from '../types';
+import React, { useState, useEffect } from 'react';
+import { EvaluationCriterion, TryoutSession, Program } from '../types';
 import EvaluationCriteriaBuilder from './EvaluationCriteriaBuilder';
 
 interface TryoutCreationWizardProps {
   clubId: number;
+  existingProgram?: Program | null;
   onComplete: (tryoutId: number) => void;
   onCancel: () => void;
 }
@@ -18,7 +19,6 @@ interface TryoutFormData {
   min_age: string;
   max_age: string;
   capacity: string;
-  status: 'draft' | 'published';
 }
 
 const defaultCriteria: EvaluationCriterion[] = [
@@ -30,26 +30,28 @@ const defaultCriteria: EvaluationCriterion[] = [
 
 const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   clubId,
+  existingProgram,
   onComplete,
   onCancel
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(!!existingProgram);
   const [error, setError] = useState<string | null>(null);
+  const isEditing = !!existingProgram;
 
   // Step 1: Basic Info
   const [formData, setFormData] = useState<TryoutFormData>({
-    name: '',
-    description: '',
-    start_date: '',
-    end_date: '',
-    registration_opens: '',
-    registration_closes: '',
-    min_age: '',
-    max_age: '',
-    capacity: '',
-    status: 'draft'
+    name: existingProgram?.name || '',
+    description: existingProgram?.description || '',
+    start_date: existingProgram?.start_date || '',
+    end_date: existingProgram?.end_date || '',
+    registration_opens: existingProgram?.registration_opens || '',
+    registration_closes: existingProgram?.registration_closes || '',
+    min_age: existingProgram?.min_age?.toString() || '',
+    max_age: existingProgram?.max_age?.toString() || '',
+    capacity: existingProgram?.capacity?.toString() || ''
   });
 
   // Step 2: Sessions
@@ -57,6 +59,38 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
   // Step 3: Evaluation Criteria
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>(defaultCriteria);
+
+  // Load existing sessions and criteria when editing
+  useEffect(() => {
+    if (existingProgram?.id) {
+      loadExistingData(existingProgram.id);
+    }
+  }, [existingProgram?.id]);
+
+  const loadExistingData = async (programId: number) => {
+    setLoading(true);
+    try {
+      const [sessionsRes, criteriaRes] = await Promise.all([
+        fetch(`${API_URL}/registration/tryouts-api.php?path=sessions&program_id=${programId}`),
+        fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`)
+      ]);
+
+      const sessionsData = await sessionsRes.json();
+      const criteriaData = await criteriaRes.json();
+
+      if (Array.isArray(sessionsData) && sessionsData.length > 0) {
+        setSessions(sessionsData);
+      }
+
+      if (Array.isArray(criteriaData) && criteriaData.length > 0) {
+        setCriteria(criteriaData);
+      }
+    } catch (err) {
+      console.error('Error loading existing tryout data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNext = () => {
     if (step === 1) {
@@ -101,8 +135,12 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=create`, {
-        method: 'POST',
+      const endpoint = isEditing
+        ? `${API_URL}/registration/tryouts-api.php?path=update&id=${existingProgram?.id}`
+        : `${API_URL}/registration/tryouts-api.php?path=create`;
+
+      const response = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           club_id: clubId,
@@ -115,7 +153,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
           min_age: formData.min_age ? parseInt(formData.min_age) : null,
           max_age: formData.max_age ? parseInt(formData.max_age) : null,
           capacity: formData.capacity ? parseInt(formData.capacity) : null,
-          status: formData.status,
+          status: 'published',
           sessions: sessions.filter(s => s.session_date),
           criteria: criteria.map(({ tempId, ...c }) => c)
         })
@@ -124,13 +162,13 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        onComplete(data.id);
+        onComplete(data.id || existingProgram?.id || 0);
       } else {
-        setError(data.error || 'Failed to create tryout');
+        setError(data.error || `Failed to ${isEditing ? 'update' : 'create'} tryout`);
       }
     } catch (err) {
-      console.error('Error creating tryout:', err);
-      setError('An error occurred while creating the tryout');
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} tryout:`, err);
+      setError(`An error occurred while ${isEditing ? 'updating' : 'creating'} the tryout`);
     } finally {
       setSaving(false);
     }
@@ -142,7 +180,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
         {/* Header */}
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
-            Create Tryout
+            {isEditing ? 'Edit Tryout' : 'Create Tryout'}
           </h2>
           <button
             onClick={onCancel}
@@ -185,6 +223,12 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-brand-primary">Loading tryout data...</div>
+            </div>
+          ) : (
+          <>
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md">
               {error}
@@ -272,32 +316,17 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Capacity
-                  </label>
-                  <input
-                    type="number"
-                    className="w-full border border-brand-secondary rounded-md px-4 py-2"
-                    placeholder="Maximum participants"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Status
-                  </label>
-                  <select
-                    className="w-full border border-brand-secondary rounded-md px-4 py-2"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'published' })}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                  Capacity
+                </label>
+                <input
+                  type="number"
+                  className="w-full border border-brand-secondary rounded-md px-4 py-2"
+                  placeholder="Maximum participants"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                />
               </div>
             </div>
           )}
@@ -401,6 +430,8 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
               onChange={setCriteria}
             />
           )}
+          </>
+          )}
         </div>
 
         {/* Footer */}
@@ -428,7 +459,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
               disabled={saving}
               className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase disabled:opacity-50"
             >
-              {saving ? 'Creating...' : 'Create Tryout'}
+              {saving ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Tryout')}
             </button>
           )}
         </div>
