@@ -173,7 +173,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
     ]);
   };
 
-  const handleUpdateSession = (index: number, field: string, value: string | number | null) => {
+  const handleUpdateSession = (index: number, field: string, value: string | number | boolean | null) => {
     const newSessions = [...sessions];
     (newSessions[index] as any)[field] = value;
     setSessions(newSessions);
