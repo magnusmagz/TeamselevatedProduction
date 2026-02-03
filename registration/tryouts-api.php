@@ -283,7 +283,7 @@ function handlePost($connection, $path) {
                             $session['end_time'] ?? null,
                             $session['location'] ?? null,
                             $session['venue_id'] ?? null,
-                            $session['is_rain_date'] ?? false,
+                            !empty($session['is_rain_date']) ? true : false,
                             $session['age_group'] ?? null,
                             $session['gender'] ?? null
                         ]);
@@ -336,7 +336,7 @@ function handlePost($connection, $path) {
                 $data['end_time'] ?? null,
                 $data['location'] ?? null,
                 $data['venue_id'] ?? null,
-                $data['is_rain_date'] ?? false,
+                !empty($data['is_rain_date']) ? true : false,
                 $data['age_group'] ?? null,
                 $data['gender'] ?? null
             ]);
@@ -670,7 +670,7 @@ function handlePut($connection, $path) {
                                 $session['end_time'] ?? null,
                                 $session['location'] ?? null,
                                 $session['venue_id'] ?? null,
-                                $session['is_rain_date'] ?? false,
+                                !empty($session['is_rain_date']) ? true : false,
                                 $session['age_group'] ?? null,
                                 $session['gender'] ?? null
                             ]);
@@ -728,7 +728,7 @@ function handlePut($connection, $path) {
                 $data['end_time'] ?? null,
                 $data['location'] ?? null,
                 $data['venue_id'] ?? null,
-                $data['is_rain_date'] ?? false,
+                !empty($data['is_rain_date']) ? true : false,
                 $data['age_group'] ?? null,
                 $data['gender'] ?? null,
                 $id
