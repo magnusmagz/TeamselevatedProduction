@@ -79,6 +79,9 @@ export interface TryoutSession {
   venue_id?: number;
   venue_name?: string;
   notes?: string;
+  is_rain_date?: boolean;
+  age_group?: string;
+  gender?: string;
 }
 
 export interface EvaluationCriterion {

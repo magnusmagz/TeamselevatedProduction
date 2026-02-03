@@ -165,7 +165,10 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
         session_date: '',
         start_time: '',
         end_time: '',
-        location: ''
+        location: '',
+        is_rain_date: false,
+        age_group: '',
+        gender: ''
       }
     ]);
   };
@@ -407,10 +410,21 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
               {sessions.map((session, index) => (
                 <div
                   key={index}
-                  className="border border-brand-secondary rounded-md p-4 space-y-3"
+                  className={`border rounded-md p-4 space-y-3 ${session.is_rain_date ? 'border-yellow-400 bg-yellow-50' : 'border-brand-secondary'}`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-brand-primary">Session {index + 1}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-brand-primary">Session {index + 1}</span>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={session.is_rain_date || false}
+                          onChange={(e) => handleUpdateSession(index, 'is_rain_date', e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-yellow-700 font-medium">Rain/Backup Date</span>
+                      </label>
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveSession(index)}
@@ -418,6 +432,52 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                     >
                       Remove
                     </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-1">
+                        Age Group
+                      </label>
+                      <select
+                        className="w-full border border-brand-secondary rounded-md px-3 py-2"
+                        value={session.age_group || ''}
+                        onChange={(e) => handleUpdateSession(index, 'age_group', e.target.value)}
+                      >
+                        <option value="">All Ages</option>
+                        <option value="U6">U6</option>
+                        <option value="U7">U7</option>
+                        <option value="U8">U8</option>
+                        <option value="U9">U9</option>
+                        <option value="U10">U10</option>
+                        <option value="U11">U11</option>
+                        <option value="U12">U12</option>
+                        <option value="U13">U13</option>
+                        <option value="U14">U14</option>
+                        <option value="U15">U15</option>
+                        <option value="U16">U16</option>
+                        <option value="U17">U17</option>
+                        <option value="U18">U18</option>
+                        <option value="U19">U19</option>
+                        <option value="U6-U8">U6-U8</option>
+                        <option value="U9-U12">U9-U12</option>
+                        <option value="U13-U19">U13-U19</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-1">
+                        Gender
+                      </label>
+                      <select
+                        className="w-full border border-brand-secondary rounded-md px-3 py-2"
+                        value={session.gender || ''}
+                        onChange={(e) => handleUpdateSession(index, 'gender', e.target.value)}
+                      >
+                        <option value="">Coed</option>
+                        <option value="Boys">Boys</option>
+                        <option value="Girls">Girls</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">

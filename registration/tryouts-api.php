@@ -55,11 +55,13 @@ function handleGet($connection, $path) {
             // Get sessions for a program
             $program_id = $_GET['program_id'] ?? 0;
             $stmt = $connection->prepare("
-                SELECT ts.*, v.name as venue_name
+                SELECT ts.id, ts.program_id, ts.session_date, ts.start_time, ts.end_time,
+                       ts.location, ts.venue_id, ts.is_rain_date, ts.age_group, ts.gender,
+                       ts.notes, ts.created_at, ts.updated_at, v.name as venue_name
                 FROM tryout_sessions ts
                 LEFT JOIN venues v ON ts.venue_id = v.id
                 WHERE ts.program_id = ?
-                ORDER BY ts.session_date, ts.start_time
+                ORDER BY ts.is_rain_date ASC, ts.session_date, ts.start_time
             ");
             $stmt->execute([$program_id]);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -269,8 +271,8 @@ function handlePost($connection, $path) {
                 // Add sessions if provided
                 if (!empty($data['sessions'])) {
                     $session_stmt = $connection->prepare("
-                        INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     foreach ($data['sessions'] as $session) {
                         $session_stmt->execute([
@@ -279,7 +281,10 @@ function handlePost($connection, $path) {
                             $session['start_time'] ?? null,
                             $session['end_time'] ?? null,
                             $session['location'] ?? null,
-                            $session['venue_id'] ?? null
+                            $session['venue_id'] ?? null,
+                            $session['is_rain_date'] ?? false,
+                            $session['age_group'] ?? null,
+                            $session['gender'] ?? null
                         ]);
                     }
                 }
@@ -319,8 +324,8 @@ function handlePost($connection, $path) {
         case 'sessions':
             // Add a new session
             $stmt = $connection->prepare("
-                INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $data['program_id'],
@@ -328,7 +333,10 @@ function handlePost($connection, $path) {
                 $data['start_time'] ?? null,
                 $data['end_time'] ?? null,
                 $data['location'] ?? null,
-                $data['venue_id'] ?? null
+                $data['venue_id'] ?? null,
+                $data['is_rain_date'] ?? false,
+                $data['age_group'] ?? null,
+                $data['gender'] ?? null
             ]);
 
             echo json_encode([
@@ -648,8 +656,8 @@ function handlePut($connection, $path) {
 
                     if (!empty($data['sessions'])) {
                         $session_stmt = $connection->prepare("
-                            INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
                         foreach ($data['sessions'] as $session) {
                             $session_stmt->execute([
@@ -658,7 +666,10 @@ function handlePut($connection, $path) {
                                 $session['start_time'] ?? null,
                                 $session['end_time'] ?? null,
                                 $session['location'] ?? null,
-                                $session['venue_id'] ?? null
+                                $session['venue_id'] ?? null,
+                                $session['is_rain_date'] ?? false,
+                                $session['age_group'] ?? null,
+                                $session['gender'] ?? null
                             ]);
                         }
                     }
@@ -704,7 +715,7 @@ function handlePut($connection, $path) {
         case 'sessions':
             $stmt = $connection->prepare("
                 UPDATE tryout_sessions
-                SET session_date = ?, start_time = ?, end_time = ?, location = ?, venue_id = ?
+                SET session_date = ?, start_time = ?, end_time = ?, location = ?, venue_id = ?, is_rain_date = ?, age_group = ?, gender = ?
                 WHERE id = ?
             ");
             $stmt->execute([
@@ -713,6 +724,9 @@ function handlePut($connection, $path) {
                 $data['end_time'] ?? null,
                 $data['location'] ?? null,
                 $data['venue_id'] ?? null,
+                $data['is_rain_date'] ?? false,
+                $data['age_group'] ?? null,
+                $data['gender'] ?? null,
                 $id
             ]);
             echo json_encode(['success' => true, 'message' => 'Session updated']);
