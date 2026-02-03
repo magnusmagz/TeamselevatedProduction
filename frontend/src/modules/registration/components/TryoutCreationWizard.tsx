@@ -470,20 +470,25 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                       }}
                     >
                       <option value="">Select a location...</option>
-                      <optgroup label="Venues">
-                        {locations.filter(l => l.type === 'venue').map(venue => (
-                          <option key={`venue-${venue.id}`} value={`${venue.id}|${venue.name}`}>
-                            {venue.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Fields">
-                        {locations.filter(l => l.type === 'field').map(field => (
-                          <option key={`field-${field.id}`} value={`${field.venue_id}|${field.name}`}>
-                            {field.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                      {locations
+                        .filter(l => l.type === 'venue')
+                        .map(venue => {
+                          const venueFields = locations.filter(
+                            l => l.type === 'field' && l.venue_id === venue.id
+                          );
+                          return (
+                            <optgroup key={`venue-${venue.id}`} label={venue.name}>
+                              <option value={`${venue.id}|${venue.name}`}>
+                                {venue.name} (General)
+                              </option>
+                              {venueFields.map(field => (
+                                <option key={`field-${field.id}`} value={`${venue.id}|${field.name}`}>
+                                  {field.name.replace(`${venue.name} - `, '')}
+                                </option>
+                              ))}
+                            </optgroup>
+                          );
+                        })}
                     </select>
                   </div>
                 </div>
