@@ -434,35 +434,55 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-brand-primary text-sm font-medium mb-1">
                         Age Group
                       </label>
-                      <select
-                        className="w-full border border-brand-secondary rounded-md px-3 py-2"
-                        value={session.age_group || ''}
-                        onChange={(e) => handleUpdateSession(index, 'age_group', e.target.value)}
-                      >
-                        <option value="">All Ages</option>
-                        <option value="U6">U6</option>
-                        <option value="U7">U7</option>
-                        <option value="U8">U8</option>
-                        <option value="U9">U9</option>
-                        <option value="U10">U10</option>
-                        <option value="U11">U11</option>
-                        <option value="U12">U12</option>
-                        <option value="U13">U13</option>
-                        <option value="U14">U14</option>
-                        <option value="U15">U15</option>
-                        <option value="U16">U16</option>
-                        <option value="U17">U17</option>
-                        <option value="U18">U18</option>
-                        <option value="U19">U19</option>
-                        <option value="U6-U8">U6-U8</option>
-                        <option value="U9-U12">U9-U12</option>
-                        <option value="U13-U19">U13-U19</option>
-                      </select>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          className="flex-1 border border-brand-secondary rounded-md px-3 py-2"
+                          value={session.age_group?.split('-')[0] || ''}
+                          onChange={(e) => {
+                            const fromAge = e.target.value;
+                            const currentTo = session.age_group?.includes('-') ? session.age_group.split('-')[1] : '';
+                            if (!fromAge) {
+                              handleUpdateSession(index, 'age_group', '');
+                            } else if (!currentTo || currentTo === fromAge) {
+                              handleUpdateSession(index, 'age_group', fromAge);
+                            } else {
+                              handleUpdateSession(index, 'age_group', `${fromAge}-${currentTo}`);
+                            }
+                          }}
+                        >
+                          <option value="">All</option>
+                          {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15','U16','U17','U18','U19'].map(age => (
+                            <option key={age} value={age}>{age}</option>
+                          ))}
+                        </select>
+                        <span className="text-gray-500">to</span>
+                        <select
+                          className="flex-1 border border-brand-secondary rounded-md px-3 py-2"
+                          value={session.age_group?.includes('-') ? session.age_group.split('-')[1] : (session.age_group || '')}
+                          onChange={(e) => {
+                            const toAge = e.target.value;
+                            const currentFrom = session.age_group?.split('-')[0] || '';
+                            if (!currentFrom) {
+                              // No from age set, ignore
+                            } else if (!toAge || toAge === currentFrom) {
+                              handleUpdateSession(index, 'age_group', currentFrom);
+                            } else {
+                              handleUpdateSession(index, 'age_group', `${currentFrom}-${toAge}`);
+                            }
+                          }}
+                          disabled={!session.age_group?.split('-')[0]}
+                        >
+                          <option value="">Same</option>
+                          {['U6','U7','U8','U9','U10','U11','U12','U13','U14','U15','U16','U17','U18','U19'].map(age => (
+                            <option key={age} value={age}>{age}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-brand-primary text-sm font-medium mb-1">
