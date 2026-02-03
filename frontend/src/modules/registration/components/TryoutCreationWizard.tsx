@@ -60,6 +60,56 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   // Step 3: Evaluation Criteria
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>(defaultCriteria);
 
+  // Locations for dropdown (venues and fields)
+  const [locations, setLocations] = useState<{ id: number; name: string; venue_id?: number; type: 'venue' | 'field' }[]>([]);
+
+  // Load locations (venues and fields) on mount
+  useEffect(() => {
+    loadLocations();
+  }, []);
+
+  const loadLocations = async () => {
+    try {
+      // Fetch both venues and fields
+      const [venuesRes, fieldsRes] = await Promise.all([
+        fetch(`${API_URL}/api/venues.php`),
+        fetch(`${API_URL}/api/fields.php`)
+      ]);
+
+      const venuesData = await venuesRes.json();
+      const fieldsData = await fieldsRes.json();
+
+      const allLocations: { id: number; name: string; venue_id?: number; type: 'venue' | 'field' }[] = [];
+
+      // Add venues
+      if (Array.isArray(venuesData)) {
+        venuesData.forEach((venue: any) => {
+          allLocations.push({
+            id: venue.id,
+            name: venue.name,
+            type: 'venue'
+          });
+        });
+      }
+
+      // Add fields (they already have "Venue - Field" format from API)
+      if (Array.isArray(fieldsData)) {
+        fieldsData.forEach((field: any) => {
+          allLocations.push({
+            id: field.id,
+            name: field.name,
+            venue_id: field.venue_id,
+            type: 'field'
+          });
+        });
+      }
+
+      setLocations(allLocations);
+    } catch (err) {
+      console.error('Error loading locations:', err);
+    }
+  };
+
   // Load existing sessions and criteria when editing
   useEffect(() => {
     if (existingProgram?.id) {
@@ -120,7 +170,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
     ]);
   };
 
-  const handleUpdateSession = (index: number, field: string, value: string) => {
+  const handleUpdateSession = (index: number, field: string, value: string | number | null) => {
     const newSessions = [...sessions];
     (newSessions[index] as any)[field] = value;
     setSessions(newSessions);
@@ -410,13 +460,31 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                     <label className="block text-brand-primary text-sm font-medium mb-1">
                       Location
                     </label>
-                    <input
-                      type="text"
+                    <select
                       className="w-full border border-brand-secondary rounded-md px-3 py-2"
-                      placeholder="e.g., Main Field, Gym A"
-                      value={session.location || ''}
-                      onChange={(e) => handleUpdateSession(index, 'location', e.target.value)}
-                    />
+                      value={session.venue_id ? `${session.venue_id}|${session.location || ''}` : ''}
+                      onChange={(e) => {
+                        const [venueId, locationName] = e.target.value.split('|');
+                        handleUpdateSession(index, 'venue_id', venueId ? parseInt(venueId) : null);
+                        handleUpdateSession(index, 'location', locationName || '');
+                      }}
+                    >
+                      <option value="">Select a location...</option>
+                      <optgroup label="Venues">
+                        {locations.filter(l => l.type === 'venue').map(venue => (
+                          <option key={`venue-${venue.id}`} value={`${venue.id}|${venue.name}`}>
+                            {venue.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Fields">
+                        {locations.filter(l => l.type === 'field').map(field => (
+                          <option key={`field-${field.id}`} value={`${field.venue_id}|${field.name}`}>
+                            {field.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
                   </div>
                 </div>
               ))}
