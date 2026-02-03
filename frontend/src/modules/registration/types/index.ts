@@ -37,6 +37,7 @@ export interface Program {
   embed_code?: string;
   registration_count?: number;
   pending_count?: number;
+  what_to_bring?: string[];
   created_at?: string;
   updated_at?: string;
 }

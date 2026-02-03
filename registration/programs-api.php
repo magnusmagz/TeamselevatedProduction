@@ -91,6 +91,11 @@ try {
                     ");
                     $stmt->execute([$program['id']]);
                     $program['form_fields'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    // Decode what_to_bring JSON
+                    if (!empty($program['what_to_bring'])) {
+                        $program['what_to_bring'] = json_decode($program['what_to_bring'], true);
+                    }
                 }
 
                 echo json_encode($program);

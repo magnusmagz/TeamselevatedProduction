@@ -476,35 +476,31 @@ const PublicTryoutRegistration: React.FC = () => {
             )}
 
             {/* What to Bring */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">What to Bring</h2>
-              <ul className="space-y-2 text-gray-600">
-                <li className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Athletic clothing appropriate for the weather
-                </li>
-                <li className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Cleats and shin guards
-                </li>
-                <li className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Water bottle
-                </li>
-                <li className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Soccer ball (optional - we provide balls)
-                </li>
-              </ul>
-            </div>
+            {(() => {
+              const items = (program as any).what_to_bring && Array.isArray((program as any).what_to_bring) && (program as any).what_to_bring.length > 0
+                ? (program as any).what_to_bring
+                : [
+                    'Athletic clothing appropriate for the weather',
+                    'Cleats and shin guards',
+                    'Water bottle',
+                    'Soccer ball (optional - we provide balls)'
+                  ];
+              return (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">What to Bring</h2>
+                  <ul className="space-y-2 text-gray-600">
+                    {items.map((item: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* Mobile: Show form here */}
             <div className="lg:hidden">

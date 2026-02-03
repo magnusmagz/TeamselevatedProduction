@@ -28,6 +28,13 @@ const defaultCriteria: EvaluationCriterion[] = [
   { name: 'Attitude/Coachability', description: 'Effort, listening, teamwork, positive attitude', max_score: 5, weight: 1.0, display_order: 3, tempId: 'default-4' }
 ];
 
+const defaultWhatToBring: string[] = [
+  'Athletic clothing appropriate for the weather',
+  'Cleats and shin guards',
+  'Water bottle',
+  'Soccer ball (optional - we provide balls)'
+];
+
 const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   clubId,
   existingProgram,
@@ -59,6 +66,10 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
   // Step 3: Evaluation Criteria
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>(defaultCriteria);
+
+  // What to Bring list
+  const [whatToBring, setWhatToBring] = useState<string[]>(existingProgram?.what_to_bring || defaultWhatToBring);
+  const [newItem, setNewItem] = useState('');
 
   // Locations for dropdown (venues and fields)
   const [locations, setLocations] = useState<{ id: number; name: string; venue_id?: number; type: 'venue' | 'field' }[]>([]);
@@ -233,7 +244,8 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
           capacity: formData.capacity ? parseInt(formData.capacity) : null,
           status: 'published',
           sessions: sessions.filter(s => s.session_date),
-          criteria: criteria.map(({ tempId, ...c }) => c)
+          criteria: criteria.map(({ tempId, ...c }) => c),
+          what_to_bring: whatToBring.filter(item => item.trim())
         })
       });
 
@@ -405,6 +417,70 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                   value={formData.capacity}
                   onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                 />
+              </div>
+
+              {/* What to Bring */}
+              <div className="border-t border-brand-secondary pt-4 mt-4">
+                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                  What to Bring
+                </label>
+                <p className="text-sm text-gray-600 mb-3">Items athletes should bring to the tryout</p>
+
+                <div className="space-y-2 mb-3">
+                  {whatToBring.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 border border-brand-secondary rounded-md px-3 py-2"
+                        value={item}
+                        onChange={(e) => {
+                          const updated = [...whatToBring];
+                          updated[index] = e.target.value;
+                          setWhatToBring(updated);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setWhatToBring(whatToBring.filter((_, i) => i !== index))}
+                        className="text-red-600 hover:text-red-500 p-2"
+                        title="Remove item"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 border border-brand-secondary rounded-md px-3 py-2"
+                    placeholder="Add new item..."
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newItem.trim()) {
+                        e.preventDefault();
+                        setWhatToBring([...whatToBring, newItem.trim()]);
+                        setNewItem('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newItem.trim()) {
+                        setWhatToBring([...whatToBring, newItem.trim()]);
+                        setNewItem('');
+                      }
+                    }}
+                    className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             </div>
           )}

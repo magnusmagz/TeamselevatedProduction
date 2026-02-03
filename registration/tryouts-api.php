@@ -217,8 +217,8 @@ function handlePost($connection, $path) {
                     INSERT INTO programs (
                         club_id, name, type, description,
                         start_date, end_date, registration_opens, registration_closes,
-                        min_age, max_age, capacity, status, embed_code
-                    ) VALUES (?, ?, 'tryout', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_age, max_age, capacity, status, embed_code, what_to_bring
+                    ) VALUES (?, ?, 'tryout', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $data['club_id'] ?? 1,
@@ -232,7 +232,8 @@ function handlePost($connection, $path) {
                     $data['max_age'] ?? null,
                     $data['capacity'] ?? null,
                     $data['status'] ?? 'draft',
-                    $embed_code
+                    $embed_code,
+                    isset($data['what_to_bring']) ? json_encode($data['what_to_bring']) : null
                 ]);
                 $program_id = $connection->lastInsertId();
 
@@ -634,6 +635,7 @@ function handlePut($connection, $path) {
                         max_age = ?,
                         capacity = ?,
                         status = ?,
+                        what_to_bring = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ");
@@ -648,6 +650,7 @@ function handlePut($connection, $path) {
                     $data['max_age'] ?? null,
                     $data['capacity'] ?? null,
                     $data['status'] ?? 'published',
+                    isset($data['what_to_bring']) ? json_encode($data['what_to_bring']) : null,
                     $id
                 ]);
 
