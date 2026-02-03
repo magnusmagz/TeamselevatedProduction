@@ -22,13 +22,12 @@ try {
                f.venue_id,
                v.name as venue_name,
                f.field_type,
-               f.surface,
-               f.size,
-               f.lights,
+               f.surface_type,
+               f.dimensions,
+               f.has_lights,
                f.status
         FROM fields f
         JOIN venues v ON f.venue_id = v.id
-        WHERE f.status = 'available'
         ORDER BY v.name, f.name
     ");
     $stmt->execute();
