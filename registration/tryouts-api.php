@@ -55,7 +55,7 @@ function handleGet($connection, $path) {
             // Get sessions for a program
             $program_id = $_GET['program_id'] ?? 0;
             $stmt = $connection->prepare("
-                SELECT ts.id, ts.program_id, ts.session_date, ts.start_time, ts.end_time,
+                SELECT ts.id, ts.program_id, ts.name, ts.session_date, ts.start_time, ts.end_time,
                        ts.location, ts.venue_id, ts.is_rain_date, ts.age_group, ts.gender,
                        ts.notes, ts.created_at, ts.updated_at, v.name as venue_name
                 FROM tryout_sessions ts
@@ -271,12 +271,13 @@ function handlePost($connection, $path) {
                 // Add sessions if provided
                 if (!empty($data['sessions'])) {
                     $session_stmt = $connection->prepare("
-                        INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO tryout_sessions (program_id, name, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     foreach ($data['sessions'] as $session) {
                         $session_stmt->execute([
                             $program_id,
+                            $session['name'] ?? null,
                             $session['session_date'],
                             $session['start_time'] ?? null,
                             $session['end_time'] ?? null,
@@ -324,11 +325,12 @@ function handlePost($connection, $path) {
         case 'sessions':
             // Add a new session
             $stmt = $connection->prepare("
-                INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tryout_sessions (program_id, name, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $data['program_id'],
+                $data['name'] ?? null,
                 $data['session_date'],
                 $data['start_time'] ?? null,
                 $data['end_time'] ?? null,
@@ -656,12 +658,13 @@ function handlePut($connection, $path) {
 
                     if (!empty($data['sessions'])) {
                         $session_stmt = $connection->prepare("
-                            INSERT INTO tryout_sessions (program_id, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO tryout_sessions (program_id, name, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
                         foreach ($data['sessions'] as $session) {
                             $session_stmt->execute([
                                 $id,
+                                $session['name'] ?? null,
                                 $session['session_date'],
                                 $session['start_time'] ?? null,
                                 $session['end_time'] ?? null,
@@ -715,10 +718,11 @@ function handlePut($connection, $path) {
         case 'sessions':
             $stmt = $connection->prepare("
                 UPDATE tryout_sessions
-                SET session_date = ?, start_time = ?, end_time = ?, location = ?, venue_id = ?, is_rain_date = ?, age_group = ?, gender = ?
+                SET name = ?, session_date = ?, start_time = ?, end_time = ?, location = ?, venue_id = ?, is_rain_date = ?, age_group = ?, gender = ?
                 WHERE id = ?
             ");
             $stmt->execute([
+                $data['name'] ?? null,
                 $data['session_date'],
                 $data['start_time'] ?? null,
                 $data['end_time'] ?? null,

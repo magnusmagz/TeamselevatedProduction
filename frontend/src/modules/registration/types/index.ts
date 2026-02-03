@@ -72,6 +72,7 @@ export interface DragDropField extends FormField {
 export interface TryoutSession {
   id?: number;
   program_id: number;
+  name?: string;
   session_date: string;
   start_time?: string;
   end_time?: string;

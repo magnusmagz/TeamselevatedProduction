@@ -157,11 +157,20 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
     setStep(step - 1);
   };
 
+  // Generate default session name from age group and gender
+  const generateSessionName = (ageGroup: string | undefined, gender: string | undefined): string => {
+    const parts: string[] = [];
+    if (ageGroup) parts.push(ageGroup);
+    if (gender) parts.push(gender);
+    return parts.join(' ') || '';
+  };
+
   const handleAddSession = () => {
     setSessions([
       ...sessions,
       {
         program_id: 0,
+        name: '',
         session_date: '',
         start_time: '',
         end_time: '',
@@ -176,6 +185,22 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   const handleUpdateSession = (index: number, field: string, value: string | number | boolean | null) => {
     const newSessions = [...sessions];
     (newSessions[index] as any)[field] = value;
+
+    // Auto-update name when age_group or gender changes
+    if (field === 'age_group' || field === 'gender') {
+      const session = newSessions[index];
+      const newAgeGroup = field === 'age_group' ? (value as string) : session.age_group;
+      const newGender = field === 'gender' ? (value as string) : session.gender;
+      const generatedName = generateSessionName(newAgeGroup, newGender);
+      const currentName = session.name || '';
+      const oldGeneratedName = generateSessionName(session.age_group, session.gender);
+
+      // Only auto-update if name is empty or matches the old generated name
+      if (!currentName || currentName === oldGeneratedName) {
+        (newSessions[index] as any).name = generatedName;
+      }
+    }
+
     setSessions(newSessions);
   };
 
@@ -432,6 +457,19 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                     >
                       Remove
                     </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">
+                      Session Name
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full border border-brand-secondary rounded-md px-3 py-2"
+                      placeholder="e.g., U9 Girls, U12-U14 Boys"
+                      value={session.name || ''}
+                      onChange={(e) => handleUpdateSession(index, 'name', e.target.value)}
+                    />
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
