@@ -24,11 +24,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        g.last_name as guardian_last_name,
                        g.email as guardian_email,
                        g.mobile_phone as guardian_phone,
-                       ag.relationship_type
+                       ag.relationship
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = 1
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
-                WHERE a.id = ? AND a.active_status = 1
+                WHERE a.id = ?
             ";
 
             $stmt = $pdo->prepare($query);
@@ -37,13 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             if (!$athlete) {
                 http_response_code(404);
-                echo json_encode(['error' => 'Athlete not found']);
+                echo json_encode(['success' => false, 'error' => 'Athlete not found']);
                 exit;
             }
 
             // Get all guardians
             $guardiansQuery = "
-                SELECT g.*, ag.relationship_type, ag.is_primary_contact
+                SELECT g.*, ag.relationship, ag.is_primary
                 FROM guardians g
                 INNER JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 WHERE ag.athlete_id = ?
@@ -62,7 +62,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $stmt->execute([$athleteId]);
             $athlete['emergency_contacts'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            echo json_encode($athlete);
+            // Get teams for athlete
+            $teamsQuery = "
+                SELECT t.id, t.name
+                FROM teams t
+                INNER JOIN team_members tm ON t.id = tm.team_id
+                WHERE tm.athlete_id = ?
+            ";
+            $stmt = $pdo->prepare($teamsQuery);
+            $stmt->execute([$athleteId]);
+            $athlete['teams'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode(['success' => true, 'athlete' => $athlete]);
         } else {
             // List all athletes
             $query = "
@@ -73,9 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        g.email as primary_guardian_email,
                        g.mobile_phone as primary_guardian_phone
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = 1
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
-                WHERE a.active_status = 1
                 ORDER BY a.last_name, a.first_name
             ";
 
@@ -177,11 +187,10 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Link guardian to athlete
             $linkQuery = "
                 INSERT INTO athlete_guardians (
-                    athlete_id, guardian_id, relationship_type, is_primary_contact,
-                    can_authorize_medical, can_pickup, receives_communications,
-                    financial_responsible
+                    athlete_id, guardian_id, relationship, is_primary,
+                    can_pickup, emergency_contact
                 ) VALUES (
-                    :athlete_id, :guardian_id, :relationship_type, 1, 1, 1, 1, 1
+                    :athlete_id, :guardian_id, :relationship, true, true, true
                 )
             ";
 
@@ -189,7 +198,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
-                ':relationship_type' => $guardian['relationship_type'] ?? 'Guardian'
+                ':relationship' => $guardian['relationship'] ?? 'Guardian'
             ]);
         }
 
