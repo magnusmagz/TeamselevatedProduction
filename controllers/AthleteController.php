@@ -272,7 +272,7 @@ class AthleteController {
         $athlete['allergies'] = $stmt->fetchAll();
 
         // Get medications
-        $sql = "SELECT * FROM medications WHERE athlete_id = :athlete_id AND is_active = 1";
+        $sql = "SELECT * FROM medications WHERE athlete_id = :athlete_id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':athlete_id' => $id]);
         $athlete['medications'] = $stmt->fetchAll();
