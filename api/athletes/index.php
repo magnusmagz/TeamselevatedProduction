@@ -21,8 +21,11 @@ try {
 
     switch ($method) {
         case 'GET':
+            // Check for ID in path or query parameter
             if (preg_match('/^\/(\d+)$/', $pathInfo, $matches)) {
                 $controller->getAthlete($matches[1]);
+            } elseif (isset($_GET['id'])) {
+                $controller->getAthlete($_GET['id']);
             } else {
                 $controller->getAthletes();
             }
