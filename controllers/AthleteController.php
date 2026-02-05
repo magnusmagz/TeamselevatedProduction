@@ -211,9 +211,8 @@ class AthleteController {
                     g.email as primary_guardian_email,
                     g.mobile_phone as primary_guardian_phone
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = 1
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
-                WHERE a.active_status = 1
                 ORDER BY a.last_name, a.first_name";
 
         $stmt = $this->db->prepare($sql);
@@ -232,18 +231,27 @@ class AthleteController {
 
         if (!$athlete) {
             http_response_code(404);
-            echo json_encode(['error' => 'Athlete not found']);
+            echo json_encode(['success' => false, 'error' => 'Athlete not found']);
             return;
         }
 
         // Get guardians
-        $sql = "SELECT g.*, ag.relationship_type, ag.is_primary_contact
+        $sql = "SELECT g.*, ag.relationship, ag.is_primary
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 WHERE ag.athlete_id = :athlete_id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':athlete_id' => $id]);
         $athlete['guardians'] = $stmt->fetchAll();
+
+        // Get teams
+        $sql = "SELECT t.id, t.name
+                FROM teams t
+                JOIN team_members tm ON t.id = tm.team_id
+                WHERE tm.athlete_id = :athlete_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':athlete_id' => $id]);
+        $athlete['teams'] = $stmt->fetchAll();
 
         // Get emergency contacts
         $sql = "SELECT * FROM emergency_contacts WHERE athlete_id = :athlete_id ORDER BY priority_order";
@@ -269,7 +277,7 @@ class AthleteController {
         $stmt->execute([':athlete_id' => $id]);
         $athlete['medications'] = $stmt->fetchAll();
 
-        echo json_encode($athlete);
+        echo json_encode(['success' => true, 'athlete' => $athlete]);
     }
 
     private function validateAthlete($data) {
