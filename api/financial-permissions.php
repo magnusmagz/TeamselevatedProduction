@@ -81,18 +81,19 @@ try {
             $isCoach = false;
             $isParent = false;
 
-            // Check league roles from database
+            // Check user_roles table for parent role
             $stmt = $pdo->prepare("
-                SELECT role FROM user_league_access
-                WHERE user_id = :user_id AND active = TRUE
+                SELECT role FROM user_roles
+                WHERE user_id = :user_id
             ");
             $stmt->execute(['user_id' => $userId]);
-            $leagueRoles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $userRoles = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            foreach ($leagueRoles as $role) {
-                if ($role === 'league_admin') $isLeagueAdmin = true;
-                if ($role === 'treasurer') $isTreasurer = true;
+            foreach ($userRoles as $role) {
+                if ($role === 'parent') $isParent = true;
                 if ($role === 'coach') $isCoach = true;
+                if ($role === 'club_admin') $isClubAdmin = true;
+                if ($role === 'treasurer') $isTreasurer = true;
             }
 
             // Check club roles from database
