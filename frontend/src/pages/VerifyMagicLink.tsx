@@ -53,9 +53,17 @@ export default function VerifyMagicLink() {
         // Refresh auth context
         await refreshAuth();
 
-        // Redirect to dashboard after a short delay
+        // Check if user is a parent - redirect to parent portal
+        const userRoles = data.user?.roles || [];
+        const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
+
+        // Redirect after a short delay
         setTimeout(() => {
-          navigate('/dashboard');
+          if (isParent) {
+            navigate('/parent');
+          } else {
+            navigate('/dashboard');
+          }
         }, 1500);
       } else {
         setStatus('error');

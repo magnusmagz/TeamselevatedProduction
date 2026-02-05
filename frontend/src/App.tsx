@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -65,6 +65,23 @@ import { DonationSuccess } from './pages/DonationSuccess';
 import { FundraiserCampaignsList } from './pages/FundraiserCampaignsList';
 import { FundraiserCampaignForm } from './pages/FundraiserCampaignForm';
 import { FundraiserCampaignDashboard } from './pages/FundraiserCampaignDashboard';
+// Parent Portal
+import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
+import { ProtectedParentRoute } from './components/ProtectedParentRoute';
+import { ParentRedirect } from './components/ParentRedirect';
+import { ParentPortalLayout } from './parent-portal/ParentPortalLayout';
+import { ParentDashboard } from './parent-portal/ParentDashboard';
+import { MyAthletesPage } from './parent-portal/pages/MyAthletesPage';
+import { AthleteDetailPage } from './parent-portal/pages/AthleteDetailPage';
+import { PaymentStatusPage } from './parent-portal/pages/PaymentStatusPage';
+import { MakePaymentPage } from './parent-portal/pages/MakePaymentPage';
+import { UpcomingEventsPage } from './parent-portal/pages/UpcomingEventsPage';
+import { ScheduleRSVPPage } from './parent-portal/pages/ScheduleRSVPPage';
+import { TeamChatPage } from './parent-portal/pages/TeamChatPage';
+import { AnnouncementsPage } from './parent-portal/pages/AnnouncementsPage';
+import { DocumentsPage } from './parent-portal/pages/DocumentsPage';
+import { MedicalInfoPage } from './parent-portal/pages/MedicalInfoPage';
+import { MoreMenuPage } from './parent-portal/pages/MoreMenuPage';
 
 // Fundraiser Admin Wrapper Component
 const FundraiserAdminWrapper: React.FC<{ children: (props: { clubId: number; clubSlug: string; userId: number }) => React.ReactNode }> = ({ children }) => {
@@ -169,14 +186,18 @@ const TeamRosterPage: React.FC = () => {
 function AppContent() {
   const { user } = useAuth();
   const { isClubAdmin } = useOrg();
+  const location = useLocation();
 
   // Determine if user has admin capabilities
   const isAdmin = isClubAdmin;
 
+  // Hide floating chat widget on parent portal (has its own chat in bottom nav)
+  const isParentPortal = location.pathname.startsWith('/parent');
+
   return (
     <div className="min-h-screen bg-white">
         <DemoModeBanner />
-        {user && (
+        {user && !isParentPortal && (
           <nav className="bg-white border-b border-brand-secondary">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {/* Top row: Logo and user controls */}
@@ -262,13 +283,15 @@ function AppContent() {
           {/* Protected routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              {isAdmin ? (
-                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                  <TeamManagement />
-                </main>
-              ) : (
-                <CoachDashboard />
-              )}
+              <ParentRedirect>
+                {isAdmin ? (
+                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <TeamManagement />
+                  </main>
+                ) : (
+                  <CoachDashboard />
+                )}
+              </ParentRedirect>
             </ProtectedRoute>
           } />
           <Route path="/calendar" element={<ProtectedRoute><TeamCalendar /></ProtectedRoute>} />
@@ -477,10 +500,31 @@ function AppContent() {
               <SuperAdminDashboard />
             </ProtectedSuperAdminRoute>
           } />
+
+          {/* Parent Portal routes */}
+          <Route path="/parent" element={
+            <ProtectedParentRoute>
+              <ParentPortalLayout />
+            </ProtectedParentRoute>
+          }>
+            <Route index element={<ParentDashboard />} />
+            <Route path="athletes" element={<MyAthletesPage />} />
+            <Route path="athlete/:id" element={<AthleteDetailPage />} />
+            <Route path="payments" element={<PaymentStatusPage />} />
+            <Route path="payments/checkout" element={<MakePaymentPage />} />
+            <Route path="schedule" element={<UpcomingEventsPage />} />
+            <Route path="schedule/rsvp/:id" element={<ScheduleRSVPPage />} />
+            <Route path="chat" element={<TeamChatPage />} />
+            <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="documents/:id" element={<DocumentsPage />} />
+            <Route path="medical/:id" element={<MedicalInfoPage />} />
+            <Route path="more" element={<MoreMenuPage />} />
+          </Route>
         </Routes>
 
-        {/* Chat Widget - only visible when logged in */}
-        {user && <ChatWidget />}
+        {/* Chat Widget - visible when logged in, but not on parent portal (has its own chat) */}
+        {user && !isParentPortal && <ChatWidget />}
       </div>
   );
 }
@@ -491,9 +535,11 @@ function App() {
       <AuthProvider>
         <OrgProvider>
           <ThemeProvider>
-            <RegistrationCartProvider>
-              <AppContent />
-            </RegistrationCartProvider>
+            <FinancialPermissionsProvider>
+              <RegistrationCartProvider>
+                <AppContent />
+              </RegistrationCartProvider>
+            </FinancialPermissionsProvider>
           </ThemeProvider>
         </OrgProvider>
       </AuthProvider>

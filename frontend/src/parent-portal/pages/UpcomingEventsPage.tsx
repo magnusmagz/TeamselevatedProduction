@@ -1,0 +1,306 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useParentAthletes } from '../hooks/useParentAthletes';
+import { ParentHeader } from '../components/ParentHeader';
+import { AthleteSelector } from '../components/AthleteSelector';
+
+interface Event {
+  id: number;
+  title: string;
+  description?: string;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  location?: string;
+  type: 'practice' | 'game' | 'meeting' | 'tournament' | 'other';
+  team_id?: number;
+  team_name?: string;
+  rsvp_status?: 'attending' | 'not_attending' | 'maybe' | null;
+}
+
+export const UpcomingEventsPage: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const { athletes, selectedAthleteId, selectAthlete } = useParentAthletes();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = localStorage.getItem('auth_token');
+        const athleteParam = selectedAthleteId ? `&athlete_id=${selectedAthleteId}` : '';
+        const response = await fetch(
+          `${API_URL}/api/events.php?action=upcoming${athleteParam}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await response.json();
+
+        if (data.success && data.events) {
+          setEvents(data.events);
+        } else {
+          setEvents([]);
+        }
+      } catch (err) {
+        setError('Failed to load events');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [API_URL, selectedAthleteId]);
+
+  const getEventTypeColor = (type: Event['type']) => {
+    const colors = {
+      practice: 'bg-blue-100 text-blue-800',
+      game: 'bg-green-100 text-green-800',
+      meeting: 'bg-purple-100 text-purple-800',
+      tournament: 'bg-orange-100 text-orange-800',
+      other: 'bg-gray-100 text-gray-800',
+    };
+    return colors[type] || colors.other;
+  };
+
+  const formatTime = (time?: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const groupEventsByDate = (events: Event[]) => {
+    const groups: { [key: string]: Event[] } = {};
+    events.forEach((event) => {
+      const date = event.date;
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(event);
+    });
+    return groups;
+  };
+
+  const formatDateHeader = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    }
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    }
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const groupedEvents = groupEventsByDate(events);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ParentHeader
+        title="Schedule"
+        showBack
+        rightElement={
+          athletes.length > 1 ? (
+            <AthleteSelector
+              athletes={athletes}
+              selectedAthleteId={selectedAthleteId}
+              onSelect={selectAthlete}
+              showAllOption={true}
+            />
+          ) : undefined
+        }
+      />
+
+      <div className="pt-14 pb-4">
+        {/* View Mode Toggle */}
+        <div className="flex bg-white border-b border-gray-200">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === 'list'
+                ? 'border-brand-primary text-brand-primary'
+                : 'border-transparent text-gray-500'
+            }`}
+          >
+            List View
+          </button>
+          <button
+            onClick={() => setViewMode('calendar')}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === 'calendar'
+                ? 'border-brand-primary text-brand-primary'
+                : 'border-transparent text-gray-500'
+            }`}
+          >
+            Calendar View
+          </button>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="mx-4 mt-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && events.length === 0 && (
+          <div className="text-center py-12 px-4">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">No Upcoming Events</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              There are no scheduled events at this time.
+            </p>
+          </div>
+        )}
+
+        {/* List View */}
+        {!loading && !error && events.length > 0 && viewMode === 'list' && (
+          <div className="px-4 py-4">
+            {Object.entries(groupedEvents).map(([date, dateEvents]) => (
+              <div key={date} className="mb-6">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  {formatDateHeader(date)}
+                </h2>
+                <div className="space-y-3">
+                  {dateEvents.map((event) => (
+                    <Link
+                      key={event.id}
+                      to={`/parent/schedule/rsvp/${event.id}`}
+                      className="block bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-12 text-center">
+                          {event.start_time && (
+                            <p className="text-sm font-medium text-gray-900">
+                              {formatTime(event.start_time)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`px-2 py-0.5 text-xs font-medium rounded ${getEventTypeColor(
+                                event.type
+                              )}`}
+                            >
+                              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                            </span>
+                            {event.rsvp_status && (
+                              <span
+                                className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                  event.rsvp_status === 'attending'
+                                    ? 'bg-green-100 text-green-800'
+                                    : event.rsvp_status === 'not_attending'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}
+                              >
+                                {event.rsvp_status === 'attending'
+                                  ? 'Going'
+                                  : event.rsvp_status === 'not_attending'
+                                  ? 'Not Going'
+                                  : 'Maybe'}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-medium text-gray-900">{event.title}</p>
+                          {event.team_name && (
+                            <p className="text-sm text-brand-primary">{event.team_name}</p>
+                          )}
+                          {event.location && (
+                            <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              <span className="truncate">{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+                        <svg
+                          className="w-5 h-5 text-gray-400 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Calendar View - Simple Month View */}
+        {!loading && !error && viewMode === 'calendar' && (
+          <div className="px-4 py-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <p className="text-center text-gray-500 py-8">
+                Calendar view coming soon. Use list view to see all events.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default UpcomingEventsPage;

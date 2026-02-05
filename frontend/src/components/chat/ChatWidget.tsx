@@ -34,10 +34,11 @@ export default function ChatWidget() {
   const { user } = useAuth();
   const { activeContext, currentClubId, isClubAdmin } = useOrg();
 
-  // Check if user is a coach or admin (only they can use chat)
-  const isCoachOrAdmin = isClubAdmin ||
+  // Check if user has chat access (coaches, admins, and parents can use chat)
+  const hasChatAccess = isClubAdmin ||
     activeContext?.role === 'coach' ||
-    activeContext?.role === 'club_admin';
+    activeContext?.role === 'club_admin' ||
+    activeContext?.role === 'parent';
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -205,8 +206,8 @@ export default function ChatWidget() {
     });
   }, [user, activeChannel]);
 
-  // Don't render if no user or user is not a coach/admin
-  if (!user || !isCoachOrAdmin) return null;
+  // Don't render if no user or user doesn't have chat access
+  if (!user || !hasChatAccess) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">

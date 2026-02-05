@@ -1,0 +1,87 @@
+import React, { useState } from 'react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+
+export const InstallPrompt: React.FC = () => {
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
+  const [dismissed, setDismissed] = useState(false);
+
+  // Don't show if already installed, dismissed, or not installable
+  if (isInstalled || dismissed) {
+    return null;
+  }
+
+  // Show iOS-specific instructions
+  if (isIOS && !isInstalled) {
+    return (
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-brand-primary">
+              Install Teams Elevated
+            </p>
+            <p className="text-xs text-brand-primary/80 mt-0.5">
+              Tap the share button <span className="inline-block">
+                <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </span> then "Add to Home Screen"
+            </p>
+          </div>
+          <button
+            onClick={() => setDismissed(true)}
+            className="flex-shrink-0 p-1 text-brand-primary/60 hover:text-brand-primary"
+            aria-label="Dismiss"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show Android/Chrome install prompt
+  if (isInstallable) {
+    return (
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-brand-primary">
+              Install Teams Elevated for quick access
+            </p>
+          </div>
+          <button
+            onClick={promptInstall}
+            className="flex-shrink-0 bg-brand-primary text-white px-3 py-1.5 text-sm font-medium rounded hover:bg-brand-primary-hover transition-colors"
+          >
+            Install
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            className="flex-shrink-0 p-1 text-brand-primary/60 hover:text-brand-primary"
+            aria-label="Dismiss"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+export default InstallPrompt;

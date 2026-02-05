@@ -39,7 +39,22 @@ export default function Login() {
       // Store the token and update auth context
       localStorage.setItem('auth_token', data.token);
       login(data.token, data.user);
-      navigate('/dashboard');
+
+      // Check if user is a parent - redirect to parent portal
+      const userRoles = data.user?.roles || [];
+      const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
+
+      console.log('Login response:', data);
+      console.log('User roles:', userRoles);
+      console.log('Is parent:', isParent);
+
+      if (isParent) {
+        console.log('Redirecting to /parent');
+        navigate('/parent');
+      } else {
+        console.log('Redirecting to /dashboard');
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

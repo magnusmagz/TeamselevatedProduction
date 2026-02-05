@@ -1,0 +1,360 @@
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { ParentHeader } from '../components/ParentHeader';
+
+interface Invoice {
+  id: number;
+  athlete_id: number;
+  athlete_name: string;
+  description: string;
+  total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  status: string;
+}
+
+interface PaymentMethod {
+  id: string;
+  type: 'card' | 'bank';
+  last4: string;
+  brand?: string;
+  isDefault: boolean;
+}
+
+export const MakePaymentPage: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+
+  const invoiceId = searchParams.get('invoice');
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [selectedInvoices, setSelectedInvoices] = useState<number[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<'full' | 'custom'>('full');
+  const [customAmount, setCustomAmount] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+
+      try {
+        // Fetch outstanding invoices
+        const invoicesRes = await fetch(
+          `${API_URL}/api/invoices.php?action=family&guardian_id=${user.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const invoicesData = await invoicesRes.json();
+
+        if (invoicesData.success && invoicesData.invoices) {
+          const outstanding = invoicesData.invoices.filter(
+            (inv: Invoice) => inv.status !== 'paid'
+          );
+          setInvoices(outstanding);
+
+          // Pre-select invoice if specified in URL
+          if (invoiceId) {
+            setSelectedInvoices([parseInt(invoiceId)]);
+          } else if (outstanding.length > 0) {
+            setSelectedInvoices(outstanding.map((inv: Invoice) => inv.id));
+          }
+        }
+
+        // Fetch payment methods
+        const methodsRes = await fetch(
+          `${API_URL}/api/payment-methods.php?action=list`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const methodsData = await methodsRes.json();
+
+        if (methodsData.success && methodsData.methods) {
+          setPaymentMethods(methodsData.methods);
+          const defaultMethod = methodsData.methods.find((m: PaymentMethod) => m.isDefault);
+          if (defaultMethod) {
+            setSelectedPaymentMethod(defaultMethod.id);
+          }
+        }
+      } catch (err) {
+        setError('Failed to load payment information');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [API_URL, user, invoiceId]);
+
+  const selectedTotal = invoices
+    .filter((inv) => selectedInvoices.includes(inv.id))
+    .reduce((sum, inv) => sum + inv.balance_due, 0);
+
+  const payableAmount = paymentAmount === 'full'
+    ? selectedTotal
+    : parseFloat(customAmount) || 0;
+
+  const toggleInvoice = (id: number) => {
+    setSelectedInvoices((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (selectedInvoices.length === 0) {
+      setError('Please select at least one invoice');
+      return;
+    }
+
+    if (payableAmount <= 0) {
+      setError('Please enter a valid payment amount');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/payments.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          invoice_ids: selectedInvoices,
+          amount: payableAmount,
+          payment_method_id: selectedPaymentMethod,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        navigate('/parent/payments', {
+          state: { message: 'Payment successful!' }
+        });
+      } else {
+        setError(data.error || 'Payment failed');
+      }
+    } catch (err) {
+      setError('Payment processing failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <ParentHeader title="Make Payment" showBack />
+        <div className="pt-14 flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ParentHeader title="Make Payment" showBack />
+
+      <div className="pt-14 pb-24 px-4">
+        {error && (
+          <div className="mt-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {invoices.length === 0 ? (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">All Paid Up!</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              You have no outstanding payments.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Invoice Selection */}
+            <div className="mt-4">
+              <h2 className="font-semibold text-gray-900 mb-3">Select Invoices</h2>
+              <div className="space-y-2">
+                {invoices.map((invoice) => (
+                  <button
+                    key={invoice.id}
+                    onClick={() => toggleInvoice(invoice.id)}
+                    className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                      selectedInvoices.includes(invoice.id)
+                        ? 'bg-brand-secondary border-brand-primary'
+                        : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {invoice.athlete_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{invoice.description}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-gray-900">
+                          ${invoice.balance_due.toFixed(2)}
+                        </span>
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                            selectedInvoices.includes(invoice.id)
+                              ? 'bg-brand-primary border-brand-primary'
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          {selectedInvoices.includes(invoice.id) && (
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Amount */}
+            <div className="mt-6">
+              <h2 className="font-semibold text-gray-900 mb-3">Payment Amount</h2>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setPaymentAmount('full')}
+                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                    paymentAmount === 'full'
+                      ? 'bg-brand-secondary border-brand-primary'
+                      : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Pay Full Amount</span>
+                    <span className="font-semibold">${selectedTotal.toFixed(2)}</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setPaymentAmount('custom')}
+                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                    paymentAmount === 'custom'
+                      ? 'bg-brand-secondary border-brand-primary'
+                      : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <span className="font-medium">Pay Custom Amount</span>
+                </button>
+
+                {paymentAmount === 'custom' && (
+                  <div className="mt-2">
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        max={selectedTotal}
+                        step="0.01"
+                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            {paymentMethods.length > 0 && (
+              <div className="mt-6">
+                <h2 className="font-semibold text-gray-900 mb-3">Payment Method</h2>
+                <div className="space-y-2">
+                  {paymentMethods.map((method) => (
+                    <button
+                      key={method.id}
+                      onClick={() => setSelectedPaymentMethod(method.id)}
+                      className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                        selectedPaymentMethod === method.id
+                          ? 'bg-brand-secondary border-brand-primary'
+                          : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-medium">
+                          {method.brand || 'CARD'}
+                        </div>
+                        <span className="font-medium">•••• {method.last4}</span>
+                        {method.isDefault && (
+                          <span className="text-xs text-gray-500">Default</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Fixed Bottom Button */}
+      {invoices.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
+          <div className="max-w-lg mx-auto">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-600">Total</span>
+              <span className="text-xl font-bold text-gray-900">
+                ${payableAmount.toFixed(2)}
+              </span>
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || selectedInvoices.length === 0 || payableAmount <= 0}
+              className="w-full py-3 bg-brand-primary text-white font-semibold rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Processing...' : 'Pay Now'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MakePaymentPage;
