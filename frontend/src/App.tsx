@@ -20,6 +20,7 @@ import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import ConsentConfirm from './pages/ConsentConfirm';
 import TeamManagement from './components/TeamManagement';
 import CoachDashboard from './components/CoachDashboard';
 import AthleteProfile from './components/AthleteProfile';
@@ -281,6 +282,7 @@ function AppContent() {
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/consent/confirm" element={<ConsentConfirm />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
 
