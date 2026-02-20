@@ -80,6 +80,8 @@ interface AthleteFormProps {
 const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const [currentStep, setCurrentStep] = useState(1);
+  const [consentDataCollection, setConsentDataCollection] = useState(false);
+  const [consentMedicalData, setConsentMedicalData] = useState(false);
   const [formData, setFormData] = useState<AthleteFormData>({
     first_name: '',
     middle_initial: '',
@@ -248,6 +250,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     // Validate required fields
     if (!formData.first_name || !formData.last_name) {
       alert('First name and last name are required');
+      return;
+    }
+
+    if (!consentDataCollection || !consentMedicalData) {
+      alert('Both parental consent checkboxes must be checked to proceed.');
       return;
     }
 
@@ -1050,6 +1057,44 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* COPPA Consent Section */}
+                  <div className="border-t border-gray-200 pt-6 mt-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Parental Consent (Required)</h3>
+
+                    <div className="space-y-4">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consentDataCollection}
+                          onChange={(e) => setConsentDataCollection(e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                        />
+                        <span className="text-sm text-gray-700">
+                          As the parent/legal guardian, I consent to the collection and storage of my child's personal information as described in the{' '}
+                          <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-brand-primary-hover">
+                            Privacy Policy
+                          </a>.
+                        </span>
+                      </label>
+
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consentMedicalData}
+                          onChange={(e) => setConsentMedicalData(e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                        />
+                        <span className="text-sm text-gray-700">
+                          I consent to the collection and encrypted storage of my child's medical information, accessible only to authorized staff for safety purposes. Examples of this data may include but is not limited to: allergies, medications and medical conditions.
+                        </span>
+                      </label>
+                    </div>
+
+                    {(!consentDataCollection || !consentMedicalData) && (
+                      <p className="mt-2 text-sm text-red-600">Both consent checkboxes must be checked to proceed.</p>
+                    )}
                   </div>
                 </div>
               </div>

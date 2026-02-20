@@ -18,6 +18,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import TeamManagement from './components/TeamManagement';
 import CoachDashboard from './components/CoachDashboard';
 import AthleteProfile from './components/AthleteProfile';
@@ -277,6 +279,8 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
 

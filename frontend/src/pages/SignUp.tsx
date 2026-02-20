@@ -22,6 +22,7 @@ export default function SignUp() {
     first_name: '',
     last_name: '',
   });
+  const [tosAccepted, setTosAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -98,6 +99,7 @@ export default function SignUp() {
           password: formData.password,
           first_name: formData.first_name,
           last_name: formData.last_name,
+          tos_accepted: tosAccepted,
         }),
       });
 
@@ -261,7 +263,7 @@ export default function SignUp() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !tosAccepted}
               className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
@@ -278,9 +280,24 @@ export default function SignUp() {
           </div>
 
           <div className="mt-6 pt-6 border-t-2 border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              By creating an account, you agree to our Terms of Service and Privacy Policy.
-            </p>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={tosAccepted}
+                onChange={(e) => setTosAccepted(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              <span className="text-sm text-gray-600">
+                I agree to the{' '}
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-brand-primary-hover">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline hover:text-brand-primary-hover">
+                  Privacy Policy
+                </a>.
+              </span>
+            </label>
           </div>
         </div>
       </div>
