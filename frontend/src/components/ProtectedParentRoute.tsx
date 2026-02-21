@@ -11,9 +11,13 @@ export const ProtectedParentRoute: React.FC<ProtectedParentRouteProps> = ({ chil
   const { user, isLoading: authLoading } = useAuth();
   const { roles, loading: permissionsLoading } = useFinancialPermissions();
 
-  const isLoading = authLoading || permissionsLoading;
+  // Check JWT roles directly as a fast path (avoids race condition with financial permissions API)
+  const jwtIsParent = user?.roles?.some((r: any) => r.role === 'parent') ||
+                      user?.activeRole?.role === 'parent';
 
-  console.log('[ProtectedParentRoute] authLoading:', authLoading, 'permissionsLoading:', permissionsLoading, 'roles:', roles);
+  const isLoading = authLoading || (permissionsLoading && !jwtIsParent);
+
+  console.log('[ProtectedParentRoute] authLoading:', authLoading, 'permissionsLoading:', permissionsLoading, 'roles:', roles, 'jwtIsParent:', jwtIsParent);
 
   if (isLoading) {
     console.log('[ProtectedParentRoute] Still loading, showing spinner');
@@ -37,9 +41,8 @@ export const ProtectedParentRoute: React.FC<ProtectedParentRouteProps> = ({ chil
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user has parent role or has accessible athletes (which indicates parent/guardian relationship)
-  // Parents can access the portal, but coaches and admins should use the main app
-  const hasParentAccess = roles.is_parent;
+  // Check parent access from financial permissions API OR JWT roles directly
+  const hasParentAccess = roles.is_parent || jwtIsParent;
 
   if (!hasParentAccess) {
     // Not a parent - redirect to main dashboard

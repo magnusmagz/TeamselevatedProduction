@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { ParentHeader } from '../components/ParentHeader';
 
 interface AthleteDetails {
@@ -20,9 +21,15 @@ interface AthleteDetails {
 export const AthleteDetailPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [athlete, setAthlete] = useState<AthleteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[AthleteDetailPage] useEffect triggered, id:', id);
@@ -66,6 +73,47 @@ export const AthleteDetailPage: React.FC = () => {
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const handleDeleteData = async () => {
+    if (!athlete || !user) return;
+
+    const expectedName = `${athlete.first_name} ${athlete.last_name}`;
+    if (deleteConfirmName.trim().toLowerCase() !== expectedName.toLowerCase()) {
+      setDeleteError(`Please type "${expectedName}" to confirm.`);
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/consent.php?action=request-deletion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          athlete_id: athlete.id,
+          guardian_id: user.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setShowDeleteModal(false);
+        navigate('/parent', { state: { deletedAthlete: expectedName } });
+      } else {
+        setDeleteError(result.error || 'Failed to delete data. Please try again.');
+      }
+    } catch {
+      setDeleteError('Unable to reach the server. Please try again later.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatAge = (dob: string) => {
@@ -246,7 +294,90 @@ export const AthleteDetailPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Data Privacy Section */}
+        <div className="px-4 mb-4 mt-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h2 className="font-semibold text-gray-900 mb-2">Data Privacy</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Under our privacy policy, you have the right to request deletion of your child's personal and medical data.
+            </p>
+            <button
+              onClick={() => {
+                setShowDeleteModal(true);
+                setDeleteConfirmName('');
+                setDeleteError(null);
+              }}
+              className="w-full flex items-center justify-center gap-2 p-3 bg-white rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete My Child's Data
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && athlete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                Delete Data for {athlete.first_name} {athlete.last_name}?
+              </h3>
+              <p className="text-sm text-gray-600 text-center mb-4">
+                This will permanently delete all medical records, allergy information, medications, and insurance data for {athlete.first_name}. Their profile will be deactivated.
+              </p>
+              <p className="text-sm text-gray-600 text-center mb-4">
+                This action <span className="font-semibold">cannot be undone</span>.
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type <span className="font-semibold">{athlete.first_name} {athlete.last_name}</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmName}
+                  onChange={(e) => {
+                    setDeleteConfirmName(e.target.value);
+                    setDeleteError(null);
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-red-500"
+                  placeholder={`${athlete.first_name} ${athlete.last_name}`}
+                />
+              </div>
+              {deleteError && (
+                <div className="bg-red-50 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteData}
+                disabled={deleting || deleteConfirmName.trim().toLowerCase() !== `${athlete.first_name} ${athlete.last_name}`.toLowerCase()}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {deleting ? 'Deleting...' : 'Delete Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
