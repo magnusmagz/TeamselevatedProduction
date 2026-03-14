@@ -243,9 +243,9 @@ export class ColorExtractor {
     });
 
     return {
-      primary: colorsToUse[0]?.hex || '#3B82F6',
+      primary: colorsToUse[0]?.hex || '#12443e',
       secondary: colorsToUse[1]?.hex || '#1F2937',
-      accent: colorsToUse[2]?.hex || '#10B981',
+      accent: colorsToUse[2]?.hex || '#a3ebd1',
       allColors: colorsToUse
     };
   }

@@ -138,7 +138,7 @@ export const PaymentItemsList: React.FC = () => {
         <h1 className="text-3xl font-bold">Payment Items</h1>
         <button
           onClick={() => navigate('/payment/revenue')}
-          className="text-blue-600 hover:text-blue-800"
+          className="text-brand-primary hover:text-brand-primary-dark"
         >
           &larr; Back to Revenue Dashboard
         </button>
@@ -218,7 +218,7 @@ export const PaymentItemsList: React.FC = () => {
           {(selectedProgramId || selectedSeason) && (
             <button
               onClick={clearFilters}
-              className="mt-4 text-blue-600 hover:text-blue-800"
+              className="mt-4 text-brand-primary hover:text-brand-primary-dark"
             >
               Clear filters to see all items
             </button>

@@ -135,7 +135,7 @@ export const OutstandingBalances: React.FC = () => {
         </div>
         <button
           onClick={exportToCSV}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+          className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -205,7 +205,7 @@ export const OutstandingBalances: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/athlete/${balance.athlete_id}/payments`}
-                            className="font-semibold text-blue-600 hover:text-blue-800"
+                            className="font-semibold text-brand-primary hover:text-brand-primary-dark"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {balance.athlete_name}
@@ -240,7 +240,7 @@ export const OutstandingBalances: React.FC = () => {
                           handleSendReminder(balance);
                         }}
                         disabled={sendingReminder === balance.athlete_id}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200 disabled:opacity-50"
+                        className="px-3 py-1 text-sm bg-brand-light text-brand-primary rounded hover:bg-brand-light/70 disabled:opacity-50"
                       >
                         {sendingReminder === balance.athlete_id ? 'Sending...' : 'Send Reminder'}
                       </button>

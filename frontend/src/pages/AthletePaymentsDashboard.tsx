@@ -205,7 +205,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
             onClick={() => setActiveTab('payments')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'payments'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -220,7 +220,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
             onClick={() => setActiveTab('invoices')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'invoices'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-brand-primary text-brand-primary'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -280,7 +280,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
                     <div>
                       <span className="text-gray-600">Amount Paid:</span>
-                      <div className="font-semibold text-green-600">{formatCurrency(payment.amount_paid)}</div>
+                      <div className="font-semibold text-brand-primary">{formatCurrency(payment.amount_paid)}</div>
                     </div>
                     <div>
                       <span className="text-gray-600">Remaining:</span>
@@ -297,7 +297,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                     {payment.on_payment_plan && (
                       <div>
                         <span className="text-gray-600">Payment Plan:</span>
-                        <div className="font-semibold text-blue-600">
+                        <div className="font-semibold text-brand-primary">
                           {payment.payment_plan_name} ({payment.current_installment}/{payment.total_installments})
                         </div>
                       </div>
@@ -312,7 +312,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                       className={`px-4 py-2 rounded font-semibold text-white ${
                         payment.is_overdue
                           ? 'bg-red-600 hover:bg-red-700'
-                          : 'bg-blue-600 hover:bg-blue-700'
+                          : 'bg-brand-primary hover:bg-brand-primary-hover'
                       }`}
                     >
                       Make Payment
@@ -376,7 +376,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3 text-sm">
                       <div>
                         <span className="text-gray-600">Amount Paid:</span>
-                        <div className="font-semibold text-green-600">
+                        <div className="font-semibold text-brand-primary">
                           {formatCurrency(invoice.amount_paid)}
                         </div>
                       </div>
@@ -402,7 +402,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                         className={`px-4 py-2 rounded font-semibold text-white ${
                           invoice.is_overdue
                             ? 'bg-red-600 hover:bg-red-700'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                            : 'bg-brand-primary hover:bg-brand-primary-hover'
                         }`}
                       >
                         Pay Invoice
@@ -418,17 +418,17 @@ export const AthletePaymentsDashboard: React.FC = () => {
 
       {/* Quick Actions */}
       {activeTab === 'payments' && unpaidPayments.length > 0 && (
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 bg-brand-light/50 border border-brand-secondary rounded-lg p-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="font-semibold text-blue-900">Pay All Outstanding</h3>
-              <p className="text-sm text-blue-700">
+              <h3 className="font-semibold text-brand-primary-dark">Pay All Outstanding</h3>
+              <p className="text-sm text-brand-primary-dark">
                 Total outstanding: {formatCurrency(athlete.total_remaining)}
               </p>
             </div>
             <button
               onClick={() => navigate(`/payment/checkout/${athleteId}`)}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded"
+              className="px-6 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold rounded"
             >
               Pay All
             </button>

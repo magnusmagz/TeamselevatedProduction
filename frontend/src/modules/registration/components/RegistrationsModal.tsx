@@ -227,7 +227,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                           {reg.form_data.guardian_first} {reg.form_data.guardian_last}
                         </span>
                         <span className="text-gray-400 ml-4">Email:</span>{' '}
-                        <a href={`mailto:${reg.form_data.guardian_email}`} className="text-blue-600 hover:underline">
+                        <a href={`mailto:${reg.form_data.guardian_email}`} className="text-brand-primary hover:underline">
                           {reg.form_data.guardian_email}
                         </a>
                         <span className="text-gray-400 ml-4">Phone:</span>{' '}
@@ -241,7 +241,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                         <button
                           onClick={() => handleUpdateStatus(reg.id, 'approved')}
                           disabled={processing === reg.id}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
+                          className="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
                         >
                           {processing === reg.id ? 'Processing...' : 'Approve'}
                         </button>
@@ -269,7 +269,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                                   navigator.clipboard.writeText(paymentUrl);
                                   alert('Payment link copied to clipboard!');
                                 }}
-                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                className="text-xs text-brand-primary hover:text-brand-primary-dark underline"
                               >
                                 Copy Payment Link
                               </button>

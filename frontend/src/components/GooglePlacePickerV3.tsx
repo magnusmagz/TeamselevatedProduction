@@ -157,7 +157,7 @@ const GooglePlacePickerV3: React.FC<GooglePlacePickerV3Props> = ({
       />
 
       {showMap && (
-        <div className="mt-4" style={{ height: '300px', border: '2px solid #234F1E' }}>
+        <div className="mt-4" style={{ height: '300px', border: '2px solid var(--color-primary)' }}>
           {/* @ts-ignore */}
           <gmp-map
             ref={mapRef}

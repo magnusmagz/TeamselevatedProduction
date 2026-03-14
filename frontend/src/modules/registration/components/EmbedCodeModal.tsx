@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Program } from '../types';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface EmbedCodeModalProps {
   program: Program;
@@ -9,20 +10,22 @@ interface EmbedCodeModalProps {
 const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => {
   const [embedType, setEmbedType] = useState<'iframe' | 'button'>('iframe');
   const [copied, setCopied] = useState(false);
+  const { colors } = useTheme();
 
   const registrationUrl = `${window.location.origin}/register/${program.embed_code}`;
+  const brandColor = colors.primary || '#12443e';
 
   const iframeCode = `<iframe
   src="${registrationUrl}"
   width="100%"
   height="800"
   frameborder="0"
-  style="border: 2px solid #14532d; max-width: 600px;">
+  style="border: 2px solid ${brandColor}; max-width: 600px;">
 </iframe>`;
 
   const buttonCode = `<a href="${registrationUrl}"
   target="_blank"
-  style="display: inline-block; background-color: #14532d; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; text-transform: uppercase;">
+  style="display: inline-block; background-color: ${brandColor}; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; text-transform: uppercase;">
   Register Now
 </a>`;
 

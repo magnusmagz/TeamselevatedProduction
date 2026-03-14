@@ -162,7 +162,7 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {existingEvaluation && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-sm">
+            <div className="mb-4 p-3 bg-brand-light/50 border border-brand-secondary text-brand-primary-dark rounded-md text-sm">
               You have already submitted an evaluation for this athlete.
               Updating will overwrite your previous scores.
             </div>

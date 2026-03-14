@@ -309,8 +309,8 @@ const PublicTryoutRegistration: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
@@ -325,9 +325,9 @@ const PublicTryoutRegistration: React.FC = () => {
             </p>
           </div>
           {sessions.length > 0 && (
-            <div className="bg-blue-50 rounded-lg p-4 text-left">
-              <p className="text-sm text-blue-800 font-medium mb-2">What to expect:</p>
-              <ul className="text-sm text-blue-700 space-y-1">
+            <div className="bg-brand-light/50 rounded-lg p-4 text-left">
+              <p className="text-sm text-brand-primary-dark font-medium mb-2">What to expect:</p>
+              <ul className="text-sm text-brand-primary-dark space-y-1">
                 <li>• Arrive 15 minutes before your scheduled session</li>
                 <li>• Wear appropriate athletic clothing and cleats</li>
                 <li>• Bring water and any required equipment</li>

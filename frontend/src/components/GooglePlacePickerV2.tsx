@@ -214,7 +214,7 @@ const GooglePlacePickerV2: React.FC<GooglePlacePickerV2Props> = ({
         <div
           ref={mapRef}
           className="mt-4"
-          style={{ height: '300px', border: '2px solid #234F1E' }}
+          style={{ height: '300px', border: '2px solid var(--color-primary)' }}
         />
       )}
 

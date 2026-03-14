@@ -285,7 +285,7 @@ export const MultiPaymentCheckout: React.FC = () => {
             className={`w-full mt-6 py-3 rounded-lg text-white font-semibold ${
               processing
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-brand-primary hover:bg-brand-primary-hover'
             }`}
           >
             {processing ? 'Processing...' : `Pay ${formatCurrency(getTotal())}`}

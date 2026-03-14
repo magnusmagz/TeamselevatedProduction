@@ -92,7 +92,7 @@ export const RegistrationCart: React.FC = () => {
           <p className="text-gray-600 mb-6">Add children to programs to get started</p>
           <Link
             to="/program-management"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="inline-block px-6 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover"
           >
             Browse Programs
           </Link>
@@ -166,7 +166,7 @@ export const RegistrationCart: React.FC = () => {
         <div className="mb-6">
           <Link
             to="/program-management"
-            className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-brand-primary hover:text-brand-primary transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -210,7 +210,7 @@ export const RegistrationCart: React.FC = () => {
             className={`flex-1 py-3 rounded-lg text-white font-semibold ${
               processing
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-brand-primary hover:bg-brand-primary-hover'
             }`}
           >
             {processing ? 'Processing...' : `Checkout ${formatCurrency(getTotal())}`}

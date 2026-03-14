@@ -209,7 +209,7 @@ export const FamilyInvoices: React.FC = () => {
           {unpaidInvoices.length > 0 && (
             <button
               onClick={handlePayAll}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded"
+              className="px-6 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold rounded"
             >
               Pay All ({unpaidInvoices.length})
             </button>
@@ -225,7 +225,7 @@ export const FamilyInvoices: React.FC = () => {
               key={athleteId}
               onClick={() => setSelectedAthlete(athleteId)}
               className={`bg-white p-4 rounded-lg shadow cursor-pointer hover:shadow-md transition-shadow ${
-                selectedAthlete === athleteId ? 'ring-2 ring-blue-500' : ''
+                selectedAthlete === athleteId ? 'ring-2 ring-brand-primary' : ''
               }`}
             >
               <div className="font-semibold text-gray-900 mb-2">{data.name}</div>
@@ -318,7 +318,7 @@ export const FamilyInvoices: React.FC = () => {
                     {invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.athlete_payment_id && (
                       <button
                         onClick={() => navigate(`/payment/checkout/${invoice.athlete_id}/${invoice.athlete_payment_id}`)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="text-brand-primary hover:text-brand-primary-dark text-sm font-medium"
                       >
                         Pay Now
                       </button>

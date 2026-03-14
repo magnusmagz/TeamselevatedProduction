@@ -243,7 +243,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => handleUpload(doc.type_id)}
                         disabled={uploading}
-                        className="px-3 py-1 bg-green-600 text-white text-sm hover:bg-green-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
                       >
                         {uploading ? 'Uploading...' : 'Confirm'}
                       </button>
@@ -259,7 +259,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => setSelectedType(doc.type_id)}
                         disabled={!selectedFile}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
                       >
                         {doc.document_id ? 'Replace' : 'Upload'}
                       </button>
@@ -315,7 +315,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => handleUpload(doc.type_id)}
                         disabled={uploading}
-                        className="px-3 py-1 bg-green-600 text-white text-sm hover:bg-green-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
                       >
                         {uploading ? 'Uploading...' : 'Confirm'}
                       </button>
@@ -331,7 +331,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       <button
                         onClick={() => setSelectedType(doc.type_id)}
                         disabled={!selectedFile}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400"
+                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
                       >
                         {doc.document_id ? 'Replace' : 'Upload'}
                       </button>

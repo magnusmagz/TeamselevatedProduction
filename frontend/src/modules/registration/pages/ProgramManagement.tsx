@@ -107,7 +107,7 @@ const ProgramManagement: React.FC = () => {
             </button>
             <button
               onClick={() => setShowTryoutWizard(true)}
-              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 uppercase font-semibold"
+              className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold"
             >
               + Create Tryout
             </button>
@@ -182,7 +182,7 @@ const ProgramManagement: React.FC = () => {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => setRegistrationsProgram(program)}
-                          className="text-brand-primary hover:text-blue-600 underline"
+                          className="text-brand-primary hover:text-brand-primary-dark underline"
                         >
                           {program.registration_count || 0} registrations
                         </button>
@@ -220,7 +220,7 @@ const ProgramManagement: React.FC = () => {
                             <>
                               <button
                                 onClick={() => setEmbedProgram(program)}
-                                className="text-blue-600 hover:text-blue-500 uppercase text-xs font-semibold"
+                                className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                               >
                                 Embed
                               </button>
@@ -231,7 +231,7 @@ const ProgramManagement: React.FC = () => {
                                   );
                                   alert('Registration link copied to clipboard!');
                                 }}
-                                className="text-blue-600 hover:text-blue-500 uppercase text-xs font-semibold"
+                                className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                               >
                                 Copy Link
                               </button>
@@ -289,7 +289,7 @@ const ProgramManagement: React.FC = () => {
                       <div className="flex items-center">
                         <button
                           onClick={() => setRegistrationsProgram(program)}
-                          className="text-brand-primary text-sm hover:text-blue-600 underline"
+                          className="text-brand-primary text-sm hover:text-brand-primary-dark underline"
                         >
                           {program.registration_count || 0} registrations
                         </button>
@@ -331,7 +331,7 @@ const ProgramManagement: React.FC = () => {
                       <>
                         <button
                           onClick={() => setEmbedProgram(program)}
-                          className="border border-blue-200 rounded-md text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
+                          className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
                         >
                           Embed
                         </button>
@@ -342,7 +342,7 @@ const ProgramManagement: React.FC = () => {
                             );
                             alert('Registration link copied to clipboard!');
                           }}
-                          className="border border-blue-200 rounded-md text-blue-600 hover:bg-blue-50 py-2 uppercase text-xs font-semibold"
+                          className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
                         >
                           Copy Link
                         </button>

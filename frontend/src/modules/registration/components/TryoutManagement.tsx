@@ -636,7 +636,7 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
                 onSendOffers(selectedIds, 'roster', selectedTeamId);
                 setSelectedIds([]);
               }}
-              className="px-3 py-2 bg-green-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-green-700"
+              className="px-3 py-2 bg-brand-primary text-white rounded-md text-sm font-semibold uppercase hover:bg-brand-primary-hover"
             >
               Send Roster Offer
             </button>

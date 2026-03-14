@@ -105,7 +105,7 @@ export const RevenueDashboard: React.FC = () => {
           </Link>
           <Link
             to="/payment/transactions"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -124,7 +124,7 @@ export const RevenueDashboard: React.FC = () => {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
           <div className="text-sm text-gray-600 mb-1">Collected</div>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.collected)}</div>
+          <div className="text-2xl font-bold text-brand-primary">{formatCurrency(summary.collected)}</div>
         </div>
 
         <Link to="/payment/outstanding" className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 hover:shadow-lg transition-shadow block">
@@ -164,13 +164,13 @@ export const RevenueDashboard: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{program.athletes}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900">{formatCurrency(program.revenue)}</td>
-                  <td className="px-4 py-3 text-sm text-green-600">{formatCurrency(program.collected)}</td>
+                  <td className="px-4 py-3 text-sm text-brand-primary">{formatCurrency(program.collected)}</td>
                   <td className="px-4 py-3 text-sm text-orange-600">{formatCurrency(program.outstanding)}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center">
                       <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
                         <div
-                          className="bg-green-500 h-2 rounded-full"
+                          className="bg-brand-primary h-2 rounded-full"
                           style={{ width: `${program.collection_rate}%` }}
                         />
                       </div>
