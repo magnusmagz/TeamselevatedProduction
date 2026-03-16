@@ -257,17 +257,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   // Full page view
   return (
     <div>
-      <div className="mb-8 flex justify-between items-start">
-        <div>
-          <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Athlete Management</h2>
-          <p className="text-gray-600">Manage all athletes in your club</p>
-        </div>
-        <button
-          onClick={handleAddAthlete}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
-        >
-          + Add New Athlete
-        </button>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Athlete Management</h2>
+        <p className="text-gray-600">Manage all athletes in your club</p>
       </div>
 
       <AthleteListContent
@@ -361,15 +353,28 @@ const AthleteListContent: React.FC<{
 }) => {
   return (
     <>
-      <div className="border border-brand-secondary rounded-md bg-white p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="text"
-            placeholder="Search athletes..."
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="border border-brand-secondary rounded-md bg-white p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search athletes..."
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent w-full sm:w-auto"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <span className="text-brand-primary text-sm">
+              {athletes.length} athlete{athletes.length !== 1 ? 's' : ''} found
+            </span>
+          </div>
+          <button
+            onClick={handleAddAthlete}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+          >
+            + Add New Athlete
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <select
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
