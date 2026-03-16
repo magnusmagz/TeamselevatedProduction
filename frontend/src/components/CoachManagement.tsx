@@ -191,23 +191,23 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center space-x-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:space-x-4">
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent"
+                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent w-full sm:w-auto"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <span className="text-brand-primary">
+                <span className="text-brand-primary text-sm">
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
               <button
                 onClick={handleAddCoach}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold"
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold w-full sm:w-auto"
               >
                 + Add Coach
               </button>
@@ -446,23 +446,23 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       </div>
 
       <div className="bg-white border border-brand-secondary rounded-md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center space-x-4">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:space-x-4">
                 <input
                   type="text"
                   placeholder="Search coaches..."
-                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent w-64"
+                  className="px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent w-full sm:w-64"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <span className="text-brand-primary">
+                <span className="text-brand-primary text-sm">
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
               <button
                 onClick={handleAddCoach}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold"
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold w-full sm:w-auto"
               >
                 + Add Coach
               </button>

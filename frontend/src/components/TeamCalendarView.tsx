@@ -464,9 +464,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-8 flex justify-between items-start">
+      <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">{title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-brand-primary uppercase tracking-wide">{title}</h1>
           <p className="text-gray-600 mt-2">
             {teamId && teamName ? `View ${teamName} practices and events` : 'View all club practices and events'}
           </p>
@@ -474,7 +474,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         {showAddEvent && !readOnly && (
           <button
             onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
           >
             + Add Event
           </button>
@@ -482,13 +482,13 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       </div>
 
       {/* Controls */}
-      <div className="bg-white border border-brand-secondary rounded-md p-6 mb-6">
+      <div className="bg-white border border-brand-secondary rounded-md p-4 sm:p-6 mb-6">
         {/* View Mode Selector */}
         <div className="flex justify-center mb-4">
-          <div className="inline-flex border border-brand-secondary rounded-md">
+          <div className="inline-flex border border-brand-secondary rounded-md w-full sm:w-auto">
             <button
               onClick={() => setViewMode('month')}
-              className={`px-6 py-2 uppercase font-medium ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 uppercase font-medium text-sm ${
                 viewMode === 'month' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
@@ -496,7 +496,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             </button>
             <button
               onClick={() => setViewMode('week')}
-              className={`px-6 py-2 uppercase font-medium border-l border-brand-secondary ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 uppercase font-medium text-sm border-l border-brand-secondary ${
                 viewMode === 'week' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
@@ -504,7 +504,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             </button>
             <button
               onClick={() => setViewMode('schedule')}
-              className={`px-6 py-2 uppercase font-medium border-l border-brand-secondary ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 uppercase font-medium text-sm border-l border-brand-secondary ${
                 viewMode === 'schedule' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
               }`}
             >
@@ -513,17 +513,17 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto">
             {viewMode !== 'schedule' && (
               <>
                 <button
                   onClick={handlePreviousPeriod}
-                  className="text-brand-primary hover:bg-gray-100 p-2"
+                  className="text-brand-primary hover:bg-gray-100 p-2 flex-shrink-0"
                 >
                   &larr;
                 </button>
-                <h2 className="text-xl font-bold text-brand-primary">
+                <h2 className="text-base sm:text-xl font-bold text-brand-primary whitespace-nowrap">
                   {viewMode === 'week'
                     ? `Week of ${weekDays[0]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekDays[6]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
                     : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
@@ -531,30 +531,30 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 </h2>
                 <button
                   onClick={handleNextPeriod}
-                  className="text-brand-primary hover:bg-gray-100 p-2"
+                  className="text-brand-primary hover:bg-gray-100 p-2 flex-shrink-0"
                 >
                   &rarr;
                 </button>
               </>
             )}
             {viewMode === 'schedule' && (
-              <h2 className="text-xl font-bold text-brand-primary uppercase">All Scheduled Practices</h2>
+              <h2 className="text-base sm:text-xl font-bold text-brand-primary uppercase">All Scheduled Practices</h2>
             )}
             <button
               onClick={handleToday}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm flex-shrink-0"
             >
               Today
             </button>
           </div>
 
           {showTeamFilter && (
-            <div className="flex items-center space-x-4">
-              <label className="text-brand-primary font-medium">Filter by team:</label>
+            <div className="flex items-center gap-2 sm:space-x-4">
+              <label className="text-brand-primary font-medium text-sm whitespace-nowrap">Filter by team:</label>
               <select
                 value={selectedTeamFilter}
                 onChange={(e) => setSelectedTeamFilter(e.target.value)}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 focus:outline-none focus:border-brand-accent"
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent min-w-0 flex-1 sm:flex-none"
               >
                 <option value="all">All Teams</option>
                 {allTeams.map(team => (
@@ -567,7 +567,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
         {/* Calendar Views */}
         {viewMode === 'month' && (
-          <div className="border border-brand-secondary rounded-md">
+          <div className="border border-brand-secondary rounded-md overflow-x-auto">
+            <div className="min-w-[640px]">
             {/* Day Headers */}
             <div className="grid grid-cols-7 bg-brand-primary text-white">
               {dayNames.map(day => (
@@ -627,11 +628,13 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 </div>
               ))}
             </div>
+            </div>
           </div>
         )}
 
         {viewMode === 'week' && (
-          <div className="border border-brand-secondary rounded-md">
+          <div className="border border-brand-secondary rounded-md overflow-x-auto">
+            <div className="min-w-[640px]">
             {/* Day Headers */}
             <div className="grid grid-cols-7 bg-brand-primary text-white">
               {weekDays.map((day, index) => (
@@ -689,6 +692,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           </div>
         )}
