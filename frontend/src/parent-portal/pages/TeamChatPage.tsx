@@ -134,7 +134,7 @@ export const TeamChatPage: React.FC = () => {
         {/* Messages Container */}
         <div
           className="flex-1 overflow-y-auto px-4 py-4"
-          style={{ paddingTop: '72px', paddingBottom: '80px' }}
+          style={{ paddingTop: '72px', paddingBottom: 'calc(5rem + 4rem + var(--safe-area-inset-bottom, 0px))' }}
         >
           {messages.length === 0 && (
             <div className="text-center py-12">
@@ -210,8 +210,11 @@ export const TeamChatPage: React.FC = () => {
           )}
         </div>
 
-        {/* Message Input - fixed above bottom nav */}
-        <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        {/* Message Input - positioned above bottom nav */}
+        <div
+          className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          style={{ bottom: 'calc(4rem + var(--safe-area-inset-bottom, 0px))' }}
+        >
           <div className="max-w-lg mx-auto">
             <div className="flex gap-2">
               <input

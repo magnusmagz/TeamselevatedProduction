@@ -190,12 +190,36 @@ function AppContent() {
   const { user } = useAuth();
   const { isClubAdmin } = useOrg();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   // Determine if user has admin capabilities
   const isAdmin = isClubAdmin;
 
   // Hide floating chat widget on parent portal (has its own chat in bottom nav)
   const isParentPortal = location.pathname.startsWith('/parent');
+
+  // Close mobile menu on route change
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const navLinks = isAdmin ? [
+    { to: '/payment/revenue', label: 'Revenue' },
+    { to: '/dashboard', label: 'Teams' },
+    { to: '/athletes', label: 'Athletes' },
+    { to: '/coaches', label: 'Coaches' },
+    { to: '/calendar', label: 'Calendar' },
+    { to: '/venues', label: 'Facilities' },
+    { to: '/sponsors', label: 'Sponsors' },
+    { to: '/admin/fundraisers', label: 'Fundraisers' },
+    { to: '/program-management', label: 'Programs' },
+    ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
+  ] : [
+    { to: '/dashboard', label: 'My Teams' },
+    { to: '/athletes', label: 'Athletes' },
+    { to: '/calendar', label: 'Calendar' },
+    ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -209,42 +233,64 @@ function AppContent() {
                   <BrandingLogo size="xl" fallbackToText={true} />
                 </Link>
                 <div className="flex items-center space-x-4">
+                  {/* Mobile hamburger button */}
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="md:hidden w-11 h-11 flex items-center justify-center text-brand-primary"
+                    aria-label="Toggle navigation menu"
+                  >
+                    {mobileMenuOpen ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    )}
+                  </button>
                   <ProfileMenu />
                 </div>
               </div>
 
-              {/* Bottom row: Navigation menu */}
-              <div className="flex space-x-6 h-12 items-center">
-                {isAdmin ? (
-                  <>
-                    <Link to="/payment/revenue" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Revenue</Link>
-                    <Link to="/dashboard" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Teams</Link>
-                    <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
-                    <Link to="/coaches" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Coaches</Link>
-                    <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
-                    {/* Documents hidden for later development */}
-                    {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
-                    <Link to="/venues" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Facilities</Link>
-                    <Link to="/sponsors" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Sponsors</Link>
-                    <Link to="/admin/fundraisers" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Fundraisers</Link>
-                    <Link to="/program-management" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Programs</Link>
-                    {user?.system_role === 'super_admin' && (
-                      <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Link to="/dashboard" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">My Teams</Link>
-                    <Link to="/athletes" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Athletes</Link>
-                    <Link to="/calendar" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Calendar</Link>
-                    {/* Documents hidden for later development */}
-                    {/* <Link to="/documents/expiring" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Documents</Link> */}
-                    {user?.system_role === 'super_admin' && (
-                      <Link to="/super-admin" className="text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm">Platform Admin</Link>
-                    )}
-                  </>
-                )}
+              {/* Desktop navigation */}
+              <div className="hidden md:flex space-x-6 h-12 items-center">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`uppercase font-medium text-sm ${
+                      location.pathname === link.to
+                        ? 'text-brand-primary border-b-2 border-brand-primary'
+                        : 'text-brand-primary hover:text-brand-primary-hover'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
               </div>
+
+              {/* Mobile navigation drawer */}
+              {mobileMenuOpen && (
+                <div className="md:hidden border-t border-brand-secondary">
+                  <div className="py-2 space-y-1">
+                    {navLinks.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`block px-3 py-3 uppercase font-medium text-sm ${
+                          location.pathname === link.to
+                            ? 'text-brand-primary bg-brand-secondary'
+                            : 'text-brand-primary hover:bg-brand-secondary'
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </nav>
         )}

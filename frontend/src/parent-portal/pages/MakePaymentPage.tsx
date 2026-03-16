@@ -167,7 +167,7 @@ export const MakePaymentPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <ParentHeader title="Make Payment" showBack />
 
-      <div className="pt-14 pb-24 px-4">
+      <div className="pt-14 pb-40 px-4">
         {error && (
           <div className="mt-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg">
             {error}
@@ -333,9 +333,12 @@ export const MakePaymentPage: React.FC = () => {
         )}
       </div>
 
-      {/* Fixed Bottom Button */}
+      {/* Fixed Bottom Button - positioned above bottom nav */}
       {invoices.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        <div
+          className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          style={{ bottom: 'calc(4rem + var(--safe-area-inset-bottom, 0px))' }}
+        >
           <div className="max-w-lg mx-auto">
             <div className="flex items-center justify-between mb-3">
               <span className="text-gray-600">Total</span>

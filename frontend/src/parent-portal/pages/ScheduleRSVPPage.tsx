@@ -177,7 +177,7 @@ export const ScheduleRSVPPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <ParentHeader title="Event Details" showBack />
 
-      <div className="pt-14 pb-24">
+      <div className="pt-14 pb-40">
         {/* Event Header */}
         <div className="bg-white border-b border-gray-200 px-4 py-6">
           <span
@@ -315,9 +315,12 @@ export const ScheduleRSVPPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Fixed Bottom Button */}
+      {/* Fixed Bottom Button - positioned above bottom nav */}
       {relevantAthletes.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
+        <div
+          className="fixed left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          style={{ bottom: 'calc(4rem + var(--safe-area-inset-bottom, 0px))' }}
+        >
           <div className="max-w-lg mx-auto">
             <button
               onClick={handleSubmit}
