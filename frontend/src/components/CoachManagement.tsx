@@ -319,6 +319,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               </div>
             ) : (
               <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
+                <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse">
                   <thead>
                     <tr className="border-b border-brand-secondary bg-white">
@@ -390,6 +391,7 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>

@@ -45,6 +45,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
 
   return (
     <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
+      <div className="overflow-x-auto">
       <table className="min-w-full border-collapse">
         <thead>
           <tr className="border-b border-brand-secondary bg-white">
@@ -147,6 +148,7 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
           ))}
         </tbody>
       </table>
+      </div>
 
       {showScheduler && selectedTeamForSchedule && (
         <PracticeScheduler

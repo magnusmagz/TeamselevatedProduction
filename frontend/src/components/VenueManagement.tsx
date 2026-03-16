@@ -350,6 +350,7 @@ const VenueListContent: React.FC<{
         </div>
       ) : (
         <div className="border border-brand-secondary rounded-md">
+          <div className="overflow-x-auto">
           <table className="min-w-full bg-white">
             <thead>
               <tr className="border-b border-brand-secondary">
@@ -442,6 +443,7 @@ const VenueListContent: React.FC<{
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </>
@@ -708,6 +710,7 @@ const VenueForm: React.FC<{
               {/* Fields List */}
               {formData.fields && formData.fields.length > 0 && (
                 <div className="border border-brand-secondary rounded-md">
+                  <div className="overflow-x-auto">
                   <table className="min-w-full bg-white">
                     <thead>
                       <tr className="border-b border-brand-primary">
@@ -750,6 +753,7 @@ const VenueForm: React.FC<{
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 

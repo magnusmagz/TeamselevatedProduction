@@ -70,12 +70,12 @@ export default function ChatWidget() {
   if (!user || !hasChatAccess) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-50 max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:top-0 max-sm:pointer-events-none">
       {/* Collapsed state - Chat bubble */}
       {!isExpanded && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="w-14 h-14 bg-brand-primary hover:bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105"
+          className="w-14 h-14 bg-brand-primary hover:bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 max-sm:pointer-events-auto max-sm:fixed max-sm:bottom-6 max-sm:right-6"
           aria-label="Open chat"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,9 +90,9 @@ export default function ChatWidget() {
         </button>
       )}
 
-      {/* Expanded state - Chat panel */}
+      {/* Expanded state - Chat panel (full-screen on mobile, floating on desktop) */}
       {isExpanded && (
-        <div className="w-96 h-[32rem] bg-white rounded-lg shadow-2xl border border-brand-secondary flex flex-col overflow-hidden">
+        <div className="w-96 h-[32rem] bg-white rounded-lg shadow-2xl border border-brand-secondary flex flex-col overflow-hidden max-sm:pointer-events-auto max-sm:fixed max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0">
           {/* List View */}
           {view === 'list' && (
             <>
@@ -107,7 +107,7 @@ export default function ChatWidget() {
                 </div>
                 <button
                   onClick={() => setIsExpanded(false)}
-                  className="p-1 hover:bg-white/20 rounded transition-colors"
+                  className="w-11 h-11 flex items-center justify-center hover:bg-white/20 rounded transition-colors"
                   aria-label="Close chat"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

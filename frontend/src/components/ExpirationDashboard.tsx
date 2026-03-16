@@ -151,6 +151,7 @@ const ExpirationDashboard: React.FC = () => {
             ⚠️ EXPIRED DOCUMENTS - Immediate Action Required
           </h3>
           <div className="bg-white border border-red-200 rounded-md">
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-red-100 border-b border-red-200">
@@ -171,6 +172,7 @@ const ExpirationDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -181,6 +183,7 @@ const ExpirationDashboard: React.FC = () => {
           <div className="bg-brand-primary p-4 border-b border-brand-secondary">
             <h3 className="font-bold text-white uppercase tracking-wide">Expiring Documents</h3>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-brand-secondary">
@@ -227,6 +230,7 @@ const ExpirationDashboard: React.FC = () => {
                 ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

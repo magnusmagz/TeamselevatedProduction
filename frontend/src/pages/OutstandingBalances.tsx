@@ -252,6 +252,7 @@ export const OutstandingBalances: React.FC = () => {
                 {expandedRows.has(balance.athlete_id) && (
                   <div className="px-4 pb-4 bg-gray-50">
                     <div className="ml-9 border-l-2 border-gray-200 pl-4">
+                      <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left text-gray-500">
@@ -278,6 +279,7 @@ export const OutstandingBalances: React.FC = () => {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </div>
                 )}

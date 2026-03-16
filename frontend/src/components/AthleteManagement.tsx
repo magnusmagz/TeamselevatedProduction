@@ -414,6 +414,7 @@ const AthleteListContent: React.FC<{
         <div className="text-center text-brand-primary py-12">Loading athletes...</div>
       ) : (
         <div className="border border-brand-secondary rounded-md overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full bg-white">
             <thead>
               <tr className="border-b border-brand-secondary">
@@ -562,6 +563,7 @@ const AthleteListContent: React.FC<{
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
