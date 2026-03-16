@@ -193,8 +193,8 @@ function AppContent() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
-  // Determine if user has admin capabilities
-  const isAdmin = isClubAdmin;
+  // Determine if user has admin capabilities (super_admin always gets full admin view)
+  const isAdmin = isClubAdmin || user?.system_role === 'super_admin';
 
   // Hide floating chat widget on parent portal (has its own chat in bottom nav)
   const isParentPortal = location.pathname.startsWith('/parent');
