@@ -40,15 +40,19 @@ export default function Login() {
       localStorage.setItem('auth_token', data.token);
       login(data.token, data.user);
 
-      // Check if user is a parent - redirect to parent portal
+      // Check where to redirect after login
+      const isSuperAdmin = data.user?.system_role === 'super_admin';
       const userRoles = data.user?.roles || [];
       const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
 
       console.log('Login response:', data);
       console.log('User roles:', userRoles);
-      console.log('Is parent:', isParent);
+      console.log('Is parent:', isParent, 'Is super_admin:', isSuperAdmin);
 
-      if (isParent) {
+      if (isSuperAdmin) {
+        console.log('Redirecting to /dashboard (super_admin)');
+        navigate('/dashboard');
+      } else if (isParent) {
         console.log('Redirecting to /parent');
         navigate('/parent');
       } else {

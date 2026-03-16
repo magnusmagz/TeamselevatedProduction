@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ParentRedirectProps {
   children: React.ReactNode;
@@ -8,14 +9,18 @@ interface ParentRedirectProps {
 
 /**
  * Wrapper component that redirects parent-only users to the parent portal.
- * Users with coach/admin roles stay on the dashboard.
+ * Users with coach/admin roles or super_admin system_role stay on the dashboard.
  */
 export const ParentRedirect: React.FC<ParentRedirectProps> = ({ children }) => {
   const navigate = useNavigate();
   const { roles, loading } = useFinancialPermissions();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (loading) return;
+
+    // Super admins always stay on dashboard
+    if (user?.system_role === 'super_admin') return;
 
     // Check if user is parent-only (has parent role but no coach/admin roles)
     const isParentOnly = roles.is_parent && !roles.is_coach && !roles.is_club_admin && !roles.is_treasurer;
@@ -26,7 +31,7 @@ export const ParentRedirect: React.FC<ParentRedirectProps> = ({ children }) => {
       console.log('[ParentRedirect] Redirecting parent to /parent');
       navigate('/parent', { replace: true });
     }
-  }, [roles, loading, navigate]);
+  }, [roles, loading, navigate, user]);
 
   // Show loading while checking permissions
   if (loading) {
@@ -46,7 +51,7 @@ export const ParentRedirect: React.FC<ParentRedirectProps> = ({ children }) => {
   }
 
   // Parent-only users will be redirected, but render nothing briefly
-  const isParentOnly = roles.is_parent && !roles.is_coach && !roles.is_club_admin && !roles.is_treasurer;
+  const isParentOnly = user?.system_role !== 'super_admin' && roles.is_parent && !roles.is_coach && !roles.is_club_admin && !roles.is_treasurer;
   if (isParentOnly) {
     return null;
   }

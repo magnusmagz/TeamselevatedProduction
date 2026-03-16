@@ -53,13 +53,16 @@ export default function VerifyMagicLink() {
         // Refresh auth context
         await refreshAuth();
 
-        // Check if user is a parent - redirect to parent portal
+        // Check where to redirect
+        const isSuperAdmin = data.user?.system_role === 'super_admin';
         const userRoles = data.user?.roles || [];
         const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
 
         // Redirect after a short delay
         setTimeout(() => {
-          if (isParent) {
+          if (isSuperAdmin) {
+            navigate('/dashboard');
+          } else if (isParent) {
             navigate('/parent');
           } else {
             navigate('/dashboard');
