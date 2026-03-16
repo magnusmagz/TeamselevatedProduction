@@ -1,17 +1,34 @@
 import React, { useState } from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
+const DISMISS_KEY = 'pwa-install-dismissed';
+
 export const InstallPrompt: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    const stored = localStorage.getItem(DISMISS_KEY);
+    if (!stored) return false;
+    // Allow re-prompting after 7 days
+    const dismissedAt = parseInt(stored, 10);
+    return Date.now() - dismissedAt < 7 * 24 * 60 * 60 * 1000;
+  });
 
-  // Don't show if already installed, dismissed, or not installable
-  if (isInstalled || dismissed) {
+  const isAndroid = /android/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true;
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem(DISMISS_KEY, Date.now().toString());
+  };
+
+  // Don't show if already installed or dismissed
+  if (isInstalled || isStandalone || dismissed) {
     return null;
   }
 
   // Show iOS-specific instructions
-  if (isIOS && !isInstalled) {
+  if (isIOS) {
     return (
       <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
         <div className="flex items-start gap-3">
@@ -33,8 +50,8 @@ export const InstallPrompt: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => setDismissed(true)}
-            className="flex-shrink-0 p-1 text-brand-primary/60 hover:text-brand-primary"
+            onClick={handleDismiss}
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center text-brand-primary/60 hover:text-brand-primary"
             aria-label="Dismiss"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,7 +63,7 @@ export const InstallPrompt: React.FC = () => {
     );
   }
 
-  // Show Android/Chrome install prompt
+  // Show Android/Chrome install prompt (native prompt available)
   if (isInstallable) {
     return (
       <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
@@ -68,8 +85,40 @@ export const InstallPrompt: React.FC = () => {
             Install
           </button>
           <button
-            onClick={() => setDismissed(true)}
-            className="flex-shrink-0 p-1 text-brand-primary/60 hover:text-brand-primary"
+            onClick={handleDismiss}
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center text-brand-primary/60 hover:text-brand-primary"
+            aria-label="Dismiss"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Android fallback: Chrome hasn't fired beforeinstallprompt yet, show manual instructions
+  if (isAndroid) {
+    return (
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-brand-primary">
+              Install Teams Elevated
+            </p>
+            <p className="text-xs text-brand-primary/80 mt-0.5">
+              Tap the menu <span className="inline font-bold">(&#8942;)</span> then "Add to Home Screen" or "Install App"
+            </p>
+          </div>
+          <button
+            onClick={handleDismiss}
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center text-brand-primary/60 hover:text-brand-primary"
             aria-label="Dismiss"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
