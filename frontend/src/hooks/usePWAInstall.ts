@@ -22,8 +22,11 @@ export function usePWAInstall(): PWAInstallState {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Check if running on iOS
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    // Check if running on iOS (covers modern iOS UA strings + iPadOS desktop mode)
+    const isIOSDevice = (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    ) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
     // Check if already installed (PWA mode)
