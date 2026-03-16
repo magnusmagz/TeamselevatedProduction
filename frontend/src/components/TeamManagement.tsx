@@ -126,30 +126,33 @@ const TeamManagement: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8 flex justify-between items-start">
-        <div>
-          <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Team Management</h2>
-          <p className="text-gray-600">Manage your club's teams, coaches, and athletes</p>
-        </div>
-        <div className="flex space-x-2">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Team Management</h2>
+        <p className="text-gray-600">Manage your club's teams, coaches, and athletes</p>
+      </div>
+
+      <div className="border border-brand-secondary rounded-md p-4 sm:p-6 mb-6 bg-white">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search teams..."
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent w-full sm:w-auto"
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            />
+            <span className="text-brand-primary text-sm">
+              {teams.length} team{teams.length !== 1 ? 's' : ''} found
+            </span>
+          </div>
           <button
             onClick={handleCreateTeam}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
           >
             + Create Team
           </button>
         </div>
-      </div>
-
-      <div className="border border-brand-secondary rounded-md p-6 mb-6 bg-white">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="text"
-            placeholder="Search teams..."
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <select
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
