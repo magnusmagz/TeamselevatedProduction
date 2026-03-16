@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider, useOrg } from './contexts/OrgContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -321,7 +321,7 @@ function AppContent() {
 
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Home />} />
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
