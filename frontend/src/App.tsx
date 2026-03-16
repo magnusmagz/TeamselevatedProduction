@@ -72,6 +72,7 @@ import { FundraiserCampaignDashboard } from './pages/FundraiserCampaignDashboard
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
 import { ParentRedirect } from './components/ParentRedirect';
+import { InstallPrompt } from './parent-portal/components/InstallPrompt';
 import { ParentPortalLayout } from './parent-portal/ParentPortalLayout';
 import { ParentDashboard } from './parent-portal/ParentDashboard';
 import { MyAthletesPage } from './parent-portal/pages/MyAthletesPage';
@@ -224,6 +225,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white">
         <DemoModeBanner />
+        {user && !isParentPortal && <InstallPrompt />}
         {user && !isParentPortal && (
           <nav className="bg-white border-b border-brand-secondary">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
