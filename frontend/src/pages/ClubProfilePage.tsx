@@ -109,8 +109,8 @@ const ClubProfilePage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-brand-secondary mb-6">
-          <nav className="-mb-0.5 flex space-x-8">
+        <div className="border-b border-brand-secondary mb-6 overflow-x-auto">
+          <nav className="-mb-0.5 flex space-x-4 sm:space-x-8 min-w-max">
             <button
               onClick={() => setActiveTab('info')}
               className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${

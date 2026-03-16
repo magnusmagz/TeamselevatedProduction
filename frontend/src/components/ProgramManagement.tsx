@@ -204,9 +204,6 @@ const ProgramManagement: React.FC = () => {
             <option value="Year-Round">Year-Round</option>
           </select>
 
-          <div className="ml-auto text-brand-primary">
-            {programs.length} programs found
-          </div>
         </div>
       </div>
 
