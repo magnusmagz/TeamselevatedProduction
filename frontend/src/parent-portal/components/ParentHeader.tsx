@@ -38,7 +38,7 @@ export const ParentHeader: React.FC<ParentHeaderProps> = ({
           {showBack ? (
             <button
               onClick={handleBack}
-              className="p-2 -ml-2 text-gray-600 hover:text-gray-900 touch-manipulation"
+              className="w-11 h-11 flex items-center justify-center -ml-2 text-gray-600 hover:text-gray-900 touch-manipulation"
               aria-label="Go back"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export const ParentHeader: React.FC<ParentHeaderProps> = ({
         <div className="flex items-center min-w-[60px] justify-end">
           {rightElement || (
             <div className="flex items-center">
-              <span className="text-sm text-gray-600 truncate max-w-[100px]">
+              <span className="text-sm text-gray-600 truncate max-w-[150px] sm:max-w-[200px]">
                 {user?.name?.split(' ')[0]}
               </span>
             </div>

@@ -76,7 +76,7 @@ export const AthleteSelector: React.FC<AthleteSelectorProps> = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors min-w-[160px]"
+        className="flex items-center gap-2 px-3 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors min-w-[160px] min-h-[44px] touch-manipulation"
       >
         {selectedAthlete ? (
           <>
@@ -113,7 +113,7 @@ export const AthleteSelector: React.FC<AthleteSelectorProps> = ({
           {showAllOption && (
             <button
               onClick={() => handleSelect(null)}
-              className={`w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
+              className={`w-full px-3 py-3 text-left hover:bg-gray-50 flex items-center gap-2 min-h-[44px] ${
                 selectedAthleteId === null ? 'bg-brand-secondary' : ''
               }`}
             >
@@ -129,7 +129,7 @@ export const AthleteSelector: React.FC<AthleteSelectorProps> = ({
             <button
               key={athlete.id}
               onClick={() => handleSelect(athlete.id)}
-              className={`w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
+              className={`w-full px-3 py-3 text-left hover:bg-gray-50 flex items-center gap-2 min-h-[44px] ${
                 selectedAthleteId === athlete.id ? 'bg-brand-secondary' : ''
               }`}
             >

@@ -50,12 +50,12 @@ const ProfileMenu: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-brand-secondary rounded-md shadow-lg z-50">
+        <div className="absolute right-0 mt-2 w-48 max-sm:w-44 max-sm:-right-2 bg-white border border-brand-secondary rounded-md shadow-lg z-50">
           <div className="py-1">
             <Link
               to="/profile"
               onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+              className="block px-4 py-3 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
             >
               My Profile
             </Link>
@@ -63,14 +63,14 @@ const ProfileMenu: React.FC = () => {
               <Link
                 to="/club-profile"
                 onClick={() => setIsOpen(false)}
-                className="block px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+                className="block px-4 py-3 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
               >
                 Club Settings
               </Link>
             )}
             <button
               onClick={handleSignOut}
-              className="w-full text-left px-4 py-2 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+              className="w-full text-left px-4 py-3 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
             >
               Sign Out
             </button>

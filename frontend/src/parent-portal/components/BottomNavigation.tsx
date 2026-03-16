@@ -70,12 +70,12 @@ export const BottomNavigation: React.FC = () => {
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50"
       style={{ paddingBottom: 'var(--safe-area-inset-bottom, 0px)' }}
     >
-      <div className="flex justify-around items-center h-16">
+      <div className="flex justify-around items-stretch h-16">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            className={`flex flex-col items-center justify-center w-full h-full min-w-[64px] py-2 px-1 ${
+            className={`flex flex-col items-center justify-center w-full min-h-[48px] py-1 px-2 touch-manipulation ${
               isActive(item.path)
                 ? 'text-brand-primary'
                 : 'text-gray-500 hover:text-gray-700'
@@ -84,7 +84,7 @@ export const BottomNavigation: React.FC = () => {
             <span className={isActive(item.path) ? 'text-brand-primary' : ''}>
               {item.icon}
             </span>
-            <span className="text-xs mt-1 font-medium">{item.label}</span>
+            <span className="text-xs mt-0.5 font-medium">{item.label}</span>
           </NavLink>
         ))}
       </div>

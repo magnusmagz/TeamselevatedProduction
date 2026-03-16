@@ -696,7 +696,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         {viewMode === 'schedule' && (
           <div className="border border-brand-secondary rounded-md bg-white">
             <div className="p-4">
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className="max-h-[min(600px,70vh)] overflow-y-auto">
                 {(() => {
                   let filteredPractices = practices;
                   if (selectedTeamFilter !== 'all') {
