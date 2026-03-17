@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.teamselevated.app",
+      "sha256_cert_fingerprints": [
+        "37:87:70:0F:C2:57:DA:E3:9A:83:C2:06:C1:39:16:BA:DB:CA:A7:6F:A6:F6:43:5A:7D:7A:F4:44:8E:24:79:D4"
+      ]
+    }
+  }
+]
