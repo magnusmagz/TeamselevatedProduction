@@ -61,7 +61,7 @@ export default function VerifyMagicLink() {
         // Redirect after a short delay
         setTimeout(() => {
           if (isSuperAdmin) {
-            navigate('/dashboard');
+            navigate('/super-admin');
           } else if (isParent) {
             navigate('/parent');
           } else {

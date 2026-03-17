@@ -50,8 +50,8 @@ export default function Login() {
       console.log('Is parent:', isParent, 'Is super_admin:', isSuperAdmin);
 
       if (isSuperAdmin) {
-        console.log('Redirecting to /dashboard (super_admin)');
-        navigate('/dashboard');
+        console.log('Redirecting to /super-admin (super_admin)');
+        navigate('/super-admin');
       } else if (isParent) {
         console.log('Redirecting to /parent');
         navigate('/parent');
