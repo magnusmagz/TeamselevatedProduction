@@ -81,22 +81,7 @@ try {
             $isCoach = false;
             $isParent = false;
 
-            // Check user_roles table for parent role
-            $stmt = $pdo->prepare("
-                SELECT role FROM user_roles
-                WHERE user_id = :user_id
-            ");
-            $stmt->execute(['user_id' => $userId]);
-            $userRoles = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            foreach ($userRoles as $role) {
-                if ($role === 'parent') $isParent = true;
-                if ($role === 'coach') $isCoach = true;
-                if ($role === 'club_admin') $isClubAdmin = true;
-                if ($role === 'treasurer') $isTreasurer = true;
-            }
-
-            // Check club roles from database
+            // Check roles from user_club_access (single source of truth)
             $stmt = $pdo->prepare("
                 SELECT role FROM user_club_access
                 WHERE user_id = :user_id AND active = TRUE
@@ -108,6 +93,7 @@ try {
                 if ($role === 'club_admin') $isClubAdmin = true;
                 if ($role === 'treasurer') $isTreasurer = true;
                 if ($role === 'coach') $isCoach = true;
+                if ($role === 'parent') $isParent = true;
             }
 
             // Check if user is a guardian

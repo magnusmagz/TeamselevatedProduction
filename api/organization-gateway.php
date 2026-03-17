@@ -159,23 +159,21 @@ function handleCreateOrganization($conn, $input) {
         $result = $stmt->fetch();
         $clubId = $result['id'];
 
-        // 4. Assign roles to user
-        // Map frontend role names to database role names
+        // 4. Assign roles to user in user_club_access (single source of truth)
         $roleMapping = [
             'club' => 'club_admin',
-            'team' => 'team_manager',
+            'administrator' => 'club_admin',
             'coach' => 'coach',
-            'administrator' => 'administrator',
-            'parent' => 'parent'
+            'parent' => 'parent',
+            'player' => 'player'
         ];
 
         foreach ($roles as $role) {
-            $dbRole = $roleMapping[$role] ?? $role;
+            $dbRole = $roleMapping[$role] ?? 'club_admin';
 
-            // Insert into user_roles table
             $stmt = $conn->prepare('
-                INSERT INTO user_roles (user_id, role, club_profile_id, created_at)
-                VALUES (:user_id, :role, :club_profile_id, CURRENT_TIMESTAMP)
+                INSERT INTO user_club_access (user_id, club_profile_id, role, active, granted_at)
+                VALUES (:user_id, :club_profile_id, :role, TRUE, CURRENT_TIMESTAMP)
             ');
             $stmt->execute([
                 'user_id' => $userId,
