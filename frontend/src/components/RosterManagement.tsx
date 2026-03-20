@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 interface Team {
   id: number;
@@ -176,9 +177,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                   className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100 transition-colors flex justify-between items-center cursor-grab active:cursor-grabbing"
                 >
                   <div>
-                    <div className="font-medium text-brand-primary">
+                    <Link to={`/athlete/${athlete.id}`} className="font-medium text-brand-primary hover:underline">
                       {athlete.first_name} {athlete.last_name}
-                    </div>
+                    </Link>
                     <div className="text-sm text-gray-600">
                       {athlete.email}
                     </div>
@@ -224,9 +225,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-medium text-brand-primary">
+                      <Link to={`/athlete/${athlete.id}`} className="font-medium text-brand-primary hover:underline">
                         {athlete.first_name} {athlete.last_name}
-                      </div>
+                      </Link>
                       <div className="text-sm text-brand-primary">
                         {athlete.email}
                       </div>
