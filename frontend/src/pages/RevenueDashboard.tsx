@@ -97,7 +97,7 @@ export const RevenueDashboard: React.FC = () => {
       </div>
 
       <div className="border border-brand-secondary rounded-md p-4 sm:p-6 mb-6 bg-white">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3">
           <Link
             to="/payment/roster-fees"
             className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
