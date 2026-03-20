@@ -6,7 +6,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+          <h1 className="text-5xl font-bold text-brand-primary mb-6">
             The Complete Team Management Platform
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto font-sans">
@@ -38,7 +38,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4 4 4 0 004-4V5z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Professional Branding</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Professional Branding</h3>
             <p className="text-gray-600">
               Upload your team logo and automatically generate a cohesive brand theme with AI-powered color extraction
             </p>
@@ -50,7 +50,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Integrated Team Chat</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Integrated Team Chat</h3>
             <p className="text-gray-600">
               Seamless team communication with single sign-on chat integration and role-based access
             </p>
@@ -62,7 +62,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-Time Analytics</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Real-Time Analytics</h3>
             <p className="text-gray-600">
               Comprehensive dashboard with member management, invitation tracking, and team analytics
             </p>
@@ -74,7 +74,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Smart Invitations</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Smart Invitations</h3>
             <p className="text-gray-600">
               Send branded email invitations or shareable links with automatic user reconciliation and role assignment
             </p>
@@ -86,7 +86,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Protected & Professional</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Protected & Professional</h3>
             <p className="text-gray-600">
               We guard your data with professional-grade security and safe storage so your team can collaborate with peace of mind.
             </p>
@@ -98,7 +98,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Zero-Friction Joining</h3>
+            <h3 className="text-lg font-semibold text-brand-primary mb-2">Zero-Friction Joining</h3>
             <p className="text-gray-600">
               Password-free magic link authentication for invited members with instant team access
             </p>

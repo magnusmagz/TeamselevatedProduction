@@ -326,7 +326,7 @@ export const PaymentPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Invoice Not Found</h1>
+          <h1 className="text-xl font-bold text-brand-primary mb-2">Invoice Not Found</h1>
           <p className="text-gray-600 mb-4">{error || 'The invoice you are looking for does not exist or has been removed.'}</p>
           <a href="/" className="text-brand-primary hover:underline">Return to Home</a>
         </div>
@@ -344,7 +344,7 @@ export const PaymentPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Already Paid</h1>
+          <h1 className="text-xl font-bold text-brand-primary mb-2">Already Paid</h1>
           <p className="text-gray-600 mb-4">This invoice ({invoice.invoice_number}) has already been paid.</p>
           <p className="text-sm text-gray-500">Amount: {formatCurrency(invoice.total_amount)}</p>
         </div>
@@ -537,7 +537,7 @@ export const PaymentPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
+            <h1 className="text-2xl font-bold text-brand-primary mb-2">Payment Successful!</h1>
             <p className="text-gray-600 mb-6">
               Thank you for your payment of {formatCurrency(getAmountDueToday())}
             </p>
@@ -1175,7 +1175,7 @@ export const PaymentPage: React.FC = () => {
 
             {/* Payment Options */}
             <div className="p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Choose Payment Option</h2>
+              <h2 className="text-lg font-bold text-brand-primary mb-4">Choose Payment Option</h2>
 
               <div className="space-y-3">
                 {paymentPlans.map((plan) => (

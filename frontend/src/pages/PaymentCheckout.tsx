@@ -624,7 +624,7 @@ export const PaymentCheckout: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Link Your Bank Account</h4>
+                <h4 className="font-semibold text-brand-primary mb-2">Link Your Bank Account</h4>
                 <p className="text-sm text-gray-600 mb-4">
                   Securely connect your bank account to make fee-free payments.
                   We use Plaid, trusted by millions, to securely link your account.

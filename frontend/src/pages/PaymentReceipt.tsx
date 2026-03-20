@@ -156,7 +156,7 @@ export const PaymentReceipt: React.FC = () => {
           <div className="p-6">
             <div className="border-b pb-4 mb-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-gray-900">Payment Receipt</h2>
+                <h2 className="text-xl font-bold text-brand-primary">Payment Receipt</h2>
                 <p className="text-sm text-gray-500">Transaction ID: {receipt.transaction_id}</p>
                 <p className="text-sm text-gray-500">{formatDate(receipt.transaction_date)}</p>
               </div>

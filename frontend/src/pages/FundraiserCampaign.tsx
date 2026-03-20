@@ -118,7 +118,7 @@ export const FundraiserCampaign: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Campaign Not Found</h1>
+          <h1 className="text-xl font-bold text-brand-primary mb-2">Campaign Not Found</h1>
           <p className="text-gray-600 mb-4">{error || 'The campaign you are looking for does not exist or has ended.'}</p>
           <a href="/" className="text-brand-primary hover:underline">Return to Home</a>
         </div>
@@ -150,7 +150,7 @@ export const FundraiserCampaign: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{campaign.title}</h1>
+              <h1 className="text-2xl font-bold text-brand-primary mb-2">{campaign.title}</h1>
               <p className="text-gray-500 mb-4">by {campaign.club_name}</p>
               <p className="text-gray-600 mb-6">This campaign has ended.</p>
 
@@ -206,7 +206,7 @@ export const FundraiserCampaign: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Description */}
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">About this campaign</h2>
+              <h2 className="text-lg font-semibold text-brand-primary mb-4">About this campaign</h2>
               <div className="prose prose-gray max-w-none">
                 {campaign.description ? (
                   <p className="text-gray-600 whitespace-pre-wrap">{campaign.description}</p>
@@ -222,14 +222,14 @@ export const FundraiserCampaign: React.FC = () => {
             {/* Campaign Updates */}
             {campaign.updates && campaign.updates.length > 0 && (
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <h2 className="text-lg font-semibold text-brand-primary mb-4">
                   Campaign Updates
                   <span className="text-sm font-normal text-gray-500 ml-2">({campaign.updates.length})</span>
                 </h2>
                 <div className="space-y-4">
                   {campaign.updates.map((update) => (
                     <div key={update.id} className="border-l-4 border-brand-primary pl-4">
-                      <h3 className="font-medium text-gray-900">{update.title}</h3>
+                      <h3 className="font-medium text-brand-primary">{update.title}</h3>
                       <p className="text-sm text-gray-500 mb-2">
                         by {update.author_name} on {formatDate(update.created_at)}
                       </p>
@@ -264,7 +264,7 @@ export const FundraiserCampaign: React.FC = () => {
 
             {/* Share buttons */}
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">Share this campaign</h3>
+              <h3 className="font-semibold text-brand-primary mb-3">Share this campaign</h3>
               <div className="flex gap-2">
                 <button
                   onClick={handleCopyLink}

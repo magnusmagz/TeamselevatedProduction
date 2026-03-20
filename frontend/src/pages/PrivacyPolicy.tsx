@@ -11,12 +11,12 @@ export default function PrivacyPolicy() {
           </Link>
         </div>
 
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-brand-primary mb-2">Privacy Policy</h1>
         <p className="text-sm text-gray-500 mb-10">Last Updated: February 2026</p>
 
         {/* 1. Introduction */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">1. Introduction</h2>
           <p className="text-gray-700 leading-relaxed">
             Teams Elevated, operated by Athlete's Elevated LLC ("we," "us," or "our"), is a youth sports
             team management platform designed to help clubs, coaches, parents, and athletes
@@ -28,13 +28,13 @@ export default function PrivacyPolicy() {
 
         {/* 2. Information We Collect */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Information We Collect</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">2. Information We Collect</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             We collect information necessary to operate a youth sports team management platform.
             The categories of information we collect include:
           </p>
 
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Personal Information</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-2">Personal Information</h3>
           <ul className="list-disc list-inside text-gray-700 leading-relaxed mb-4 ml-4 space-y-1">
             <li>Names of athletes, parents/guardians, coaches, and administrators</li>
             <li>Dates of birth</li>
@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
             <li>Parent/guardian relationship details</li>
           </ul>
 
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Medical Information</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-2">Medical Information</h3>
           <ul className="list-disc list-inside text-gray-700 leading-relaxed mb-4 ml-4 space-y-1">
             <li>Known allergies</li>
             <li>Current medications</li>
@@ -52,7 +52,7 @@ export default function PrivacyPolicy() {
             <li>Insurance information</li>
           </ul>
 
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Usage Data</h3>
+          <h3 className="text-lg font-semibold text-brand-primary mb-2">Usage Data</h3>
           <ul className="list-disc list-inside text-gray-700 leading-relaxed ml-4 space-y-1">
             <li>Login and session information</li>
             <li>Device and browser type</li>
@@ -63,7 +63,7 @@ export default function PrivacyPolicy() {
 
         {/* 3. How We Protect Your Information */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. How We Protect Your Information</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">3. How We Protect Your Information</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             We take the security of your data seriously and employ industry-standard measures to
             protect it:
@@ -94,7 +94,7 @@ export default function PrivacyPolicy() {
 
         {/* 4. Who Can Access Your Information */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Who Can Access Your Information</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">4. Who Can Access Your Information</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             Access to personal information is restricted based on role and need:
           </p>
@@ -126,7 +126,7 @@ export default function PrivacyPolicy() {
 
         {/* 5. Children's Privacy (COPPA Compliance) */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">
             5. Children's Privacy (COPPA Compliance)
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
@@ -168,7 +168,7 @@ export default function PrivacyPolicy() {
 
         {/* 6. Data Retention */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Data Retention</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">6. Data Retention</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             We retain personal information only as long as necessary to fulfill the purposes for
             which it was collected:
@@ -198,7 +198,7 @@ export default function PrivacyPolicy() {
 
         {/* 7. Your Rights */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Your Rights</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">7. Your Rights</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             You have the following rights regarding your personal information:
           </p>
@@ -234,7 +234,7 @@ export default function PrivacyPolicy() {
 
         {/* 8. Contact Information */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Contact Information</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">8. Contact Information</h2>
           <p className="text-gray-700 leading-relaxed">
             If you have any questions or concerns about this Privacy Policy or our data practices,
             please contact us at:

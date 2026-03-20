@@ -81,7 +81,7 @@ export const DonorWall: React.FC<DonorWallProps> = ({
   if (loading) {
     return (
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Supporters</h3>
+        <h3 className="text-lg font-semibold text-brand-primary mb-4">Recent Supporters</h3>
         <div className="animate-pulse space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-3">
@@ -100,7 +100,7 @@ export const DonorWall: React.FC<DonorWallProps> = ({
   if (donors.length === 0) {
     return (
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Supporters</h3>
+        <h3 className="text-lg font-semibold text-brand-primary mb-4">Recent Supporters</h3>
         <div className="text-center py-8 text-gray-500">
           <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -116,7 +116,7 @@ export const DonorWall: React.FC<DonorWallProps> = ({
 
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <h3 className="text-lg font-semibold text-brand-primary mb-4">
         Recent Supporters
         <span className="text-sm font-normal text-gray-500 ml-2">({donors.length})</span>
       </h3>

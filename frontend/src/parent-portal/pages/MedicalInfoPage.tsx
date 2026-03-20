@@ -88,7 +88,7 @@ export const MedicalInfoPage: React.FC = () => {
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <span className="text-brand-primary">{icon}</span>
-        <h2 className="font-semibold text-gray-900">{title}</h2>
+        <h2 className="font-semibold text-brand-primary">{title}</h2>
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -280,7 +280,7 @@ export const MedicalInfoPage: React.FC = () => {
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No Medical Info</h3>
+            <h3 className="mt-2 text-lg font-medium text-brand-primary">No Medical Info</h3>
             <p className="mt-1 text-sm text-gray-500">
               Medical information has not been added yet.
             </p>

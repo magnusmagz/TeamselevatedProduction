@@ -189,7 +189,7 @@ export const MakePaymentPage: React.FC = () => {
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">All Paid Up!</h3>
+            <h3 className="mt-2 text-lg font-medium text-brand-primary">All Paid Up!</h3>
             <p className="mt-1 text-sm text-gray-500">
               You have no outstanding payments.
             </p>
@@ -198,7 +198,7 @@ export const MakePaymentPage: React.FC = () => {
           <>
             {/* Invoice Selection */}
             <div className="mt-4">
-              <h2 className="font-semibold text-gray-900 mb-3">Select Invoices</h2>
+              <h2 className="font-semibold text-brand-primary mb-3">Select Invoices</h2>
               <div className="space-y-2">
                 {invoices.map((invoice) => (
                   <button
@@ -251,7 +251,7 @@ export const MakePaymentPage: React.FC = () => {
 
             {/* Payment Amount */}
             <div className="mt-6">
-              <h2 className="font-semibold text-gray-900 mb-3">Payment Amount</h2>
+              <h2 className="font-semibold text-brand-primary mb-3">Payment Amount</h2>
               <div className="space-y-2">
                 <button
                   onClick={() => setPaymentAmount('full')}
@@ -303,7 +303,7 @@ export const MakePaymentPage: React.FC = () => {
             {/* Payment Method */}
             {paymentMethods.length > 0 && (
               <div className="mt-6">
-                <h2 className="font-semibold text-gray-900 mb-3">Payment Method</h2>
+                <h2 className="font-semibold text-brand-primary mb-3">Payment Method</h2>
                 <div className="space-y-2">
                   {paymentMethods.map((method) => (
                     <button

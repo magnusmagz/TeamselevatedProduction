@@ -179,7 +179,7 @@ export const AnnouncementsPage: React.FC = () => {
                 d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"
               />
             </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No Announcements</h3>
+            <h3 className="mt-2 text-lg font-medium text-brand-primary">No Announcements</h3>
             <p className="mt-1 text-sm text-gray-500">
               There are no announcements at this time.
             </p>
@@ -216,7 +216,7 @@ export const AnnouncementsPage: React.FC = () => {
                             <span className="w-2 h-2 rounded-full bg-brand-primary"></span>
                           )}
                         </div>
-                        <h3 className="font-semibold text-gray-900">{announcement.title}</h3>
+                        <h3 className="font-semibold text-brand-primary">{announcement.title}</h3>
                         {announcement.team_name && (
                           <p className="text-sm text-brand-primary">{announcement.team_name}</p>
                         )}

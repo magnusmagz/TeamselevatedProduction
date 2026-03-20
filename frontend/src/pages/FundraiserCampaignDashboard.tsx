@@ -269,7 +269,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{campaign.title}</h1>
+              <h1 className="text-2xl font-bold text-brand-primary">{campaign.title}</h1>
               {campaign.status === 'active' && campaign.is_active ? (
                 <span className="px-3 py-1 text-sm font-medium bg-green-100 text-green-700 rounded-full">Active</span>
               ) : campaign.status === 'draft' ? (
@@ -429,7 +429,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                   {/* Post update form */}
                   {showUpdateForm ? (
                     <form onSubmit={handlePostUpdate} className="mb-6 border border-gray-200 rounded-lg p-4">
-                      <h3 className="font-medium text-gray-900 mb-3">Post an Update</h3>
+                      <h3 className="font-medium text-brand-primary mb-3">Post an Update</h3>
                       <div className="space-y-3">
                         <input
                           type="text"
@@ -483,7 +483,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                     <div className="space-y-4">
                       {campaign.updates?.map((update) => (
                         <div key={update.id} className="border-l-4 border-brand-primary pl-4 py-2">
-                          <h4 className="font-medium text-gray-900">{update.title}</h4>
+                          <h4 className="font-medium text-brand-primary">{update.title}</h4>
                           <p className="text-sm text-gray-500 mb-2">{formatDate(update.created_at)}</p>
                           <p className="text-gray-600 whitespace-pre-wrap">{update.content}</p>
                         </div>
@@ -509,7 +509,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
 
           {/* Campaign Details */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Campaign Details</h3>
+            <h3 className="font-semibold text-brand-primary mb-3">Campaign Details</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Start Date</span>
@@ -533,7 +533,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
           {/* End Campaign */}
           {campaign.status === 'active' && campaign.is_active && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Manage Campaign</h3>
+              <h3 className="font-semibold text-brand-primary mb-3">Manage Campaign</h3>
               {showEndConfirm ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">

@@ -84,7 +84,7 @@ export const MoreMenuPage: React.FC = () => {
                 .slice(0, 2)}
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{user?.name}</h2>
+              <h2 className="text-lg font-semibold text-brand-primary">{user?.name}</h2>
               <p className="text-gray-600">{user?.email}</p>
             </div>
           </div>

@@ -385,7 +385,7 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
 
             {/* COPPA Consent Section */}
             <div className="border-t border-gray-200 pt-6 mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Parental Consent (Required)</h3>
+              <h3 className="text-lg font-semibold text-brand-primary mb-4">Parental Consent (Required)</h3>
 
               <div className="space-y-4">
                 <label className="flex items-start gap-3 cursor-pointer">

@@ -67,7 +67,7 @@ export default function ConsentConfirm() {
               </div>
             ) : null}
             {clubName && (
-              <h1 className="text-2xl font-bold text-gray-900">{clubName}</h1>
+              <h1 className="text-2xl font-bold text-brand-primary">{clubName}</h1>
             )}
           </div>
 
@@ -87,14 +87,14 @@ export default function ConsentConfirm() {
                 </div>
                 {result.already_confirmed ? (
                   <>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Already Confirmed</h2>
+                    <h2 className="text-xl font-semibold text-brand-primary mb-2">Already Confirmed</h2>
                     <p className="text-gray-600">
                       Your consent{athleteName ? ` for ${athleteName}` : ''} has already been confirmed. No further action is needed.
                     </p>
                   </>
                 ) : (
                   <>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Consent Confirmed</h2>
+                    <h2 className="text-xl font-semibold text-brand-primary mb-2">Consent Confirmed</h2>
                     <p className="text-gray-600">
                       {result.guardian_name ? `Thank you, ${result.guardian_name}. ` : 'Thank you. '}
                       Your consent{athleteName ? ` for ${athleteName}'s enrollment` : ''} has been confirmed.
@@ -110,7 +110,7 @@ export default function ConsentConfirm() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Link Expired</h2>
+                <h2 className="text-xl font-semibold text-brand-primary mb-2">Link Expired</h2>
                 <p className="text-gray-600">
                   This confirmation link has expired (48-hour limit).
                   {athleteName ? ` Please contact ${clubName || 'your club administrator'} for a new confirmation link for ${athleteName}.` : ' Please contact your club administrator for a new link.'}
@@ -123,7 +123,7 @@ export default function ConsentConfirm() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Something Went Wrong</h2>
+                <h2 className="text-xl font-semibold text-brand-primary mb-2">Something Went Wrong</h2>
                 <p className="text-gray-600">{result?.error || 'Unable to confirm consent.'}</p>
               </div>
             )}

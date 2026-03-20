@@ -297,7 +297,7 @@ const PublicTryoutRegistration: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Tryout Not Found</h1>
+          <h1 className="text-xl font-bold text-brand-primary mb-2">Tryout Not Found</h1>
           <p className="text-gray-600">The tryout registration you are looking for does not exist or has ended.</p>
         </div>
       </div>
@@ -314,7 +314,7 @@ const PublicTryoutRegistration: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Registration Submitted!</h2>
+          <h2 className="text-2xl font-bold text-brand-primary mb-4">Registration Submitted!</h2>
           <p className="text-gray-600 mb-4">
             Thank you for registering for <span className="font-semibold">{program.name}</span>.
           </p>
@@ -378,7 +378,7 @@ const PublicTryoutRegistration: React.FC = () => {
             {/* Description */}
             {program.description && (
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">About This Tryout</h2>
+                <h2 className="text-lg font-semibold text-brand-primary mb-4">About This Tryout</h2>
                 <p className="text-gray-600 whitespace-pre-wrap">{program.description}</p>
               </div>
             )}
@@ -386,7 +386,7 @@ const PublicTryoutRegistration: React.FC = () => {
             {/* Tryout Schedule */}
             {sessions.length > 0 && (
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <h2 className="text-lg font-semibold text-brand-primary mb-4">
                   Tryout Schedule
                   <span className="text-sm font-normal text-gray-500 ml-2">({sessions.length} session{sessions.length !== 1 ? 's' : ''})</span>
                 </h2>
@@ -487,7 +487,7 @@ const PublicTryoutRegistration: React.FC = () => {
                   ];
               return (
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">What to Bring</h2>
+                  <h2 className="text-lg font-semibold text-brand-primary mb-4">What to Bring</h2>
                   <ul className="space-y-2 text-gray-600">
                     {items.map((item: string, index: number) => (
                       <li key={index} className="flex items-start gap-2">
@@ -522,7 +522,7 @@ const PublicTryoutRegistration: React.FC = () => {
 
             {/* Share */}
             <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">Share This Tryout</h3>
+              <h3 className="font-semibold text-brand-primary mb-3">Share This Tryout</h3>
               <div className="flex gap-2">
                 <button
                   onClick={handleCopyLink}

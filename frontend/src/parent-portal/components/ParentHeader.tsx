@@ -52,7 +52,7 @@ export const ParentHeader: React.FC<ParentHeaderProps> = ({
 
         {/* Center - Title */}
         {title && (
-          <h1 className="text-lg font-semibold text-gray-900 truncate flex-1 text-center px-2">
+          <h1 className="text-lg font-semibold text-brand-primary truncate flex-1 text-center px-2">
             {title}
           </h1>
         )}

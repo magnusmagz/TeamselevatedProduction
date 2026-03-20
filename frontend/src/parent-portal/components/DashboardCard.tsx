@@ -32,7 +32,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           {icon && <span className="text-brand-primary">{icon}</span>}
-          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <h3 className="font-semibold text-brand-primary">{title}</h3>
         </div>
         {headerAction}
       </div>

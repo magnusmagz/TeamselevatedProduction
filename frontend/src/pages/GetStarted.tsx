@@ -145,7 +145,7 @@ export default function GetStarted() {
         <div className="max-w-2xl w-full">
           <div className="bg-white border border-brand-secondary rounded-md p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Get Started</h1>
+              <h1 className="text-3xl font-bold text-brand-primary mb-2 uppercase">Get Started</h1>
               <p className="text-gray-600">Tell us about yourself (select all that apply)</p>
             </div>
 
@@ -203,7 +203,7 @@ export default function GetStarted() {
         <div className="max-w-2xl w-full">
           <div className="bg-white border border-brand-secondary rounded-md p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 uppercase">Create Your Organization</h1>
+              <h1 className="text-3xl font-bold text-brand-primary mb-2 uppercase">Create Your Organization</h1>
               <p className="text-gray-600">Provide your organization details</p>
             </div>
 
@@ -270,7 +270,7 @@ export default function GetStarted() {
               {selectedRoles.includes('club') && (
                 <>
                   <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase">Club Address (Optional but helpful)</h3>
+                    <h3 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Club Address (Optional but helpful)</h3>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
@@ -374,7 +374,7 @@ export default function GetStarted() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 uppercase">Success!</h2>
+            <h2 className="text-2xl font-bold text-brand-primary mb-2 uppercase">Success!</h2>
             <p className="text-gray-600 mb-4">
               Your organization "{formData.organizationName}" has been created.
             </p>

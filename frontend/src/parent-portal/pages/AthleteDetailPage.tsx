@@ -171,7 +171,7 @@ export const AthleteDetailPage: React.FC = () => {
               </div>
             )}
             <div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-brand-primary">
                 {athlete.first_name} {athlete.last_name}
               </h1>
               {athlete.date_of_birth && (
@@ -250,7 +250,7 @@ export const AthleteDetailPage: React.FC = () => {
         {(athlete.email || athlete.phone) && (
           <div className="px-4 mb-4">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-3">Contact Information</h2>
+              <h2 className="font-semibold text-brand-primary mb-3">Contact Information</h2>
               {athlete.email && (
                 <div className="flex items-center gap-3 py-2">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,7 +275,7 @@ export const AthleteDetailPage: React.FC = () => {
         {athlete.home_address_line1 && athlete.home_address_line1 !== 'N/A' && (
           <div className="px-4 mb-4">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-3">Address</h2>
+              <h2 className="font-semibold text-brand-primary mb-3">Address</h2>
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -298,7 +298,7 @@ export const AthleteDetailPage: React.FC = () => {
         {/* Data Privacy Section */}
         <div className="px-4 mb-4 mt-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <h2 className="font-semibold text-gray-900 mb-2">Data Privacy</h2>
+            <h2 className="font-semibold text-brand-primary mb-2">Data Privacy</h2>
             <p className="text-sm text-gray-600 mb-3">
               Under our privacy policy, you have the right to request deletion of your child's personal and medical data.
             </p>
@@ -329,7 +329,7 @@ export const AthleteDetailPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+              <h3 className="text-lg font-semibold text-brand-primary text-center mb-2">
                 Delete Data for {athlete.first_name} {athlete.last_name}?
               </h3>
               <p className="text-sm text-gray-600 text-center mb-4">

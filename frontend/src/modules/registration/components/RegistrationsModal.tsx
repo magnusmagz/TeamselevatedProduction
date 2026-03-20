@@ -196,7 +196,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                     {/* Athlete & Guardian Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900">
+                        <h3 className="font-semibold text-lg text-brand-primary">
                           {reg.form_data.athlete_first} {reg.form_data.athlete_last}
                         </h3>
                         {getStatusBadge(reg.status)}

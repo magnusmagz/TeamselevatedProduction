@@ -410,7 +410,7 @@ export const DemoPaymentPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
+            <h1 className="text-2xl font-bold text-brand-primary mb-2">Payment Successful!</h1>
             <p className="text-gray-600 mb-6">
               Thank you for your payment of {formatCurrency(getAmountDueToday())}
             </p>
@@ -905,7 +905,7 @@ export const DemoPaymentPage: React.FC = () => {
 
             {/* Payment Options */}
             <div className="p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Choose Payment Option</h2>
+              <h2 className="text-lg font-bold text-brand-primary mb-4">Choose Payment Option</h2>
 
               <div className="space-y-3">
                 {paymentPlans.map((plan) => (

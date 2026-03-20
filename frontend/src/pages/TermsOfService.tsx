@@ -11,12 +11,12 @@ export default function TermsOfService() {
           </Link>
         </div>
 
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Terms of Service</h1>
+        <h1 className="text-4xl font-bold text-brand-primary mb-2">Terms of Service</h1>
         <p className="text-sm text-gray-500 mb-10">Last Updated: February 2026</p>
 
         {/* 1. Acceptance of Terms */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">1. Acceptance of Terms</h2>
           <p className="text-gray-700 leading-relaxed">
             By accessing or using Teams Elevated (the "Service"), operated by Athlete's Elevated LLC
             ("we," "us," or "our"), you agree to be bound by these Terms of Service ("Terms").
@@ -28,7 +28,7 @@ export default function TermsOfService() {
 
         {/* 2. Description of Service */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">2. Description of Service</h2>
           <p className="text-gray-700 leading-relaxed">
             Teams Elevated is a youth sports team management platform that provides tools for
             club administrators, coaches, parents, and athletes. The Service includes features
@@ -41,7 +41,7 @@ export default function TermsOfService() {
 
         {/* 3. User Accounts */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. User Accounts</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">3. User Accounts</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             To use certain features of the Service, you must create an account. When creating
             and maintaining your account, you agree to:
@@ -71,7 +71,7 @@ export default function TermsOfService() {
 
         {/* 4. Acceptable Use */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Acceptable Use</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">4. Acceptable Use</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             You agree to use the Service only for lawful purposes and in accordance with these
             Terms. You agree not to:
@@ -105,7 +105,7 @@ export default function TermsOfService() {
 
         {/* 5. Intellectual Property */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Intellectual Property</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">5. Intellectual Property</h2>
           <p className="text-gray-700 leading-relaxed">
             The Service and its original content, features, and functionality are owned by
             Athlete's Elevated LLC and are protected by copyright, trademark, and other intellectual
@@ -119,7 +119,7 @@ export default function TermsOfService() {
 
         {/* 6. Privacy */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Privacy</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">6. Privacy</h2>
           <p className="text-gray-700 leading-relaxed">
             Your use of the Service is also governed by our{' '}
             <Link to="/privacy-policy" className="text-brand-primary hover:underline font-medium">
@@ -134,7 +134,7 @@ export default function TermsOfService() {
 
         {/* 7. Limitation of Liability */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Limitation of Liability</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">7. Limitation of Liability</h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             To the fullest extent permitted by applicable law:
           </p>
@@ -162,7 +162,7 @@ export default function TermsOfService() {
 
         {/* 8. Modifications to Terms */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Modifications to Terms</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">8. Modifications to Terms</h2>
           <p className="text-gray-700 leading-relaxed">
             We reserve the right to modify these Terms at any time. When we make changes, we
             will update the "Last Updated" date at the top of this page and notify users via
@@ -174,7 +174,7 @@ export default function TermsOfService() {
 
         {/* 9. Governing Law */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Governing Law</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">9. Governing Law</h2>
           <p className="text-gray-700 leading-relaxed">
             These Terms shall be governed by and construed in accordance with the laws of the
             United States and the state in which Athlete's Elevated LLC is organized, without regard to
@@ -187,7 +187,7 @@ export default function TermsOfService() {
 
         {/* 10. Contact Information */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Contact Information</h2>
+          <h2 className="text-2xl font-semibold text-brand-primary mb-4">10. Contact Information</h2>
           <p className="text-gray-700 leading-relaxed">
             If you have any questions about these Terms of Service, please contact us at:
           </p>

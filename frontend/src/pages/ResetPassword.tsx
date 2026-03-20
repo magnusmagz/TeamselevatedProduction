@@ -107,7 +107,7 @@ export default function ResetPassword() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">INVALID LINK</h2>
+              <h2 className="text-2xl font-bold text-brand-primary mb-2">INVALID LINK</h2>
               <p className="text-gray-600 mb-6">
                 This password reset link is invalid or has expired.
               </p>
@@ -135,7 +135,7 @@ export default function ResetPassword() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">PASSWORD RESET!</h2>
+              <h2 className="text-2xl font-bold text-brand-primary mb-2">PASSWORD RESET!</h2>
               <p className="text-gray-600 mb-6">
                 Your password has been successfully reset. You can now log in with your new password.
               </p>
@@ -157,7 +157,7 @@ export default function ResetPassword() {
       <div className="max-w-md w-full">
         <div className="bg-white border-2 border-gray-200 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 uppercase">RESET PASSWORD</h1>
+            <h1 className="text-3xl font-bold text-brand-primary uppercase">RESET PASSWORD</h1>
             <p className="text-gray-600 mt-2">Enter your new password</p>
           </div>
 

@@ -179,7 +179,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
 
       {/* Upload Section */}
       <div className="mb-5 p-4 border border-gray-300">
-        <h3 className="font-bold mb-3">Upload New Document</h3>
+        <h3 className="font-bold mb-3 text-brand-primary">Upload New Document</h3>
         <div className="space-y-3">
           <input
             type="file"
@@ -218,7 +218,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold">{doc.display_name}</h4>
+                    <h4 className="font-bold text-brand-primary">{doc.display_name}</h4>
                     <span className={`px-2 py-1 text-xs rounded ${getStatusColor(doc.status)}`}>
                       {getStatusText(doc.status)}
                     </span>
@@ -289,7 +289,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{doc.display_name}</h4>
+                    <h4 className="font-medium text-brand-primary">{doc.display_name}</h4>
                     {doc.document_id && (
                       <span className={`px-2 py-1 text-xs rounded ${getStatusColor(doc.status)}`}>
                         {getStatusText(doc.status)}

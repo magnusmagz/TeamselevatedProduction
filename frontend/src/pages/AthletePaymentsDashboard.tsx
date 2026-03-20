@@ -252,7 +252,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{payment.item_name}</h3>
+                      <h3 className="text-lg font-semibold text-brand-primary">{payment.item_name}</h3>
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(payment.item_type)}`}>
                         {payment.item_type}
                       </span>
@@ -344,7 +344,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 font-mono">
+                        <h3 className="text-lg font-semibold text-brand-primary font-mono">
                           {invoice.invoice_number}
                         </h3>
                         {invoice.is_overdue && (

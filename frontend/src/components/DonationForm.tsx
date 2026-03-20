@@ -180,7 +180,7 @@ export const DonationForm: React.FC<DonationFormProps> = ({
 
         {/* Donor information */}
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Your Information</h4>
+          <h4 className="font-medium text-brand-primary">Your Information</h4>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -243,7 +243,7 @@ export const DonationForm: React.FC<DonationFormProps> = ({
 
         {/* Payment information */}
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Payment Details</h4>
+          <h4 className="font-medium text-brand-primary">Payment Details</h4>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>

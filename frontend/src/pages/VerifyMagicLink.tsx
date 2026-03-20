@@ -91,7 +91,7 @@ export default function VerifyMagicLink() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 uppercase">VERIFYING...</h2>
+                <h2 className="text-2xl font-bold text-brand-primary mb-2 uppercase">VERIFYING...</h2>
                 <p className="text-gray-600">Please wait while we verify your magic link</p>
               </>
             )}
@@ -103,7 +103,7 @@ export default function VerifyMagicLink() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 uppercase">SUCCESS!</h2>
+                <h2 className="text-2xl font-bold text-brand-primary mb-2 uppercase">SUCCESS!</h2>
                 <p className="text-gray-600">{message}</p>
               </>
             )}
@@ -115,7 +115,7 @@ export default function VerifyMagicLink() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 uppercase">VERIFICATION FAILED</h2>
+                <h2 className="text-2xl font-bold text-brand-primary mb-2 uppercase">VERIFICATION FAILED</h2>
                 <p className="text-gray-600 mb-6">{message}</p>
                 <button
                   onClick={() => navigate('/login')}

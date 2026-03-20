@@ -187,7 +187,7 @@ export const ScheduleRSVPPage: React.FC = () => {
           >
             {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
           </span>
-          <h1 className="text-xl font-bold text-gray-900">{event.title}</h1>
+          <h1 className="text-xl font-bold text-brand-primary">{event.title}</h1>
           {event.team_name && (
             <p className="text-brand-primary mt-1">{event.team_name}</p>
           )}
@@ -261,7 +261,7 @@ export const ScheduleRSVPPage: React.FC = () => {
           {/* Description */}
           {event.description && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-2">Details</h2>
+              <h2 className="font-semibold text-brand-primary mb-2">Details</h2>
               <p className="text-gray-700 whitespace-pre-wrap">{event.description}</p>
             </div>
           )}
@@ -269,7 +269,7 @@ export const ScheduleRSVPPage: React.FC = () => {
           {/* Notes */}
           {event.notes && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-2">Notes</h2>
+              <h2 className="font-semibold text-brand-primary mb-2">Notes</h2>
               <p className="text-gray-700 whitespace-pre-wrap">{event.notes}</p>
             </div>
           )}
@@ -277,7 +277,7 @@ export const ScheduleRSVPPage: React.FC = () => {
           {/* RSVP Section */}
           {relevantAthletes.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-4">RSVP</h2>
+              <h2 className="font-semibold text-brand-primary mb-4">RSVP</h2>
               <div className="space-y-4">
                 {relevantAthletes.map((athlete) => (
                   <div key={athlete.id}>

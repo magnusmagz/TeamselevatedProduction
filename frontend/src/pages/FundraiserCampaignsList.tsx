@@ -129,7 +129,7 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fundraiser Campaigns</h1>
+          <h1 className="text-2xl font-bold text-brand-primary">Fundraiser Campaigns</h1>
           <p className="text-gray-500">Create and manage goal-based fundraising campaigns</p>
         </div>
         <Link
@@ -189,7 +189,7 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
           <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No campaigns found</h3>
+          <h3 className="text-lg font-medium text-brand-primary mb-1">No campaigns found</h3>
           <p className="text-gray-500 mb-4">
             {filter === 'all'
               ? "Get started by creating your first fundraiser campaign."

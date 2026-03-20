@@ -139,7 +139,7 @@ export default function SignUp() {
       <div className="max-w-md w-full">
         <div className="bg-white border-2 border-gray-200 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 uppercase">CREATE ACCOUNT</h1>
+            <h1 className="text-3xl font-bold text-brand-primary uppercase">CREATE ACCOUNT</h1>
             <p className="text-gray-600 mt-2">Join Teams Elevated today</p>
           </div>
 
