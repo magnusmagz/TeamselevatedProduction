@@ -352,7 +352,7 @@ function AppContent() {
           <Route path="/team/:teamId" element={<TeamDetailPage />} />
           <Route path="/team/:teamId/calendar" element={<ProtectedRoute><TeamCalendarPage /></ProtectedRoute>} />
           <Route path="/teams/:teamId/roster" element={<TeamRosterPage />} />
-          <Route path="/athlete/:athleteId" element={<AthleteProfile />} />
+          <Route path="/athlete/:athleteId" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/documents" element={
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
