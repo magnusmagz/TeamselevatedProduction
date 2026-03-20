@@ -32,14 +32,19 @@ try {
                 throw new Exception('Athlete ID is required');
             }
 
-            $stmt = $pdo->prepare("
-                SELECT * FROM athlete_medical
-                WHERE athlete_id = ?
-                ORDER BY updated_at DESC
-                LIMIT 1
-            ");
-            $stmt->execute([$athleteId]);
-            $medical = $stmt->fetch(PDO::FETCH_ASSOC);
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT * FROM athlete_medical
+                    WHERE athlete_id = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$athleteId]);
+                $medical = $stmt->fetch(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                // Table may not exist yet — return empty record
+                error_log('medical-gateway GET error: ' . $e->getMessage());
+                $medical = null;
+            }
 
             if (!$medical) {
                 // Return empty medical record structure if none exists
