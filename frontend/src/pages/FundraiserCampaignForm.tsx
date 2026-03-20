@@ -16,6 +16,12 @@ interface CampaignFormData {
   allow_comments: boolean;
   allow_exceed_goal: boolean;
   status: string;
+  team_ids: number[];
+}
+
+interface Team {
+  id: number;
+  name: string;
 }
 
 interface FundraiserCampaignFormProps {
@@ -42,6 +48,20 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+
+  // Fetch teams for this club
+  useEffect(() => {
+    fetch(`${API_URL}/legacy/teams-gateway.php`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        const teams = (data.teams || []).filter((t: any) => t.club_id === clubId || !t.club_id);
+        setAvailableTeams(teams.map((t: any) => ({ id: t.id, name: t.name })));
+      })
+      .catch(() => {});
+  }, [clubId, API_URL]);
 
   const [formData, setFormData] = useState<CampaignFormData>({
     title: '',
@@ -57,7 +77,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
     show_progress: true,
     allow_comments: true,
     allow_exceed_goal: true,
-    status: 'draft'
+    status: 'draft',
+    team_ids: []
   });
 
   // Fetch existing campaign data when editing
@@ -84,7 +105,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
             show_progress: data.show_progress ?? true,
             allow_comments: data.allow_comments ?? true,
             allow_exceed_goal: data.allow_exceed_goal ?? true,
-            status: data.status || 'draft'
+            status: data.status || 'draft',
+            team_ids: (data.teams || []).map((t: any) => t.id)
           });
         }
       } catch (err) {
@@ -197,7 +219,8 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
         allow_comments: formData.allow_comments,
         allow_exceed_goal: formData.allow_exceed_goal,
         status: publish ? 'active' : formData.status,
-        created_by: userId
+        created_by: userId,
+        team_ids: formData.team_ids
       };
 
       if (isEditing) {
@@ -407,6 +430,39 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
               />
             </div>
           </div>
+        </div>
+
+        {/* Team Associations */}
+        <div className="bg-white rounded-md border border-brand-secondary p-6">
+          <h2 className="text-lg font-semibold text-brand-primary mb-1 uppercase">Associated Teams</h2>
+          <p className="text-sm text-gray-500 mb-4">Optionally associate this campaign with one or more teams.</p>
+
+          {availableTeams.length === 0 ? (
+            <p className="text-gray-400 text-sm">No teams found for this club.</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-brand-secondary rounded-md p-3">
+              {availableTeams.map((team) => (
+                <label key={team.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={formData.team_ids.includes(team.id)}
+                    onChange={(e) => {
+                      const ids = e.target.checked
+                        ? [...formData.team_ids, team.id]
+                        : formData.team_ids.filter(id => id !== team.id);
+                      setFormData({ ...formData, team_ids: ids });
+                    }}
+                    className="w-4 h-4 border border-brand-secondary rounded"
+                  />
+                  <span className="text-brand-primary font-medium">{team.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {formData.team_ids.length > 0 && (
+            <p className="text-xs text-gray-500 mt-2">{formData.team_ids.length} team{formData.team_ids.length > 1 ? 's' : ''} selected</p>
+          )}
         </div>
 
         {/* Privacy Settings */}

@@ -187,6 +187,21 @@ try {
             $stmt->execute([$campaign['id']]);
             $campaign['updates'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Get associated teams
+            try {
+                $stmt = $db->prepare("
+                    SELECT t.id, t.name
+                    FROM fundraiser_campaign_teams fct
+                    JOIN teams t ON fct.team_id = t.id
+                    WHERE fct.campaign_id = ?
+                    ORDER BY t.name
+                ");
+                $stmt->execute([$campaign['id']]);
+                $campaign['teams'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                $campaign['teams'] = [];
+            }
+
             echo json_encode($campaign);
             break;
 
@@ -254,6 +269,18 @@ try {
             ]);
 
             $campaignId = $db->lastInsertId();
+
+            // Save team associations
+            if (!empty($data['team_ids']) && is_array($data['team_ids'])) {
+                $teamStmt = $db->prepare("
+                    INSERT INTO fundraiser_campaign_teams (campaign_id, team_id)
+                    VALUES (?, ?)
+                    ON CONFLICT (campaign_id, team_id) DO NOTHING
+                ");
+                foreach ($data['team_ids'] as $teamId) {
+                    $teamStmt->execute([$campaignId, (int)$teamId]);
+                }
+            }
 
             echo json_encode([
                 'success' => true,
@@ -367,6 +394,21 @@ try {
             ");
 
             $stmt->execute($updateValues);
+
+            // Replace team associations
+            if (isset($data['team_ids']) && is_array($data['team_ids'])) {
+                $db->prepare("DELETE FROM fundraiser_campaign_teams WHERE campaign_id = ?")->execute([$data['id']]);
+                if (!empty($data['team_ids'])) {
+                    $teamStmt = $db->prepare("
+                        INSERT INTO fundraiser_campaign_teams (campaign_id, team_id)
+                        VALUES (?, ?)
+                        ON CONFLICT (campaign_id, team_id) DO NOTHING
+                    ");
+                    foreach ($data['team_ids'] as $teamId) {
+                        $teamStmt->execute([$data['id'], (int)$teamId]);
+                    }
+                }
+            }
 
             echo json_encode([
                 'success' => true,
