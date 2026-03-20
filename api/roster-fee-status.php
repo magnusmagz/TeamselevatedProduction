@@ -174,7 +174,7 @@ try {
         $params = ['club_id' => $club_id];
 
         // Get club name for context
-        $clubStmt = $pdo->prepare("SELECT name FROM clubs WHERE id = :id");
+        $clubStmt = $pdo->prepare("SELECT name FROM club_profile WHERE id = :id");
         $clubStmt->execute(['id' => $club_id]);
         $programName = $clubStmt->fetchColumn() ?: 'All Athletes';
 
