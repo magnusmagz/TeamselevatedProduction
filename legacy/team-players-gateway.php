@@ -33,7 +33,12 @@ try {
                     SELECT tp.*,
                            COALESCE(a.first_name, u.first_name) as first_name,
                            COALESCE(a.last_name, u.last_name) as last_name,
-                           COALESCE(a.email, u.email) as email
+                           COALESCE(a.email, u.email) as email,
+                           a.date_of_birth,
+                           a.gender,
+                           a.school_name,
+                           a.grade_level,
+                           a.photo_url
                     FROM team_members tp
                     LEFT JOIN athletes a ON tp.athlete_id = a.id
                     LEFT JOIN users u ON tp.user_id = u.id
