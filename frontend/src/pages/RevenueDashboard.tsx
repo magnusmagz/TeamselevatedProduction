@@ -91,12 +91,16 @@ export const RevenueDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Revenue Dashboard</h1>
-        <div className="flex gap-2">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Revenue Dashboard</h1>
+        <p className="text-gray-600">Track payments, roster fees, and transactions for your club</p>
+      </div>
+
+      <div className="border border-brand-secondary rounded-md p-4 sm:p-6 mb-6 bg-white">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <Link
             to="/payment/roster-fees"
-            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary flex items-center gap-2"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -105,7 +109,7 @@ export const RevenueDashboard: React.FC = () => {
           </Link>
           <Link
             to="/payment/transactions"
-            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary-hover font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
