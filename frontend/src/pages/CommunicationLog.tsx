@@ -351,7 +351,7 @@ export const CommunicationLog: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="border border-brand-secondary rounded-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead>

@@ -1,0 +1,222 @@
+// Tournament Module TypeScript Interfaces
+
+export type TournamentStatus =
+  | 'draft'
+  | 'registration_open'
+  | 'registration_closed'
+  | 'scheduling'
+  | 'in_progress'
+  | 'weather_delay'
+  | 'completed'
+  | 'cancelled';
+
+export type DivisionFormat =
+  | 'round_robin'
+  | 'group_knockout'
+  | 'single_elimination'
+  | 'double_elimination';
+
+export type RegistrationStatus = 'pending' | 'accepted' | 'rejected' | 'waitlisted' | 'withdrawn';
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'waived';
+export type MatchStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'forfeit_home' | 'forfeit_away';
+export type Gender = 'boys' | 'girls' | 'coed';
+
+export interface Tournament {
+  id: number;
+  club_id: number;
+  name: string;
+  description: string | null;
+  sport: string;
+  start_date: string;
+  end_date: string;
+  location_name: string | null;
+  location_address: string | null;
+  location_city: string | null;
+  location_state: string | null;
+  location_zip: string | null;
+  location_coordinates: { lat: number; lng: number } | null;
+  registration_open_date: string | null;
+  registration_close_date: string | null;
+  status: TournamentStatus;
+  entry_fee_cents: number;
+  max_teams_per_division: number | null;
+  rules_document_url: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  public_url_slug: string | null;
+  season_id: number | null;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+  // Computed fields from list endpoint
+  division_count?: number;
+  registration_count?: number;
+  // Nested from get endpoint
+  divisions?: TournamentDivision[];
+}
+
+export interface TournamentDivision {
+  id: number;
+  tournament_id: number;
+  name: string;
+  age_group: string;
+  gender: Gender;
+  format: DivisionFormat;
+  game_duration_minutes: number;
+  half_duration_minutes: number;
+  max_roster_size: number;
+  min_roster_size: number;
+  max_teams: number | null;
+  teams_per_group: number;
+  teams_advancing_per_group: number;
+  goal_differential_cap: number | null;
+  tiebreaker_rules: string[];
+  points_for_win: number;
+  points_for_draw: number;
+  points_for_loss: number;
+  max_players_on_field: number | null;
+  sport_rule_notes: string[] | null;
+  overtime_rules: object | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  // Computed
+  registration_count?: number;
+  group_count?: number;
+}
+
+export interface TournamentGroup {
+  id: number;
+  division_id: number;
+  name: string;
+  sort_order: number;
+  teams: TournamentRegistration[];
+}
+
+export interface TournamentRegistration {
+  id: number;
+  tournament_id: number;
+  division_id: number;
+  team_id: number;
+  team_name_override: string | null;
+  club_name_override: string | null;
+  display_name: string;
+  registered_by: number;
+  registered_by_name?: string;
+  status: RegistrationStatus;
+  payment_status: PaymentStatus;
+  payment_amount_cents: number | null;
+  payment_reference: string | null;
+  seed: number | null;
+  group_id: number | null;
+  group_name?: string | null;
+  division_name?: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TournamentMatch {
+  id: number;
+  division_id: number;
+  group_id: number | null;
+  round: string;
+  match_number: number;
+  home_registration_id: number | null;
+  away_registration_id: number | null;
+  home_team_name?: string;
+  away_team_name?: string;
+  home_placeholder: string | null;
+  away_placeholder: string | null;
+  home_source_match_id: number | null;
+  away_source_match_id: number | null;
+  field_id: number | null;
+  field_name?: string;
+  scheduled_time: string | null;
+  scheduled_end_time: string | null;
+  status: MatchStatus;
+  home_score: number | null;
+  away_score: number | null;
+  home_penalty_score: number | null;
+  away_penalty_score: number | null;
+  winner_registration_id: number | null;
+  group_name?: string;
+  notes: string | null;
+  scored_by: number | null;
+  scored_at: string | null;
+  created_at: string;
+}
+
+export interface TournamentStanding {
+  position: number;
+  registration_id: number;
+  team_name: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_difference: number;
+  points: number;
+}
+
+export interface SportPreset {
+  id: number;
+  sport: string;
+  age_group: string;
+  game_duration_minutes: number;
+  half_duration_minutes: number;
+  max_roster_size: number;
+  min_roster_size: number;
+  max_players_on_field: number;
+  rule_notes: string[] | null;
+}
+
+export interface TournamentFormData {
+  name: string;
+  description: string;
+  sport: string;
+  start_date: string;
+  end_date: string;
+  location_name: string;
+  location_address: string;
+  location_city: string;
+  location_state: string;
+  location_zip: string;
+  registration_open_date: string;
+  registration_close_date: string;
+  entry_fee_cents: number;
+  max_teams_per_division: number | null;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  public_url_slug: string;
+  season_id: number | null;
+  rules_document_url: string;
+}
+
+// Status display config
+export const TOURNAMENT_STATUS_CONFIG: Record<TournamentStatus, { label: string; color: string }> = {
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700' },
+  registration_open: { label: 'Registration Open', color: 'bg-green-100 text-green-700' },
+  registration_closed: { label: 'Registration Closed', color: 'bg-yellow-100 text-yellow-700' },
+  scheduling: { label: 'Scheduling', color: 'bg-blue-100 text-blue-700' },
+  in_progress: { label: 'In Progress', color: 'bg-purple-100 text-purple-700' },
+  weather_delay: { label: 'Weather Delay', color: 'bg-orange-100 text-orange-700' },
+  completed: { label: 'Completed', color: 'bg-gray-100 text-gray-600' },
+  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700' },
+};
+
+// Valid status transitions
+export const VALID_STATUS_TRANSITIONS: Record<TournamentStatus, TournamentStatus[]> = {
+  draft: ['registration_open', 'cancelled'],
+  registration_open: ['registration_closed', 'cancelled'],
+  registration_closed: ['scheduling', 'registration_open', 'cancelled'],
+  scheduling: ['in_progress', 'cancelled'],
+  in_progress: ['weather_delay', 'completed', 'cancelled'],
+  weather_delay: ['in_progress', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
