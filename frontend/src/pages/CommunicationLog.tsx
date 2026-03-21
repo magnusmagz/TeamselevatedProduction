@@ -214,14 +214,14 @@ export const CommunicationLog: React.FC = () => {
     <>
       {[...Array(8)].map((_, i) => (
         <tr key={i} className="animate-pulse">
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-20" /></td>
-          <td className="px-4 py-3"><div className="h-5 bg-gray-200 rounded w-14" /></td>
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-48" /></td>
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="px-4 py-3"><div className="h-5 bg-gray-200 rounded w-20" /></td>
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
-          <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-20" /></td>
+          <td className="px-6 py-3"><div className="h-5 bg-gray-200 rounded w-14" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-32" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-48" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-24" /></td>
+          <td className="px-6 py-3"><div className="h-5 bg-gray-200 rounded w-20" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
+          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
         </tr>
       ))}
     </>
@@ -241,7 +241,7 @@ export const CommunicationLog: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Communication Log</h1>
+              <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Communication Log</h1>
               <p className="mt-1 text-sm text-gray-500">Track all emails and SMS sent from your organization</p>
             </div>
             <div className="flex gap-3">
@@ -351,22 +351,22 @@ export const CommunicationLog: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="border border-brand-secondary rounded-md overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-full bg-white">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Channel</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Recipient</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject / Preview</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sender</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Opens</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Clicks</th>
+                <tr className="border-b border-gray-300">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Channel</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Recipient</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Subject / Preview</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Sender</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Opens</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-brand-primary uppercase">Clicks</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-200">
                 {loading ? (
                   <SkeletonRows />
                 ) : entries.length === 0 ? (
@@ -402,10 +402,10 @@ export const CommunicationLog: React.FC = () => {
                       onClick={() => handleRowClick(entry)}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
                     >
-                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {formatShortDate(entry.created_at)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-3">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             entry.channel === 'email'
@@ -416,21 +416,21 @@ export const CommunicationLog: React.FC = () => {
                           {entry.channel === 'email' ? 'Email' : 'SMS'}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-3">
                         <div className="text-sm font-medium text-gray-900">{entry.recipient_name}</div>
                         <div className="text-xs text-gray-500">
                           {entry.channel === 'email' ? entry.recipient_email : entry.recipient_phone}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate">
+                      <td className="px-6 py-3 text-sm text-gray-700 max-w-xs truncate">
                         {entry.channel === 'email'
                           ? entry.subject || '(no subject)'
                           : entry.body?.substring(0, 80) + (entry.body?.length > 80 ? '...' : '')}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {entry.sender_first_name} {entry.sender_last_name}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-3">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
                             STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-700'
@@ -439,10 +439,10 @@ export const CommunicationLog: React.FC = () => {
                           {entry.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-center">
+                      <td className="px-6 py-3 text-sm text-gray-600 text-center">
                         {entry.channel === 'email' ? entry.open_count : '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-center">
+                      <td className="px-6 py-3 text-sm text-gray-600 text-center">
                         {entry.channel === 'email' ? entry.click_count : '—'}
                       </td>
                     </tr>
@@ -484,7 +484,7 @@ export const CommunicationLog: React.FC = () => {
           <div className="absolute inset-y-0 right-0 w-full max-w-lg bg-white shadow-xl flex flex-col">
             {/* Panel header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Communication Detail</h2>
+              <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">Communication Detail</h2>
               <button
                 onClick={() => setShowDetail(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
