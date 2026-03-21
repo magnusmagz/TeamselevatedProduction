@@ -145,13 +145,13 @@ export const CommunicationHistory: React.FC<CommunicationHistoryProps> = ({
         <div className="flex gap-2">
           <button
             onClick={() => setShowEmailCompose(true)}
-            className="inline-flex items-center px-3 py-1.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+            className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
                         Send Email
           </button>
           <button
             onClick={() => setShowSmsCompose(true)}
-            className="inline-flex items-center px-3 py-1.5 bg-white text-brand-primary text-sm font-medium rounded-lg border border-brand-primary hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
                         Send SMS
           </button>

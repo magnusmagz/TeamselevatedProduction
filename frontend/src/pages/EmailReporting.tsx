@@ -378,10 +378,10 @@ export const EmailReporting: React.FC = () => {
                 <button
                   key={preset}
                   onClick={() => setDatePreset(preset)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-sm uppercase font-semibold rounded-md border border-brand-secondary transition-colors ${
                     datePreset === preset
                       ? 'bg-brand-primary text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-white text-brand-primary hover:bg-gray-50'
                   }`}
                 >
                   {preset === 'all' ? 'All Time' : preset.toUpperCase()}
@@ -389,10 +389,10 @@ export const EmailReporting: React.FC = () => {
               ))}
               <button
                 onClick={() => setDatePreset('custom')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                className={`px-4 py-2 text-sm uppercase font-semibold rounded-md border border-brand-secondary transition-colors ${
                   datePreset === 'custom'
                     ? 'bg-brand-primary text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-white text-brand-primary hover:bg-gray-50'
                 }`}
               >
                 Custom
@@ -1032,14 +1032,14 @@ export const EmailReporting: React.FC = () => {
                   <button
                     onClick={() => setSendsPage(prev => Math.max(1, prev - 1))}
                     disabled={sendsPage <= 1}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setSendsPage(prev => Math.min(recentSends.total_pages, prev + 1))}
                     disabled={sendsPage >= recentSends.total_pages}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

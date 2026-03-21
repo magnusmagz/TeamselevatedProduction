@@ -362,10 +362,10 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
                 setComposeMode('freeform');
                 setShowPreview(false);
               }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm uppercase font-semibold transition-colors ${
                 composeMode === 'freeform'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-brand-primary text-white border border-brand-secondary'
+                  : 'bg-white text-brand-primary border border-brand-secondary hover:bg-gray-50'
               }`}
             >
               Free-form
@@ -376,10 +376,10 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
                 setComposeMode('template');
                 setShowPreview(false);
               }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm uppercase font-semibold transition-colors ${
                 composeMode === 'template'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-brand-primary text-white border border-brand-secondary'
+                  : 'bg-white text-brand-primary border border-brand-secondary hover:bg-gray-50'
               }`}
             >
               Use Template
@@ -546,7 +546,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -556,7 +556,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
                 type="button"
                 onClick={handlePreview}
                 disabled={!bodyHtml && !selectedTemplate}
-                className="px-4 py-2 text-sm font-medium text-brand-primary bg-brand-primary/10 border border-brand-primary/20 rounded-lg hover:bg-brand-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Preview
               </button>
@@ -566,7 +566,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
               type="button"
               onClick={handleSend}
               disabled={sendStatus === 'sending' || activeRecipientCount === 0 || !subject.trim()}
-              className="px-5 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {sendStatus === 'sending' ? (
                 <>

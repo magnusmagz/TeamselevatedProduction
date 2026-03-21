@@ -247,13 +247,13 @@ export const CommunicationLog: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowEmailCompose(true)}
-                className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+                className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                                 Compose Email
               </button>
               <button
                 onClick={() => setShowSmsCompose(true)}
-                className="inline-flex items-center px-4 py-2 bg-white text-brand-primary text-sm font-medium rounded-lg border border-brand-primary hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                                 Compose SMS
               </button>
@@ -267,15 +267,15 @@ export const CommunicationLog: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
             {/* Channel toggle */}
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            <div className="flex rounded-md border border-brand-secondary overflow-hidden">
               {(['all', 'email', 'sms'] as const).map((ch) => (
                 <button
                   key={ch}
                   onClick={() => setChannelFilter(ch)}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 text-sm uppercase font-semibold transition-colors ${
                     channelFilter === ch
                       ? 'bg-brand-primary text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                      : 'bg-white text-brand-primary hover:bg-gray-50'
                   }`}
                 >
                   {ch === 'all' ? 'All' : ch === 'email' ? 'Email' : 'SMS'}
@@ -381,13 +381,13 @@ export const CommunicationLog: React.FC = () => {
                         <div className="flex gap-3">
                           <button
                             onClick={() => setShowEmailCompose(true)}
-                            className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:opacity-90"
+                            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Compose Email
                           </button>
                           <button
                             onClick={() => setShowSmsCompose(true)}
-                            className="px-4 py-2 border border-brand-primary text-brand-primary text-sm font-medium rounded-lg hover:bg-gray-50"
+                            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Compose SMS
                           </button>
@@ -458,7 +458,7 @@ export const CommunicationLog: React.FC = () => {
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="inline-flex items-center px-6 py-2 text-sm font-medium text-brand-primary bg-white border border-brand-primary rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loadingMore ? (
                   <>

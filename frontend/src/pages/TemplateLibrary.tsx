@@ -190,7 +190,7 @@ const TemplateLibrary: React.FC = () => {
         {isAdmin && (
           <button
             onClick={() => navigate('/email-templates/new')}
-            className="inline-flex items-center px-4 py-2 bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+            className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -276,11 +276,11 @@ const TemplateLibrary: React.FC = () => {
         </select>
 
         {/* View toggle */}
-        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+        <div className="flex border border-brand-secondary rounded-md overflow-hidden">
           <button
             onClick={() => setViewMode('grid')}
-            className={`px-3 py-2 text-sm ${
-              viewMode === 'grid' ? 'bg-brand-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            className={`px-3 py-2 text-sm uppercase font-semibold ${
+              viewMode === 'grid' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary hover:bg-gray-50'
             }`}
             title="Grid view"
           >
@@ -295,8 +295,8 @@ const TemplateLibrary: React.FC = () => {
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`px-3 py-2 text-sm ${
-              viewMode === 'list' ? 'bg-brand-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            className={`px-3 py-2 text-sm uppercase font-semibold ${
+              viewMode === 'list' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary hover:bg-gray-50'
             }`}
             title="List view"
           >
@@ -334,7 +334,7 @@ const TemplateLibrary: React.FC = () => {
           {isAdmin && activeTab === 'club' && !searchQuery && categoryFilter === 'All' && (
             <button
               onClick={() => navigate('/email-templates/new')}
-              className="inline-flex items-center px-4 py-2 bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+              className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Create Your First Template
             </button>
@@ -564,13 +564,13 @@ const TemplateLibrary: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirmId)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="bg-red-600 text-white border border-red-700 rounded-md px-6 py-3 hover:bg-red-700 uppercase font-semibold text-sm"
               >
                 Delete
               </button>

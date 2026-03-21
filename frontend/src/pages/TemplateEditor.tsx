@@ -386,7 +386,7 @@ const TemplateEditor: React.FC = () => {
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <button
             onClick={handleBack}
-            className="flex items-center text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap"
+            className="flex items-center text-sm text-brand-primary hover:text-brand-primary/80 whitespace-nowrap uppercase font-semibold"
           >
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -432,10 +432,10 @@ const TemplateEditor: React.FC = () => {
           </select>
           <button
             onClick={() => setShowTeamVisibility(!showTeamVisibility)}
-            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-2 border rounded-md text-sm uppercase font-semibold transition-colors ${
               showTeamVisibility
-                ? 'border-brand-primary text-brand-primary bg-brand-primary bg-opacity-5'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                ? 'border-brand-secondary text-brand-primary bg-brand-primary bg-opacity-5'
+                : 'border-brand-secondary text-brand-primary hover:bg-gray-50'
             }`}
             title="Team visibility"
           >
@@ -451,14 +451,14 @@ const TemplateEditor: React.FC = () => {
           </button>
           <button
             onClick={handlePreview}
-            className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
           >
             Preview
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-1.5 bg-brand-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -642,7 +642,7 @@ const TemplateEditor: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowPreview(false)}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 font-medium"
+                  className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
                 >
                   Close
                 </button>

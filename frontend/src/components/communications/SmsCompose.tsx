@@ -297,7 +297,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -309,7 +309,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
                 recipientsWithPhone.length === 0 ||
                 !message.trim()
               }
-              className="px-5 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {sendStatus === 'sending' ? (
                 <>
