@@ -45,8 +45,7 @@ try {
             FROM teams t
             LEFT JOIN seasons s ON s.id = t.season_id
             WHERE t.club_id = ?
-            AND (t.deleted_at IS NULL OR t.deleted_at IS NULL)
-            AND t.status != 'deleted'
+            AND t.status IN ('forming', 'active')
             ORDER BY t.name";
 
     $stmt = $db->prepare($sql);
