@@ -99,6 +99,36 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [showEmailCompose, setShowEmailCompose] = useState(false);
   const [showSmsCompose, setShowSmsCompose] = useState(false);
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+
+  const SOCCER_POSITIONS = [
+    'Goalkeeper', 'Center Back', 'Left Back', 'Right Back',
+    'Defensive Midfielder', 'Central Midfielder', 'Attacking Midfielder',
+    'Left Wing', 'Right Wing', 'Striker', 'Forward'
+  ];
+
+  const updateTeamMember = async (teamMemberId: number, updates: Record<string, any>) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ team_member_id: teamMemberId, ...updates }),
+      });
+      // Refresh teams data
+      const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
+      const teamsData = await teamsResponse.json();
+      if (teamsData.success) {
+        const athleteTeams = teamsData.team_players
+          .filter((tp: Team) => tp.athlete_id === parseInt(athleteId!))
+          .map((tp: Team) => ({ ...tp, position: tp.primary_position }));
+        setTeams(athleteTeams);
+      }
+      setEditingField(null);
+    } catch (err) {
+      console.error('Failed to update:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchAthleteData = async () => {
@@ -248,15 +278,66 @@ const AthleteProfileEnhanced: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Jersey</div>
-            <div className="text-2xl font-bold">
-              {teams[selectedTeamIndex]?.jersey_number ? `#${teams[selectedTeamIndex].jersey_number}` : 'TBD'}
-            </div>
+            {editingField === 'jersey' && teams[selectedTeamIndex] ? (
+              <input
+                type="number"
+                defaultValue={teams[selectedTeamIndex]?.jersey_number || ''}
+                min="0"
+                max="99"
+                autoFocus
+                onBlur={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value) : null;
+                  updateTeamMember(teams[selectedTeamIndex].id, { jersey_number: val });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value ? parseInt((e.target as HTMLInputElement).value) : null;
+                    updateTeamMember(teams[selectedTeamIndex].id, { jersey_number: val });
+                  }
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                className="w-20 text-2xl font-bold border border-brand-secondary rounded-md px-2 py-1 text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+              />
+            ) : (
+              <div
+                className="text-2xl font-bold cursor-pointer hover:text-brand-accent"
+                onClick={() => setEditingField('jersey')}
+                title="Click to edit"
+              >
+                {teams[selectedTeamIndex]?.jersey_number ? `#${teams[selectedTeamIndex].jersey_number}` : 'TBD'}
+              </div>
+            )}
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Position</div>
-            <div className="text-2xl font-bold">
-              {teams[selectedTeamIndex]?.position || 'TBD'}
-            </div>
+            {editingField === 'position' && teams[selectedTeamIndex] ? (
+              <select
+                defaultValue={teams[selectedTeamIndex]?.position || ''}
+                autoFocus
+                onChange={(e) => {
+                  const pos = e.target.value;
+                  updateTeamMember(teams[selectedTeamIndex].id, {
+                    primary_position: pos,
+                    positions: pos ? [pos] : [],
+                  });
+                }}
+                onBlur={() => setEditingField(null)}
+                className="text-sm font-bold border border-brand-secondary rounded-md px-2 py-1 text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+              >
+                <option value="">Select position...</option>
+                {SOCCER_POSITIONS.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            ) : (
+              <div
+                className="text-2xl font-bold cursor-pointer hover:text-brand-accent"
+                onClick={() => setEditingField('position')}
+                title="Click to edit"
+              >
+                {teams[selectedTeamIndex]?.position || 'TBD'}
+              </div>
+            )}
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Status</div>
