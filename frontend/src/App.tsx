@@ -277,15 +277,38 @@ function AppContent() {
 
   const isProgramsActive = programsLinks.some((link) => location.pathname.startsWith(link.to));
 
+  const [amplifiersDropdownOpen, setAmplifiersDropdownOpen] = React.useState(false);
+  const amplifiersDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (amplifiersDropdownRef.current && !amplifiersDropdownRef.current.contains(e.target as Node)) {
+        setAmplifiersDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    setAmplifiersDropdownOpen(false);
+  }, [location.pathname]);
+
+  const amplifiersLinks = [
+    { to: '/sponsors', label: 'Sponsors' },
+    { to: '/admin/fundraisers', label: 'Fundraisers' },
+  ];
+
+  const isAmplifiersActive = amplifiersLinks.some((link) => location.pathname.startsWith(link.to));
+
   const navLinks = isAdmin ? [
     { to: '/payment/revenue', label: 'Revenue' },
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/dashboard', label: 'Teams' },
+    { to: '/communications', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
-    { to: '/sponsors', label: 'Sponsors' },
-    { to: '/admin/fundraisers', label: 'Fundraisers' },
-    { to: '/communications', label: 'Communications' },
+    { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
     { to: '/dashboard', label: 'My Teams' },
@@ -330,8 +353,84 @@ function AppContent() {
 
               {/* Desktop navigation */}
               <div className="hidden md:flex space-x-6 h-12 items-center">
-                {navLinks.map((link) => {
-                  // Insert People dropdown after Teams
+                {navLinks.flatMap((link) => {
+                  // Programs dropdown
+                  if (link.to === '/__programs_dropdown__') {
+                    return [
+                      <div key="programs-dropdown" className="relative" ref={programsDropdownRef}>
+                        <button
+                          onClick={() => { setProgramsDropdownOpen(!programsDropdownOpen); setPeopleDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
+                          className={`uppercase font-medium text-sm flex items-center gap-1 ${
+                            isProgramsActive
+                              ? 'text-brand-primary border-b-2 border-brand-primary'
+                              : 'text-brand-primary hover:text-brand-primary-hover'
+                          }`}
+                        >
+                          Programs
+                          <svg className={`w-3.5 h-3.5 transition-transform ${programsDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {programsDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-brand-secondary rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+                            {programsLinks.map((pLink) => (
+                              <Link
+                                key={pLink.to}
+                                to={pLink.to}
+                                className={`block px-4 py-2 text-sm font-medium ${
+                                  location.pathname.startsWith(pLink.to)
+                                    ? 'text-brand-primary bg-brand-secondary'
+                                    : 'text-brand-primary hover:bg-brand-secondary'
+                                }`}
+                              >
+                                {pLink.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ];
+                  }
+
+                  // Amplifiers dropdown
+                  if (link.to === '/__amplifiers_dropdown__') {
+                    return [
+                      <div key="amplifiers-dropdown" className="relative" ref={amplifiersDropdownRef}>
+                        <button
+                          onClick={() => { setAmplifiersDropdownOpen(!amplifiersDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); }}
+                          className={`uppercase font-medium text-sm flex items-center gap-1 ${
+                            isAmplifiersActive
+                              ? 'text-brand-primary border-b-2 border-brand-primary'
+                              : 'text-brand-primary hover:text-brand-primary-hover'
+                          }`}
+                        >
+                          Amplifiers
+                          <svg className={`w-3.5 h-3.5 transition-transform ${amplifiersDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {amplifiersDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-brand-secondary rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+                            {amplifiersLinks.map((aLink) => (
+                              <Link
+                                key={aLink.to}
+                                to={aLink.to}
+                                className={`block px-4 py-2 text-sm font-medium ${
+                                  location.pathname.startsWith(aLink.to)
+                                    ? 'text-brand-primary bg-brand-secondary'
+                                    : 'text-brand-primary hover:bg-brand-secondary'
+                                }`}
+                              >
+                                {aLink.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ];
+                  }
+
+                  // Regular link + People dropdown after Teams
                   const elements = [
                     <Link
                       key={link.to}
@@ -349,7 +448,7 @@ function AppContent() {
                     elements.push(
                       <div key="people-dropdown" className="relative" ref={peopleDropdownRef}>
                         <button
-                          onClick={() => setPeopleDropdownOpen(!peopleDropdownOpen)}
+                          onClick={() => { setPeopleDropdownOpen(!peopleDropdownOpen); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isPeopleActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -390,6 +489,48 @@ function AppContent() {
                 <div className="md:hidden border-t border-brand-secondary">
                   <div className="py-2 space-y-1">
                     {navLinks.flatMap((link) => {
+                      // Programs dropdown → expand flat in mobile
+                      if (link.to === '/__programs_dropdown__') {
+                        return [
+                          <div key="programs-mobile-label" className="px-3 pt-3 pb-1 text-xs text-gray-400 uppercase tracking-wider font-semibold">Programs</div>,
+                          ...programsLinks.map((pLink) => (
+                            <Link
+                              key={pLink.to}
+                              to={pLink.to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`block px-6 py-3 uppercase font-medium text-sm ${
+                                location.pathname.startsWith(pLink.to)
+                                  ? 'text-brand-primary bg-brand-secondary'
+                                  : 'text-brand-primary hover:bg-brand-secondary'
+                              }`}
+                            >
+                              {pLink.label}
+                            </Link>
+                          ))
+                        ];
+                      }
+
+                      // Amplifiers dropdown → expand flat in mobile
+                      if (link.to === '/__amplifiers_dropdown__') {
+                        return [
+                          <div key="amplifiers-mobile-label" className="px-3 pt-3 pb-1 text-xs text-gray-400 uppercase tracking-wider font-semibold">Amplifiers</div>,
+                          ...amplifiersLinks.map((aLink) => (
+                            <Link
+                              key={aLink.to}
+                              to={aLink.to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`block px-6 py-3 uppercase font-medium text-sm ${
+                                location.pathname.startsWith(aLink.to)
+                                  ? 'text-brand-primary bg-brand-secondary'
+                                  : 'text-brand-primary hover:bg-brand-secondary'
+                              }`}
+                            >
+                              {aLink.label}
+                            </Link>
+                          ))
+                        ];
+                      }
+
                       const items = [
                         <Link
                           key={link.to}
