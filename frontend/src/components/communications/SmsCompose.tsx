@@ -117,8 +117,11 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
           recipients: recipientsWithPhone.map((r) => ({
             id: r.id,
             type: r.type,
+            phone: r.phone,
+            name: `${r.first_name} ${r.last_name}`,
+            athlete_id: r.athlete_id || null,
           })),
-          message,
+          body: message,
         }),
       });
 
