@@ -358,7 +358,7 @@ const TemplateEditor: React.FC = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 132px)' }}>
         <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
           <div className="flex items-center gap-4">
             <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
@@ -380,7 +380,7 @@ const TemplateEditor: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 132px)' }}>
       {/* Top bar */}
       <div className="flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 bg-white border-b border-gray-200 gap-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
