@@ -120,10 +120,19 @@ try {
                     $params[] = $primary_coach_id;
                 }
 
-                // Apply club scoping - only show teams from clubs user has access to
-                $clubScope = $auth->getClubScopeWhereClause('t.club_id');
-                $query .= " " . $clubScope['where'];
-                $params = array_merge($params, $clubScope['params']);
+                // Apply club scoping - show teams from user's accessible clubs
+                // For super admins, use active context club instead of showing all
+                $activeContext = $auth->getActiveContext();
+                $activeClubId = is_object($activeContext) ? ($activeContext->scope_id ?? null) : ($activeContext['scope_id'] ?? null);
+
+                if ($activeClubId) {
+                    $query .= " AND t.club_id = ?";
+                    $params[] = (int)$activeClubId;
+                } else {
+                    $clubScope = $auth->getClubScopeWhereClause('t.club_id');
+                    $query .= " " . $clubScope['where'];
+                    $params = array_merge($params, $clubScope['params']);
+                }
 
                 $query .= " GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                                      t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
