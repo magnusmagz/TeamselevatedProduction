@@ -414,6 +414,12 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">{team.name} Roster</h2>
           <p className="text-gray-600 mt-2">{roster.length} players total</p>
         </div>
+        <Link
+          to={`/teams/${team.id}/player-cards`}
+          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
+        >
+          Player Cards
+        </Link>
       </div>
 
       {loading ? (

@@ -5,6 +5,7 @@ import CommunicationHistory from './communications/CommunicationHistory';
 import EmailCompose from './communications/EmailCompose';
 import SmsCompose from './communications/SmsCompose';
 import AthleteForm from './AthleteForm';
+import PlayerCard from './PlayerCard';
 
 interface Guardian {
   id: number;
@@ -90,7 +91,7 @@ interface Athlete {
 const AthleteProfileEnhanced: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { athleteId } = useParams<{ athleteId: string }>();
-  const { currentClubId } = useOrg();
+  const { currentClubId, activeContext } = useOrg();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [medical, setMedical] = useState<MedicalInfo | null>(null);
@@ -102,6 +103,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showPlayerCard, setShowPlayerCard] = useState(false);
 
   const SOCCER_POSITIONS = [
     'Goalkeeper', 'Center Back', 'Left Back', 'Right Back',
@@ -249,12 +251,20 @@ const AthleteProfileEnhanced: React.FC = () => {
           <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
             {athlete.preferred_name || athlete.first_name} {athlete.last_name}
           </h1>
-          <button
-            onClick={() => setShowEditForm(true)}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-          >
-            Edit Profile
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowPlayerCard(true)}
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
+            >
+              Player Card
+            </button>
+            <button
+              onClick={() => setShowEditForm(true)}
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+            >
+              Edit Profile
+            </button>
+          </div>
         </div>
       </div>
 
@@ -830,6 +840,40 @@ const AthleteProfileEnhanced: React.FC = () => {
           clubProfileId={currentClubId || 0}
           preselectedRecipients={composeRecipient ? [{ ...composeRecipient, suppressed: false }] : []}
         />
+      )}
+      {/* Player Card Modal */}
+      {showPlayerCard && athlete && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setShowPlayerCard(false)}>
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setShowPlayerCard(false)}
+                className="absolute -top-3 -right-3 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md text-brand-primary font-bold hover:bg-gray-100 z-10"
+              >
+                X
+              </button>
+              <PlayerCard
+                player={{
+                  id: athlete.id,
+                  first_name: athlete.first_name,
+                  last_name: athlete.last_name,
+                  date_of_birth: athlete.date_of_birth,
+                  photo_url: undefined,
+                  gender: athlete.gender,
+                }}
+                team={{
+                  name: teams[selectedTeamIndex]?.team_name || '',
+                  jersey_number: teams[selectedTeamIndex]?.jersey_number ? parseInt(teams[selectedTeamIndex].jersey_number!) : undefined,
+                  primary_position: teams[selectedTeamIndex]?.primary_position || teams[selectedTeamIndex]?.position || undefined,
+                }}
+                club={{
+                  name: activeContext?.scope_name || '',
+                }}
+                size="large"
+              />
+            </div>
+          </div>
+        </>
       )}
     </>
   );

@@ -73,6 +73,8 @@ import TournamentList from './modules/tournament/pages/TournamentList';
 import TournamentCreate from './modules/tournament/pages/TournamentCreate';
 import TournamentDetail from './modules/tournament/pages/TournamentDetail';
 import PublicTournament from './modules/tournament/pages/PublicTournament';
+// Player Cards
+import PlayerCards from './pages/PlayerCards';
 // Communications & Email
 import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
@@ -219,26 +221,76 @@ function AppContent() {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  const [peopleDropdownOpen, setPeopleDropdownOpen] = React.useState(false);
+  const peopleDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close People dropdown on click outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (peopleDropdownRef.current && !peopleDropdownRef.current.contains(e.target as Node)) {
+        setPeopleDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close People dropdown on route change
+  React.useEffect(() => {
+    setPeopleDropdownOpen(false);
+  }, [location.pathname]);
+
+  const peopleLinks = isAdmin
+    ? [
+        { to: '/athletes', label: 'Athletes' },
+        { to: '/coaches', label: 'Coaches' },
+        { to: '/volunteers', label: 'Volunteers' },
+      ]
+    : [
+        { to: '/athletes', label: 'Athletes' },
+        { to: '/volunteers', label: 'Volunteers' },
+      ];
+
+  const isPeopleActive = peopleLinks.some((link) => location.pathname === link.to);
+
+  const [programsDropdownOpen, setProgramsDropdownOpen] = React.useState(false);
+  const programsDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (programsDropdownRef.current && !programsDropdownRef.current.contains(e.target as Node)) {
+        setProgramsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    setProgramsDropdownOpen(false);
+  }, [location.pathname]);
+
+  const programsLinks = [
+    { to: '/program-management', label: 'Programs' },
+    { to: '/tournaments', label: 'Tournaments' },
+  ];
+
+  const isProgramsActive = programsLinks.some((link) => location.pathname.startsWith(link.to));
+
   const navLinks = isAdmin ? [
     { to: '/payment/revenue', label: 'Revenue' },
+    { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/dashboard', label: 'Teams' },
-    { to: '/athletes', label: 'Athletes' },
-    { to: '/coaches', label: 'Coaches' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
     { to: '/sponsors', label: 'Sponsors' },
     { to: '/admin/fundraisers', label: 'Fundraisers' },
-    { to: '/tournaments', label: 'Tournaments' },
     { to: '/communications', label: 'Communications' },
-    { to: '/volunteers', label: 'Volunteers' },
-    { to: '/program-management', label: 'Programs' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
     { to: '/dashboard', label: 'My Teams' },
-    { to: '/athletes', label: 'Athletes' },
+    { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/communications', label: 'Communications' },
-    { to: '/volunteers', label: 'Volunteers' },
-    { to: '/tournaments', label: 'Tournaments' },
     { to: '/calendar', label: 'Calendar' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
@@ -278,39 +330,103 @@ function AppContent() {
 
               {/* Desktop navigation */}
               <div className="hidden md:flex space-x-6 h-12 items-center">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={`uppercase font-medium text-sm ${
-                      location.pathname === link.to
-                        ? 'text-brand-primary border-b-2 border-brand-primary'
-                        : 'text-brand-primary hover:text-brand-primary-hover'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {navLinks.map((link) => {
+                  // Insert People dropdown after Teams
+                  const elements = [
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className={`uppercase font-medium text-sm ${
+                        location.pathname === link.to
+                          ? 'text-brand-primary border-b-2 border-brand-primary'
+                          : 'text-brand-primary hover:text-brand-primary-hover'
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  ];
+                  if (link.to === '/dashboard') {
+                    elements.push(
+                      <div key="people-dropdown" className="relative" ref={peopleDropdownRef}>
+                        <button
+                          onClick={() => setPeopleDropdownOpen(!peopleDropdownOpen)}
+                          className={`uppercase font-medium text-sm flex items-center gap-1 ${
+                            isPeopleActive
+                              ? 'text-brand-primary border-b-2 border-brand-primary'
+                              : 'text-brand-primary hover:text-brand-primary-hover'
+                          }`}
+                        >
+                          People
+                          <svg className={`w-3.5 h-3.5 transition-transform ${peopleDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {peopleDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-brand-secondary rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+                            {peopleLinks.map((pLink) => (
+                              <Link
+                                key={pLink.to}
+                                to={pLink.to}
+                                className={`block px-4 py-2 text-sm font-medium ${
+                                  location.pathname === pLink.to
+                                    ? 'text-brand-primary bg-brand-secondary'
+                                    : 'text-brand-primary hover:bg-brand-secondary'
+                                }`}
+                              >
+                                {pLink.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return elements;
+                })}
               </div>
 
               {/* Mobile navigation drawer */}
               {mobileMenuOpen && (
                 <div className="md:hidden border-t border-brand-secondary">
                   <div className="py-2 space-y-1">
-                    {navLinks.map((link) => (
-                      <Link
-                        key={link.to}
-                        to={link.to}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`block px-3 py-3 uppercase font-medium text-sm ${
-                          location.pathname === link.to
-                            ? 'text-brand-primary bg-brand-secondary'
-                            : 'text-brand-primary hover:bg-brand-secondary'
-                        }`}
-                      >
-                        {link.label}
-                      </Link>
-                    ))}
+                    {navLinks.flatMap((link) => {
+                      const items = [
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`block px-3 py-3 uppercase font-medium text-sm ${
+                            location.pathname === link.to
+                              ? 'text-brand-primary bg-brand-secondary'
+                              : 'text-brand-primary hover:bg-brand-secondary'
+                          }`}
+                        >
+                          {link.label}
+                        </Link>
+                      ];
+                      if (link.to === '/dashboard') {
+                        items.push(
+                          <div key="people-mobile-label" className="px-3 pt-3 pb-1 text-xs text-gray-400 uppercase tracking-wider font-semibold">People</div>
+                        );
+                        peopleLinks.forEach((pLink) => {
+                          items.push(
+                            <Link
+                              key={pLink.to}
+                              to={pLink.to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`block px-6 py-3 uppercase font-medium text-sm ${
+                                location.pathname === pLink.to
+                                  ? 'text-brand-primary bg-brand-secondary'
+                                  : 'text-brand-primary hover:bg-brand-secondary'
+                              }`}
+                            >
+                              {pLink.label}
+                            </Link>
+                          );
+                        });
+                      }
+                      return items;
+                    }).map((item) => item)}
                   </div>
                 </div>
               )}
@@ -374,6 +490,7 @@ function AppContent() {
           <Route path="/team/:teamId" element={<TeamDetailPage />} />
           <Route path="/team/:teamId/calendar" element={<ProtectedRoute><TeamCalendarPage /></ProtectedRoute>} />
           <Route path="/teams/:teamId/roster" element={<TeamRosterPage />} />
+          <Route path="/teams/:teamId/player-cards" element={<ProtectedRoute><PlayerCards /></ProtectedRoute>} />
           <Route path="/athlete/:athleteId" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/documents" element={
