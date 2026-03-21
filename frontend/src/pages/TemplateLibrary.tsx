@@ -186,7 +186,7 @@ const TemplateLibrary: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Email Templates</h1>
         {isAdmin && (
           <button
             onClick={() => navigate('/email-templates/new')}

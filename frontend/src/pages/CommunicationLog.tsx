@@ -241,7 +241,7 @@ export const CommunicationLog: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Communication Log</h1>
+              <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Communication Log</h1>
               <p className="mt-1 text-sm text-gray-500">Track all emails and SMS sent from your organization</p>
             </div>
             <div className="flex gap-3">
@@ -484,7 +484,7 @@ export const CommunicationLog: React.FC = () => {
           <div className="absolute inset-y-0 right-0 w-full max-w-lg bg-white shadow-xl flex flex-col">
             {/* Panel header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Communication Detail</h2>
+              <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">Communication Detail</h2>
               <button
                 onClick={() => setShowDetail(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
