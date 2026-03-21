@@ -59,10 +59,10 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const token = localStorage.getItem('auth_token');
-  const headers = {
+  const headersRef = useRef({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
-  };
+  });
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -96,10 +96,10 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
             club_profile_id: String(clubProfileId),
             channel,
           });
-          const res = await fetch(`${API_URL}/api/recipient-search?${params}`, { headers });
+          const res = await fetch(`${API_URL}/api/recipient-search?${params}`, { headers: headersRef.current });
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
-          setSearchResults(data.recipients || []);
+          setSearchResults(data.results || data.recipients || []);
           setShowDropdown(true);
           setHighlightedIndex(-1);
         } catch (err) {
@@ -110,7 +110,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
         }
       }, 300);
     },
-    [clubProfileId, channel, headers]
+    [clubProfileId, channel]
   );
 
   useEffect(() => {
@@ -128,10 +128,10 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
         action: 'groups',
         club_profile_id: String(clubProfileId),
       });
-      const res = await fetch(`${API_URL}/api/recipient-search?${params}`, { headers });
+      const res = await fetch(`${API_URL}/api/recipient-search?${params}`, { headers: headersRef.current });
       if (!res.ok) throw new Error('Failed to fetch groups');
       const data = await res.json();
-      setTeamGroups(data.groups || []);
+      setTeamGroups(data.groups || data.data || []);
     } catch (err) {
       console.error('Failed to fetch groups:', err);
       setTeamGroups([]);
@@ -153,7 +153,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
     try {
       const res = await fetch(`${API_URL}/api/recipient-search?action=resolve-group`, {
         method: 'POST',
-        headers,
+        headers: headersRef.current,
         body: JSON.stringify({
           team_id: group.id,
           club_profile_id: clubProfileId,
