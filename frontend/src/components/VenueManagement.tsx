@@ -21,6 +21,18 @@ interface Venue {
   website?: string;
   field_count?: number;
   fields?: Field[];
+  maintenance_contact_name?: string;
+  maintenance_contact_phone?: string;
+  maintenance_contact_email?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_email?: string;
+  billing_contact_name?: string;
+  billing_contact_phone?: string;
+  billing_contact_email?: string;
+  gm_contact_name?: string;
+  gm_contact_phone?: string;
+  gm_contact_email?: string;
 }
 
 interface VenueManagementProps {
@@ -45,7 +57,19 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     zip: '',
     map_url: '',
     website: '',
-    fields: []
+    fields: [],
+    maintenance_contact_name: '',
+    maintenance_contact_phone: '',
+    maintenance_contact_email: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    emergency_contact_email: '',
+    billing_contact_name: '',
+    billing_contact_phone: '',
+    billing_contact_email: '',
+    gm_contact_name: '',
+    gm_contact_phone: '',
+    gm_contact_email: '',
   });
 
   const [newField, setNewField] = useState<Field>({
@@ -85,7 +109,19 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
       zip: '',
       map_url: '',
       website: '',
-      fields: []
+      fields: [],
+      maintenance_contact_name: '',
+      maintenance_contact_phone: '',
+      maintenance_contact_email: '',
+      emergency_contact_name: '',
+      emergency_contact_phone: '',
+      emergency_contact_email: '',
+      billing_contact_name: '',
+      billing_contact_phone: '',
+      billing_contact_email: '',
+      gm_contact_name: '',
+      gm_contact_phone: '',
+      gm_contact_email: '',
     });
     setShowForm(true);
   };
@@ -216,7 +252,19 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         zip_code: formData.zip,
         map_url: formData.map_url || null,
         website: formData.website || null,
-        fields: formData.fields && formData.fields.length > 0 ? formData.fields : []
+        fields: formData.fields && formData.fields.length > 0 ? formData.fields : [],
+        maintenance_contact_name: formData.maintenance_contact_name || null,
+        maintenance_contact_phone: formData.maintenance_contact_phone || null,
+        maintenance_contact_email: formData.maintenance_contact_email || null,
+        emergency_contact_name: formData.emergency_contact_name || null,
+        emergency_contact_phone: formData.emergency_contact_phone || null,
+        emergency_contact_email: formData.emergency_contact_email || null,
+        billing_contact_name: formData.billing_contact_name || null,
+        billing_contact_phone: formData.billing_contact_phone || null,
+        billing_contact_email: formData.billing_contact_email || null,
+        gm_contact_name: formData.gm_contact_name || null,
+        gm_contact_phone: formData.gm_contact_phone || null,
+        gm_contact_email: formData.gm_contact_email || null,
       };
 
       const response = await fetch(url, {
@@ -369,6 +417,9 @@ const VenueListContent: React.FC<{
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Links
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
+                  Contacts
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
                   Actions
                 </th>
@@ -422,6 +473,9 @@ const VenueListContent: React.FC<{
                         <span className="text-gray-400 text-xs">-</span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 border-r border-gray-300">
+                    <VenueContactsSummary venue={venue} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-3">
@@ -611,6 +665,9 @@ const VenueForm: React.FC<{
               </div>
             </div>
 
+            {/* Contacts Section */}
+            <VenueContactsSection formData={formData} setFormData={setFormData} />
+
             {/* Fields Section */}
             <div>
               <h4 className="text-brand-primary font-semibold mb-4 uppercase">Fields</h4>
@@ -779,6 +836,104 @@ const VenueForm: React.FC<{
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const VenueContactsSummary: React.FC<{ venue: Venue }> = ({ venue }) => {
+  const contacts = [
+    { label: 'GM', name: venue.gm_contact_name, phone: venue.gm_contact_phone, email: venue.gm_contact_email },
+    { label: 'Maintenance', name: venue.maintenance_contact_name, phone: venue.maintenance_contact_phone, email: venue.maintenance_contact_email },
+    { label: 'Emergency', name: venue.emergency_contact_name, phone: venue.emergency_contact_phone, email: venue.emergency_contact_email },
+    { label: 'Billing', name: venue.billing_contact_name, phone: venue.billing_contact_phone, email: venue.billing_contact_email },
+  ].filter((c) => c.name || c.phone || c.email);
+
+  if (contacts.length === 0) {
+    return <span className="text-gray-400 text-xs">-</span>;
+  }
+
+  return (
+    <div className="text-xs text-brand-primary space-y-1">
+      {contacts.map((c) => (
+        <div key={c.label}>
+          <span className="font-semibold">{c.label}:</span>{' '}
+          {[c.name, c.phone, c.email].filter(Boolean).join(' - ')}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const VenueContactsSection: React.FC<{
+  formData: Venue;
+  setFormData: (data: Venue) => void;
+}> = ({ formData, setFormData }) => {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+  const toggle = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const contactGroups = [
+    { key: 'gm', label: 'General Manager', prefix: 'gm_contact' },
+    { key: 'maintenance', label: 'Maintenance Contact', prefix: 'maintenance_contact' },
+    { key: 'emergency', label: 'Emergency Contact', prefix: 'emergency_contact' },
+    { key: 'billing', label: 'Billing Contact', prefix: 'billing_contact' },
+  ] as const;
+
+  return (
+    <div>
+      <h4 className="text-brand-primary font-semibold mb-4 uppercase">Contacts</h4>
+      <div className="space-y-3">
+        {contactGroups.map((group) => (
+          <div key={group.key} className="border border-brand-secondary rounded-md">
+            <button
+              type="button"
+              onClick={() => toggle(group.key)}
+              className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-50"
+            >
+              <span className="text-sm font-bold text-brand-primary uppercase tracking-wide">{group.label}</span>
+              <span className="text-brand-primary text-sm">{openSections[group.key] ? '−' : '+'}</span>
+            </button>
+            {openSections[group.key] && (
+              <div className="px-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">Name</label>
+                    <input
+                      type="text"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={(formData as any)[`${group.prefix}_name`] || ''}
+                      onChange={(e) => setFormData({ ...formData, [`${group.prefix}_name`]: e.target.value })}
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">Phone</label>
+                    <input
+                      type="tel"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={(formData as any)[`${group.prefix}_phone`] || ''}
+                      onChange={(e) => setFormData({ ...formData, [`${group.prefix}_phone`]: e.target.value })}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-brand-primary text-xs font-medium mb-1 uppercase">Email</label>
+                    <input
+                      type="email"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={(formData as any)[`${group.prefix}_email`] || ''}
+                      onChange={(e) => setFormData({ ...formData, [`${group.prefix}_email`]: e.target.value })}
+                      placeholder="Email address"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
