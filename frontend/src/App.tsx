@@ -68,6 +68,11 @@ import { DonationSuccess } from './pages/DonationSuccess';
 import { FundraiserCampaignsList } from './pages/FundraiserCampaignsList';
 import { FundraiserCampaignForm } from './pages/FundraiserCampaignForm';
 import { FundraiserCampaignDashboard } from './pages/FundraiserCampaignDashboard';
+// Communications & Email
+import CommunicationLog from './pages/CommunicationLog';
+import TemplateLibrary from './pages/TemplateLibrary';
+import TemplateEditor from './pages/TemplateEditor';
+import EmailReporting from './pages/EmailReporting';
 // Parent Portal
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
@@ -213,11 +218,13 @@ function AppContent() {
     { to: '/venues', label: 'Facilities' },
     { to: '/sponsors', label: 'Sponsors' },
     { to: '/admin/fundraisers', label: 'Fundraisers' },
+    { to: '/communications', label: 'Communications' },
     { to: '/program-management', label: 'Programs' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
     { to: '/dashboard', label: 'My Teams' },
     { to: '/athletes', label: 'Athletes' },
+    { to: '/communications', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
@@ -419,6 +426,33 @@ function AppContent() {
               <TeamManagement />
             </main> :
             <CoachDashboard />
+          } />
+
+          {/* Communication routes */}
+          <Route path="/communications" element={
+            <ProtectedRoute>
+              <CommunicationLog />
+            </ProtectedRoute>
+          } />
+          <Route path="/email-templates" element={
+            <ProtectedRoute>
+              <TemplateLibrary />
+            </ProtectedRoute>
+          } />
+          <Route path="/email-templates/new" element={
+            <ProtectedRoute>
+              <TemplateEditor />
+            </ProtectedRoute>
+          } />
+          <Route path="/email-templates/:id" element={
+            <ProtectedRoute>
+              <TemplateEditor />
+            </ProtectedRoute>
+          } />
+          <Route path="/email-reporting" element={
+            <ProtectedRoute>
+              <EmailReporting />
+            </ProtectedRoute>
           } />
 
           {/* Payment routes */}

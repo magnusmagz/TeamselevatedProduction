@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
+import CommunicationHistory from './communications/CommunicationHistory';
 
 interface Guardian {
   id: number;
@@ -85,6 +87,7 @@ interface Athlete {
 const AthleteProfileEnhanced: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { athleteId } = useParams<{ athleteId: string }>();
+  const { currentClubId } = useOrg();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [medical, setMedical] = useState<MedicalInfo | null>(null);
@@ -459,6 +462,7 @@ const AthleteProfileEnhanced: React.FC = () => {
             { id: 'profile', label: 'Extended Profile' },
             { id: 'medical', label: 'Medical Info' },
             { id: 'documents', label: 'Documents' },
+            { id: 'communications', label: 'Communications' },
             { id: 'performance', label: 'Performance' }
           ].map((tab) => (
             <button
@@ -597,6 +601,14 @@ const AthleteProfileEnhanced: React.FC = () => {
                 Birth certificate, medical release, registration forms, etc.
               </div>
             </div>
+          )}
+
+          {activeTab === 'communications' && athlete && (
+            <CommunicationHistory
+              contactType="athlete"
+              contactId={athlete.id}
+              clubProfileId={currentClubId || 0}
+            />
           )}
 
           {activeTab === 'performance' && (
