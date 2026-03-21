@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import CommunicationHistory from './communications/CommunicationHistory';
+import EmailCompose from './communications/EmailCompose';
+import SmsCompose from './communications/SmsCompose';
 
 interface Guardian {
   id: number;
@@ -94,6 +96,9 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [selectedTeamIndex, setSelectedTeamIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
+  const [showSmsCompose, setShowSmsCompose] = useState(false);
+  const [composeRecipient, setComposeRecipient] = useState<any>(null);
 
   useEffect(() => {
     const fetchAthleteData = async () => {
@@ -199,6 +204,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   const emergencyContact = getEmergencyContact();
 
   return (
+    <>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="border-b border-brand-secondary pb-6 mb-6">
@@ -327,18 +333,30 @@ const AthleteProfileEnhanced: React.FC = () => {
               <div className="mb-4">
                 <div className="font-bold mb-2">Primary Contact</div>
                 <div>{primaryGuardian.first_name} {primaryGuardian.last_name} ({primaryGuardian.relationship_type})</div>
-                <a href={`tel:${primaryGuardian.mobile_phone}`} className="text-lg font-bold text-brand-primary hover:underline">
-                  📞 {formatPhoneForDisplay(primaryGuardian.mobile_phone)}
-                </a>
+                <button
+                  onClick={() => {
+                    setComposeRecipient({ id: primaryGuardian.id, type: 'guardian', first_name: primaryGuardian.first_name, last_name: primaryGuardian.last_name, phone: primaryGuardian.mobile_phone, email: primaryGuardian.email });
+                    setShowSmsCompose(true);
+                  }}
+                  className="text-lg font-bold text-brand-primary hover:underline"
+                >
+                  {formatPhoneForDisplay(primaryGuardian.mobile_phone)}
+                </button>
               </div>
             )}
             {emergencyContact && emergencyContact.id !== primaryGuardian?.id && (
               <div>
                 <div className="font-bold mb-2">Emergency Contact</div>
                 <div>{emergencyContact.first_name} {emergencyContact.last_name} ({emergencyContact.relationship_type})</div>
-                <a href={`tel:${emergencyContact.mobile_phone}`} className="text-lg font-bold text-brand-primary hover:underline">
-                  📞 {formatPhoneForDisplay(emergencyContact.mobile_phone)}
-                </a>
+                <button
+                  onClick={() => {
+                    setComposeRecipient({ id: emergencyContact.id, type: 'guardian', first_name: emergencyContact.first_name, last_name: emergencyContact.last_name, phone: emergencyContact.mobile_phone, email: emergencyContact.email });
+                    setShowSmsCompose(true);
+                  }}
+                  className="text-lg font-bold text-brand-primary hover:underline"
+                >
+                  {formatPhoneForDisplay(emergencyContact.mobile_phone)}
+                </button>
               </div>
             )}
           </div>
@@ -466,9 +484,25 @@ const AthleteProfileEnhanced: React.FC = () => {
                         {guardian.is_primary_contact ? 'PRIMARY' : (guardian.relationship_type || 'GUARDIAN').toUpperCase()}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      📱 {formatPhoneForDisplay(guardian.mobile_phone)}<br/>
-                      ✉️ {guardian.email}
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <button
+                        onClick={() => {
+                          setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
+                          setShowSmsCompose(true);
+                        }}
+                        className="text-brand-primary hover:underline cursor-pointer block"
+                      >
+                        {formatPhoneForDisplay(guardian.mobile_phone)}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
+                          setShowEmailCompose(true);
+                        }}
+                        className="text-brand-primary hover:underline cursor-pointer block"
+                      >
+                        {guardian.email}
+                      </button>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
                       {guardian.can_authorize_medical ? '✓ Medical' : '✗ Medical'} |
@@ -651,7 +685,27 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       </div>
+
+      {/* Compose Modals */}
+      {showEmailCompose && (
+        <EmailCompose
+          isOpen={showEmailCompose}
+          onClose={() => { setShowEmailCompose(false); setComposeRecipient(null); }}
+          clubProfileId={currentClubId || 0}
+          preselectedRecipients={composeRecipient ? [{ ...composeRecipient, suppressed: false }] : []}
+        />
+      )}
+      {showSmsCompose && (
+        <SmsCompose
+          isOpen={showSmsCompose}
+          onClose={() => { setShowSmsCompose(false); setComposeRecipient(null); }}
+          clubProfileId={currentClubId || 0}
+          preselectedRecipients={composeRecipient ? [{ ...composeRecipient, suppressed: false }] : []}
+        />
+      )}
+    </>
   );
+
 };
 
 export default AthleteProfileEnhanced;
