@@ -292,7 +292,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
       if (response.ok) {
         const athleteData = await response.json();
-        const athleteId = athleteData.id || athlete?.id;
+        const athleteId = athleteData.athlete_id || athleteData.id || athlete?.id;
 
         // Save guardian information if provided
         if (formData.guardian?.first_name && formData.guardian?.last_name && formData.guardian?.email && formData.guardian?.mobile_phone) {
