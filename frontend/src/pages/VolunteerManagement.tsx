@@ -95,9 +95,16 @@ export const VolunteerManagement: React.FC = () => {
 
   // Add modal
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addMode, setAddMode] = useState<'new' | 'existing'>('new');
   const [userSearch, setUserSearch] = useState('');
   const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
+  const [newVolunteerForm, setNewVolunteerForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+  });
   const [addForm, setAddForm] = useState({
     team_id: '',
     start_date: new Date().toISOString().split('T')[0],
@@ -127,17 +134,25 @@ export const VolunteerManagement: React.FC = () => {
       );
       const data = await res.json();
       setVolunteers(Array.isArray(data) ? data : data.volunteers || []);
-
-      // Extract unique teams from volunteer data
-      const teamMap = new Map<number, string>();
-      (Array.isArray(data) ? data : data.volunteers || []).forEach((v: Volunteer) => {
-        if (v.team_id && v.team_name) teamMap.set(v.team_id, v.team_name);
-      });
-      setTeams(Array.from(teamMap.entries()).map(([id, name]) => ({ id, name })));
     } catch (err) {
       console.error('Error fetching volunteers:', err);
     } finally {
       setLoading(false);
+    }
+  }, [currentClubId, isClubAdmin]);
+
+  const fetchTeams = useCallback(async () => {
+    if (!currentClubId) return;
+    try {
+      const endpoint = isClubAdmin
+        ? `${API_URL}/api/teams`
+        : `${API_URL}/api/coach/teams`;
+      const res = await fetch(endpoint, { headers });
+      const data = await res.json();
+      const teamList = data.teams || (Array.isArray(data) ? data : []);
+      setTeams(teamList.map((t: any) => ({ id: t.id, name: t.name })));
+    } catch (err) {
+      console.error('Error fetching teams:', err);
     }
   }, [currentClubId, isClubAdmin]);
 
@@ -158,7 +173,8 @@ export const VolunteerManagement: React.FC = () => {
   useEffect(() => {
     fetchVolunteers();
     fetchCompliance();
-  }, [fetchVolunteers, fetchCompliance]);
+    fetchTeams();
+  }, [fetchVolunteers, fetchCompliance, fetchTeams]);
 
   // User search for Add modal
   useEffect(() => {
@@ -254,30 +270,57 @@ export const VolunteerManagement: React.FC = () => {
   };
 
   const handleAddSubmit = async () => {
-    if (!selectedUser || !addForm.team_id) return;
+    if (!addForm.team_id) return;
     setAddSaving(true);
     try {
-      const res = await fetch(
-        `${API_URL}/api/volunteer-gateway.php?action=assign-volunteer`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            user_id: selectedUser.id,
-            team_id: Number(addForm.team_id),
-            start_date: addForm.start_date,
-            end_date: addForm.end_date || null,
-            notes: addForm.notes,
-          }),
-        }
-      );
-      if (!res.ok) throw new Error('Assign failed');
+      let res: Response;
+      if (addMode === 'existing') {
+        if (!selectedUser) return;
+        res = await fetch(
+          `${API_URL}/api/volunteer-gateway.php?action=assign-volunteer`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              user_id: selectedUser.id,
+              team_id: Number(addForm.team_id),
+              start_date: addForm.start_date,
+              end_date: addForm.end_date || null,
+              notes: addForm.notes,
+            }),
+          }
+        );
+      } else {
+        if (!newVolunteerForm.first_name || !newVolunteerForm.last_name || !newVolunteerForm.email) return;
+        res = await fetch(
+          `${API_URL}/api/volunteer-gateway.php?action=create-volunteer`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              team_id: Number(addForm.team_id),
+              first_name: newVolunteerForm.first_name,
+              last_name: newVolunteerForm.last_name,
+              email: newVolunteerForm.email,
+              phone: newVolunteerForm.phone || null,
+              start_date: addForm.start_date,
+              end_date: addForm.end_date || null,
+              notes: addForm.notes,
+            }),
+          }
+        );
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to add volunteer');
+        return;
+      }
       setShowAddModal(false);
       resetAddForm();
       fetchVolunteers();
       fetchCompliance();
     } catch (err) {
-      console.error('Error assigning volunteer:', err);
+      console.error('Error adding volunteer:', err);
       alert('Failed to add volunteer. Please try again.');
     } finally {
       setAddSaving(false);
@@ -285,9 +328,11 @@ export const VolunteerManagement: React.FC = () => {
   };
 
   const resetAddForm = () => {
+    setAddMode('new');
     setSelectedUser(null);
     setUserSearch('');
     setUserResults([]);
+    setNewVolunteerForm({ first_name: '', last_name: '', email: '', phone: '' });
     setAddForm({
       team_id: '',
       start_date: new Date().toISOString().split('T')[0],
@@ -298,7 +343,7 @@ export const VolunteerManagement: React.FC = () => {
 
   if (!currentClubId) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="p-6 text-center text-brand-primary">
         Please select a club to manage volunteers.
       </div>
     );
@@ -309,8 +354,8 @@ export const VolunteerManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Volunteer Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Management</h1>
+          <p className="text-sm text-brand-primary mt-1">
             Manage volunteers, track background checks, and monitor compliance.
           </p>
         </div>
@@ -319,7 +364,7 @@ export const VolunteerManagement: React.FC = () => {
             resetAddForm();
             setShowAddModal(true);
           }}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-semibold uppercase rounded-md hover:opacity-90 transition-colors"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -357,14 +402,14 @@ export const VolunteerManagement: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+      <div className="bg-white rounded-lg border border-brand-secondary p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Team</label>
+            <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Team</label>
             <select
               value={filterTeam}
               onChange={(e) => setFilterTeam(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
             >
               <option value="all">All Teams</option>
               {teams.map((t) => (
@@ -375,11 +420,11 @@ export const VolunteerManagement: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">BG Check Status</label>
+            <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">BG Check Status</label>
             <select
               value={filterBgStatus}
               onChange={(e) => setFilterBgStatus(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
             >
               <option value="all">All Statuses</option>
               <option value="cleared">Cleared</option>
@@ -389,7 +434,7 @@ export const VolunteerManagement: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Status</label>
             <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1">
               {(['active', 'inactive', 'all'] as const).map((s) => (
                 <button
@@ -397,8 +442,8 @@ export const VolunteerManagement: React.FC = () => {
                   onClick={() => setFilterActive(s)}
                   className={`flex-1 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
                     filterActive === s
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-brand-primary shadow-sm'
+                      : 'text-gray-500 hover:text-brand-primary'
                   }`}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -407,24 +452,24 @@ export const VolunteerManagement: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
+            <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Search</label>
             <input
               type="text"
               placeholder="Name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
             />
           </div>
         </div>
       </div>
 
       {/* Volunteer Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-brand-secondary overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-500">Loading volunteers...</div>
+          <div className="p-12 text-center text-brand-primary">Loading volunteers...</div>
         ) : filteredVolunteers.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-12 text-center text-brand-primary">
             {volunteers.length === 0
               ? 'No volunteers found. Click "Add Volunteer" to get started.'
               : 'No volunteers match your current filters.'}
@@ -434,28 +479,28 @@ export const VolunteerManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Phone
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Team
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     BG Check
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Start Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
@@ -463,7 +508,7 @@ export const VolunteerManagement: React.FC = () => {
               <tbody className="divide-y divide-gray-200">
                 {filteredVolunteers.map((vol) => (
                   <tr key={vol.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium text-brand-primary whitespace-nowrap">
                       {vol.first_name} {vol.last_name}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
@@ -501,7 +546,7 @@ export const VolunteerManagement: React.FC = () => {
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleEdit(vol)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3"
+                        className="text-brand-primary hover:underline text-sm font-medium mr-3"
                       >
                         Edit
                       </button>
@@ -524,23 +569,23 @@ export const VolunteerManagement: React.FC = () => {
       {editingVolunteer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-brand-primary mb-4">
               Edit Volunteer: {editingVolunteer.first_name} {editingVolunteer.last_name}
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm text-brand-primary mb-1">Status</label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm text-brand-primary mb-1">
                   BG Check Status
                 </label>
                 <select
@@ -548,7 +593,7 @@ export const VolunteerManagement: React.FC = () => {
                   onChange={(e) =>
                     setEditForm({ ...editForm, bg_check_status: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                 >
                   <option value="cleared">Cleared</option>
                   <option value="pending">Pending</option>
@@ -558,47 +603,47 @@ export const VolunteerManagement: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm text-brand-primary mb-1">
                     Start Date
                   </label>
                   <input
                     type="date"
                     value={editForm.start_date}
                     onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <label className="block text-sm text-brand-primary mb-1">End Date</label>
                   <input
                     type="date"
                     value={editForm.end_date}
                     onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm text-brand-primary mb-1">Notes</label>
                 <textarea
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                 />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setEditingVolunteer(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSave}
                 disabled={editSaving}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-sm font-semibold uppercase text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -611,14 +656,14 @@ export const VolunteerManagement: React.FC = () => {
       {removingId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Remove Volunteer</h2>
+            <h2 className="text-lg font-semibold text-brand-primary mb-2">Remove Volunteer</h2>
             <p className="text-sm text-gray-600 mb-6">
               Are you sure you want to remove this volunteer? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setRemovingId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
@@ -637,17 +682,90 @@ export const VolunteerManagement: React.FC = () => {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Add Volunteer</h2>
+            <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide mb-4">Add Volunteer</h2>
+
+            {/* Mode Toggle */}
+            <div className="flex rounded-md border border-brand-secondary mb-4 overflow-hidden">
+              <button
+                onClick={() => setAddMode('new')}
+                className={`flex-1 px-3 py-2 text-sm font-semibold uppercase ${
+                  addMode === 'new'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-white text-brand-primary hover:bg-gray-50'
+                }`}
+              >
+                New Person
+              </button>
+              <button
+                onClick={() => setAddMode('existing')}
+                className={`flex-1 px-3 py-2 text-sm font-semibold uppercase ${
+                  addMode === 'existing'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-white text-brand-primary hover:bg-gray-50'
+                }`}
+              >
+                Existing User
+              </button>
+            </div>
+
             <div className="space-y-4">
-              {/* User Search */}
+              {addMode === 'new' ? (
+                /* New Volunteer Form */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        value={newVolunteerForm.first_name}
+                        onChange={(e) => setNewVolunteerForm({ ...newVolunteerForm, first_name: e.target.value })}
+                        className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
+                        placeholder="First name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        value={newVolunteerForm.last_name}
+                        onChange={(e) => setNewVolunteerForm({ ...newVolunteerForm, last_name: e.target.value })}
+                        className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
+                        placeholder="Last name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={newVolunteerForm.email}
+                      onChange={(e) => setNewVolunteerForm({ ...newVolunteerForm, email: e.target.value })}
+                      className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={newVolunteerForm.phone}
+                      onChange={(e) => setNewVolunteerForm({ ...newVolunteerForm, phone: e.target.value })}
+                      className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Background check will start as pending. Update status once cleared.</p>
+                </div>
+              ) : (
+              /* Existing User Search */
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">
                   Search User
                 </label>
                 {selectedUser ? (
-                  <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                  <div className="flex items-center justify-between bg-gray-50 border border-brand-secondary rounded-md px-3 py-2">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-brand-primary">
                         {selectedUser.first_name} {selectedUser.last_name}
                       </p>
                       <p className="text-xs text-gray-500">{selectedUser.email}</p>
@@ -660,12 +778,7 @@ export const VolunteerManagement: React.FC = () => {
                       className="text-gray-400 hover:text-gray-600"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
@@ -676,7 +789,7 @@ export const VolunteerManagement: React.FC = () => {
                       placeholder="Type a name or email to search..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                     />
                     {searchingUsers && (
                       <div className="absolute right-3 top-2.5 text-xs text-gray-400">
@@ -684,7 +797,7 @@ export const VolunteerManagement: React.FC = () => {
                       </div>
                     )}
                     {userResults.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-brand-secondary rounded-md shadow-lg max-h-48 overflow-y-auto">
                         {userResults.map((u) => (
                           <button
                             key={u.id}
@@ -695,7 +808,7 @@ export const VolunteerManagement: React.FC = () => {
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
                           >
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-brand-primary">
                               {u.first_name} {u.last_name}
                             </p>
                             <p className="text-xs text-gray-500">{u.email}</p>
@@ -710,7 +823,7 @@ export const VolunteerManagement: React.FC = () => {
               {/* BG Check Status Display */}
               {selectedUser && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm text-brand-primary mb-1">
                     Background Check Status
                   </label>
                   <span
@@ -733,11 +846,11 @@ export const VolunteerManagement: React.FC = () => {
 
               {/* Team */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Team</label>
+                <label className="block text-sm text-brand-primary mb-1">Team</label>
                 <select
                   value={addForm.team_id}
                   onChange={(e) => setAddForm({ ...addForm, team_id: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                 >
                   <option value="">Select a team</option>
                   {teams.map((t) => (
@@ -751,38 +864,38 @@ export const VolunteerManagement: React.FC = () => {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm text-brand-primary mb-1">
                     Start Date
                   </label>
                   <input
                     type="date"
                     value={addForm.start_date}
                     onChange={(e) => setAddForm({ ...addForm, start_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm text-brand-primary mb-1">
                     End Date (optional)
                   </label>
                   <input
                     type="date"
                     value={addForm.end_date}
                     onChange={(e) => setAddForm({ ...addForm, end_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                   />
                 </div>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm text-brand-primary mb-1">Notes</label>
                 <textarea
                   value={addForm.notes}
                   onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
                   rows={3}
                   placeholder="Optional notes about this volunteer assignment..."
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:outline-none focus:border-brand-accent"
                 />
               </div>
             </div>
@@ -793,7 +906,7 @@ export const VolunteerManagement: React.FC = () => {
                   setShowAddModal(false);
                   resetAddForm();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
@@ -801,11 +914,11 @@ export const VolunteerManagement: React.FC = () => {
                 onClick={handleAddSubmit}
                 disabled={
                   addSaving ||
-                  !selectedUser ||
                   !addForm.team_id ||
-                  selectedUser.bg_check_status !== 'cleared'
+                  (addMode === 'existing' && (!selectedUser || selectedUser.bg_check_status !== 'cleared')) ||
+                  (addMode === 'new' && (!newVolunteerForm.first_name || !newVolunteerForm.last_name || !newVolunteerForm.email))
                 }
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 text-sm font-semibold uppercase text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {addSaving ? 'Adding...' : 'Add Volunteer'}
               </button>

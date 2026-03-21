@@ -72,6 +72,96 @@ try {
             echo json_encode(['success' => true, 'volunteers' => $volunteers]);
             break;
 
+        case 'create-volunteer':
+            // POST ?action=create-volunteer
+            // Body: { team_id, first_name, last_name, email, phone?, notes?, start_date?, end_date? }
+            // Creates a new user record and assigns them as a volunteer
+            if ($method !== 'POST') { methodNotAllowed(); }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $teamId = (int)($data['team_id'] ?? 0);
+            $firstName = trim($data['first_name'] ?? '');
+            $lastName = trim($data['last_name'] ?? '');
+            $email = trim($data['email'] ?? '');
+
+            if (!$teamId || !$firstName || !$lastName || !$email) {
+                badRequest('team_id, first_name, last_name, and email are required');
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                badRequest('Invalid email address');
+            }
+
+            requireTeamAccess($auth, $db, $teamId);
+
+            // Get the team's club_id for user_club_access
+            $teamStmt = $db->prepare("SELECT club_id FROM teams WHERE id = ? AND deleted_at IS NULL");
+            $teamStmt->execute([$teamId]);
+            $teamData = $teamStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$teamData) { notFound('Team not found'); }
+            $clubId = $teamData['club_id'];
+
+            $db->beginTransaction();
+            try {
+                // Check if user with this email already exists
+                $existingStmt = $db->prepare("SELECT id FROM users WHERE email = ?");
+                $existingStmt->execute([strtolower($email)]);
+                $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($existing) {
+                    $newUserId = $existing['id'];
+                } else {
+                    // Create new user with minimal info (no password — they can claim the account later)
+                    $createStmt = $db->prepare("INSERT INTO users (first_name, last_name, email, phone, created_at) VALUES (?, ?, ?, ?, NOW()) RETURNING id");
+                    $createStmt->execute([$firstName, $lastName, strtolower($email), $data['phone'] ?? null]);
+                    $newUserId = $createStmt->fetchColumn();
+                }
+
+                // Ensure user_club_access row exists
+                $ucaCheck = $db->prepare("SELECT id FROM user_club_access WHERE user_id = ? AND club_profile_id = ?");
+                $ucaCheck->execute([$newUserId, $clubId]);
+                if (!$ucaCheck->fetch()) {
+                    $ucaStmt = $db->prepare("INSERT INTO user_club_access (user_id, club_profile_id, role, active, granted_at) VALUES (?, ?, 'volunteer', true, NOW())");
+                    $ucaStmt->execute([$newUserId, $clubId]);
+                }
+
+                // Check if already a volunteer on this team
+                $checkStmt = $db->prepare("SELECT id FROM team_volunteers WHERE team_id = ? AND user_id = ?");
+                $checkStmt->execute([$teamId, $newUserId]);
+                if ($checkStmt->fetch()) {
+                    $db->rollBack();
+                    badRequest('This person is already a volunteer on this team');
+                }
+
+                // Create volunteer assignment (bg check starts as pending for new volunteers)
+                $volStmt = $db->prepare("INSERT INTO team_volunteers
+                    (team_id, user_id, volunteer_role, start_date, end_date,
+                     background_check_status, notes, assigned_by, status, self_signup)
+                    VALUES (?, ?, 'volunteer', ?, ?, 'pending', ?, ?, 'active', false)");
+                $volStmt->execute([
+                    $teamId,
+                    $newUserId,
+                    $data['start_date'] ?? date('Y-m-d'),
+                    $data['end_date'] ?? null,
+                    $data['notes'] ?? null,
+                    $userId
+                ]);
+
+                $volId = $db->lastInsertId();
+                $db->commit();
+
+                http_response_code(201);
+                echo json_encode([
+                    'success' => true,
+                    'id' => $volId,
+                    'user_id' => $newUserId,
+                    'message' => $existing ? 'Existing user assigned as volunteer' : 'New volunteer created and assigned'
+                ]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                throw $e;
+            }
+            break;
+
         case 'assign-volunteer':
             // POST ?action=assign-volunteer
             // Body: { team_id, user_id, notes?, start_date?, end_date? }

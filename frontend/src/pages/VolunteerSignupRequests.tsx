@@ -228,9 +228,9 @@ export const VolunteerSignupRequests: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Volunteer Signup Requests</h1>
+          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Signup Requests</h1>
           {!loading && (
-            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-semibold bg-brand-primary/10 text-brand-primary">
               {pendingCount}
             </span>
           )}
@@ -248,7 +248,7 @@ export const VolunteerSignupRequests: React.FC = () => {
             id="team-filter"
             value={selectedTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="block w-full sm:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+            className="block w-full sm:w-64 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
           >
             {isClubAdmin && <option value="">All Teams</option>}
             {!isClubAdmin && !selectedTeamId && <option value="">Select a team</option>}
@@ -269,7 +269,7 @@ export const VolunteerSignupRequests: React.FC = () => {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   statusFilter === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm'
+                    ? 'bg-white text-brand-primary shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -290,14 +290,14 @@ export const VolunteerSignupRequests: React.FC = () => {
       {/* Loading */}
       {loading && (
         <div className="text-center py-12">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent" />
-          <p className="mt-2 text-sm text-gray-500">Loading requests...</p>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-primary border-r-transparent" />
+          <p className="mt-2 text-sm text-brand-primary">Loading requests...</p>
         </div>
       )}
 
       {/* Empty state */}
       {!loading && signups.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="text-center py-16 bg-white rounded-lg shadow-sm border border-brand-secondary">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
             fill="none"
@@ -312,7 +312,7 @@ export const VolunteerSignupRequests: React.FC = () => {
               d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">
+          <h3 className="mt-4 text-lg font-medium text-brand-primary">
             No {statusFilter !== 'all' ? statusFilter : ''} signup requests
           </h3>
           <p className="mt-1 text-sm text-gray-500">
@@ -325,33 +325,33 @@ export const VolunteerSignupRequests: React.FC = () => {
 
       {/* Table */}
       {!loading && signups.length > 0 && (
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white shadow-sm rounded-lg border border-brand-secondary overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Phone
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Team
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Requested
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Notes
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     BG Check
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
@@ -365,7 +365,7 @@ export const VolunteerSignupRequests: React.FC = () => {
                   return (
                     <React.Fragment key={signup.id}>
                       <tr className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-brand-primary">
                           {signup.first_name} {signup.last_name}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
@@ -393,9 +393,9 @@ export const VolunteerSignupRequests: React.FC = () => {
                                 <button
                                   onClick={() => handleApprove(signup.id)}
                                   disabled={!bgCleared || isActioning}
-                                  className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                  className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase transition-colors ${
                                     bgCleared
-                                      ? 'bg-green-600 text-white hover:bg-green-700'
+                                      ? 'bg-brand-primary text-white hover:opacity-90'
                                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                   }`}
                                 >
@@ -415,7 +415,7 @@ export const VolunteerSignupRequests: React.FC = () => {
                                   setRejectNotes('');
                                 }}
                                 disabled={isActioning}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                               >
                                 Reject
                               </button>
@@ -446,12 +446,12 @@ export const VolunteerSignupRequests: React.FC = () => {
                                 value={rejectNotes}
                                 onChange={(e) => setRejectNotes(e.target.value)}
                                 placeholder="Enter a reason for rejection..."
-                                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm"
+                                className="flex-1 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
                               />
                               <button
                                 onClick={() => handleReject(signup.id)}
                                 disabled={isActioning}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                               >
                                 {isActioning ? 'Processing...' : 'Confirm Reject'}
                               </button>
@@ -460,7 +460,7 @@ export const VolunteerSignupRequests: React.FC = () => {
                                   setRejectingId(null);
                                   setRejectNotes('');
                                 }}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                               >
                                 Cancel
                               </button>

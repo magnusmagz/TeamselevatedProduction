@@ -130,8 +130,8 @@ export const ComplianceDashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Loading compliance data...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4" />
+          <p className="text-brand-primary text-sm">Loading compliance data...</p>
         </div>
       </div>
     );
@@ -165,7 +165,7 @@ export const ComplianceDashboard: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page Title */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Volunteer Compliance</h1>
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Compliance</h1>
         <p className="mt-1 text-sm text-gray-500">
           Overall compliance rate:{' '}
           <span className={`text-3xl font-bold ${complianceRateColor(summary.compliance_rate)}`}>
@@ -187,7 +187,7 @@ export const ComplianceDashboard: React.FC = () => {
           </div>
           <Link
             to="/volunteers/requests"
-            className="text-sm font-medium text-blue-700 hover:text-blue-900 underline"
+            className="text-sm font-semibold uppercase rounded-md bg-brand-primary text-white px-4 py-2 hover:opacity-90"
           >
             Review Requests
           </Link>
@@ -226,7 +226,7 @@ export const ComplianceDashboard: React.FC = () => {
         </div>
 
         {/* Never Checked */}
-        <div className="rounded-lg border bg-gray-50 border-gray-200 p-5">
+        <div className="rounded-lg border bg-gray-50 border-brand-secondary p-5">
           <p className="text-sm font-medium text-gray-600">Never Checked</p>
           <p className="text-3xl font-bold mt-1 text-gray-600">{summary.never_checked}</p>
           <p className="text-xs text-gray-500 mt-1">No background check on file</p>
@@ -235,7 +235,7 @@ export const ComplianceDashboard: React.FC = () => {
 
       {/* Needs Attention Section */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Needs Attention</h2>
+        <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide mb-4">Needs Attention</h2>
         {sortedAttention.length === 0 ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
             <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,23 +244,23 @@ export const ComplianceDashboard: React.FC = () => {
             <p className="text-green-800 font-medium">All volunteers are compliant!</p>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-brand-secondary">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BG Check Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Check Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Since Check</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">BG Check Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Last Check Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Days Since Check</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-brand-secondary">
                   {sortedAttention.map(vol => (
                     <tr key={vol.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-primary">
                         {vol.first_name} {vol.last_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{vol.email}</td>
@@ -287,29 +287,29 @@ export const ComplianceDashboard: React.FC = () => {
 
       {/* Per-Team Breakdown */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Per-Team Breakdown</h2>
+        <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide mb-4">Per-Team Breakdown</h2>
         {team_breakdown.length === 0 ? (
           <p className="text-gray-500 text-sm">No team data available.</p>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-brand-secondary">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age Group</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Volunteers</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cleared</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pending</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Expired</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Rate</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Age Group</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Division</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Volunteers</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Cleared</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Pending</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Expired</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Compliance Rate</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-brand-secondary">
                   {team_breakdown.map(team => (
                     <tr key={team.team_id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-primary">
                         {team.team_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{team.age_group}</td>
@@ -320,7 +320,7 @@ export const ComplianceDashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600 font-medium">{team.expired_bg}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex items-center gap-3">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 w-24">
+                          <div className="flex-1 bg-brand-secondary rounded-full h-2 w-24">
                             <div
                               className={`h-2 rounded-full ${complianceRateBg(team.compliance_rate)}`}
                               style={{ width: `${Math.min(team.compliance_rate, 100)}%` }}
