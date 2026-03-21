@@ -155,14 +155,15 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
         method: 'POST',
         headers: headersRef.current,
         body: JSON.stringify({
-          team_id: group.id,
+          team_ids: [group.id],
           club_profile_id: clubProfileId,
+          recipient_types: ['athletes', 'guardians', 'coaches'],
           channel,
         }),
       });
       if (!res.ok) throw new Error('Failed to resolve group');
       const data = await res.json();
-      const resolved: Recipient[] = data.recipients || [];
+      const resolved: Recipient[] = data.recipients || data.results || [];
 
       // Filter out already-selected and suppressed recipients
       const newRecipients = resolved.filter(
