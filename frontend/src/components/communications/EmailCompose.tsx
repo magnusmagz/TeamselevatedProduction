@@ -467,21 +467,13 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
           {composeMode === 'freeform' && !showPreview && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Body</label>
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onInput={(e) => setBodyHtml((e.target as HTMLDivElement).innerHTML)}
-                dangerouslySetInnerHTML={{ __html: bodyHtml }}
-                className="w-full min-h-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none prose prose-sm max-w-none"
-                data-placeholder="Compose your email..."
+              <textarea
+                value={bodyHtml}
+                onChange={(e) => setBodyHtml(e.target.value)}
+                placeholder="Compose your email..."
+                rows={10}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none resize-y"
               />
-              <style>{`
-                [data-placeholder]:empty:before {
-                  content: attr(data-placeholder);
-                  color: #9ca3af;
-                  pointer-events: none;
-                }
-              `}</style>
             </div>
           )}
 
