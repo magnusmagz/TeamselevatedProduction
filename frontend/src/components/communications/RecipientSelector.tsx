@@ -55,6 +55,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groupChips, setGroupChips] = useState<GroupChip[]>([]);
   const [searchGroups, setSearchGroups] = useState<TeamGroup[]>([]);
+  const [groupFilter, setGroupFilter] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -147,6 +148,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
   const handleGroupDropdownToggle = () => {
     if (!showGroupDropdown) {
       fetchGroups();
+      setGroupFilter('');
     }
     setShowGroupDropdown(!showGroupDropdown);
     setShowDropdown(false);
@@ -563,10 +565,18 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
 
       {/* Group selection dropdown */}
       {showGroupDropdown && (
-        <div className="absolute z-50 mt-1 right-0 w-80 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
-          <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100 sticky top-0">
-            Select a Group
+        <div className="absolute z-50 mt-1 right-0 w-80 max-h-96 bg-white border border-gray-200 rounded-lg shadow-lg flex flex-col">
+          <div className="sticky top-0 bg-gray-50 border-b border-gray-100 px-3 py-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select a Group</div>
+            <input
+              type="text"
+              placeholder="Filter groups..."
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-brand-primary focus:border-brand-primary outline-none"
+            />
           </div>
+          <div className="overflow-y-auto flex-1">
           {loadingGroups ? (
             <div className="p-4 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -576,9 +586,9 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
               Loading teams...
             </div>
           ) : teamGroups.length === 0 ? (
-            <div className="p-4 text-center text-sm text-gray-500">No teams found</div>
+            <div className="p-4 text-center text-sm text-gray-500">No groups found</div>
           ) : (
-            teamGroups.map((group) => {
+            teamGroups.filter((g) => !groupFilter || g.name.toLowerCase().includes(groupFilter.toLowerCase())).map((group) => {
               const alreadyAdded = groupChips.some((gc) => gc.group.id === group.id);
               return (
                 <button
@@ -612,6 +622,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
               );
             })
           )}
+          </div>
         </div>
       )}
     </div>
