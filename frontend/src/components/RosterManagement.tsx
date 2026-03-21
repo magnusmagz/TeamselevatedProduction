@@ -39,6 +39,14 @@ function calcAge(dob: string): number {
   return age;
 }
 
+function getAgeQuarter(dob: string): string {
+  const month = new Date(dob).getMonth();
+  if (month <= 2) return 'Q1';
+  if (month <= 5) return 'Q2';
+  if (month <= 8) return 'Q3';
+  return 'Q4';
+}
+
 function formatDOB(dob: string): string {
   const d = new Date(dob);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -86,7 +94,16 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
             )}
             <div>
               <div className="font-bold text-brand-primary text-lg">{athlete.first_name} {athlete.last_name}</div>
-              {age !== null && <div className="text-gray-500 text-sm">Age {age}</div>}
+              {age !== null && (
+                <div className="text-gray-500 text-sm">
+                  Age {age}
+                  {athlete.date_of_birth && (
+                    <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-2 py-0.5 rounded-full">
+                      {getAgeQuarter(athlete.date_of_birth)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -332,7 +349,11 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                     </button>
                     {athlete.date_of_birth && (
                       <div className="text-xs text-gray-500">
-                        Age {calcAge(athlete.date_of_birth)} · {formatDOB(athlete.date_of_birth)}
+                        Age {calcAge(athlete.date_of_birth)}
+                        <span className="ml-1 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
+                          {getAgeQuarter(athlete.date_of_birth)}
+                        </span>
+                        <span className="ml-1">· {formatDOB(athlete.date_of_birth)}</span>
                       </div>
                     )}
                     <div className="text-sm text-gray-600">{athlete.email}</div>
@@ -386,7 +407,11 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                       </button>
                       {athlete.date_of_birth && (
                         <div className="text-xs text-gray-600">
-                          Age {calcAge(athlete.date_of_birth)} · {formatDOB(athlete.date_of_birth)}
+                          Age {calcAge(athlete.date_of_birth)}
+                          <span className="ml-1 text-xs font-semibold bg-white text-brand-primary px-1.5 py-0.5 rounded-full">
+                            {getAgeQuarter(athlete.date_of_birth)}
+                          </span>
+                          <span className="ml-1">· {formatDOB(athlete.date_of_birth)}</span>
                         </div>
                       )}
                       <div className="text-sm text-brand-primary">{athlete.email}</div>
