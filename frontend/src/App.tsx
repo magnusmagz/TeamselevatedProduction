@@ -68,6 +68,11 @@ import { DonationSuccess } from './pages/DonationSuccess';
 import { FundraiserCampaignsList } from './pages/FundraiserCampaignsList';
 import { FundraiserCampaignForm } from './pages/FundraiserCampaignForm';
 import { FundraiserCampaignDashboard } from './pages/FundraiserCampaignDashboard';
+// Tournament Module
+import TournamentList from './modules/tournament/pages/TournamentList';
+import TournamentCreate from './modules/tournament/pages/TournamentCreate';
+import TournamentDetail from './modules/tournament/pages/TournamentDetail';
+import PublicTournament from './modules/tournament/pages/PublicTournament';
 // Communications & Email
 import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
@@ -218,6 +223,7 @@ function AppContent() {
     { to: '/venues', label: 'Facilities' },
     { to: '/sponsors', label: 'Sponsors' },
     { to: '/admin/fundraisers', label: 'Fundraisers' },
+    { to: '/tournaments', label: 'Tournaments' },
     { to: '/communications', label: 'Communications' },
     { to: '/program-management', label: 'Programs' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
@@ -225,6 +231,7 @@ function AppContent() {
     { to: '/dashboard', label: 'My Teams' },
     { to: '/athletes', label: 'Athletes' },
     { to: '/communications', label: 'Communications' },
+    { to: '/tournaments', label: 'Tournaments' },
     { to: '/calendar', label: 'Calendar' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
@@ -337,6 +344,7 @@ function AppContent() {
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/tournament/:slug" element={<PublicTournament />} />
           <Route path="/consent/confirm" element={<ConsentConfirm />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
@@ -426,6 +434,28 @@ function AppContent() {
               <TeamManagement />
             </main> :
             <CoachDashboard />
+          } />
+
+          {/* Tournament routes */}
+          <Route path="/tournaments" element={
+            <ProtectedRoute>
+              <TournamentList />
+            </ProtectedRoute>
+          } />
+          <Route path="/tournaments/create" element={
+            <ProtectedRoute>
+              <TournamentCreate />
+            </ProtectedRoute>
+          } />
+          <Route path="/tournaments/:id" element={
+            <ProtectedRoute>
+              <TournamentDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/tournaments/:id/edit" element={
+            <ProtectedRoute>
+              <TournamentCreate />
+            </ProtectedRoute>
           } />
 
           {/* Communication routes */}
