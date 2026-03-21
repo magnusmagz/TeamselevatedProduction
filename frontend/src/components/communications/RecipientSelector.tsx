@@ -16,11 +16,13 @@ interface Recipient {
 }
 
 interface TeamGroup {
-  id: number;
+  id: number | string;
   name: string;
   age_group?: string;
-  athlete_count: number;
-  guardian_count: number;
+  athlete_count?: number;
+  guardian_count?: number;
+  group_type?: 'team' | 'special';
+  recipient_count?: number;
 }
 
 interface GroupChip {
@@ -154,12 +156,11 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       const res = await fetch(`${API_URL}/api/recipient-search?action=resolve-group`, {
         method: 'POST',
         headers: headersRef.current,
-        body: JSON.stringify({
-          team_ids: [group.id],
-          club_profile_id: clubProfileId,
-          recipient_types: ['athletes', 'guardians', 'coaches'],
-          channel,
-        }),
+        body: JSON.stringify(
+          group.group_type === 'special'
+            ? { special_group: group.id, club_profile_id: clubProfileId, channel }
+            : { team_ids: [group.id], club_profile_id: clubProfileId, recipient_types: ['athletes', 'guardians', 'coaches'], channel }
+        ),
       });
       if (!res.ok) throw new Error('Failed to resolve group');
       const data = await res.json();
@@ -552,8 +553,14 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                     )}
                   </div>
                   <div className="text-xs text-gray-500 text-right">
-                    <div>{group.athlete_count} athletes</div>
-                    <div>{group.guardian_count} parents</div>
+                    {group.group_type === 'special' ? (
+                      <div>{group.recipient_count} recipients</div>
+                    ) : (
+                      <>
+                        <div>{group.athlete_count} athletes</div>
+                        <div>{group.guardian_count} parents</div>
+                      </>
+                    )}
                   </div>
                 </button>
               );
