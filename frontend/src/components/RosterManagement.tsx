@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import AthletePhotoUpload from './AthletePhotoUpload';
 
 interface Team {
   id: number;
@@ -102,13 +103,14 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
         <div className="p-5 flex-1 overflow-y-auto">
           {/* Avatar + Name */}
           <div className="flex items-center gap-4 mb-5">
-            {athlete.photo_url ? (
-              <img src={athlete.photo_url} alt={initials} className="w-16 h-16 rounded-full object-cover border-2 border-brand-secondary" />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-brand-secondary flex items-center justify-center text-brand-primary font-bold text-xl">
-                {initials}
-              </div>
-            )}
+            <AthletePhotoUpload
+              athleteId={athlete.id}
+              currentPhotoUrl={athlete.photo_url || undefined}
+              firstName={athlete.first_name}
+              lastName={athlete.last_name}
+              onPhotoUpdated={() => onUpdate()}
+              size="small"
+            />
             <div>
               <div className="font-bold text-brand-primary text-lg">{athlete.first_name} {athlete.last_name}</div>
               {age !== null && (

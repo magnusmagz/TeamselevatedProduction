@@ -6,6 +6,7 @@ import EmailCompose from './communications/EmailCompose';
 import SmsCompose from './communications/SmsCompose';
 import AthleteForm from './AthleteForm';
 import PlayerCard from './PlayerCard';
+import AthletePhotoUpload from './AthletePhotoUpload';
 
 interface Guardian {
   id: number;
@@ -84,6 +85,7 @@ interface Athlete {
   state: string;
   zip_code: string;
   country: string;
+  photo_url?: string;
   active_status: number;
   guardians: Guardian[];
 }
@@ -248,9 +250,19 @@ const AthleteProfileEnhanced: React.FC = () => {
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
-            {athlete.preferred_name || athlete.first_name} {athlete.last_name}
-          </h1>
+          <div className="flex items-center gap-5">
+            <AthletePhotoUpload
+              athleteId={athlete.id}
+              currentPhotoUrl={athlete.photo_url}
+              firstName={athlete.first_name}
+              lastName={athlete.last_name}
+              onPhotoUpdated={(newUrl) => setAthlete(prev => prev ? { ...prev, photo_url: newUrl } : prev)}
+              size="large"
+            />
+            <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
+              {athlete.preferred_name || athlete.first_name} {athlete.last_name}
+            </h1>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={() => setShowPlayerCard(true)}
