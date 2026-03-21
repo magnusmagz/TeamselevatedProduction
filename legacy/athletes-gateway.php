@@ -225,7 +225,8 @@ try {
                     'home_address_line2' => 'home_address_line2',
                     'city' => 'city',
                     'state' => 'state',
-                    'zip_code' => 'zip_code'
+                    'zip_code' => 'zip_code',
+                    'photo_url' => 'photo_url'
                 ];
 
                 foreach ($athlete_mapping as $input_key => $db_field) {
