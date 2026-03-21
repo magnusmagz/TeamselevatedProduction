@@ -54,6 +54,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
   const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groupChips, setGroupChips] = useState<GroupChip[]>([]);
+  const [searchGroups, setSearchGroups] = useState<TeamGroup[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -102,6 +103,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
           setSearchResults(data.results || data.recipients || []);
+          setSearchGroups(data.groups || []);
           setShowDropdown(true);
           setHighlightedIndex(-1);
         } catch (err) {
@@ -427,11 +429,55 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       )}
 
       {/* Search results dropdown */}
-      {showDropdown && flatResults.length > 0 && (
+      {showDropdown && (flatResults.length > 0 || searchGroups.length > 0) && (
         <div
           ref={dropdownRef}
           className="absolute z-50 mt-1 w-full max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg"
         >
+          {/* Matching groups/teams */}
+          {searchGroups.length > 0 && (
+            <div>
+              <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100 sticky top-0">
+                Groups
+              </div>
+              {searchGroups.map((group) => {
+                const alreadyAdded = groupChips.some((gc) => gc.group.id === group.id);
+                return (
+                  <button
+                    key={`group-${group.id}`}
+                    type="button"
+                    disabled={alreadyAdded}
+                    onClick={() => {
+                      handleGroupSelect(group);
+                      setShowDropdown(false);
+                      setQuery('');
+                      setSearchGroups([]);
+                      setSearchResults([]);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${
+                      alreadyAdded ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-xs font-semibold text-brand-primary flex-shrink-0">
+                        {group.group_type === 'special' ? 'All' : group.name.substring(0, 2)}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{group.name}</div>
+                        {group.age_group && <div className="text-xs text-gray-500">{group.age_group}</div>}
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {group.group_type === 'special'
+                        ? 'Group'
+                        : `${group.athlete_count || 0} athletes, ${group.guardian_count || 0} parents`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {groupOrder.map((type) => {
             const items = groupedResults[type];
             if (!items || items.length === 0) return null;
@@ -509,7 +555,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       )}
 
       {/* No results state */}
-      {showDropdown && flatResults.length === 0 && !isSearching && query.trim().length >= 2 && (
+      {showDropdown && flatResults.length === 0 && searchGroups.length === 0 && !isSearching && query.trim().length >= 2 && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-sm text-gray-500">
           No contacts found matching "{query}"
         </div>
