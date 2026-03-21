@@ -4,6 +4,7 @@ import { useOrg } from '../contexts/OrgContext';
 import CommunicationHistory from './communications/CommunicationHistory';
 import EmailCompose from './communications/EmailCompose';
 import SmsCompose from './communications/SmsCompose';
+import AthleteForm from './AthleteForm';
 
 interface Guardian {
   id: number;
@@ -100,6 +101,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [showSmsCompose, setShowSmsCompose] = useState(false);
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   const SOCCER_POSITIONS = [
     'Goalkeeper', 'Center Back', 'Left Back', 'Right Back',
@@ -243,9 +245,17 @@ const AthleteProfileEnhanced: React.FC = () => {
             ← Back to Athletes
           </button>
         </div>
-        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
-          {athlete.preferred_name || athlete.first_name} {athlete.last_name}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
+            {athlete.preferred_name || athlete.first_name} {athlete.last_name}
+          </h1>
+          <button
+            onClick={() => setShowEditForm(true)}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+          >
+            Edit Profile
+          </button>
+        </div>
       </div>
 
       {/* Team Selector */}
@@ -770,6 +780,46 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
 
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setShowEditForm(false)} />
+          <div className="relative min-h-screen flex items-start justify-center py-8 px-4">
+            <div className="relative bg-white rounded-md shadow-xl w-full max-w-3xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-brand-secondary">
+                <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">Edit Athlete</h2>
+                <button
+                  onClick={() => setShowEditForm(false)}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-6">
+                <AthleteForm
+                  athlete={{
+                    id: athlete.id,
+                    first_name: athlete.first_name,
+                    last_name: athlete.last_name,
+                    preferred_name: athlete.preferred_name,
+                    date_of_birth: athlete.date_of_birth,
+                    gender: athlete.gender,
+                    school_name: athlete.school_name,
+                    grade_level: athlete.grade_level ? Number(athlete.grade_level) : undefined,
+                    email: athlete.email,
+                  }}
+                  onSubmit={() => {
+                    setShowEditForm(false);
+                    window.location.reload();
+                  }}
+                  onClose={() => setShowEditForm(false)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Compose Modals */}
       {showEmailCompose && (
