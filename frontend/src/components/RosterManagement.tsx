@@ -8,6 +8,7 @@ interface Team {
 
 interface Athlete {
   id: number;
+  team_member_id?: number;
   first_name: string;
   last_name: string;
   email: string;
@@ -17,6 +18,9 @@ interface Athlete {
   school_name?: string;
   grade_level?: number;
   photo_url?: string;
+  primary_position?: string;
+  positions?: string[];
+  jersey_number?: number;
 }
 
 interface GuardianInfo {
@@ -59,7 +63,13 @@ function formatDOB(dob: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: string }> = ({ athlete, onClose, apiUrl }) => {
+const SOCCER_POSITIONS = [
+  'Goalkeeper', 'Center Back', 'Left Back', 'Right Back',
+  'Defensive Midfielder', 'Central Midfielder', 'Attacking Midfielder',
+  'Left Wing', 'Right Wing', 'Striker', 'Forward'
+];
+
+const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: string; teamId: number; onUpdate: () => void }> = ({ athlete, onClose, apiUrl, teamId, onUpdate }) => {
   const [guardian, setGuardian] = useState<GuardianInfo | null>(null);
 
   useEffect(() => {
@@ -152,6 +162,71 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
               </div>
             )}
 
+            {/* Position & Jersey */}
+            <div className="mt-4">
+              <div className="text-gray-500 font-medium uppercase text-xs mb-2">Position & Jersey</div>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Primary Position</label>
+                  <select
+                    value={athlete.primary_position || ''}
+                    onChange={async (e) => {
+                      const pos = e.target.value;
+                      const token = localStorage.getItem('auth_token');
+                      try {
+                        await fetch(`${apiUrl}/legacy/team-players-gateway.php`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({
+                            team_member_id: athlete.team_member_id,
+                            primary_position: pos,
+                            positions: pos ? [pos] : [],
+                          }),
+                        });
+                        onUpdate();
+                      } catch (err) {
+                        console.error('Failed to update position:', err);
+                      }
+                    }}
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+                  >
+                    <option value="">Select position...</option>
+                    {SOCCER_POSITIONS.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Jersey Number</label>
+                  <input
+                    type="number"
+                    value={athlete.jersey_number || ''}
+                    onChange={async (e) => {
+                      const num = e.target.value ? parseInt(e.target.value) : null;
+                      const token = localStorage.getItem('auth_token');
+                      try {
+                        await fetch(`${apiUrl}/legacy/team-players-gateway.php`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({
+                            team_member_id: athlete.team_member_id,
+                            jersey_number: num,
+                          }),
+                        });
+                        onUpdate();
+                      } catch (err) {
+                        console.error('Failed to update jersey:', err);
+                      }
+                    }}
+                    placeholder="#"
+                    min="0"
+                    max="99"
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Guardian */}
             {guardian && (
               <div className="mt-4">
@@ -199,6 +274,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       if (data.success && data.team_members) {
         const athletes = data.team_members.map((tm: any) => ({
           id: tm.athlete_id,
+          team_member_id: tm.id,
           first_name: tm.first_name,
           last_name: tm.last_name,
           email: tm.email || '',
@@ -208,6 +284,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           school_name: tm.school_name || null,
           grade_level: tm.grade_level || null,
           photo_url: tm.photo_url || null,
+          primary_position: tm.primary_position || null,
+          positions: tm.positions ? (typeof tm.positions === 'string' ? JSON.parse(tm.positions) : tm.positions) : [],
+          jersey_number: tm.jersey_number || null,
         }));
         setRoster(athletes);
       }
@@ -325,6 +404,8 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           athlete={selectedAthlete}
           onClose={() => setSelectedAthlete(null)}
           apiUrl={API_URL}
+          teamId={team.id}
+          onUpdate={fetchRoster}
         />
       )}
 
@@ -430,6 +511,12 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                             {getUGroup(athlete.date_of_birth)}
                           </span>
                           <span className="ml-1">· {formatDOB(athlete.date_of_birth)}</span>
+                        </div>
+                      )}
+                      {athlete.primary_position && (
+                        <div className="text-xs text-gray-600">
+                          {athlete.primary_position}
+                          {athlete.jersey_number && <span className="ml-1">· #{athlete.jersey_number}</span>}
                         </div>
                       )}
                       <div className="text-sm text-brand-primary">{athlete.email}</div>
