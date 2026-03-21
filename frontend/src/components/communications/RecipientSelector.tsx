@@ -565,7 +565,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       {showGroupDropdown && (
         <div className="absolute z-50 mt-1 right-0 w-80 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
           <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100 sticky top-0">
-            Select a Team
+            Select a Group
           </div>
           {loadingGroups ? (
             <div className="p-4 text-center text-sm text-gray-500 flex items-center justify-center gap-2">

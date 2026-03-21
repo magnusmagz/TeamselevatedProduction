@@ -13,6 +13,7 @@ interface Recipient {
   phone?: string;
   team_name?: string;
   athlete_name?: string;
+  athlete_id?: number;
   suppressed: boolean;
   suppression_reason?: string;
 }
