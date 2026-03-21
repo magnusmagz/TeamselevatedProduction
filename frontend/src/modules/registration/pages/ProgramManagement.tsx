@@ -35,10 +35,19 @@ const ProgramManagement: React.FC = () => {
   }, []);
 
   const fetchPrograms = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=1`);
+      if (!response.ok) {
+        console.error('Failed to fetch programs:', response.status);
+        return;
+      }
       const data = await response.json();
-      setPrograms(data);
+      if (Array.isArray(data)) {
+        setPrograms(data);
+      } else {
+        console.error('Unexpected programs response:', data);
+      }
     } catch (error) {
       console.error('Error fetching programs:', error);
     } finally {
