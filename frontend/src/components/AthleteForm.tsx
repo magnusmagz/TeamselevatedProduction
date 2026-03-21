@@ -145,8 +145,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         medical: athlete.medical || formData.medical
       });
 
-      // Fetch medical data if editing existing athlete
+      // Skip consent for editing existing athletes
       if (athlete.id) {
+        setConsentDataCollection(true);
+        setConsentMedicalData(true);
         fetchMedicalData(athlete.id);
       }
     }

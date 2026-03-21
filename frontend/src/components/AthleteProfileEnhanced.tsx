@@ -799,15 +799,8 @@ const AthleteProfileEnhanced: React.FC = () => {
               <div className="p-6">
                 <AthleteForm
                   athlete={{
-                    id: athlete.id,
-                    first_name: athlete.first_name,
-                    last_name: athlete.last_name,
-                    preferred_name: athlete.preferred_name,
-                    date_of_birth: athlete.date_of_birth,
-                    gender: athlete.gender,
-                    school_name: athlete.school_name,
-                    grade_level: athlete.grade_level ? Number(athlete.grade_level) : undefined,
-                    email: athlete.email,
+                    ...athlete,
+                    guardians: athlete.guardians,
                   }}
                   onSubmit={() => {
                     setShowEditForm(false);

@@ -25,6 +25,117 @@ interface RosterMember {
   role: string;
 }
 
+interface Volunteer {
+  id: number;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  background_check_status: string;
+  status: string;
+  start_date: string | null;
+}
+
+const bgBadge = (status: string) => {
+  const colors: Record<string, string> = {
+    cleared: 'bg-green-100 text-green-800',
+    pending: 'bg-yellow-100 text-yellow-800',
+    expired: 'bg-red-100 text-red-800',
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>
+      {status || 'none'}
+    </span>
+  );
+};
+
+const TeamVolunteersSection: React.FC<{ teamId: number }> = ({ teamId }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const [volunteers, setVolunteers] = React.useState<Volunteer[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!teamId) return;
+    const token = localStorage.getItem('auth_token');
+    fetch(`${API_URL}/api/volunteer-gateway.php?action=team-volunteers&team_id=${teamId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setVolunteers(data.volunteers || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [teamId, API_URL]);
+
+  const handleRemove = async (volunteerId: number) => {
+    if (!window.confirm('Remove this volunteer from the team?')) return;
+    const token = localStorage.getItem('auth_token');
+    const res = await fetch(`${API_URL}/api/volunteer-gateway.php?action=remove-volunteer&volunteer_id=${volunteerId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      setVolunteers(prev => prev.filter(v => v.id !== volunteerId));
+    }
+  };
+
+  return (
+    <div className="bg-white border border-brand-secondary rounded-lg mt-6">
+      <div className="px-6 py-4 border-b border-brand-secondary flex justify-between items-center">
+        <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">
+          Volunteers ({volunteers.length})
+        </h2>
+        <Link
+          to="/volunteers"
+          className="text-sm text-brand-primary hover:underline uppercase font-medium"
+        >
+          Manage Volunteers
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="p-8 text-center text-gray-400">Loading volunteers...</div>
+      ) : volunteers.length === 0 ? (
+        <div className="p-12 text-center">
+          <div className="text-gray-400 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </div>
+          <p className="text-gray-500">No volunteers assigned to this team</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {volunteers.map((vol) => (
+            <div key={vol.id} className="px-6 py-4 flex items-center hover:bg-gray-50">
+              <div className="w-10 h-10 rounded-full bg-brand-secondary flex items-center justify-center mr-4">
+                <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-brand-primary">
+                  {vol.first_name} {vol.last_name}
+                </div>
+                <div className="text-sm text-gray-500">{vol.email}</div>
+              </div>
+              <div className="mr-4">{bgBadge(vol.background_check_status)}</div>
+              <button
+                onClick={() => handleRemove(vol.id)}
+                className="text-red-500 hover:text-red-700 text-sm font-medium"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const TeamDetailPage: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
@@ -422,6 +533,9 @@ export const TeamDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Volunteers Section */}
+      <TeamVolunteersSection teamId={parseInt(teamId || '0')} />
 
       {/* Edit Team Modal */}
       {showEditModal && (

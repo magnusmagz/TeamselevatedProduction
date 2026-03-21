@@ -78,6 +78,10 @@ import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
+// Volunteer Management
+import VolunteerManagement from './pages/VolunteerManagement';
+import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
+import ComplianceDashboard from './pages/ComplianceDashboard';
 // Parent Portal
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
@@ -96,6 +100,7 @@ import { AnnouncementsPage } from './parent-portal/pages/AnnouncementsPage';
 import { DocumentsPage } from './parent-portal/pages/DocumentsPage';
 import { MedicalInfoPage } from './parent-portal/pages/MedicalInfoPage';
 import { MoreMenuPage } from './parent-portal/pages/MoreMenuPage';
+import { VolunteerPage } from './parent-portal/pages/VolunteerPage';
 
 // Fundraiser Admin Wrapper Component
 const FundraiserAdminWrapper: React.FC<{ children: (props: { clubId: number; clubSlug: string; userId: number }) => React.ReactNode }> = ({ children }) => {
@@ -225,12 +230,14 @@ function AppContent() {
     { to: '/admin/fundraisers', label: 'Fundraisers' },
     { to: '/tournaments', label: 'Tournaments' },
     { to: '/communications', label: 'Communications' },
+    { to: '/volunteers', label: 'Volunteers' },
     { to: '/program-management', label: 'Programs' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
     { to: '/dashboard', label: 'My Teams' },
     { to: '/athletes', label: 'Athletes' },
     { to: '/communications', label: 'Communications' },
+    { to: '/volunteers', label: 'Volunteers' },
     { to: '/tournaments', label: 'Tournaments' },
     { to: '/calendar', label: 'Calendar' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
@@ -458,6 +465,23 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
+          {/* Volunteer Management routes */}
+          <Route path="/volunteers" element={
+            <ProtectedRoute>
+              <VolunteerManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/volunteers/requests" element={
+            <ProtectedRoute>
+              <VolunteerSignupRequests />
+            </ProtectedRoute>
+          } />
+          <Route path="/volunteers/compliance" element={
+            <ProtectedRoute>
+              <ComplianceDashboard />
+            </ProtectedRoute>
+          } />
+
           {/* Communication routes */}
           <Route path="/communications" element={
             <ProtectedRoute>
@@ -637,6 +661,7 @@ function AppContent() {
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="documents/:id" element={<DocumentsPage />} />
             <Route path="medical/:id" element={<MedicalInfoPage />} />
+            <Route path="volunteer" element={<VolunteerPage />} />
             <Route path="more" element={<MoreMenuPage />} />
           </Route>
         </Routes>

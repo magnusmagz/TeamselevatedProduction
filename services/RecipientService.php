@@ -297,6 +297,90 @@ class RecipientService {
     }
 
     /**
+     * Get volunteer recipients for specified teams
+     */
+    public function getVolunteerRecipients($teamIds) {
+        $recipients = [];
+        if (empty($teamIds)) return $recipients;
+
+        $placeholders = str_repeat('?,', count($teamIds) - 1) . '?';
+
+        $stmt = $this->pdo->prepare("
+            SELECT DISTINCT
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone as mobile_phone,
+                tv.team_id
+            FROM team_volunteers tv
+            JOIN users u ON tv.user_id = u.id
+            WHERE tv.team_id IN ($placeholders)
+                AND tv.status = 'active'
+                AND u.email IS NOT NULL
+        ");
+        $stmt->execute($teamIds);
+        $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($volunteers as $volunteer) {
+            if (!empty($volunteer['email']) && filter_var($volunteer['email'], FILTER_VALIDATE_EMAIL)) {
+                $recipients[] = [
+                    'email' => $volunteer['email'],
+                    'name' => $volunteer['first_name'] . ' ' . $volunteer['last_name'],
+                    'type' => 'volunteer',
+                    'id' => $volunteer['id'],
+                    'mobile_phone' => $volunteer['mobile_phone'],
+                    'team_id' => $volunteer['team_id']
+                ];
+            }
+        }
+
+        return $this->removeDuplicates($recipients);
+    }
+
+    /**
+     * Get all volunteer recipients across a club
+     */
+    public function getVolunteersByClub($clubId) {
+        $stmt = $this->pdo->prepare("
+            SELECT DISTINCT
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone as mobile_phone,
+                tv.team_id,
+                t.name as team_name
+            FROM team_volunteers tv
+            JOIN users u ON tv.user_id = u.id
+            JOIN teams t ON tv.team_id = t.id
+            WHERE t.club_id = ?
+                AND tv.status = 'active'
+                AND t.deleted_at IS NULL
+                AND u.email IS NOT NULL
+        ");
+        $stmt->execute([$clubId]);
+        $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $recipients = [];
+        foreach ($volunteers as $volunteer) {
+            if (!empty($volunteer['email']) && filter_var($volunteer['email'], FILTER_VALIDATE_EMAIL)) {
+                $recipients[] = [
+                    'email' => $volunteer['email'],
+                    'name' => $volunteer['first_name'] . ' ' . $volunteer['last_name'],
+                    'type' => 'volunteer',
+                    'id' => $volunteer['id'],
+                    'mobile_phone' => $volunteer['mobile_phone'],
+                    'team_id' => $volunteer['team_id'],
+                    'team_name' => $volunteer['team_name']
+                ];
+            }
+        }
+
+        return $this->removeDuplicates($recipients);
+    }
+
+    /**
      * Check if a recipient has opted out of invites
      */
     public function hasOptedOut($email) {
