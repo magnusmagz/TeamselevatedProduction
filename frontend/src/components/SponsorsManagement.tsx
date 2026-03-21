@@ -189,7 +189,7 @@ const SponsorsManagement: React.FC = () => {
 
   if (!currentClubId) {
     return (
-      <div className="text-center text-forest-800 py-12">
+      <div className="text-center text-brand-primary py-12">
         Please select a club to manage sponsors.
       </div>
     );
@@ -199,7 +199,7 @@ const SponsorsManagement: React.FC = () => {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-forest-800 uppercase tracking-wide">SPONSOR MANAGEMENT</h1>
+        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">SPONSOR MANAGEMENT</h1>
         <p className="text-gray-600 mt-2">Manage your club's sponsors and promotional links</p>
       </div>
 
@@ -212,23 +212,23 @@ const SponsorsManagement: React.FC = () => {
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="border border-forest-200 rounded"
+              className="border border-brand-secondary rounded"
             />
             <span className="text-gray-600">Show inactive</span>
           </label>
         </div>
         <button
           onClick={handleAddSponsor}
-          className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-3 hover:bg-forest-700 uppercase font-semibold"
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
         >
           + Add Sponsor
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center text-forest-800 py-12">Loading sponsors...</div>
+        <div className="text-center text-brand-primary py-12">Loading sponsors...</div>
       ) : sponsors.length === 0 ? (
-        <div className="border border-forest-200 rounded-md p-12 text-center bg-white">
+        <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
           <p className="text-gray-600 text-lg">No sponsors yet.</p>
           <p className="text-gray-500 mt-2">Click "Add Sponsor" to add your first sponsor.</p>
         </div>
@@ -237,12 +237,12 @@ const SponsorsManagement: React.FC = () => {
           {sponsors.map((sponsor) => (
             <div
               key={sponsor.id}
-              className={`border border-forest-200 rounded-md bg-white overflow-hidden ${
+              className={`border border-brand-secondary rounded-md bg-white overflow-hidden ${
                 !sponsor.is_active ? 'opacity-60' : ''
               }`}
             >
               {/* Logo Section */}
-              <div className="h-32 bg-gray-50 flex items-center justify-center border-b border-forest-200">
+              <div className="h-32 bg-gray-50 flex items-center justify-center border-b border-brand-secondary">
                 {sponsor.logo_data ? (
                   <img
                     src={sponsor.logo_data}
@@ -259,7 +259,7 @@ const SponsorsManagement: React.FC = () => {
               {/* Content Section */}
               <div className="p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-semibold text-forest-800">{sponsor.name}</h3>
+                  <h3 className="text-lg font-semibold text-brand-primary">{sponsor.name}</h3>
                   {!sponsor.is_active && (
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded uppercase">
                       Inactive
@@ -272,7 +272,7 @@ const SponsorsManagement: React.FC = () => {
                     href={sponsor.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-forest-600 hover:text-forest-800 text-sm block mb-2 truncate"
+                    className="text-brand-primary hover:text-brand-primary text-sm block mb-2 truncate"
                   >
                     {sponsor.website}
                   </a>
@@ -291,7 +291,7 @@ const SponsorsManagement: React.FC = () => {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs bg-forest-100 text-forest-800 px-2 py-1 rounded hover:bg-forest-200"
+                        className="text-xs bg-brand-secondary text-brand-primary px-2 py-1 rounded hover:bg-brand-secondary"
                       >
                         {link.label}
                       </a>
@@ -300,10 +300,10 @@ const SponsorsManagement: React.FC = () => {
                 )}
 
                 {/* Actions */}
-                <div className="mt-4 pt-3 border-t border-forest-100 flex justify-end space-x-3">
+                <div className="mt-4 pt-3 border-t border-brand-secondary flex justify-end space-x-3">
                   <button
                     onClick={() => handleEditSponsor(sponsor)}
-                    className="text-forest-800 hover:text-forest-600 uppercase text-xs font-semibold"
+                    className="text-brand-primary hover:text-brand-primary uppercase text-xs font-semibold"
                   >
                     Edit
                   </button>
@@ -323,14 +323,14 @@ const SponsorsManagement: React.FC = () => {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-forest-200 rounded-md w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-forest-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-forest-800 uppercase tracking-wide">
+          <div className="bg-white border border-brand-secondary rounded-md w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 {selectedSponsor ? 'Edit Sponsor' : 'Add Sponsor'}
               </h3>
               <button
                 onClick={() => setShowForm(false)}
-                className="text-forest-800 hover:bg-gray-100 px-2 text-2xl"
+                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
               >
                 ×
               </button>
@@ -340,15 +340,15 @@ const SponsorsManagement: React.FC = () => {
               <div className="space-y-6">
                 {/* Basic Information */}
                 <div>
-                  <h4 className="text-forest-800 font-semibold mb-4 uppercase">Basic Information</h4>
+                  <h4 className="text-brand-primary font-semibold mb-4 uppercase">Basic Information</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Sponsor Name *
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
@@ -356,12 +356,12 @@ const SponsorsManagement: React.FC = () => {
                     </div>
 
                     <div className="col-span-2">
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Website
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                         value={formData.website || ''}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                         onBlur={() => handleUrlBlur('website')}
@@ -375,9 +375,9 @@ const SponsorsManagement: React.FC = () => {
                           type="checkbox"
                           checked={formData.is_active ?? true}
                           onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                          className="border border-forest-200 rounded"
+                          className="border border-brand-secondary rounded"
                         />
-                        <span className="text-forest-800 text-sm">Active (visible on public pages)</span>
+                        <span className="text-brand-primary text-sm">Active (visible on public pages)</span>
                       </label>
                     </div>
                   </div>
@@ -385,39 +385,39 @@ const SponsorsManagement: React.FC = () => {
 
                 {/* Contact Information */}
                 <div>
-                  <h4 className="text-forest-800 font-semibold mb-4 uppercase">Contact Information</h4>
+                  <h4 className="text-brand-primary font-semibold mb-4 uppercase">Contact Information</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Contact Name
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                         value={formData.contact_name || ''}
                         onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Contact Email
                       </label>
                       <input
                         type="email"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                         value={formData.contact_email || ''}
                         onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-forest-800 text-sm font-medium mb-2 uppercase">
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Contact Phone
                       </label>
                       <input
                         type="tel"
-                        className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                         value={formData.contact_phone || ''}
                         onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
                       />
@@ -427,8 +427,8 @@ const SponsorsManagement: React.FC = () => {
 
                 {/* Logo Upload */}
                 <div>
-                  <h4 className="text-forest-800 font-semibold mb-4 uppercase">Logo</h4>
-                  <div className="border border-forest-200 rounded-md p-4">
+                  <h4 className="text-brand-primary font-semibold mb-4 uppercase">Logo</h4>
+                  <div className="border border-brand-secondary rounded-md p-4">
                     {formData.logo_data ? (
                       <div className="flex items-center space-x-4">
                         <img
@@ -453,7 +453,7 @@ const SponsorsManagement: React.FC = () => {
                           type="file"
                           accept="image/*"
                           onChange={handleLogoUpload}
-                          className="w-full text-forest-800"
+                          className="w-full text-brand-primary"
                         />
                         <p className="text-gray-500 text-xs mt-2">Max file size: 2MB. Recommended: PNG or JPG.</p>
                       </div>
@@ -463,29 +463,29 @@ const SponsorsManagement: React.FC = () => {
 
                 {/* Promotional Links */}
                 <div>
-                  <h4 className="text-forest-800 font-semibold mb-4 uppercase">Promotional Links</h4>
+                  <h4 className="text-brand-primary font-semibold mb-4 uppercase">Promotional Links</h4>
                   <div className="space-y-4">
                     {/* Link 1 */}
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 1 Label
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_1_label || ''}
                           onChange={(e) => setFormData({ ...formData, link_1_label: e.target.value })}
                           placeholder="e.g., Shop Now"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 1 URL
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_1_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_1_url: e.target.value })}
                           onBlur={() => handleUrlBlur('link_1_url')}
@@ -497,24 +497,24 @@ const SponsorsManagement: React.FC = () => {
                     {/* Link 2 */}
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 2 Label
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_2_label || ''}
                           onChange={(e) => setFormData({ ...formData, link_2_label: e.target.value })}
                           placeholder="e.g., Team Discounts"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 2 URL
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_2_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_2_url: e.target.value })}
                           onBlur={() => handleUrlBlur('link_2_url')}
@@ -526,24 +526,24 @@ const SponsorsManagement: React.FC = () => {
                     {/* Link 3 */}
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 3 Label
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_3_label || ''}
                           onChange={(e) => setFormData({ ...formData, link_3_label: e.target.value })}
                           placeholder="e.g., Contact Us"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-forest-800 text-sm font-medium mb-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2">
                           Link 3 URL
                         </label>
                         <input
                           type="text"
-                          className="w-full bg-white text-forest-800 border border-forest-200 rounded-md px-4 py-2 focus:outline-none focus:border-forest-600"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-primary"
                           value={formData.link_3_url || ''}
                           onChange={(e) => setFormData({ ...formData, link_3_url: e.target.value })}
                           onBlur={() => handleUrlBlur('link_3_url')}
@@ -560,14 +560,14 @@ const SponsorsManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="bg-white text-forest-800 border border-forest-200 rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+                  className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-forest-800 text-white border border-forest-200 rounded-md px-6 py-2 hover:bg-forest-700 font-semibold uppercase disabled:opacity-50"
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : selectedSponsor ? 'Update Sponsor' : 'Add Sponsor'}
                 </button>

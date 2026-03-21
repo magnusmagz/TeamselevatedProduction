@@ -149,6 +149,15 @@ const AthleteProfileEnhanced: React.FC = () => {
     return age;
   };
 
+  const getAgeQuarter = (dob: string): string | null => {
+    if (!dob) return null;
+    const month = new Date(dob).getMonth(); // 0-11
+    if (month <= 2) return 'Q1';
+    if (month <= 5) return 'Q2';
+    if (month <= 8) return 'Q3';
+    return 'Q4';
+  };
+
   const formatPhoneForDisplay = (phone: string) => {
     return phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
   };
@@ -244,6 +253,11 @@ const AthleteProfileEnhanced: React.FC = () => {
             <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Age</div>
             <div className="text-2xl font-bold">
               {calculateAge(athlete.date_of_birth)}
+              {athlete.date_of_birth && (
+                <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-2 py-0.5 rounded-full align-middle">
+                  {getAgeQuarter(athlete.date_of_birth)}
+                </span>
+              )}
             </div>
           </div>
           <div>

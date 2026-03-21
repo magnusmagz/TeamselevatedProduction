@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
@@ -19,6 +19,16 @@ const ProgramManagement: React.FC = () => {
   const [showTryoutWizard, setShowTryoutWizard] = useState(false);
   const [editingTryout, setEditingTryout] = useState<Program | null>(null);
   const [manageTryoutProgram, setManageTryoutProgram] = useState<Program | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  const filteredPrograms = useMemo(() => {
+    return programs.filter((program) => {
+      if (statusFilter !== 'all' && program.status !== statusFilter) return false;
+      if (typeFilter !== 'all' && program.type !== typeFilter) return false;
+      return true;
+    });
+  }, [programs, statusFilter, typeFilter]);
 
   useEffect(() => {
     fetchPrograms();
@@ -95,8 +105,30 @@ const ProgramManagement: React.FC = () => {
 
         {/* Action Bar */}
         <div className="mb-6 flex justify-between items-center">
-          <div className="text-gray-600">
-            {programs.length} program{programs.length !== 1 ? 's' : ''}
+          <div className="flex gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+            >
+              <option value="all">All Statuses</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="closed">Closed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+            >
+              <option value="all">All Types</option>
+              <option value="camp">Camp</option>
+              <option value="clinic">Clinic</option>
+              <option value="tryout">Tryout</option>
+              <option value="league">League</option>
+              <option value="tournament">Tournament</option>
+            </select>
           </div>
           <div className="flex space-x-3">
             <button
@@ -117,7 +149,7 @@ const ProgramManagement: React.FC = () => {
         {/* Programs List */}
         {loading ? (
           <div className="text-center py-12 text-brand-primary">Loading programs...</div>
-        ) : programs.length === 0 ? (
+        ) : filteredPrograms.length === 0 ? (
           <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
             <p className="text-gray-600 text-lg">No programs yet.</p>
             <p className="text-gray-500 mt-2">Create your first program to start accepting registrations.</p>
@@ -150,7 +182,7 @@ const ProgramManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {programs.map((program) => (
+                  {filteredPrograms.map((program) => (
                     <tr key={program.id} className="border-b border-gray-300 hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="text-brand-primary font-medium">{program.name}</div>
@@ -253,7 +285,7 @@ const ProgramManagement: React.FC = () => {
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
-              {programs.map((program) => (
+              {filteredPrograms.map((program) => (
                 <div key={program.id} className="border border-brand-secondary rounded-md bg-white p-4">
                   {/* Program Header */}
                   <div className="mb-3">
