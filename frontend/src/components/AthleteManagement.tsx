@@ -471,7 +471,17 @@ const AthleteListContent: React.FC<{
                     <div className="text-sm text-brand-primary">
                       {athlete.date_of_birth ? (() => {
                         const age = calculateAge(athlete.date_of_birth);
-                        return age !== null ? `${age} years` : 'Invalid date';
+                        if (age === null) return 'Invalid date';
+                        const month = new Date(athlete.date_of_birth).getMonth();
+                        const quarter = month <= 2 ? 'Q1' : month <= 5 ? 'Q2' : month <= 8 ? 'Q3' : 'Q4';
+                        return (
+                          <>
+                            {age} years
+                            <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
+                              {quarter}
+                            </span>
+                          </>
+                        );
                       })() : 'Not set'}
                     </div>
                     <div className="text-xs text-gray-500">
