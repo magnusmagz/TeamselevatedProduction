@@ -17,6 +17,7 @@ interface User {
   id: number;
   email: string;
   name: string;
+  phone?: string;
   system_role?: 'super_admin' | 'user';
   organization?: Organization;
   roles?: RoleContext[];

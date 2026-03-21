@@ -85,6 +85,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Send state
+  const [sendCopyToSelf, setSendCopyToSelf] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
   const [sendError, setSendError] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -249,13 +250,24 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
         body: JSON.stringify({
           club_profile_id: clubProfileId,
           channel: 'email',
-          recipients: activeRecipients.map((r) => ({
-            id: r.id,
-            type: r.type,
-            email: r.email,
-            name: `${r.first_name} ${r.last_name}`,
-            athlete_id: r.athlete_id || null,
-          })),
+          recipients: [
+            ...activeRecipients.map((r) => ({
+              id: r.id,
+              type: r.type,
+              email: r.email,
+              name: `${r.first_name} ${r.last_name}`,
+              athlete_id: r.athlete_id || null,
+            })),
+            ...(sendCopyToSelf && user?.email
+              ? [{
+                  id: user.id,
+                  type: 'coach' as const,
+                  email: user.email,
+                  name: user.name || '',
+                  athlete_id: null,
+                }]
+              : []),
+          ],
           subject,
           html_body: content,
           template_id: selectedTemplate?.id || null,
@@ -341,6 +353,16 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
             selectedRecipients={recipients}
             onRecipientsChange={setRecipients}
           />
+
+          <label className="flex items-center gap-2 mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendCopyToSelf}
+              onChange={(e) => setSendCopyToSelf(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+            />
+            <span className="text-sm text-gray-600">Send copy to myself</span>
+          </label>
 
           {/* Subject line */}
           <div>

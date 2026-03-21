@@ -6,6 +6,7 @@ interface UserProfileData {
   email: string;
   first_name: string;
   last_name: string;
+  phone: string;
   created_at: string;
 }
 
@@ -20,7 +21,8 @@ const UserProfile: React.FC = () => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    email: ''
+    email: '',
+    phone: ''
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -49,7 +51,8 @@ const UserProfile: React.FC = () => {
         setFormData({
           first_name: data.user.first_name || '',
           last_name: data.user.last_name || '',
-          email: data.user.email || ''
+          email: data.user.email || '',
+          phone: data.user.phone || ''
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to load profile' });
@@ -220,6 +223,19 @@ const UserProfile: React.FC = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="(555) 555-5555"
               />
             </div>
           </div>

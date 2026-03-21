@@ -47,6 +47,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   const { user } = useAuth();
 
   const [recipients, setRecipients] = useState<Recipient[]>(preselectedRecipients || []);
+  const [sendCopyToSelf, setSendCopyToSelf] = useState(false);
   const [message, setMessage] = useState('');
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
   const [toastVisible, setToastVisible] = useState(false);
@@ -115,13 +116,24 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
         body: JSON.stringify({
           club_profile_id: clubProfileId,
           channel: 'sms',
-          recipients: recipientsWithPhone.map((r) => ({
-            id: r.id,
-            type: r.type,
-            phone: r.phone,
-            name: `${r.first_name} ${r.last_name}`,
-            athlete_id: r.athlete_id || null,
-          })),
+          recipients: [
+            ...recipientsWithPhone.map((r) => ({
+              id: r.id,
+              type: r.type,
+              phone: r.phone,
+              name: `${r.first_name} ${r.last_name}`,
+              athlete_id: r.athlete_id || null,
+            })),
+            ...(sendCopyToSelf && user?.phone
+              ? [{
+                  id: user.id,
+                  type: 'coach' as const,
+                  phone: user.phone,
+                  name: user.name || '',
+                  athlete_id: null,
+                }]
+              : []),
+          ],
           body: message,
         }),
       });
@@ -201,6 +213,21 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
             selectedRecipients={recipients}
             onRecipientsChange={setRecipients}
           />
+
+          <label className="flex items-center gap-2 mt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendCopyToSelf}
+              onChange={(e) => setSendCopyToSelf(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+            />
+            <span className="text-sm text-gray-600">
+              Send copy to myself
+              {sendCopyToSelf && !user?.phone && (
+                <span className="text-xs text-amber-600 ml-1">(add phone number in profile)</span>
+              )}
+            </span>
+          </label>
 
           {/* Warning: recipients without phone */}
           {recipientsWithoutPhone.length > 0 && (
