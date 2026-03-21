@@ -47,6 +47,13 @@ function getAgeQuarter(dob: string): string {
   return 'Q4';
 }
 
+function getUGroup(dob: string): string {
+  const birth = new Date(dob);
+  const today = new Date();
+  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  return `U${seasonYear - birth.getFullYear()}`;
+}
+
 function formatDOB(dob: string): string {
   const d = new Date(dob);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -98,9 +105,14 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
                 <div className="text-gray-500 text-sm">
                   Age {age}
                   {athlete.date_of_birth && (
-                    <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-2 py-0.5 rounded-full">
-                      {getAgeQuarter(athlete.date_of_birth)}
-                    </span>
+                    <>
+                      <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
+                        {getAgeQuarter(athlete.date_of_birth)}
+                      </span>
+                      <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                        {getUGroup(athlete.date_of_birth)}
+                      </span>
+                    </>
                   )}
                 </div>
               )}
@@ -353,6 +365,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                         <span className="ml-1 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
                           {getAgeQuarter(athlete.date_of_birth)}
                         </span>
+                        <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                          {getUGroup(athlete.date_of_birth)}
+                        </span>
                         <span className="ml-1">· {formatDOB(athlete.date_of_birth)}</span>
                       </div>
                     )}
@@ -410,6 +425,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                           Age {calcAge(athlete.date_of_birth)}
                           <span className="ml-1 text-xs font-semibold bg-white text-brand-primary px-1.5 py-0.5 rounded-full">
                             {getAgeQuarter(athlete.date_of_birth)}
+                          </span>
+                          <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                            {getUGroup(athlete.date_of_birth)}
                           </span>
                           <span className="ml-1">· {formatDOB(athlete.date_of_birth)}</span>
                         </div>

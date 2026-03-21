@@ -176,6 +176,17 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     }
   };
 
+  const calculateUGroup = (dob: string): string | null => {
+    if (!dob || dob === 'null' || dob === 'undefined') return null;
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    // Aug 1 - Jul 31 cycle: season year = current year if we're Aug+, otherwise current year
+    const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+    const uAge = seasonYear - birth.getFullYear();
+    return `U${uAge}`;
+  };
+
   const calculateAge = (dob: string) => {
     if (!dob || dob === 'null' || dob === 'undefined') {
       return null;
@@ -474,12 +485,18 @@ const AthleteListContent: React.FC<{
                         if (age === null) return 'Invalid date';
                         const month = new Date(athlete.date_of_birth).getMonth();
                         const quarter = month <= 2 ? 'Q1' : month <= 5 ? 'Q2' : month <= 8 ? 'Q3' : 'Q4';
+                        const uGroup = calculateUGroup(athlete.date_of_birth);
                         return (
                           <>
                             {age} years
                             <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
                               {quarter}
                             </span>
+                            {uGroup && (
+                              <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                                {uGroup}
+                              </span>
+                            )}
                           </>
                         );
                       })() : 'Not set'}

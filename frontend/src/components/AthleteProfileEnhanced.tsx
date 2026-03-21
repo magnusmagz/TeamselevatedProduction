@@ -151,11 +151,20 @@ const AthleteProfileEnhanced: React.FC = () => {
 
   const getAgeQuarter = (dob: string): string | null => {
     if (!dob) return null;
-    const month = new Date(dob).getMonth(); // 0-11
+    const month = new Date(dob).getMonth();
     if (month <= 2) return 'Q1';
     if (month <= 5) return 'Q2';
     if (month <= 8) return 'Q3';
     return 'Q4';
+  };
+
+  const getUGroup = (dob: string): string | null => {
+    if (!dob) return null;
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+    return `U${seasonYear - birth.getFullYear()}`;
   };
 
   const formatPhoneForDisplay = (phone: string) => {
@@ -254,9 +263,14 @@ const AthleteProfileEnhanced: React.FC = () => {
             <div className="text-2xl font-bold">
               {calculateAge(athlete.date_of_birth)}
               {athlete.date_of_birth && (
-                <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-2 py-0.5 rounded-full align-middle">
-                  {getAgeQuarter(athlete.date_of_birth)}
-                </span>
+                <>
+                  <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-2 py-0.5 rounded-full align-middle">
+                    {getAgeQuarter(athlete.date_of_birth)}
+                  </span>
+                  <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-2 py-0.5 rounded-full align-middle">
+                    {getUGroup(athlete.date_of_birth)}
+                  </span>
+                </>
               )}
             </div>
           </div>
