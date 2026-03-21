@@ -485,7 +485,10 @@ const AthleteListContent: React.FC<{
                         if (age === null) return 'Invalid date';
                         const month = new Date(athlete.date_of_birth).getMonth();
                         const quarter = month <= 2 ? 'Q1' : month <= 5 ? 'Q2' : month <= 8 ? 'Q3' : 'Q4';
-                        const uGroup = calculateUGroup(athlete.date_of_birth);
+                        const birthYear = new Date(athlete.date_of_birth).getFullYear();
+                        const now = new Date();
+                        const seasonYear = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+                        const uGroup = `U${seasonYear - birthYear}`;
                         return (
                           <>
                             {age} years
