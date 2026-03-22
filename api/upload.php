@@ -51,20 +51,34 @@ if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
 $file = $_FILES['file'];
 $type = $_POST['type'] ?? 'general';
 
-// Validate file type (images only)
-$allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+// Validate file type
+$imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+$documentTypes = ['application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv'];
+
 $finfo = finfo_open(FILEINFO_MIME_TYPE);
 $mimeType = finfo_file($finfo, $file['tmp_name']);
 finfo_close($finfo);
 
+// Allow document types for club-documents uploads
+if ($type === 'club-documents') {
+    $allowedTypes = array_merge($imageTypes, $documentTypes);
+} else {
+    $allowedTypes = $imageTypes;
+}
+
 if (!in_array($mimeType, $allowedTypes)) {
+    $label = $type === 'club-documents' ? 'images, PDFs, and office documents' : 'images';
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid file type. Only images are allowed.']);
+    echo json_encode(['success' => false, 'error' => "Invalid file type. Only $label are allowed."]);
     exit;
 }
 
-// Validate file size (max 5MB)
-$maxSize = 5 * 1024 * 1024; // 5MB
+// Validate file size (max 10MB for documents, 5MB for images)
+$maxSize = $type === 'club-documents' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
 if ($file['size'] > $maxSize) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'File size exceeds 5MB limit']);

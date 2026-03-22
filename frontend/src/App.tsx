@@ -84,6 +84,7 @@ import SmsTemplates from './pages/SmsTemplates';
 import VolunteerManagement from './pages/VolunteerManagement';
 import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
 import ComplianceDashboard from './pages/ComplianceDashboard';
+import ClubDocumentCenter from './pages/ClubDocumentCenter';
 // Parent Portal
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
@@ -334,6 +335,7 @@ function AppContent() {
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
+    { to: '/club-documents', label: 'Documents' },
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
@@ -752,6 +754,11 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/club-profile" element={<ClubProfilePage />} />
+          <Route path="/club-documents" element={
+            <ProtectedRoute>
+              <ClubDocumentCenter />
+            </ProtectedRoute>
+          } />
           <Route path="/program-management" element={<ProgramManagement />} />
           {/* LeagueSettings route removed - use /club-profile for club settings */}
           <Route path="/profile" element={
