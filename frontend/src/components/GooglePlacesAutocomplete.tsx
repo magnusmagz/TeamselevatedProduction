@@ -17,6 +17,8 @@ interface PlaceResult {
   lat?: number;
   lng?: number;
   map_url?: string;
+  website?: string;
+  phone?: string;
 }
 
 interface GooglePlacesAutocompleteProps {
@@ -109,7 +111,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
         if (cancelled || !inputRef.current || !window.google) return;
 
         const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-          fields: ['address_components', 'formatted_address', 'geometry', 'name', 'url'],
+          fields: ['address_components', 'formatted_address', 'geometry', 'name', 'url', 'website', 'formatted_phone_number'],
           componentRestrictions: { country: 'us' },
         });
 
@@ -138,6 +140,8 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
             lat: place.geometry?.location?.lat(),
             lng: place.geometry?.location?.lng(),
             map_url: place.url || '',
+            website: place.website || '',
+            phone: place.formatted_phone_number || '',
           });
         });
 

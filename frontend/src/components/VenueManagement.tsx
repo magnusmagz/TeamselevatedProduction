@@ -944,6 +944,8 @@ const VenueForm: React.FC<{
                         state: place.state,
                         zip: place.zip_code,
                         map_url: place.map_url || formData.map_url,
+                        website: place.website || formData.website,
+                        phone: place.phone || formData.phone,
                       });
                     }}
                   />
