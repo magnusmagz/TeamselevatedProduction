@@ -85,6 +85,12 @@ import VolunteerManagement from './pages/VolunteerManagement';
 import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
 import ComplianceDashboard from './pages/ComplianceDashboard';
 import ClubDocumentCenter from './pages/ClubDocumentCenter';
+// Help Portal
+import HelpPortal from './pages/HelpPortal';
+import HelpArticlePage from './pages/HelpArticlePage';
+import ReleaseNotes from './pages/ReleaseNotes';
+import ReleaseNotePage from './pages/ReleaseNotePage';
+import HelpAdmin from './pages/HelpAdmin';
 // Parent Portal
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
@@ -379,6 +385,15 @@ function AppContent() {
                       </svg>
                     )}
                   </button>
+                  <Link
+                    to="/help"
+                    className="hidden md:flex w-9 h-9 items-center justify-center rounded-full text-brand-primary hover:bg-brand-secondary/30 transition-colors"
+                    title="Help & Docs"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Link>
                   <ProfileMenu />
                 </div>
               </div>
@@ -846,6 +861,18 @@ function AppContent() {
               <SmsTemplates />
             </ProtectedRoute>
           } />
+
+          {/* Help Portal routes */}
+          <Route path="/help" element={
+            <ProtectedRoute>
+              <HelpPortal />
+            </ProtectedRoute>
+          }>
+            <Route path="release-notes" element={<ReleaseNotes />} />
+            <Route path="release-notes/:slug" element={<ReleaseNotePage />} />
+            <Route path="admin" element={<HelpAdmin />} />
+            <Route path=":categorySlug/:articleSlug" element={<HelpArticlePage />} />
+          </Route>
 
           {/* Payment routes */}
           <Route path="/payment/revenue" element={
