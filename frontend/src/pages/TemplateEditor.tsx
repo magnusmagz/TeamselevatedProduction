@@ -393,7 +393,7 @@ const TemplateEditor: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 132px)' }}>
+    <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 140px)' }}>
       {/* Top bar */}
       <div className="flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 bg-white border-b border-gray-200 gap-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -638,30 +638,27 @@ const TemplateEditor: React.FC = () => {
       )}
 
       {/* Unlayer Editor */}
-      <div className="flex-1 min-h-0 relative">
-        <div className="absolute inset-0">
-          <EmailEditor
-            ref={editorRef}
-            onReady={onEditorReady}
-            options={{
-              mergeTags: buildMergeTags(),
-              features: {
-                textEditor: {
-                  spellChecker: true,
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <EmailEditor
+          ref={editorRef}
+          onReady={onEditorReady}
+          options={{
+            mergeTags: buildMergeTags(),
+            features: {
+              textEditor: {
+                spellChecker: true,
+              },
+            },
+            appearance: {
+              theme: 'light',
+              panels: {
+                tools: {
+                  dock: 'left',
                 },
               },
-              appearance: {
-                theme: 'light',
-                panels: {
-                  tools: {
-                    dock: 'left',
-                  },
-                },
-              },
-            }}
-            style={{ height: '100%', minHeight: '500px' }}
-          />
-        </div>
+            },
+          }}
+        />
       </div>
 
       {/* Preview Modal */}
