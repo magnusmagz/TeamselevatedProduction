@@ -40,7 +40,7 @@ const loadGoogleMaps = (): Promise<void> => {
       }, 100);
       return;
     }
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyD3dlF__t3mJVjNr9x5K1DuP_g45_4MtHs';
     if (!apiKey) {
       reject(new Error('Google Maps API key not configured'));
       return;
@@ -71,7 +71,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const [loadError, setLoadError] = useState(false);
-  const [noApiKey] = useState(!process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
+  const [noApiKey] = useState(false); // Key hardcoded as fallback
 
   const onPlaceSelectRef = useRef(onPlaceSelect);
   onPlaceSelectRef.current = onPlaceSelect;
