@@ -5,6 +5,7 @@ import ClubUserManagement from '../components/ClubUserManagement';
 import ClubDocuments from '../components/ClubDocuments';
 import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
+import GooglePlacesAutocomplete from '../components/GooglePlacesAutocomplete';
 
 interface ClubProfile {
   id?: number;
@@ -240,13 +241,20 @@ const ClubProfilePage: React.FC = () => {
                       <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Street Address *
                       </label>
-                      <input
-                        type="text"
-                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        required
-                        placeholder="123 Main Street"
+                      <GooglePlacesAutocomplete
+                        defaultValue={formData.address}
+                        placeholder="Search for an address or place..."
+                        onPlaceSelect={(place) => {
+                          setFormData({
+                            ...formData,
+                            address: place.address_line1,
+                            city: place.city,
+                            state: place.state,
+                            zip: place.zip_code,
+                            latitude: place.lat,
+                            longitude: place.lng,
+                          });
+                        }}
                       />
                     </div>
 

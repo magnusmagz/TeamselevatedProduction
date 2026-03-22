@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 // VenueManagement component with address search
 
 interface Field {
@@ -893,10 +894,10 @@ const VenueForm: React.FC<{
   handleRemoveField: (index: number) => void;
   handleSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
-  addressSearch: string;
-  setAddressSearch: (value: string) => void;
-  searchingAddress: boolean;
-  handleAddressSearch: () => void;
+  addressSearch?: string;
+  setAddressSearch?: (value: string) => void;
+  searchingAddress?: boolean;
+  handleAddressSearch?: () => void;
 }> = ({
   formData,
   setFormData,
@@ -907,10 +908,6 @@ const VenueForm: React.FC<{
   handleRemoveField,
   handleSubmit,
   onClose,
-  addressSearch,
-  setAddressSearch,
-  searchingAddress,
-  handleAddressSearch
 }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -948,39 +945,23 @@ const VenueForm: React.FC<{
 
                 <div className="col-span-2">
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                    Search Address (Optional)
-                  </label>
-                  <div className="flex gap-2 mb-4">
-                    <input
-                      type="text"
-                      className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={addressSearch}
-                      onChange={(e) => setAddressSearch(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddressSearch())}
-                      placeholder="Type address and click Search..."
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddressSearch}
-                      disabled={searchingAddress || !addressSearch.trim()}
-                      className="bg-brand-primary text-white px-4 py-2 hover:bg-brand-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      {searchingAddress ? 'Searching...' : 'Search'}
-                    </button>
-                  </div>
-
-                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Facility Address *
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <input
-                        type="text"
-                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Street Address"
-                        required
+                      <GooglePlacesAutocomplete
+                        defaultValue={formData.address}
+                        placeholder="Search for an address or place..."
+                        onPlaceSelect={(place) => {
+                          setFormData({
+                            ...formData,
+                            address: place.address_line1,
+                            city: place.city,
+                            state: place.state,
+                            zip: place.zip_code,
+                            map_url: place.map_url || formData.map_url,
+                          });
+                        }}
                       />
                     </div>
                     <div>
