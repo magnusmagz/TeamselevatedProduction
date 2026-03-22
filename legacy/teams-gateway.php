@@ -230,7 +230,9 @@ try {
                 UPDATE teams
                 SET name = ?, age_group = ?, division = ?, season_id = ?, primary_coach_id = ?,
                     max_players = ?, team_color = ?, logo_url = ?, skill_level = ?, gender = ?, status = ?,
-                    home_field_id = ?
+                    home_field_id = ?,
+                    social_facebook = ?, social_instagram = ?, social_twitter = ?,
+                    social_tiktok = ?, social_youtube = ?, social_linkedin = ?
                 WHERE id = ?
             ");
 
@@ -247,6 +249,12 @@ try {
                 $data['gender'] ?? 'Mixed',
                 $data['status'] ?? 'forming',
                 isset($data['home_field_id']) && $data['home_field_id'] ? $data['home_field_id'] : null,
+                $data['social_facebook'] ?? null,
+                $data['social_instagram'] ?? null,
+                $data['social_twitter'] ?? null,
+                $data['social_tiktok'] ?? null,
+                $data['social_youtube'] ?? null,
+                $data['social_linkedin'] ?? null,
                 $team_id
             ]);
 

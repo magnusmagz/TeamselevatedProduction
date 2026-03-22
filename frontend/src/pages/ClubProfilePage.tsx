@@ -23,6 +23,12 @@ interface ClubProfile {
   accent_color?: string;
   latitude?: number;
   longitude?: number;
+  social_facebook?: string;
+  social_instagram?: string;
+  social_twitter?: string;
+  social_tiktok?: string;
+  social_youtube?: string;
+  social_linkedin?: string;
 }
 
 const ClubProfilePage: React.FC = () => {
@@ -40,7 +46,13 @@ const ClubProfilePage: React.FC = () => {
     zip: '',
     website: '',
     phone: '',
-    email: ''
+    email: '',
+    social_facebook: '',
+    social_instagram: '',
+    social_twitter: '',
+    social_tiktok: '',
+    social_youtube: '',
+    social_linkedin: ''
   });
 
   useEffect(() => {
@@ -281,6 +293,90 @@ const ClubProfilePage: React.FC = () => {
                           placeholder="94102"
                         />
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-brand-secondary rounded-md p-6">
+                  <h2 className="text-sm font-bold text-brand-primary uppercase tracking-wide mb-3">Social Media</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        Facebook URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_facebook || ''}
+                        onChange={(e) => setFormData({ ...formData, social_facebook: e.target.value })}
+                        placeholder="https://facebook.com/yourclub"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        Instagram URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_instagram || ''}
+                        onChange={(e) => setFormData({ ...formData, social_instagram: e.target.value })}
+                        placeholder="https://instagram.com/yourclub"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        X / Twitter URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_twitter || ''}
+                        onChange={(e) => setFormData({ ...formData, social_twitter: e.target.value })}
+                        placeholder="https://twitter.com/yourclub"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        TikTok URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_tiktok || ''}
+                        onChange={(e) => setFormData({ ...formData, social_tiktok: e.target.value })}
+                        placeholder="https://tiktok.com/@yourclub"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        YouTube URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_youtube || ''}
+                        onChange={(e) => setFormData({ ...formData, social_youtube: e.target.value })}
+                        placeholder="https://youtube.com/@yourclub"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        LinkedIn URL
+                      </label>
+                      <input
+                        type="url"
+                        className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                        value={formData.social_linkedin || ''}
+                        onChange={(e) => setFormData({ ...formData, social_linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/company/yourclub"
+                      />
                     </div>
                   </div>
                 </div>

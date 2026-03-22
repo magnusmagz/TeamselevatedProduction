@@ -22,7 +22,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
     logo_filename: '',
     primary_color: '',
     secondary_color: '',
-    accent_color: ''
+    accent_color: '',
+    social_facebook: '',
+    social_instagram: '',
+    social_twitter: '',
+    social_tiktok: '',
+    social_youtube: '',
+    social_linkedin: ''
   });
 
   const [coaches, setCoaches] = useState<any[]>([]);
@@ -50,7 +56,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
         logo_filename: team.logo_filename || '',
         primary_color: team.primary_color || '',
         secondary_color: team.secondary_color || '',
-        accent_color: team.accent_color || ''
+        accent_color: team.accent_color || '',
+        social_facebook: team.social_facebook || '',
+        social_instagram: team.social_instagram || '',
+        social_twitter: team.social_twitter || '',
+        social_tiktok: team.social_tiktok || '',
+        social_youtube: team.social_youtube || '',
+        social_linkedin: team.social_linkedin || ''
       });
     }
     fetchDropdownData();
@@ -465,6 +477,90 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   min="1"
                   max="50"
                 />
+              </div>
+
+              {/* Social Media Section */}
+              <div className="md:col-span-2 mt-4">
+                <h3 className="text-sm font-bold text-brand-primary uppercase tracking-wide mb-3">Social Media</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      Facebook URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_facebook}
+                      onChange={(e) => setFormData({ ...formData, social_facebook: e.target.value })}
+                      placeholder="https://facebook.com/yourclub"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      Instagram URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_instagram}
+                      onChange={(e) => setFormData({ ...formData, social_instagram: e.target.value })}
+                      placeholder="https://instagram.com/yourclub"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      X / Twitter URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_twitter}
+                      onChange={(e) => setFormData({ ...formData, social_twitter: e.target.value })}
+                      placeholder="https://twitter.com/yourclub"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      TikTok URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_tiktok}
+                      onChange={(e) => setFormData({ ...formData, social_tiktok: e.target.value })}
+                      placeholder="https://tiktok.com/@yourclub"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      YouTube URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_youtube}
+                      onChange={(e) => setFormData({ ...formData, social_youtube: e.target.value })}
+                      placeholder="https://youtube.com/@yourclub"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      LinkedIn URL
+                    </label>
+                    <input
+                      type="url"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                      value={formData.social_linkedin}
+                      onChange={(e) => setFormData({ ...formData, social_linkedin: e.target.value })}
+                      placeholder="https://linkedin.com/company/yourclub"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

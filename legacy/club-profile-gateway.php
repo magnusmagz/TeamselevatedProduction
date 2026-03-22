@@ -59,7 +59,13 @@ try {
                     logo_url as logo_data,
                     primary_color,
                     secondary_color,
-                    description
+                    description,
+                    social_facebook,
+                    social_instagram,
+                    social_twitter,
+                    social_tiktok,
+                    social_youtube,
+                    social_linkedin
                 FROM club_profile
                 WHERE id = ?
             ");
@@ -113,6 +119,12 @@ try {
                     logo_url = ?,
                     primary_color = ?,
                     secondary_color = ?,
+                    social_facebook = ?,
+                    social_instagram = ?,
+                    social_twitter = ?,
+                    social_tiktok = ?,
+                    social_youtube = ?,
+                    social_linkedin = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ");
@@ -128,6 +140,12 @@ try {
                 $data['logo_data'] ?? null,
                 $data['primary_color'] ?? null,
                 $data['secondary_color'] ?? null,
+                $data['social_facebook'] ?? null,
+                $data['social_instagram'] ?? null,
+                $data['social_twitter'] ?? null,
+                $data['social_tiktok'] ?? null,
+                $data['social_youtube'] ?? null,
+                $data['social_linkedin'] ?? null,
                 $clubId
             ]);
 
