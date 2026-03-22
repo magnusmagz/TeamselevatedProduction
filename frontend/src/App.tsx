@@ -91,6 +91,7 @@ import HelpArticlePage from './pages/HelpArticlePage';
 import ReleaseNotes from './pages/ReleaseNotes';
 import ReleaseNotePage from './pages/ReleaseNotePage';
 import HelpAdmin from './pages/HelpAdmin';
+import HelpCategoryPage from './pages/HelpCategoryPage';
 // Parent Portal
 import { FinancialPermissionsProvider } from './contexts/FinancialPermissionsContext';
 import { ProtectedParentRoute } from './components/ProtectedParentRoute';
@@ -871,6 +872,7 @@ function AppContent() {
             <Route path="release-notes" element={<ReleaseNotes />} />
             <Route path="release-notes/:slug" element={<ReleaseNotePage />} />
             <Route path="admin" element={<HelpAdmin />} />
+            <Route path=":categorySlug" element={<HelpCategoryPage />} />
             <Route path=":categorySlug/:articleSlug" element={<HelpArticlePage />} />
           </Route>
 

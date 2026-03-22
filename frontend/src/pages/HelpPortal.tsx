@@ -95,56 +95,6 @@ const HelpLanding: React.FC = () => {
   );
 };
 
-// Category listing page shown at /help/:categorySlug (no articleSlug)
-const HelpCategoryListing: React.FC = () => {
-  const location = useLocation();
-  // Extract category slug from URL
-  const pathParts = location.pathname.replace('/help/', '').split('/');
-  const categorySlug = pathParts[0];
-  const [articles, setArticles] = useState<{ id: number; title: string; slug: string; summary: string | null; role_tags: string[] }[]>([]);
-  const [categoryName, setCategoryName] = useState('');
-
-  useEffect(() => {
-    if (categorySlug) {
-      import('../services/helpApi').then(({ fetchCategoryArticles, fetchCategories }) => {
-        fetchCategoryArticles(categorySlug).then(setArticles).catch(() => {});
-        fetchCategories().then((cats) => {
-          const cat = cats.find((c) => c.slug === categorySlug);
-          if (cat) setCategoryName(cat.name);
-        }).catch(() => {});
-      });
-    }
-  }, [categorySlug]);
-
-  return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-brand-primary mb-6">{categoryName}</h1>
-      <div className="space-y-3">
-        {articles.map((article) => (
-          <Link
-            key={article.slug}
-            to={`/help/${categorySlug}/${article.slug}`}
-            className="block border border-gray-200 rounded-lg p-4 hover:border-brand-accent hover:shadow-sm transition-all"
-          >
-            <h3 className="font-medium text-gray-900 flex items-center gap-2">
-              {article.title}
-              {article.role_tags.map((tag) => (
-                <HelpRoleBadge key={tag} role={tag} />
-              ))}
-            </h3>
-            {article.summary && (
-              <p className="text-sm text-gray-500 mt-1">{article.summary}</p>
-            )}
-          </Link>
-        ))}
-        {articles.length === 0 && (
-          <p className="text-gray-500 text-center py-8">No articles in this category yet.</p>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const HelpPortal: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -170,9 +120,8 @@ const HelpPortal: React.FC = () => {
     };
   }, []);
 
-  // Determine if we're on a sub-route or the landing page
+  // Determine if we're on the landing page or a sub-route
   const isLanding = location.pathname === '/help' || location.pathname === '/help/';
-  const isCategory = !isLanding && location.pathname.split('/').filter(Boolean).length === 2 && !location.pathname.includes('release-notes') && !location.pathname.includes('admin');
 
   return (
     <div className="flex min-h-[calc(100vh-5rem)]">
@@ -195,8 +144,6 @@ const HelpPortal: React.FC = () => {
         <main className="px-6 py-8 lg:px-10">
           {isLanding ? (
             <HelpLanding />
-          ) : isCategory ? (
-            <HelpCategoryListing />
           ) : (
             <Outlet />
           )}

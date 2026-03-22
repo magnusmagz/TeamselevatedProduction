@@ -20,6 +20,7 @@ interface Venue {
   zip: string;
   map_url?: string;
   website?: string;
+  phone?: string;
   field_count?: number;
   fields?: Field[];
   maintenance_contact_name?: string;
