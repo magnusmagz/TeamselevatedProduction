@@ -84,12 +84,14 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
   }, []);
 
   useEffect(() => {
+    console.log('GooglePlacesAutocomplete: useEffect running, noApiKey=', noApiKey, 'inputRef=', !!inputRef.current);
     if (noApiKey) return;
 
     let cancelled = false;
 
     loadGoogleMaps()
       .then(() => {
+        console.log('GooglePlacesAutocomplete: Google Maps loaded, google=', !!window.google, 'input=', !!inputRef.current);
         if (cancelled || !inputRef.current || !window.google) return;
 
         console.log('Google Places: attaching autocomplete to input', inputRef.current);
