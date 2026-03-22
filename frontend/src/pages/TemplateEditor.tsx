@@ -129,8 +129,9 @@ const TemplateEditor: React.FC = () => {
       if (template.design_json) {
         setExistingDesign(template.design_json);
         // If editor is already ready, load the design immediately
-        if (editorReady.current && editorRef.current) {
-          editorRef.current.loadDesign(template.design_json as any);
+        const editor = getEditor();
+        if (editorReady.current && editor) {
+          editor.loadDesign(template.design_json as any);
         }
       }
     } catch (err) {
@@ -241,17 +242,23 @@ const TemplateEditor: React.FC = () => {
     return tags;
   }, [mergeFields]);
 
+  const getEditor = () => {
+    // react-email-editor v1.x: actual Unlayer instance is on .editor
+    return editorRef.current?.editor || editorRef.current;
+  };
+
   const onEditorReady: EmailEditorProps['onReady'] = () => {
     editorReady.current = true;
 
+    const editor = getEditor();
     // Load existing design if available
-    if (existingDesign && editorRef.current) {
-      editorRef.current.loadDesign(existingDesign as any);
+    if (existingDesign && editor) {
+      editor.loadDesign(existingDesign as any);
     }
 
     // Track changes
-    if (editorRef.current) {
-      editorRef.current.addEventListener('design:updated', () => {
+    if (editor) {
+      editor.addEventListener('design:updated', () => {
         hasUnsavedChanges.current = true;
       });
     }
@@ -262,7 +269,8 @@ const TemplateEditor: React.FC = () => {
       setError('Please enter a template name.');
       return;
     }
-    if (!editorRef.current || !editorReady.current) {
+    const editor = getEditor();
+    if (!editor || !editorReady.current) {
       setError('Editor is not ready. Please wait and try again.');
       return;
     }
@@ -270,8 +278,8 @@ const TemplateEditor: React.FC = () => {
     setSaving(true);
     setError(null);
 
-    editorRef.current.saveDesign((design: object) => {
-      editorRef.current!.exportHtml((data: { html: string }) => {
+    editor.saveDesign((design: object) => {
+      editor.exportHtml((data: { html: string }) => {
         saveTemplate(design, data.html);
       });
     });
@@ -329,12 +337,13 @@ const TemplateEditor: React.FC = () => {
   };
 
   const handlePreview = () => {
-    if (!editorRef.current || !editorReady.current) {
+    const editor = getEditor();
+    if (!editor || !editorReady.current) {
       setError('Editor is not ready.');
       return;
     }
 
-    editorRef.current.exportHtml((data: { html: string }) => {
+    editor.exportHtml((data: { html: string }) => {
       setPreviewHtml(data.html);
       setShowPreview(true);
     });
