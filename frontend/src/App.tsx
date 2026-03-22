@@ -327,7 +327,11 @@ function AppContent() {
               {/* Top row: Logo and user controls */}
               <div className="flex justify-between items-center h-20 border-b border-brand-secondary">
                 <Link to="/dashboard" className="flex items-center">
-                  <BrandingLogo size="xl" fallbackToText={true} />
+                  {location.pathname === '/super-admin' ? (
+                    <span className="text-lg font-bold text-brand-primary uppercase tracking-wide">TEAMS ELEVATED</span>
+                  ) : (
+                    <BrandingLogo size="xl" fallbackToText={true} />
+                  )}
                 </Link>
                 <div className="flex items-center space-x-4">
                   {/* Mobile hamburger button */}

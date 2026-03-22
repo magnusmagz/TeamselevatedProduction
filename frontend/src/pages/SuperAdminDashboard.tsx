@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PlatformStats from '../components/superadmin/PlatformStats';
 import ClubsList from '../components/superadmin/ClubsList';
 import ClubDetails from '../components/superadmin/ClubDetails';
 import UsersList from '../components/superadmin/UsersList';
 import UserDetails from '../components/superadmin/UserDetails';
 import AthletesList from '../components/superadmin/AthletesList';
+import { useTheme } from '../contexts/ThemeContext';
+import { generateColorPalette } from '../utils/colorExtractor';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -98,7 +100,26 @@ interface Athlete {
   team_names: string | null;
 }
 
+const TE_DEFAULT_PRIMARY = '#12443e';
+
 const SuperAdminDashboard: React.FC = () => {
+  const { colors, updateTheme } = useTheme();
+  const savedColorsRef = useRef(colors.primary);
+
+  // Override to TE default branding on mount, restore on unmount
+  useEffect(() => {
+    savedColorsRef.current = colors.primary;
+    if (colors.primary !== TE_DEFAULT_PRIMARY) {
+      updateTheme(TE_DEFAULT_PRIMARY);
+    }
+    return () => {
+      // Restore club branding when leaving super admin
+      if (savedColorsRef.current !== TE_DEFAULT_PRIMARY) {
+        updateTheme(savedColorsRef.current);
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   // Stats state
