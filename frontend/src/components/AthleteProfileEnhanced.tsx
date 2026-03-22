@@ -7,6 +7,7 @@ import SmsCompose from './communications/SmsCompose';
 import AthleteForm from './AthleteForm';
 import PlayerCard from './PlayerCard';
 import AthletePhotoUpload from './AthletePhotoUpload';
+import CoachNotes from './CoachNotes';
 
 interface Guardian {
   id: number;
@@ -790,13 +791,8 @@ const AthleteProfileEnhanced: React.FC = () => {
             />
           )}
 
-          {activeTab === 'performance' && (
-            <div className="text-center py-8">
-              <div className="text-gray-600">Performance tracking</div>
-              <div className="text-sm text-gray-500 mt-2">
-                Attendance, games played, statistics by team
-              </div>
-            </div>
+          {activeTab === 'performance' && athlete && (
+            <CoachNotes athleteId={athlete.id} clubProfileId={currentClubId || 0} />
           )}
         </div>
       </div>

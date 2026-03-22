@@ -43,7 +43,7 @@ if ($method === 'GET') {
     // Fetch user's profile
     try {
         $stmt = $pdo->prepare("
-            SELECT id, email, first_name, last_name, created_at
+            SELECT id, email, first_name, last_name, email_signature, created_at
             FROM users
             WHERE id = :user_id
         ");
@@ -123,6 +123,11 @@ if ($method === 'GET') {
             $params['last_name'] = trim($data['last_name']);
         }
 
+        if (isset($data['email_signature'])) {
+            $updateFields[] = "email_signature = :email_signature";
+            $params['email_signature'] = $data['email_signature'];
+        }
+
         if (isset($data['email'])) {
             // Check if email is already taken by another user
             $stmt = $pdo->prepare("SELECT id FROM users WHERE email = :email AND id != :user_id");
@@ -151,7 +156,7 @@ if ($method === 'GET') {
 
         // Fetch updated user data
         $stmt = $pdo->prepare("
-            SELECT id, email, first_name, last_name, created_at
+            SELECT id, email, first_name, last_name, email_signature, created_at
             FROM users
             WHERE id = :user_id
         ");

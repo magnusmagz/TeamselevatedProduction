@@ -7,6 +7,7 @@ interface UserProfileData {
   first_name: string;
   last_name: string;
   phone: string;
+  email_signature: string;
   created_at: string;
 }
 
@@ -22,7 +23,8 @@ const UserProfile: React.FC = () => {
     first_name: '',
     last_name: '',
     email: '',
-    phone: ''
+    phone: '',
+    email_signature: ''
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -52,7 +54,8 @@ const UserProfile: React.FC = () => {
           first_name: data.user.first_name || '',
           last_name: data.user.last_name || '',
           email: data.user.email || '',
-          phone: data.user.phone || ''
+          phone: data.user.phone || '',
+          email_signature: data.user.email_signature || ''
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to load profile' });
@@ -237,6 +240,20 @@ const UserProfile: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="(555) 555-5555"
               />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                Email Signature
+              </label>
+              <textarea
+                className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                rows={4}
+                value={formData.email_signature}
+                onChange={(e) => setFormData({ ...formData, email_signature: e.target.value })}
+                placeholder="e.g. Coach Smith&#10;Riverside Soccer Club&#10;(555) 123-4567"
+              />
+              <p className="text-gray-500 text-xs mt-1">This will be appended to all outbound emails you send.</p>
             </div>
           </div>
 

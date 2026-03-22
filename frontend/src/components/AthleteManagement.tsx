@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
+import EmailCompose from './communications/EmailCompose';
+import SmsCompose from './communications/SmsCompose';
+import { useOrg } from '../contexts/OrgContext';
 
 interface Athlete {
   id: number;
@@ -362,6 +365,11 @@ const AthleteListContent: React.FC<{
   availableTeams,
   handleAddToTeam
 }) => {
+  const { currentClubId } = useOrg();
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
+  const [showSmsCompose, setShowSmsCompose] = useState(false);
+  const [composeRecipient, setComposeRecipient] = useState<any>(null);
+
   return (
     <>
       <div className="border border-brand-secondary rounded-md bg-white p-4 sm:p-6 mb-6">
@@ -550,13 +558,47 @@ const AthleteListContent: React.FC<{
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     <div>
                       {athlete.primary_guardian_email && (
-                        <div className="text-xs text-gray-600">
-                          {athlete.primary_guardian_email}
+                        <div className="text-xs">
+                          <button
+                            onClick={() => {
+                              const nameParts = (athlete.primary_guardian_name || '').split(' ');
+                              setComposeRecipient({
+                                id: athlete.id,
+                                type: 'guardian' as const,
+                                first_name: nameParts[0] || '',
+                                last_name: nameParts.slice(1).join(' ') || '',
+                                email: athlete.primary_guardian_email,
+                                phone: athlete.primary_guardian_phone,
+                                suppressed: false
+                              });
+                              setShowEmailCompose(true);
+                            }}
+                            className="text-brand-primary hover:underline cursor-pointer"
+                          >
+                            {athlete.primary_guardian_email}
+                          </button>
                         </div>
                       )}
                       {athlete.primary_guardian_phone && (
-                        <div className="text-xs text-gray-600">
-                          {athlete.primary_guardian_phone}
+                        <div className="text-xs">
+                          <button
+                            onClick={() => {
+                              const nameParts = (athlete.primary_guardian_name || '').split(' ');
+                              setComposeRecipient({
+                                id: athlete.id,
+                                type: 'guardian' as const,
+                                first_name: nameParts[0] || '',
+                                last_name: nameParts.slice(1).join(' ') || '',
+                                email: athlete.primary_guardian_email,
+                                phone: athlete.primary_guardian_phone,
+                                suppressed: false
+                              });
+                              setShowSmsCompose(true);
+                            }}
+                            className="text-brand-primary hover:underline cursor-pointer"
+                          >
+                            {athlete.primary_guardian_phone}
+                          </button>
                         </div>
                       )}
                       {athlete.email && (
@@ -661,6 +703,24 @@ const AthleteListContent: React.FC<{
             </div>
           </div>
         </div>
+      )}
+
+      {/* Compose Modals */}
+      {showEmailCompose && (
+        <EmailCompose
+          isOpen={showEmailCompose}
+          onClose={() => { setShowEmailCompose(false); setComposeRecipient(null); }}
+          clubProfileId={currentClubId || 0}
+          preselectedRecipients={composeRecipient ? [{ ...composeRecipient, suppressed: false }] : []}
+        />
+      )}
+      {showSmsCompose && (
+        <SmsCompose
+          isOpen={showSmsCompose}
+          onClose={() => { setShowSmsCompose(false); setComposeRecipient(null); }}
+          clubProfileId={currentClubId || 0}
+          preselectedRecipients={composeRecipient ? [{ ...composeRecipient, suppressed: false }] : []}
+        />
       )}
     </>
   );

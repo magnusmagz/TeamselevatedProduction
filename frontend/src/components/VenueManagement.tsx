@@ -33,6 +33,24 @@ interface Venue {
   gm_contact_name?: string;
   gm_contact_phone?: string;
   gm_contact_email?: string;
+  venue_type?: string;
+  parking_type?: string;
+  parking_paid?: boolean;
+  parking_notes?: string;
+  has_lights?: boolean;
+  lights_notes?: string;
+  is_accessible?: boolean;
+  accessibility_notes?: string;
+  has_bathrooms?: boolean;
+  bathroom_count?: number;
+  has_concessions?: boolean;
+  concessions_notes?: string;
+  seating_type?: string;
+  seating_capacity?: number;
+  entry_cost?: string;
+  entry_cost_amount?: number;
+  payment_methods?: string;
+  venue_photos?: any[];
 }
 
 interface VenueManagementProps {
@@ -48,6 +66,27 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [addressSearch, setAddressSearch] = useState('');
   const [searchingAddress, setSearchingAddress] = useState(false);
+
+  const emptyFacilityDetails = {
+    venue_type: '',
+    parking_type: '',
+    parking_paid: false,
+    parking_notes: '',
+    has_lights: false,
+    lights_notes: '',
+    is_accessible: false,
+    accessibility_notes: '',
+    has_bathrooms: false,
+    bathroom_count: undefined as number | undefined,
+    has_concessions: false,
+    concessions_notes: '',
+    seating_type: '',
+    seating_capacity: undefined as number | undefined,
+    entry_cost: '',
+    entry_cost_amount: undefined as number | undefined,
+    payment_methods: '',
+    venue_photos: [] as any[],
+  };
 
   const [formData, setFormData] = useState<Venue>({
     name: '',
@@ -70,6 +109,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     gm_contact_name: '',
     gm_contact_phone: '',
     gm_contact_email: '',
+    ...emptyFacilityDetails,
   });
 
   const [newField, setNewField] = useState<Field>({
@@ -122,6 +162,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
       gm_contact_name: '',
       gm_contact_phone: '',
       gm_contact_email: '',
+      ...emptyFacilityDetails,
     });
     setShowForm(true);
   };
@@ -265,6 +306,24 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         gm_contact_name: formData.gm_contact_name || null,
         gm_contact_phone: formData.gm_contact_phone || null,
         gm_contact_email: formData.gm_contact_email || null,
+        venue_type: formData.venue_type || null,
+        parking_type: formData.parking_type || null,
+        parking_paid: formData.parking_paid || false,
+        parking_notes: formData.parking_notes || null,
+        has_lights: formData.has_lights || false,
+        lights_notes: formData.lights_notes || null,
+        is_accessible: formData.is_accessible || false,
+        accessibility_notes: formData.accessibility_notes || null,
+        has_bathrooms: formData.has_bathrooms || false,
+        bathroom_count: formData.bathroom_count || null,
+        has_concessions: formData.has_concessions || false,
+        concessions_notes: formData.concessions_notes || null,
+        seating_type: formData.seating_type || null,
+        seating_capacity: formData.seating_capacity || null,
+        entry_cost: formData.entry_cost || null,
+        entry_cost_amount: formData.entry_cost_amount || null,
+        payment_methods: formData.payment_methods || null,
+        venue_photos: formData.venue_photos || [],
       };
 
       const response = await fetch(url, {
@@ -412,6 +471,9 @@ const VenueListContent: React.FC<{
                   City, State
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
+                  Details
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
                   Fields
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
@@ -440,6 +502,34 @@ const VenueListContent: React.FC<{
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     <div className="text-brand-primary">
                       {venue.city}{venue.city && venue.state && ', '}{venue.state}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 border-r border-gray-300">
+                    <div className="flex flex-wrap gap-1">
+                      {venue.venue_type && (
+                        <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.venue_type}</span>
+                      )}
+                      {venue.has_lights && (
+                        <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded">Lights</span>
+                      )}
+                      {venue.parking_type && (
+                        <span className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded">Parking: {venue.parking_type}</span>
+                      )}
+                      {venue.is_accessible && (
+                        <span className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded">ADA</span>
+                      )}
+                      {venue.has_bathrooms && (
+                        <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-0.5 rounded">Bathrooms</span>
+                      )}
+                      {venue.has_concessions && (
+                        <span className="inline-block bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5 rounded">Concessions</span>
+                      )}
+                      {venue.entry_cost && venue.entry_cost !== 'Free' && (
+                        <span className="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.entry_cost}{venue.entry_cost_amount ? `: $${venue.entry_cost_amount}` : ''}</span>
+                      )}
+                      {(!venue.venue_type && !venue.has_lights && !venue.parking_type && !venue.is_accessible && !venue.has_bathrooms && !venue.has_concessions) && (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
@@ -501,6 +591,295 @@ const VenueListContent: React.FC<{
         </div>
       )}
     </>
+  );
+};
+
+
+const VenueFacilityDetailsSection: React.FC<{
+  formData: Venue;
+  setFormData: (data: Venue) => void;
+}> = ({ formData, setFormData }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const inputClass = "border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full";
+  const checkboxClass = "text-brand-primary focus:ring-brand-primary rounded";
+  const labelClass = "block text-brand-primary text-xs font-medium mb-1 uppercase";
+
+  const handlePaymentMethodToggle = (method: string) => {
+    const current = formData.payment_methods ? formData.payment_methods.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const updated = current.includes(method) ? current.filter(m => m !== method) : [...current, method];
+    setFormData({ ...formData, payment_methods: updated.join(', ') });
+  };
+
+  const paymentMethodsList = formData.payment_methods ? formData.payment_methods.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex justify-between items-center mb-3"
+      >
+        <h4 className="text-sm font-bold text-brand-primary uppercase tracking-wide">Facility Details</h4>
+        <span className="text-brand-primary text-sm">{isOpen ? '\u25B2' : '\u25BC'}</span>
+      </button>
+
+      {isOpen && (
+        <div className="space-y-4 border border-brand-secondary rounded-md p-4">
+          {/* Venue Type */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Venue Type</label>
+              <select
+                className={inputClass}
+                value={formData.venue_type || ''}
+                onChange={(e) => setFormData({ ...formData, venue_type: e.target.value })}
+              >
+                <option value="">Select type...</option>
+                <option value="School">School</option>
+                <option value="Stadium">Stadium</option>
+                <option value="Gymnasium">Gymnasium</option>
+                <option value="Field">Field</option>
+                <option value="Park">Park</option>
+                <option value="Indoor Facility">Indoor Facility</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Parking */}
+          <div>
+            <label className={labelClass}>Parking</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <select
+                  className={inputClass}
+                  value={formData.parking_type || ''}
+                  onChange={(e) => setFormData({ ...formData, parking_type: e.target.value })}
+                >
+                  <option value="">Select parking type...</option>
+                  <option value="Lot">Lot</option>
+                  <option value="Street">Street</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    className={checkboxClass}
+                    checked={formData.parking_paid || false}
+                    onChange={(e) => setFormData({ ...formData, parking_paid: e.target.checked })}
+                  />
+                  <span className="text-brand-primary text-sm">Paid Parking</span>
+                </label>
+              </div>
+              <div className="col-span-2">
+                <textarea
+                  className={inputClass}
+                  value={formData.parking_notes || ''}
+                  onChange={(e) => setFormData({ ...formData, parking_notes: e.target.value })}
+                  placeholder="Parking notes (e.g., overflow lot on weekends)..."
+                  rows={2}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lights */}
+          <div>
+            <label className={labelClass}>Lights</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    className={checkboxClass}
+                    checked={formData.has_lights || false}
+                    onChange={(e) => setFormData({ ...formData, has_lights: e.target.checked })}
+                  />
+                  <span className="text-brand-primary text-sm">Has Lights</span>
+                </label>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={formData.lights_notes || ''}
+                  onChange={(e) => setFormData({ ...formData, lights_notes: e.target.value })}
+                  placeholder="Lights notes (e.g., available until 10pm)..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Accessibility */}
+          <div>
+            <label className={labelClass}>Accessibility</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    className={checkboxClass}
+                    checked={formData.is_accessible || false}
+                    onChange={(e) => setFormData({ ...formData, is_accessible: e.target.checked })}
+                  />
+                  <span className="text-brand-primary text-sm">ADA Compliant</span>
+                </label>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={formData.accessibility_notes || ''}
+                  onChange={(e) => setFormData({ ...formData, accessibility_notes: e.target.value })}
+                  placeholder="Accessibility notes..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bathrooms */}
+          <div>
+            <label className={labelClass}>Bathrooms</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    className={checkboxClass}
+                    checked={formData.has_bathrooms || false}
+                    onChange={(e) => setFormData({ ...formData, has_bathrooms: e.target.checked })}
+                  />
+                  <span className="text-brand-primary text-sm">Bathrooms Available</span>
+                </label>
+              </div>
+              {formData.has_bathrooms && (
+                <div>
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={formData.bathroom_count || ''}
+                    onChange={(e) => setFormData({ ...formData, bathroom_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Number of bathrooms"
+                    min={0}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Concessions */}
+          <div>
+            <label className={labelClass}>Concessions</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    className={checkboxClass}
+                    checked={formData.has_concessions || false}
+                    onChange={(e) => setFormData({ ...formData, has_concessions: e.target.checked })}
+                  />
+                  <span className="text-brand-primary text-sm">Concessions Available</span>
+                </label>
+              </div>
+              {formData.has_concessions && (
+                <div>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={formData.concessions_notes || ''}
+                    onChange={(e) => setFormData({ ...formData, concessions_notes: e.target.value })}
+                    placeholder="Concessions notes..."
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Seating */}
+          <div>
+            <label className={labelClass}>Seating</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <select
+                  className={inputClass}
+                  value={formData.seating_type || ''}
+                  onChange={(e) => setFormData({ ...formData, seating_type: e.target.value })}
+                >
+                  <option value="">Select seating type...</option>
+                  <option value="BYOC">BYOC (Bring Your Own Chair)</option>
+                  <option value="Indoor Bleachers">Indoor Bleachers</option>
+                  <option value="Outdoor Bleachers - Covered">Outdoor Bleachers - Covered</option>
+                  <option value="Outdoor Bleachers - Uncovered">Outdoor Bleachers - Uncovered</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
+              </div>
+              <div>
+                <input
+                  type="number"
+                  className={inputClass}
+                  value={formData.seating_capacity || ''}
+                  onChange={(e) => setFormData({ ...formData, seating_capacity: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="Seating capacity"
+                  min={0}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Entry Cost */}
+          <div>
+            <label className={labelClass}>Entry Cost</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <select
+                  className={inputClass}
+                  value={formData.entry_cost || ''}
+                  onChange={(e) => setFormData({ ...formData, entry_cost: e.target.value })}
+                >
+                  <option value="">Select entry cost...</option>
+                  <option value="Free">Free</option>
+                  <option value="Fixed Price">Fixed Price</option>
+                  <option value="Donation">Donation</option>
+                </select>
+              </div>
+              {formData.entry_cost === 'Fixed Price' && (
+                <div>
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={formData.entry_cost_amount || ''}
+                    onChange={(e) => setFormData({ ...formData, entry_cost_amount: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Amount ($)"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+              )}
+              <div className="col-span-2">
+                <label className={labelClass}>Payment Methods</label>
+                <div className="flex gap-4">
+                  {['Cash', 'Card', 'Venmo'].map((method) => (
+                    <label key={method} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        className={checkboxClass}
+                        checked={paymentMethodsList.includes(method)}
+                        onChange={() => handlePaymentMethodToggle(method)}
+                      />
+                      <span className="text-brand-primary text-sm">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -667,6 +1046,9 @@ const VenueForm: React.FC<{
 
             {/* Contacts Section */}
             <VenueContactsSection formData={formData} setFormData={setFormData} />
+
+            {/* Facility Details Section */}
+            <VenueFacilityDetailsSection formData={formData} setFormData={setFormData} />
 
             {/* Fields Section */}
             <div>
@@ -840,6 +1222,7 @@ const VenueForm: React.FC<{
     </div>
   );
 };
+
 
 const VenueContactsSummary: React.FC<{ venue: Venue }> = ({ venue }) => {
   const contacts = [

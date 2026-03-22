@@ -41,7 +41,7 @@ try {
                     FROM venues v
                     LEFT JOIN fields f ON v.id = f.venue_id
                     WHERE v.id = ?
-                    GROUP BY v.id, v.name, v.address, v.city, v.state, v.zip_code, v.phone, v.email, v.website, v.notes, v.active, v.created_at, v.updated_at, v.map_url
+                    GROUP BY v.id, v.name, v.address, v.city, v.state, v.zip_code, v.phone, v.email, v.website, v.notes, v.active, v.created_at, v.updated_at, v.map_url, v.venue_type, v.parking_type, v.parking_paid, v.parking_notes, v.has_lights, v.lights_notes, v.is_accessible, v.accessibility_notes, v.has_bathrooms, v.bathroom_count, v.has_concessions, v.concessions_notes, v.seating_type, v.seating_capacity, v.entry_cost, v.entry_cost_amount, v.payment_methods, v.venue_photos, v.maintenance_contact_name, v.maintenance_contact_phone, v.maintenance_contact_email, v.emergency_contact_name, v.emergency_contact_phone, v.emergency_contact_email, v.billing_contact_name, v.billing_contact_phone, v.billing_contact_email, v.gm_contact_name, v.gm_contact_phone, v.gm_contact_email
                 ");
                 $stmt->execute([$venue_id]);
                 $venue = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -65,7 +65,7 @@ try {
                            COUNT(f.id) as field_count
                     FROM venues v
                     LEFT JOIN fields f ON v.id = f.venue_id
-                    GROUP BY v.id, v.name, v.address, v.city, v.state, v.zip_code, v.phone, v.email, v.website, v.notes, v.active, v.created_at, v.updated_at, v.map_url
+                    GROUP BY v.id, v.name, v.address, v.city, v.state, v.zip_code, v.phone, v.email, v.website, v.notes, v.active, v.created_at, v.updated_at, v.map_url, v.venue_type, v.parking_type, v.parking_paid, v.parking_notes, v.has_lights, v.lights_notes, v.is_accessible, v.accessibility_notes, v.has_bathrooms, v.bathroom_count, v.has_concessions, v.concessions_notes, v.seating_type, v.seating_capacity, v.entry_cost, v.entry_cost_amount, v.payment_methods, v.venue_photos, v.maintenance_contact_name, v.maintenance_contact_phone, v.maintenance_contact_email, v.emergency_contact_name, v.emergency_contact_phone, v.emergency_contact_email, v.billing_contact_name, v.billing_contact_phone, v.billing_contact_email, v.gm_contact_name, v.gm_contact_phone, v.gm_contact_email
                     ORDER BY v.name
                 ");
                 $stmt->execute();
@@ -83,8 +83,13 @@ try {
             try {
                 // Insert venue
                 $stmt = $connection->prepare("
-                    INSERT INTO venues (name, address, city, state, zip_code, map_url, website)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO venues (name, address, city, state, zip_code, map_url, website,
+                        venue_type, parking_type, parking_paid, parking_notes,
+                        has_lights, lights_notes, is_accessible, accessibility_notes,
+                        has_bathrooms, bathroom_count, has_concessions, concessions_notes,
+                        seating_type, seating_capacity, entry_cost, entry_cost_amount,
+                        payment_methods, venue_photos)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $data['name'],
@@ -93,7 +98,25 @@ try {
                     $data['state'] ?? null,
                     $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
-                    $data['website'] ?? null
+                    $data['website'] ?? null,
+                    $data['venue_type'] ?? null,
+                    $data['parking_type'] ?? null,
+                    filter_var($data['parking_paid'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['parking_notes'] ?? null,
+                    filter_var($data['has_lights'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['lights_notes'] ?? null,
+                    filter_var($data['is_accessible'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['accessibility_notes'] ?? null,
+                    filter_var($data['has_bathrooms'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['bathroom_count'] ?? null,
+                    filter_var($data['has_concessions'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['concessions_notes'] ?? null,
+                    $data['seating_type'] ?? null,
+                    $data['seating_capacity'] ?? null,
+                    $data['entry_cost'] ?? null,
+                    $data['entry_cost_amount'] ?? null,
+                    $data['payment_methods'] ?? null,
+                    json_encode($data['venue_photos'] ?? [])
                 ]);
 
                 $venue_id = $connection->lastInsertId();
@@ -147,7 +170,12 @@ try {
                 // Update venue
                 $stmt = $connection->prepare("
                     UPDATE venues
-                    SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?
+                    SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?,
+                        venue_type = ?, parking_type = ?, parking_paid = ?, parking_notes = ?,
+                        has_lights = ?, lights_notes = ?, is_accessible = ?, accessibility_notes = ?,
+                        has_bathrooms = ?, bathroom_count = ?, has_concessions = ?, concessions_notes = ?,
+                        seating_type = ?, seating_capacity = ?, entry_cost = ?, entry_cost_amount = ?,
+                        payment_methods = ?, venue_photos = ?
                     WHERE id = ?
                 ");
                 $stmt->execute([
@@ -158,6 +186,24 @@ try {
                     $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
                     $data['website'] ?? null,
+                    $data['venue_type'] ?? null,
+                    $data['parking_type'] ?? null,
+                    filter_var($data['parking_paid'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['parking_notes'] ?? null,
+                    filter_var($data['has_lights'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['lights_notes'] ?? null,
+                    filter_var($data['is_accessible'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['accessibility_notes'] ?? null,
+                    filter_var($data['has_bathrooms'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['bathroom_count'] ?? null,
+                    filter_var($data['has_concessions'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 't' : 'f',
+                    $data['concessions_notes'] ?? null,
+                    $data['seating_type'] ?? null,
+                    $data['seating_capacity'] ?? null,
+                    $data['entry_cost'] ?? null,
+                    $data['entry_cost_amount'] ?? null,
+                    $data['payment_methods'] ?? null,
+                    json_encode($data['venue_photos'] ?? []),
                     $venue_id
                 ]);
 
