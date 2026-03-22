@@ -816,31 +816,31 @@ export const VolunteerManagement: React.FC = () => {
                     )}
                   </div>
                 )}
-              </div>
-              )}
 
-              {/* BG Check Status Display */}
-              {selectedUser && (
-                <div>
-                  <label className="block text-sm text-brand-primary mb-1">
-                    Background Check Status
-                  </label>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      BG_BADGE_STYLES[selectedUser.bg_check_status] || BG_BADGE_STYLES.never_checked
-                    }`}
-                  >
-                    {selectedUser.bg_check_status === 'never_checked'
-                      ? 'Not Checked'
-                      : selectedUser.bg_check_status.charAt(0).toUpperCase() +
-                        selectedUser.bg_check_status.slice(1)}
-                  </span>
-                  {selectedUser.bg_check_status !== 'cleared' && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Background check must be cleared before this volunteer can be assigned.
-                    </p>
-                  )}
-                </div>
+                {/* BG Check Status Display */}
+                {selectedUser && (
+                  <div className="mt-3">
+                    <label className="block text-sm text-brand-primary mb-1">
+                      Background Check Status
+                    </label>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        BG_BADGE_STYLES[selectedUser.bg_check_status] || BG_BADGE_STYLES.never_checked
+                      }`}
+                    >
+                      {selectedUser.bg_check_status === 'never_checked'
+                        ? 'Not Checked'
+                        : selectedUser.bg_check_status.charAt(0).toUpperCase() +
+                          selectedUser.bg_check_status.slice(1)}
+                    </span>
+                    {selectedUser.bg_check_status !== 'cleared' && (
+                      <p className="text-xs text-red-600 mt-1">
+                        Background check must be cleared before this volunteer can be assigned.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
               )}
 
               {/* Team */}
