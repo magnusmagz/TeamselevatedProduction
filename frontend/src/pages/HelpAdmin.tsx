@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useOrg } from '../contexts/OrgContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   fetchAdminList,
   createArticle,
@@ -23,8 +23,9 @@ type Tab = 'articles' | 'categories' | 'release-notes';
 type EditorMode = null | 'article' | 'category' | 'release-note';
 
 const HelpAdmin: React.FC = () => {
-  const { isClubAdmin } = useOrg();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const isSuperAdmin = user?.system_role === 'super_admin';
   const [tab, setTab] = useState<Tab>('articles');
   const [articles, setArticles] = useState<HelpArticle[]>([]);
   const [categories, setCategories] = useState<HelpCategory[]>([]);
@@ -76,12 +77,12 @@ const HelpAdmin: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isClubAdmin) {
+    if (!isSuperAdmin) {
       navigate('/help');
       return;
     }
     loadData();
-  }, [isClubAdmin, navigate, loadData]);
+  }, [isSuperAdmin, navigate, loadData]);
 
   const resetForm = () => {
     setEditorMode(null);

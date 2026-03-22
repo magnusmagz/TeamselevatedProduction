@@ -23,7 +23,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 $auth = AuthMiddleware::requireAuth();
 $userId = $auth->getUserId();
-$isAdmin = $auth->hasRole('club_admin') || $auth->isSuperAdmin();
+$isAdmin = $auth->isSuperAdmin();
 
 $database = Database::getInstance();
 $db = $database->getConnection();
