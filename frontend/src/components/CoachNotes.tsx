@@ -177,8 +177,7 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
         {!showForm && (
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md text-sm font-medium hover:opacity-90 transition"
-            style={{ backgroundColor: '#12443e' }}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
           >
             + Add Note
           </button>
@@ -187,7 +186,7 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
 
       {/* Add / Edit Form */}
       {showForm && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+        <div className="bg-white border border-gray-200 rounded-md p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-gray-700">
               {editingNote ? 'Edit Note' : 'New Note'}
@@ -279,8 +278,7 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
 
       {/* Notes List */}
       {notes.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <div className="text-gray-400 text-4xl mb-3">&#128221;</div>
+        <div className="text-center py-12 bg-white border border-brand-secondary rounded-md">
           <div className="text-gray-600 font-medium">No notes yet.</div>
           <div className="text-sm text-gray-500 mt-1">
             Add your first coaching observation.
@@ -291,7 +289,7 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
           {notes.map((note) => (
             <div
               key={note.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+              className="bg-white border border-gray-200 rounded-md p-4 shadow-sm"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
