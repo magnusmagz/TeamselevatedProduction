@@ -8,7 +8,7 @@ interface EmailTemplate {
   name: string;
   subject: string;
   category: string;
-  scope: 'club' | 'personal';
+  scope: 'club' | 'personal' | 'platform';
   team_visibility: number[];
   is_active: boolean;
   created_by: number;
@@ -144,8 +144,30 @@ const TemplateLibrary: React.FC = () => {
   };
 
   const canEditTemplate = (template: EmailTemplate) => {
+    if (template.scope === 'platform') return true; // Anyone can "edit" (clone-on-edit)
     if (isAdmin) return true;
     return template.scope === 'personal' && template.created_by === user?.id;
+  };
+
+  const handleEditTemplate = async (template: EmailTemplate) => {
+    // Platform templates: clone first, then edit the clone
+    if (template.scope === 'platform' && user?.system_role !== 'super_admin') {
+      try {
+        const res = await fetch(`${API_URL}/api/email-templates.php?action=clone-for-club`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template_id: template.id, club_profile_id: clubProfileId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          navigate(`/email-templates/${data.clone_id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to clone template:', err);
+      }
+    }
+    navigate(`/email-templates/${template.id}`);
   };
 
   const canDeleteTemplate = (template: EmailTemplate) => {
@@ -374,14 +396,14 @@ const TemplateLibrary: React.FC = () => {
                       : 'bg-orange-100 text-orange-700'
                   }`}
                 >
-                  {template.scope === 'club' ? 'Club' : 'Personal'}
+                  {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
                 </span>
               </div>
               <p className="text-xs text-gray-400 mb-3">Updated {formatDate(template.updated_at)}</p>
               <div className="flex gap-2 border-t border-gray-100 pt-3">
                 {canEditTemplate(template) && (
                   <button
-                    onClick={() => navigate(`/email-templates/${template.id}`)}
+                    onClick={() => handleEditTemplate(template)}
                     className="text-xs text-brand-primary hover:underline font-medium"
                   >
                     Edit
@@ -487,7 +509,7 @@ const TemplateLibrary: React.FC = () => {
                             : 'bg-orange-100 text-orange-700'
                         }`}
                       >
-                        {template.scope === 'club' ? 'Club' : 'Personal'}
+                        {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
@@ -497,7 +519,7 @@ const TemplateLibrary: React.FC = () => {
                       <div className="flex justify-end gap-3">
                         {canEditTemplate(template) && (
                           <button
-                            onClick={() => navigate(`/email-templates/${template.id}`)}
+                            onClick={() => handleEditTemplate(template)}
                             className="text-xs text-brand-primary hover:underline font-medium"
                           >
                             Edit

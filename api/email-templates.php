@@ -46,8 +46,9 @@ try {
                            team_visibility, is_active, cloned_from,
                            created_by, updated_by, created_at, updated_at
                     FROM email_templates
-                    WHERE club_profile_id = ?
-                    ORDER BY updated_at DESC";
+                    WHERE (club_profile_id = ? OR scope = 'platform')
+                      AND is_active = true
+                    ORDER BY scope DESC, updated_at DESC";
             $stmt = $db->prepare($sql);
             $stmt->execute([$clubProfileId]);
             $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -76,13 +77,68 @@ try {
 
             if (!$template) { notFound('Template not found'); }
 
-            requireClubAccess($auth, $template['club_profile_id']);
+            // Platform templates are accessible to all; club templates require access
+            if ($template['scope'] !== 'platform') {
+                requireClubAccess($auth, $template['club_profile_id']);
+            }
 
             $template['team_visibility'] = json_decode($template['team_visibility'], true) ?: [];
             $template['design_json'] = json_decode($template['design_json'], true);
             $template['is_active'] = (bool)$template['is_active'];
 
             echo json_encode(['success' => true, 'template' => $template]);
+            break;
+
+        // ============================================
+        // CLONE PLATFORM TEMPLATE FOR CLUB (clone-on-edit)
+        // ============================================
+        case 'clone-for-club':
+            if ($method !== 'POST') { methodNotAllowed(); }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $templateId = (int)($data['template_id'] ?? 0);
+            $clubProfileId = (int)($data['club_profile_id'] ?? 0);
+
+            if (!$templateId || !$clubProfileId) { badRequest('template_id and club_profile_id are required'); }
+            requireClubAccess($auth, $clubProfileId);
+
+            // Check if already cloned
+            $stmt = $db->prepare("SELECT id FROM email_templates WHERE cloned_from = ? AND club_profile_id = ? AND is_active = true LIMIT 1");
+            $stmt->execute([$templateId, $clubProfileId]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                // Return existing clone
+                echo json_encode(['success' => true, 'clone_id' => (int)$existing['id'], 'already_cloned' => true]);
+                break;
+            }
+
+            // Fetch original
+            $stmt = $db->prepare("SELECT * FROM email_templates WHERE id = ? AND scope = 'platform'");
+            $stmt->execute([$templateId]);
+            $original = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$original) { notFound('Platform template not found'); }
+
+            // Clone it
+            $stmt = $db->prepare("
+                INSERT INTO email_templates (club_profile_id, name, subject, design_json, html_output, category, is_active, scope, team_visibility, cloned_from, created_by, updated_by)
+                VALUES (?, ?, ?, ?, ?, ?, true, 'club', '[]'::jsonb, ?, ?, ?)
+                RETURNING id
+            ");
+            $stmt->execute([
+                $clubProfileId,
+                $original['name'],
+                $original['subject'],
+                $original['design_json'],
+                $original['html_output'],
+                $original['category'],
+                $templateId,
+                $userId,
+                $userId
+            ]);
+            $cloneId = (int)$stmt->fetchColumn();
+
+            echo json_encode(['success' => true, 'clone_id' => $cloneId, 'already_cloned' => false]);
             break;
 
         // ============================================
