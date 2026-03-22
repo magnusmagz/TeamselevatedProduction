@@ -52,7 +52,7 @@ try {
                     LEFT JOIN users u ON t.primary_coach_id = u.id
                     LEFT JOIN team_members tm ON t.id = tm.team_id
                     LEFT JOIN fields f ON t.home_field_id = f.id
-                    WHERE t.id = ?
+                    WHERE t.id = ? AND t.deleted_at IS NULL
                     GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                              t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
                              t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, t.home_field_id,
@@ -88,7 +88,7 @@ try {
                     LEFT JOIN users u ON t.primary_coach_id = u.id
                     LEFT JOIN team_members tm ON t.id = tm.team_id
                     LEFT JOIN fields f ON t.home_field_id = f.id
-                    WHERE 1=1
+                    WHERE t.deleted_at IS NULL
                 ";
 
                 $params = [];
@@ -287,12 +287,13 @@ try {
                 exit();
             }
 
-            $stmt = $connection->prepare("DELETE FROM teams WHERE id = ?");
-            $stmt->execute([$team_id]);
+            // Soft delete — set deleted_at instead of removing the record
+            $stmt = $connection->prepare("UPDATE teams SET deleted_at = NOW(), deleted_by = ? WHERE id = ?");
+            $stmt->execute([$auth->getUserId(), $team_id]);
 
             echo json_encode([
                 'success' => true,
-                'message' => 'Team deleted successfully'
+                'message' => 'Team archived successfully'
             ]);
             break;
     }

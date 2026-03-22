@@ -85,9 +85,13 @@ const TeamManagement: React.FC = () => {
 
       if (response.ok) {
         fetchTeams();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Failed to archive team. You may not have permission.');
       }
     } catch (error) {
-      console.error('Error deleting team:', error);
+      console.error('Error archiving team:', error);
+      alert('Failed to archive team. Please try again.');
     }
   };
 
