@@ -52,9 +52,13 @@ const TemplateEditor: React.FC = () => {
   const [templateName, setTemplateName] = useState('');
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState<string>('General');
-  const [scope, setScope] = useState<'club' | 'personal'>('club');
+  const [scope, setScope] = useState<'club' | 'personal' | 'platform'>('club');
   const [teamVisibility, setTeamVisibility] = useState<number[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonMode, setJsonMode] = useState<'import' | 'export'>('import');
+  const isSuperAdmin = user?.system_role === 'super_admin';
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [mergeFields, setMergeFields] = useState<MergeField[]>([]);
@@ -459,6 +463,17 @@ const TemplateEditor: React.FC = () => {
             )}
           </button>
           <button
+            onClick={() => {
+              setJsonMode('import');
+              setJsonInput('');
+              setShowJsonModal(true);
+            }}
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
+            title="Import/Export JSON"
+          >
+            JSON
+          </button>
+          <button
             onClick={handlePreview}
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
           >
@@ -589,6 +604,22 @@ const TemplateEditor: React.FC = () => {
                 />
                 <span className="text-xs text-gray-700">Personal Template</span>
               </label>
+              {isSuperAdmin && (
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="scope"
+                    value="platform"
+                    checked={scope === 'platform'}
+                    onChange={() => {
+                      setScope('platform');
+                      hasUnsavedChanges.current = true;
+                    }}
+                    className="text-brand-primary focus:ring-brand-primary"
+                  />
+                  <span className="text-xs text-gray-700">Platform Template</span>
+                </label>
+              )}
               <label className="inline-flex items-center gap-1.5 cursor-pointer ml-4">
                 <input
                   type="checkbox"
@@ -607,28 +638,30 @@ const TemplateEditor: React.FC = () => {
       )}
 
       {/* Unlayer Editor */}
-      <div className="flex-1 min-h-0">
-        <EmailEditor
-          ref={editorRef}
-          onReady={onEditorReady}
-          options={{
-            mergeTags: buildMergeTags(),
-            features: {
-              textEditor: {
-                spellChecker: true,
-              },
-            },
-            appearance: {
-              theme: 'light',
-              panels: {
-                tools: {
-                  dock: 'left',
+      <div className="flex-1 min-h-0 relative">
+        <div className="absolute inset-0">
+          <EmailEditor
+            ref={editorRef}
+            onReady={onEditorReady}
+            options={{
+              mergeTags: buildMergeTags(),
+              features: {
+                textEditor: {
+                  spellChecker: true,
                 },
               },
-            },
-          }}
-          style={{ height: '100%' }}
-        />
+              appearance: {
+                theme: 'light',
+                panels: {
+                  tools: {
+                    dock: 'left',
+                  },
+                },
+              },
+            }}
+            style={{ height: '100%', minHeight: '500px' }}
+          />
+        </div>
       </div>
 
       {/* Preview Modal */}
@@ -667,6 +700,125 @@ const TemplateEditor: React.FC = () => {
                   sandbox="allow-same-origin"
                 />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON Import/Export Modal */}
+      {showJsonModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowJsonModal(false)}
+        >
+          <div
+            className="bg-white rounded-md shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-secondary">
+              <h3 className="text-lg font-bold text-brand-primary uppercase tracking-wide">
+                {jsonMode === 'import' ? 'Import Design JSON' : 'Export Design JSON'}
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="flex rounded-md border border-brand-secondary overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setJsonMode('import');
+                      setJsonInput('');
+                    }}
+                    className={`px-3 py-1.5 text-xs uppercase font-semibold ${
+                      jsonMode === 'import' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
+                    }`}
+                  >
+                    Import
+                  </button>
+                  <button
+                    onClick={() => {
+                      setJsonMode('export');
+                      if (editorRef.current && editorReady.current) {
+                        editorRef.current.saveDesign((design: object) => {
+                          setJsonInput(JSON.stringify(design, null, 2));
+                        });
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-xs uppercase font-semibold ${
+                      jsonMode === 'export' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary'
+                    }`}
+                  >
+                    Export
+                  </button>
+                </div>
+                <button
+                  onClick={() => setShowJsonModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="p-6 flex-1 overflow-auto">
+              {jsonMode === 'import' ? (
+                <>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Paste an Unlayer design JSON below to load it into the editor. This will replace the current design.
+                  </p>
+                  <textarea
+                    value={jsonInput}
+                    onChange={(e) => setJsonInput(e.target.value)}
+                    placeholder='{"body":{"rows":[...],"values":{...}}}'
+                    className="w-full h-64 font-mono text-xs border border-brand-secondary rounded-md px-3 py-2 focus:ring-brand-primary focus:border-brand-primary resize-y"
+                  />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Copy this JSON to save or share the template design. Paste it into Import to restore.
+                  </p>
+                  <textarea
+                    value={jsonInput}
+                    readOnly
+                    className="w-full h-64 font-mono text-xs border border-brand-secondary rounded-md px-3 py-2 bg-gray-50 resize-y"
+                  />
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-secondary">
+              <button
+                onClick={() => setShowJsonModal(false)}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              {jsonMode === 'import' ? (
+                <button
+                  onClick={() => {
+                    try {
+                      const design = JSON.parse(jsonInput);
+                      if (editorRef.current && editorReady.current) {
+                        editorRef.current.loadDesign(design);
+                        hasUnsavedChanges.current = true;
+                        setShowJsonModal(false);
+                      }
+                    } catch (err) {
+                      alert('Invalid JSON. Please check the format and try again.');
+                    }
+                  }}
+                  disabled={!jsonInput.trim()}
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Load Design
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(jsonInput);
+                    alert('JSON copied to clipboard!');
+                  }}
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold text-sm"
+                >
+                  Copy to Clipboard
+                </button>
+              )}
             </div>
           </div>
         </div>
