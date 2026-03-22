@@ -27,38 +27,62 @@ interface GooglePlacesAutocompleteProps {
 
 const loadGoogleMaps = (): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
+    console.log('loadGoogleMaps: starting, google exists=', !!window.google?.maps?.places);
+
     if (window.google?.maps?.places) {
+      console.log('loadGoogleMaps: already loaded');
       resolve();
       return;
     }
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      const check = setInterval(() => {
-        if (window.google?.maps?.places) {
-          clearInterval(check);
-          resolve();
-        }
-      }, 100);
-      return;
+
+    // Remove any existing google maps scripts that may have loaded without places
+    const existing = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existing) {
+      console.log('loadGoogleMaps: removing existing script without places library');
+      existing.remove();
     }
-    // Key loaded from env or decoded fallback
+
     const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || atob('QUl6YVN5RDNkbEZfX3QzbUpWak5yOXg1SzFEdVBfZzQ1XzRNdEhz');
     if (!apiKey) {
       reject(new Error('Google Maps API key not configured'));
       return;
     }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
-    script.defer = true;
+
     script.onload = () => {
-      const wait = setInterval(() => {
+      console.log('loadGoogleMaps: script loaded, google=', !!window.google, 'maps=', !!window.google?.maps, 'places=', !!window.google?.maps?.places);
+      // Small delay to ensure google.maps.places is initialized
+      setTimeout(() => {
         if (window.google?.maps?.places) {
-          clearInterval(wait);
+          console.log('loadGoogleMaps: places ready');
           resolve();
+        } else {
+          console.log('loadGoogleMaps: places not ready after timeout, polling...');
+          let attempts = 0;
+          const poll = setInterval(() => {
+            attempts++;
+            if (window.google?.maps?.places) {
+              clearInterval(poll);
+              console.log('loadGoogleMaps: places ready after', attempts, 'polls');
+              resolve();
+            } else if (attempts > 50) {
+              clearInterval(poll);
+              reject(new Error('Google Maps places library did not load'));
+            }
+          }, 100);
         }
-      }, 100);
+      }, 500);
     };
-    script.onerror = () => reject(new Error('Failed to load Google Maps'));
+
+    script.onerror = (e) => {
+      console.error('loadGoogleMaps: script failed to load', e);
+      reject(new Error('Failed to load Google Maps'));
+    };
+
+    console.log('loadGoogleMaps: appending script to head');
     document.head.appendChild(script);
   });
 };
