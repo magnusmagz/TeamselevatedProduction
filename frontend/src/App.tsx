@@ -23,7 +23,6 @@ import TermsOfService from './pages/TermsOfService';
 import ConsentConfirm from './pages/ConsentConfirm';
 import TeamManagement from './components/TeamManagement';
 import CoachDashboard from './components/CoachDashboard';
-import AthleteProfile from './components/AthleteProfile';
 import AthleteProfileEnhanced from './components/AthleteProfileEnhanced';
 import AthleteManagement from './components/AthleteManagement';
 import CoachManagement from './components/CoachManagement';

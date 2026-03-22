@@ -15,6 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+
+try {
+    $auth = AuthMiddleware::requireAuth();
+} catch (Exception $e) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required']);
+    exit;
+}
 
 try {
     $db = Database::getInstance();

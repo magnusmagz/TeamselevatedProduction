@@ -15,6 +15,8 @@ interface CoachTeam {
   next_event: string | null;
 }
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
 const CoachDashboard: React.FC = () => {
   const [teams, setTeams] = useState<CoachTeam[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<CoachTeam | null>(null);
@@ -28,7 +30,7 @@ const CoachDashboard: React.FC = () => {
 
   const fetchCoachTeams = async () => {
     try {
-      const response = await fetch('http://localhost:8888/teamselevated-backend/api/coach/teams');
+      const response = await fetch(`${API_URL}/api/coach/teams`);
       const data = await response.json();
       setTeams(data);
     } catch (error) {
