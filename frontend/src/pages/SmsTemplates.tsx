@@ -1,0 +1,523 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useOrg } from '../contexts/OrgContext';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
+const SMS_SEGMENT_LENGTH = 160;
+const SMS_CONCAT_SEGMENT_LENGTH = 153;
+
+const CATEGORIES = ['General', 'Game Day', 'Practice', 'Administrative'];
+
+const MERGE_FIELDS = [
+  { key: 'athlete_first_name', label: 'Athlete First Name' },
+  { key: 'athlete_last_name', label: 'Athlete Last Name' },
+  { key: 'guardian_first_name', label: 'Guardian First Name' },
+  { key: 'guardian_last_name', label: 'Guardian Last Name' },
+  { key: 'team_name', label: 'Team Name' },
+  { key: 'club_name', label: 'Club Name' },
+  { key: 'event_name', label: 'Event Name' },
+  { key: 'event_date', label: 'Event Date' },
+  { key: 'event_time', label: 'Event Time' },
+  { key: 'sender_first_name', label: 'Sender First Name' },
+];
+
+interface SmsTemplate {
+  id: number;
+  club_profile_id: number;
+  name: string;
+  body_text: string;
+  category: string;
+  scope: string;
+  channel: string;
+  is_active: boolean;
+  cloned_from: number | null;
+  created_by: number;
+  updated_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+function getSegmentCount(len: number): number {
+  if (len === 0) return 0;
+  if (len <= SMS_SEGMENT_LENGTH) return 1;
+  return Math.ceil(len / SMS_CONCAT_SEGMENT_LENGTH);
+}
+
+function getScopeBadge(scope: string) {
+  switch (scope) {
+    case 'platform':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Platform</span>;
+    case 'club':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Club</span>;
+    case 'personal':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">Personal</span>;
+    default:
+      return null;
+  }
+}
+
+const SmsTemplates: React.FC = () => {
+  const { user } = useAuth();
+  const { activeContext } = useOrg();
+  const token = localStorage.getItem('auth_token');
+
+  const clubProfileId = activeContext?.scope_id;
+  const isAdmin = user?.activeRole?.role === 'club_admin' || user?.system_role === 'super_admin';
+  const isSuperAdmin = user?.system_role === 'super_admin';
+
+  const [templates, setTemplates] = useState<SmsTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formBody, setFormBody] = useState('');
+  const [formCategory, setFormCategory] = useState('General');
+  const [formScope, setFormScope] = useState('club');
+  const [saving, setSaving] = useState(false);
+  const [mergePickerOpen, setMergePickerOpen] = useState(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+
+  const fetchTemplates = useCallback(async () => {
+    if (!clubProfileId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/email-templates.php?action=list&club_profile_id=${clubProfileId}&channel=sms`,
+        { headers }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setTemplates(data.templates || []);
+      } else {
+        setError(data.error || 'Failed to load templates');
+      }
+    } catch {
+      setError('Failed to load templates');
+    } finally {
+      setLoading(false);
+    }
+  }, [clubProfileId, token]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const openCreateModal = () => {
+    setEditingTemplate(null);
+    setFormName('');
+    setFormBody('');
+    setFormCategory('General');
+    setFormScope('club');
+    setModalOpen(true);
+  };
+
+  const openEditModal = (t: SmsTemplate) => {
+    setEditingTemplate(t);
+    setFormName(t.name);
+    setFormBody(t.body_text || '');
+    setFormCategory(t.category || 'General');
+    setFormScope(t.scope);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingTemplate(null);
+    setMergePickerOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim() || !formBody.trim()) return;
+    setSaving(true);
+
+    try {
+      const isEdit = !!editingTemplate;
+      const url = isEdit
+        ? `${API_URL}/api/email-templates.php?action=update&id=${editingTemplate!.id}`
+        : `${API_URL}/api/email-templates.php?action=create`;
+
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers,
+        body: JSON.stringify({
+          club_profile_id: clubProfileId,
+          name: formName,
+          channel: 'sms',
+          body_text: formBody,
+          category: formCategory.toLowerCase().replace(' ', '_'),
+          scope: formScope,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        closeModal();
+        fetchTemplates();
+      } else {
+        setError(data.error || 'Failed to save template');
+      }
+    } catch {
+      setError('Failed to save template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDuplicate = async (t: SmsTemplate) => {
+    try {
+      const res = await fetch(`${API_URL}/api/email-templates.php?action=duplicate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id: t.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchTemplates();
+      }
+    } catch {
+      setError('Failed to duplicate template');
+    }
+  };
+
+  const handleDelete = async (t: SmsTemplate) => {
+    if (!window.confirm(`Delete template "${t.name}"?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/email-templates.php?action=delete&id=${t.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchTemplates();
+      }
+    } catch {
+      setError('Failed to delete template');
+    }
+  };
+
+  const insertMergeField = (key: string) => {
+    const tag = `{{${key}}}`;
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newBody = formBody.substring(0, start) + tag + formBody.substring(end);
+      setFormBody(newBody);
+      // Restore cursor position after the inserted tag
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + tag.length, start + tag.length);
+      }, 0);
+    } else {
+      setFormBody(formBody + tag);
+    }
+    setMergePickerOpen(false);
+  };
+
+  const charCount = formBody.length;
+  const segmentCount = getSegmentCount(charCount);
+
+  const getCharCountColor = () => {
+    if (charCount === 0) return 'text-gray-400';
+    if (charCount <= SMS_SEGMENT_LENGTH) return 'text-gray-500';
+    if (charCount <= SMS_SEGMENT_LENGTH * 2) return 'text-amber-600';
+    return 'text-red-600';
+  };
+
+  const formatCategory = (cat: string) => {
+    if (!cat) return 'General';
+    return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  if (!clubProfileId) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <p className="text-gray-500">Select a club to manage SMS templates.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Templates</h1>
+        {isAdmin && (
+          <button
+            onClick={openCreateModal}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+          >
+            Create Template
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError('')} className="ml-2 text-red-500 hover:text-red-700 font-medium">Dismiss</button>
+        </div>
+      )}
+
+      {/* Template list */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <svg className="animate-spin h-8 w-8 text-brand-primary" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <p className="text-lg font-medium mb-1">No SMS templates yet</p>
+          <p className="text-sm">
+            {isAdmin ? 'Create your first SMS template to get started.' : 'No templates have been created for your club yet.'}
+          </p>
+          {isAdmin && (
+            <button
+              onClick={openCreateModal}
+              className="mt-4 bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+            >
+              Create Template
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {templates.map((t) => {
+            const bodyLen = (t.body_text || '').length;
+            const segs = getSegmentCount(bodyLen);
+            return (
+              <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">{t.name}</h3>
+                  {getScopeBadge(t.scope)}
+                </div>
+                <p className="text-sm text-gray-500 mb-3 line-clamp-2 min-h-[2.5rem]">
+                  {t.body_text ? (t.body_text.length > 80 ? t.body_text.substring(0, 80) + '...' : t.body_text) : 'No body text'}
+                </p>
+                <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                  <span className="capitalize">{formatCategory(t.category)}</span>
+                  <span>{bodyLen} chars</span>
+                  <span>{segs} segment{segs !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                  {isAdmin && (
+                    <button
+                      onClick={() => openEditModal(t)}
+                      className="text-xs font-medium text-brand-primary hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDuplicate(t)}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline"
+                    >
+                      Duplicate
+                    </button>
+                  )}
+                  {isAdmin && t.scope !== 'platform' && (
+                    <button
+                      onClick={() => handleDelete(t)}
+                      className="text-xs font-medium text-red-500 hover:text-red-700 hover:underline ml-auto"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
+          <div className="relative w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingTemplate ? 'Edit SMS Template' : 'Create SMS Template'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Practice Reminder"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none"
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none bg-white"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Scope */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+                <select
+                  value={formScope}
+                  onChange={(e) => setFormScope(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none bg-white"
+                >
+                  <option value="club">Club</option>
+                  <option value="personal">Personal</option>
+                  {isSuperAdmin && <option value="platform">Platform</option>}
+                </select>
+              </div>
+
+              {/* Body */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Message Body</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setMergePickerOpen(!mergePickerOpen)}
+                      className="text-xs font-medium text-brand-primary hover:underline flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      Insert Merge Field
+                    </button>
+                    {mergePickerOpen && (
+                      <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px] z-50 max-h-60 overflow-y-auto">
+                        {MERGE_FIELDS.map((f) => (
+                          <button
+                            key={f.key}
+                            onClick={() => insertMergeField(f.key)}
+                            className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="text-gray-900">{f.label}</span>
+                            <span className="text-gray-400 ml-2 text-xs">{`{{${f.key}}}`}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={formBody}
+                  onChange={(e) => setFormBody(e.target.value)}
+                  placeholder="Type your SMS template message..."
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none resize-none font-mono"
+                />
+
+                {/* Character count and segment info */}
+                <div className="flex items-center justify-between mt-1.5">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-medium ${getCharCountColor()}`}>
+                      {charCount} / {SMS_SEGMENT_LENGTH} characters
+                    </span>
+                    {segmentCount > 1 && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {segmentCount} SMS segment{segmentCount > 1 ? 's' : ''} per recipient
+                      </span>
+                    )}
+                  </div>
+                  {charCount > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {segmentCount <= 1
+                        ? `${SMS_SEGMENT_LENGTH - charCount} remaining`
+                        : `${segmentCount * SMS_CONCAT_SEGMENT_LENGTH - charCount} remaining in segment`}
+                    </span>
+                  )}
+                </div>
+
+                {segmentCount > 2 && (
+                  <div className="mt-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-red-700">
+                      Long messages cost more. This template will send as {segmentCount} segments per recipient.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !formName.trim() || !formBody.trim()}
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  editingTemplate ? 'Update Template' : 'Create Template'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SmsTemplates;

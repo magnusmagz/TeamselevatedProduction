@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOrg } from '../../contexts/OrgContext';
 import { RecipientSelector } from './RecipientSelector';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -38,6 +39,13 @@ type SendStatus = 'idle' | 'sending' | 'success' | 'error';
 const SMS_SEGMENT_LENGTH = 160;
 const SMS_CONCAT_SEGMENT_LENGTH = 153; // concatenated SMS segments use 7 bytes for header
 
+interface SmsTemplate {
+  id: number;
+  name: string;
+  body_text: string;
+  category: string;
+}
+
 export const SmsCompose: React.FC<SmsComposeProps> = ({
   isOpen,
   onClose,
@@ -45,6 +53,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   preselectedRecipients,
 }) => {
   const { user } = useAuth();
+  const { activeContext } = useOrg();
 
   const [recipients, setRecipients] = useState<Recipient[]>(preselectedRecipients || []);
   const [sendCopyToSelf, setSendCopyToSelf] = useState(false);
@@ -53,6 +62,12 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
+  // Template picker state
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | ''>('');
+  const [useTemplate, setUseTemplate] = useState(false);
 
   const token = localStorage.getItem('auth_token');
   const headers = {
@@ -63,6 +78,30 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   useEffect(() => {
     if (preselectedRecipients) setRecipients(preselectedRecipients);
   }, [preselectedRecipients]);
+
+  // Fetch SMS templates when "Use Template" is toggled on
+  const orgClubId = activeContext?.scope_id || clubProfileId;
+  useEffect(() => {
+    if (!useTemplate || smsTemplates.length > 0) return;
+    setTemplatesLoading(true);
+    fetch(
+      `${API_URL}/api/email-templates.php?action=list&club_profile_id=${orgClubId}&channel=sms`,
+      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setSmsTemplates(data.templates || []);
+      })
+      .catch(() => {})
+      .finally(() => setTemplatesLoading(false));
+  }, [useTemplate, orgClubId, token]);
+
+  // When a template is selected, populate message
+  useEffect(() => {
+    if (selectedTemplateId === '') return;
+    const tpl = smsTemplates.find((t) => t.id === selectedTemplateId);
+    if (tpl) setMessage(tpl.body_text || '');
+  }, [selectedTemplateId, smsTemplates]);
 
   // Character and segment counting
   const charCount = message.length;
@@ -245,6 +284,52 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
               </div>
             </div>
           )}
+
+          {/* Template picker */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useTemplate}
+                onChange={(e) => {
+                  setUseTemplate(e.target.checked);
+                  if (!e.target.checked) setSelectedTemplateId('');
+                }}
+                className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              <span className="text-sm font-medium text-gray-700">Use Template</span>
+            </label>
+            {useTemplate && (
+              <div className="mt-2">
+                {templatesLoading ? (
+                  <p className="text-xs text-gray-400">Loading templates...</p>
+                ) : smsTemplates.length === 0 ? (
+                  <p className="text-xs text-gray-400">No SMS templates available.</p>
+                ) : (
+                  <>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => setSelectedTemplateId(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none bg-white"
+                    >
+                      <option value="">Select a template...</option>
+                      {smsTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    {selectedTemplateId !== '' && (() => {
+                      const tpl = smsTemplates.find((t) => t.id === selectedTemplateId);
+                      return tpl ? (
+                        <p className="mt-1 text-xs text-gray-400 line-clamp-2">
+                          Preview: {tpl.body_text?.substring(0, 120)}{(tpl.body_text?.length || 0) > 120 ? '...' : ''}
+                        </p>
+                      ) : null;
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Message body */}
           <div>

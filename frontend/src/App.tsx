@@ -79,6 +79,7 @@ import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
+import SmsTemplates from './pages/SmsTemplates';
 // Volunteer Management
 import VolunteerManagement from './pages/VolunteerManagement';
 import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
@@ -320,6 +321,7 @@ function AppContent() {
   const commsLinks = [
     { to: '/communications', label: 'All' },
     { to: '/email-templates', label: 'Email Templates' },
+    { to: '/sms-templates', label: 'SMS Templates' },
     { to: '/email-reporting', label: 'Reporting' },
   ];
 
@@ -830,6 +832,11 @@ function AppContent() {
           <Route path="/email-reporting" element={
             <ProtectedRoute>
               <EmailReporting />
+            </ProtectedRoute>
+          } />
+          <Route path="/sms-templates" element={
+            <ProtectedRoute>
+              <SmsTemplates />
             </ProtectedRoute>
           } />
 

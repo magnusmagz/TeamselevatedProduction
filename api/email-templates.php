@@ -42,15 +42,24 @@ try {
 
             requireClubAccess($auth, $clubProfileId);
 
-            $sql = "SELECT id, club_profile_id, name, subject, category, scope,
-                           team_visibility, is_active, cloned_from,
+            $channel = $_GET['channel'] ?? null;
+
+            $sql = "SELECT id, club_profile_id, name, subject, body_text, channel,
+                           category, scope, team_visibility, is_active, cloned_from,
                            created_by, updated_by, created_at, updated_at
                     FROM email_templates
                     WHERE (club_profile_id = ? OR scope = 'platform')
-                      AND is_active = true
-                    ORDER BY scope DESC, updated_at DESC";
+                      AND is_active = true";
+            $params = [$clubProfileId];
+
+            if ($channel) {
+                $sql .= " AND channel = ?";
+                $params[] = $channel;
+            }
+
+            $sql .= " ORDER BY scope DESC, updated_at DESC";
             $stmt = $db->prepare($sql);
-            $stmt->execute([$clubProfileId]);
+            $stmt->execute($params);
             $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // Parse JSON fields
@@ -121,8 +130,8 @@ try {
 
             // Clone it
             $stmt = $db->prepare("
-                INSERT INTO email_templates (club_profile_id, name, subject, design_json, html_output, category, is_active, scope, team_visibility, cloned_from, created_by, updated_by)
-                VALUES (?, ?, ?, ?, ?, ?, true, 'club', '[]'::jsonb, ?, ?, ?)
+                INSERT INTO email_templates (club_profile_id, name, subject, design_json, html_output, category, is_active, scope, team_visibility, channel, body_text, cloned_from, created_by, updated_by)
+                VALUES (?, ?, ?, ?, ?, ?, true, 'club', '[]'::jsonb, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -132,6 +141,8 @@ try {
                 $original['design_json'],
                 $original['html_output'],
                 $original['category'],
+                $original['channel'] ?? 'email',
+                $original['body_text'],
                 $templateId,
                 $userId,
                 $userId
@@ -160,8 +171,9 @@ try {
             $sql = "INSERT INTO email_templates
                         (club_profile_id, name, subject, design_json, html_output,
                          category, is_active, scope, team_visibility,
+                         channel, body_text,
                          created_by, updated_by)
-                    VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?, ?)
+                    VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)
                     RETURNING id";
             $stmt = $db->prepare($sql);
             $stmt->execute([
@@ -174,6 +186,8 @@ try {
                 isset($data['is_active']) ? ($data['is_active'] ? 'true' : 'false') : 'true',
                 $data['scope'] ?? 'club',
                 json_encode($data['team_visibility'] ?? []),
+                $data['channel'] ?? 'email',
+                $data['body_text'] ?? null,
                 $userId,
                 $userId,
             ]);
@@ -239,6 +253,14 @@ try {
                 $updates[] = "team_visibility = ?::jsonb";
                 $params[] = json_encode($data['team_visibility']);
             }
+            if (isset($data['channel'])) {
+                $updates[] = "channel = ?";
+                $params[] = $data['channel'];
+            }
+            if (isset($data['body_text'])) {
+                $updates[] = "body_text = ?";
+                $params[] = $data['body_text'];
+            }
 
             $updates[] = "updated_by = ?";
             $params[] = $userId;
@@ -297,8 +319,9 @@ try {
             $sql = "INSERT INTO email_templates
                         (club_profile_id, name, subject, design_json, html_output,
                          category, is_active, scope, team_visibility,
+                         channel, body_text,
                          cloned_from, created_by, updated_by)
-                    VALUES (?, ?, ?, ?::jsonb, ?, ?, true, ?, ?::jsonb, ?, ?, ?)
+                    VALUES (?, ?, ?, ?::jsonb, ?, ?, true, ?, ?::jsonb, ?, ?, ?, ?, ?)
                     RETURNING id";
             $stmt = $db->prepare($sql);
             $stmt->execute([
@@ -310,6 +333,8 @@ try {
                 $source['category'],
                 $source['scope'],
                 $source['team_visibility'], // already JSON string from DB
+                $source['channel'] ?? 'email',
+                $source['body_text'],
                 $sourceId,
                 $userId,
                 $userId,
