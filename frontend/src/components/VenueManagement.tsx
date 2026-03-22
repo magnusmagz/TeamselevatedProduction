@@ -932,12 +932,20 @@ const VenueForm: React.FC<{
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Facility Name *
                   </label>
-                  <input
-                    type="text"
-                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
+                  <GooglePlacesAutocomplete
+                    defaultValue={formData.name}
+                    placeholder="Search by facility name or address..."
+                    onPlaceSelect={(place) => {
+                      setFormData({
+                        ...formData,
+                        name: place.name || formData.name,
+                        address: place.address_line1,
+                        city: place.city,
+                        state: place.state,
+                        zip: place.zip_code,
+                        map_url: place.map_url || formData.map_url,
+                      });
+                    }}
                   />
                 </div>
 

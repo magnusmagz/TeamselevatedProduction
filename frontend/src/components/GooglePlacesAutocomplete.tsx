@@ -7,6 +7,7 @@ declare global {
 }
 
 interface PlaceResult {
+  name?: string;
   formatted_address: string;
   address_line1: string;
   city: string;
@@ -27,10 +28,8 @@ interface GooglePlacesAutocompleteProps {
 
 const loadGoogleMaps = (): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
-    console.log('loadGoogleMaps: starting, google exists=', !!window.google?.maps?.places);
 
     if (window.google?.maps?.places) {
-      console.log('loadGoogleMaps: already loaded');
       resolve();
       return;
     }
@@ -38,7 +37,6 @@ const loadGoogleMaps = (): Promise<void> => {
     // Remove any existing google maps scripts that may have loaded without places
     const existing = document.querySelector('script[src*="maps.googleapis.com"]');
     if (existing) {
-      console.log('loadGoogleMaps: removing existing script without places library');
       existing.remove();
     }
 
@@ -53,20 +51,16 @@ const loadGoogleMaps = (): Promise<void> => {
     script.async = true;
 
     script.onload = () => {
-      console.log('loadGoogleMaps: script loaded, google=', !!window.google, 'maps=', !!window.google?.maps, 'places=', !!window.google?.maps?.places);
       // Small delay to ensure google.maps.places is initialized
       setTimeout(() => {
         if (window.google?.maps?.places) {
-          console.log('loadGoogleMaps: places ready');
           resolve();
         } else {
-          console.log('loadGoogleMaps: places not ready after timeout, polling...');
           let attempts = 0;
           const poll = setInterval(() => {
             attempts++;
             if (window.google?.maps?.places) {
               clearInterval(poll);
-              console.log('loadGoogleMaps: places ready after', attempts, 'polls');
               resolve();
             } else if (attempts > 50) {
               clearInterval(poll);
@@ -78,11 +72,9 @@ const loadGoogleMaps = (): Promise<void> => {
     };
 
     script.onerror = (e) => {
-      console.error('loadGoogleMaps: script failed to load', e);
       reject(new Error('Failed to load Google Maps'));
     };
 
-    console.log('loadGoogleMaps: appending script to head');
     document.head.appendChild(script);
   });
 };
@@ -108,22 +100,18 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
   }, []);
 
   useEffect(() => {
-    console.log('GooglePlacesAutocomplete: useEffect running, noApiKey=', noApiKey, 'inputRef=', !!inputRef.current);
     if (noApiKey) return;
 
     let cancelled = false;
 
     loadGoogleMaps()
       .then(() => {
-        console.log('GooglePlacesAutocomplete: Google Maps loaded, google=', !!window.google, 'input=', !!inputRef.current);
         if (cancelled || !inputRef.current || !window.google) return;
 
-        console.log('Google Places: attaching autocomplete to input', inputRef.current);
         const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
           fields: ['address_components', 'formatted_address', 'geometry', 'name', 'url'],
           componentRestrictions: { country: 'us' },
         });
-        console.log('Google Places: autocomplete attached successfully');
 
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
@@ -140,6 +128,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
           });
 
           onPlaceSelectRef.current({
+            name: place.name || '',
             formatted_address: place.formatted_address || '',
             address_line1: `${components['street_number'] || ''} ${components['route'] || ''}`.trim(),
             city: components['locality'] || components['sublocality'] || '',
