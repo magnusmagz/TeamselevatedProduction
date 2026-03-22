@@ -300,11 +300,36 @@ function AppContent() {
 
   const isAmplifiersActive = amplifiersLinks.some((link) => location.pathname.startsWith(link.to));
 
+  const [commsDropdownOpen, setCommsDropdownOpen] = React.useState(false);
+  const commsDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (commsDropdownRef.current && !commsDropdownRef.current.contains(e.target as Node)) {
+        setCommsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    setCommsDropdownOpen(false);
+  }, [location.pathname]);
+
+  const commsLinks = [
+    { to: '/communications', label: 'All' },
+    { to: '/email-templates', label: 'Email Templates' },
+    { to: '/email-reporting', label: 'Reporting' },
+  ];
+
+  const isCommsActive = commsLinks.some((link) => location.pathname.startsWith(link.to));
+
   const navLinks = isAdmin ? [
     { to: '/payment/revenue', label: 'Revenue' },
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/dashboard', label: 'Teams' },
-    { to: '/communications', label: 'Communications' },
+    { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
@@ -312,7 +337,7 @@ function AppContent() {
   ] : [
     { to: '/dashboard', label: 'My Teams' },
     { to: '/__programs_dropdown__', label: 'Programs' },
-    { to: '/communications', label: 'Communications' },
+    { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
@@ -362,7 +387,7 @@ function AppContent() {
                     return [
                       <div key="programs-dropdown" className="relative" ref={programsDropdownRef}>
                         <button
-                          onClick={() => { setProgramsDropdownOpen(!programsDropdownOpen); setPeopleDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
+                          onClick={() => { setProgramsDropdownOpen(!programsDropdownOpen); setPeopleDropdownOpen(false); setAmplifiersDropdownOpen(false); setCommsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isProgramsActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -400,7 +425,7 @@ function AppContent() {
                     return [
                       <div key="amplifiers-dropdown" className="relative" ref={amplifiersDropdownRef}>
                         <button
-                          onClick={() => { setAmplifiersDropdownOpen(!amplifiersDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); }}
+                          onClick={() => { setAmplifiersDropdownOpen(!amplifiersDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setCommsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isAmplifiersActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -425,6 +450,44 @@ function AppContent() {
                                 }`}
                               >
                                 {aLink.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ];
+                  }
+
+                  // Communications dropdown
+                  if (link.to === '/__comms_dropdown__') {
+                    return [
+                      <div key="comms-dropdown" className="relative" ref={commsDropdownRef}>
+                        <button
+                          onClick={() => { setCommsDropdownOpen(!commsDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
+                          className={`uppercase font-medium text-sm flex items-center gap-1 ${
+                            isCommsActive
+                              ? 'text-brand-primary border-b-2 border-brand-primary'
+                              : 'text-brand-primary hover:text-brand-primary-hover'
+                          }`}
+                        >
+                          Communications
+                          <svg className={`w-3.5 h-3.5 transition-transform ${commsDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {commsDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-brand-secondary rounded-lg shadow-lg py-1 min-w-[180px] z-50">
+                            {commsLinks.map((cLink) => (
+                              <Link
+                                key={cLink.to}
+                                to={cLink.to}
+                                className={`block px-4 py-2 text-sm font-medium ${
+                                  location.pathname.startsWith(cLink.to)
+                                    ? 'text-brand-primary bg-brand-secondary'
+                                    : 'text-brand-primary hover:bg-brand-secondary'
+                                }`}
+                              >
+                                {cLink.label}
                               </Link>
                             ))}
                           </div>
