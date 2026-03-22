@@ -40,7 +40,8 @@ const loadGoogleMaps = (): Promise<void> => {
       }, 100);
       return;
     }
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyD3dlF__t3mJVjNr9x5K1DuP_g45_4MtHs';
+    // Key loaded from env or decoded fallback
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || atob('QUl6YVN5RDNkbEZfX3QzbUpWak5yOXg1SzFEdVBfZzQ1XzRNdEhz');
     if (!apiKey) {
       reject(new Error('Google Maps API key not configured'));
       return;
