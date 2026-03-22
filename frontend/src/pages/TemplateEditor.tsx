@@ -790,14 +790,21 @@ const TemplateEditor: React.FC = () => {
                 <button
                   onClick={() => {
                     try {
-                      const design = JSON.parse(jsonInput);
+                      // Sanitize: replace smart quotes and unicode whitespace
+                      const sanitized = jsonInput
+                        .replace(/[\u2018\u2019\u0060]/g, "'")
+                        .replace(/[\u201C\u201D]/g, '"')
+                        .replace(/\u00A0/g, ' ')
+                        .trim();
+                      const design = JSON.parse(sanitized);
                       if (editorRef.current && editorReady.current) {
                         editorRef.current.loadDesign(design);
                         hasUnsavedChanges.current = true;
                         setShowJsonModal(false);
                       }
                     } catch (err) {
-                      alert('Invalid JSON. Please check the format and try again.');
+                      console.error('JSON parse error:', err);
+                      alert('Invalid JSON. Please check the format and try again. Error: ' + (err as Error).message);
                     }
                   }}
                   disabled={!jsonInput.trim()}
