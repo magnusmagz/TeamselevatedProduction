@@ -73,7 +73,9 @@ export const RosterFeeStatus: React.FC = () => {
     const fetchFilters = async () => {
       try {
         // Fetch programs
-        const progRes = await fetch(`${API_URL}/api/programs.php?club_id=${clubId}`);
+        const progRes = await fetch(`${API_URL}/api/programs.php?club_id=${clubId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const progData = await progRes.json();
         if (progData.success) {
           setPrograms(progData.programs || []);
@@ -121,7 +123,10 @@ export const RosterFeeStatus: React.FC = () => {
           url += `&status=${statusFilter}`;
         }
 
-        const response = await fetch(url);
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await response.json();
 
         if (data.success) {

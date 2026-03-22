@@ -50,8 +50,10 @@ export const OutstandingBalances: React.FC = () => {
 
   const fetchBalances = async () => {
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/outstanding-balances.php?club_id=13&sort_by=${sortBy}`
+        `${process.env.REACT_APP_API_URL}/api/outstanding-balances.php?club_id=13&sort_by=${sortBy}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const data = await response.json();
       if (data.success) {

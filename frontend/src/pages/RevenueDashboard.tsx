@@ -40,7 +40,10 @@ export const RevenueDashboard: React.FC = () => {
   useEffect(() => {
     // Fetch revenue summary for current club (default to 32 for demo data)
     const clubId = currentClubId || 32;
-    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?club_id=${clubId}`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/revenue-summary.php?club_id=${clubId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {

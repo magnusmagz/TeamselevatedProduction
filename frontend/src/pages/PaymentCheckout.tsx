@@ -75,7 +75,10 @@ export const PaymentCheckout: React.FC = () => {
       ? `${process.env.REACT_APP_API_URL}/api/athlete-payments.php?athlete_id=${athleteId}`
       : `${process.env.REACT_APP_API_URL}/api/athlete-payments.php?athlete_id=${athleteId}`;
 
-    fetch(url)
+    const token = localStorage.getItem('auth_token');
+    fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -115,7 +118,10 @@ export const PaymentCheckout: React.FC = () => {
 
   // Fetch available payment plans
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=13`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=13`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -129,7 +135,10 @@ export const PaymentCheckout: React.FC = () => {
   useEffect(() => {
     if (!selectedPlan || !paymentDetails?.amount) return;
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=calculate&plan_id=${selectedPlan}&amount=${paymentDetails.amount}`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=calculate&plan_id=${selectedPlan}&amount=${paymentDetails.amount}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -155,9 +164,10 @@ export const PaymentCheckout: React.FC = () => {
     try {
       // If using payment plan, first apply the plan to create installments
       if (usePaymentPlan && selectedPlan) {
+        const planToken = localStorage.getItem('auth_token');
         const applyPlanResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=apply`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${planToken}` },
           body: JSON.stringify({
             athlete_payment_id: paymentDetails?.payment_id,
             plan_id: selectedPlan
@@ -190,10 +200,12 @@ export const PaymentCheckout: React.FC = () => {
         save_card: usePaymentPlan ? true : saveCard // Always save card for payment plans
       };
 
+      const payToken = localStorage.getItem('auth_token');
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payments-stub.php?action=process-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${payToken}`,
         },
         body: JSON.stringify(payload)
       });

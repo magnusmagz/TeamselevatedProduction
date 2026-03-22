@@ -40,7 +40,10 @@ export const PaymentItemsList: React.FC = () => {
 
   // Fetch available programs and seasons
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.programs) {
@@ -68,7 +71,10 @@ export const PaymentItemsList: React.FC = () => {
       url += `&season=${encodeURIComponent(selectedSeason)}`;
     }
 
-    fetch(url)
+    const token = localStorage.getItem('auth_token');
+    fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {

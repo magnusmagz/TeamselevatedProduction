@@ -79,7 +79,10 @@ export const PaymentPage: React.FC = () => {
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/invoices.php?action=get&id=${invoiceId}`);
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_URL}/api/invoices.php?action=get&id=${invoiceId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await response.json();
 
         if (data.success === false || data.error) {
@@ -250,9 +253,10 @@ export const PaymentPage: React.FC = () => {
 
     try {
       // Process payment via backend API
+      const payToken = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/api/payments-stub.php?action=process-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${payToken}` },
         body: JSON.stringify({
           athlete_payment_id: invoice?.athlete_payment_id,
           amount: getAmountDueToday(),

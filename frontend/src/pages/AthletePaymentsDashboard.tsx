@@ -63,9 +63,11 @@ export const AthletePaymentsDashboard: React.FC = () => {
     if (!athleteId) return;
 
     // Fetch payments and invoices in parallel
+    const token = localStorage.getItem('auth_token');
+    const authHeaders = { 'Authorization': `Bearer ${token}` };
     Promise.all([
-      fetch(`${process.env.REACT_APP_API_URL}/api/athlete-payments.php?athlete_id=${athleteId}`).then(res => res.json()),
-      fetch(`${process.env.REACT_APP_API_URL}/api/invoices.php?athlete_id=${athleteId}`).then(res => res.json())
+      fetch(`${process.env.REACT_APP_API_URL}/api/athlete-payments.php?athlete_id=${athleteId}`, { headers: authHeaders }).then(res => res.json()),
+      fetch(`${process.env.REACT_APP_API_URL}/api/invoices.php?athlete_id=${athleteId}`, { headers: authHeaders }).then(res => res.json())
     ])
       .then(([paymentsData, invoicesData]) => {
         if (paymentsData.success) {

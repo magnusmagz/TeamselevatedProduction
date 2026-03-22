@@ -55,7 +55,10 @@ export const TransactionReport: React.FC = () => {
 
   // Fetch programs for filter dropdown
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.programs) {
@@ -72,6 +75,7 @@ export const TransactionReport: React.FC = () => {
 
   const fetchTransactions = () => {
     setLoading(true);
+    const token = localStorage.getItem('auth_token');
 
     let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=13`;
     if (selectedProgram) url += `&program_id=${selectedProgram}`;
@@ -80,7 +84,9 @@ export const TransactionReport: React.FC = () => {
     if (dateTo) url += `&date_to=${dateTo}`;
     if (paymentType) url += `&payment_type=${paymentType}`;
 
-    fetch(url)
+    fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {

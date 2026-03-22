@@ -45,7 +45,10 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
 
   const fetchRegistrations = async () => {
     try {
-      const response = await fetch(`${API_URL}/registration/registrations-api.php?program_id=${program.id}`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/registration/registrations-api.php?program_id=${program.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       setRegistrations(data);
     } catch (error) {
@@ -58,9 +61,10 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
   const handleUpdateStatus = async (registrationId: number, status: 'approved' | 'rejected') => {
     setProcessing(registrationId);
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/registration/registrations-api.php?id=${registrationId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status })
       });
 
@@ -84,9 +88,10 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
   const createInvoiceFromPayment = async (athletePaymentId: number) => {
     try {
       // Create invoice from the athlete payment
+      const token = localStorage.getItem('auth_token');
       await fetch(`${API_URL}/api/invoices.php?action=create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           athlete_payment_id: athletePaymentId
         })

@@ -41,9 +41,11 @@ export const MultiPaymentCheckout: React.FC = () => {
     const { paymentIds } = JSON.parse(pendingData);
 
     // Fetch payment details for all IDs
+    const token = localStorage.getItem('auth_token');
+    const authHeaders = { 'Authorization': `Bearer ${token}` };
     Promise.all(
       paymentIds.map((id: number) =>
-        fetch(`${process.env.REACT_APP_API_URL}/api/athlete-payments.php?payment_id=${id}`)
+        fetch(`${process.env.REACT_APP_API_URL}/api/athlete-payments.php?payment_id=${id}`, { headers: authHeaders })
           .then(res => res.json())
       )
     )
@@ -92,9 +94,10 @@ export const MultiPaymentCheckout: React.FC = () => {
       const transactionIds: number[] = [];
 
       for (const payment of payments) {
+        const payToken = localStorage.getItem('auth_token');
         const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payments-stub.php?action=process-payment`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${payToken}` },
           body: JSON.stringify({
             athlete_payment_id: payment.id,
             amount: payment.amount,

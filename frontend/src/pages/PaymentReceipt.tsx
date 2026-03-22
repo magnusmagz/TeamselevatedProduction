@@ -30,7 +30,10 @@ export const PaymentReceipt: React.FC = () => {
   useEffect(() => {
     if (!transactionId) return;
 
-    fetch(`${process.env.REACT_APP_API_URL}/api/payment-receipt.php?transaction_id=${transactionId}`)
+    const token = localStorage.getItem('auth_token');
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-receipt.php?transaction_id=${transactionId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -67,9 +70,10 @@ export const PaymentReceipt: React.FC = () => {
 
   const handleEmailReceipt = async () => {
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/payment-receipt.php?action=email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ transaction_id: transactionId })
       });
       const data = await response.json();
