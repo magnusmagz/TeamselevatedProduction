@@ -710,7 +710,6 @@ export const VolunteerManagement: React.FC = () => {
 
             <div className="space-y-4">
               {addMode === 'new' ? (
-                /* New Volunteer Form */
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -757,8 +756,7 @@ export const VolunteerManagement: React.FC = () => {
                   <p className="text-xs text-gray-500">Background check will start as pending. Update status once cleared.</p>
                 </div>
               ) : (
-              /* Existing User Search */
-              <div>
+                <div>
                 <label className="block text-xs text-brand-primary uppercase tracking-wide mb-1">
                   Search User
                 </label>
@@ -819,6 +817,7 @@ export const VolunteerManagement: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
 
               {/* BG Check Status Display */}
               {selectedUser && (
