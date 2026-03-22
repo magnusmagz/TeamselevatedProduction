@@ -133,11 +133,12 @@ const TemplateEditor: React.FC = () => {
       setIsActive(template.is_active);
 
       if (template.design_json) {
-        setExistingDesign(template.design_json);
+        const brandedDesign = applyBrandColors(template.design_json);
+        setExistingDesign(brandedDesign);
         // If editor is already ready, load the design immediately
         const editor = getEditor();
         if (editorReady.current && editor) {
-          editor.loadDesign(template.design_json as any);
+          editor.loadDesign(brandedDesign as any);
         }
       }
     } catch (err) {
@@ -253,13 +254,36 @@ const TemplateEditor: React.FC = () => {
     return editorRef.current?.editor || editorRef.current;
   };
 
+  // Replace placeholder colors in design JSON with the club's actual brand colors
+  // Platform templates use these placeholder hex values:
+  //   #1A3C5E → brand primary
+  //   #C9A96E → brand secondary/accent
+  const applyBrandColors = (design: any): any => {
+    const json = JSON.stringify(design);
+    const branded = json
+      .replace(/#1a3c5e/gi, colors.primary)
+      .replace(/#1A3C5E/gi, colors.primary)
+      .replace(/#c9a96e/gi, colors.accent)
+      .replace(/#C9A96E/gi, colors.accent);
+    return JSON.parse(branded);
+  };
+
   const onEditorReady: EmailEditorProps['onReady'] = () => {
     editorReady.current = true;
 
     const editor = getEditor();
-    // Load existing design if available
+    // Load existing design if available (brand colors already applied in setExistingDesign)
     if (existingDesign && editor) {
       editor.loadDesign(existingDesign as any);
+    }
+    // Update design tags with current brand colors
+    if (editor?.setDesignTags) {
+      editor.setDesignTags({
+        brand_color: colors.primary,
+        brand_secondary: colors.secondary,
+        brand_accent: colors.accent,
+        club_name: activeContext?.scope_name || 'Your Club',
+      });
     }
 
     // Track changes
@@ -824,7 +848,7 @@ const TemplateEditor: React.FC = () => {
                         .replace(/[\u201C\u201D]/g, '"')
                         .replace(/\u00A0/g, ' ')
                         .trim();
-                      const design = JSON.parse(sanitized);
+                      const design = applyBrandColors(JSON.parse(sanitized));
                       if (editorRef.current && editorReady.current) {
                         editorRef.current.loadDesign(design);
                         hasUnsavedChanges.current = true;
