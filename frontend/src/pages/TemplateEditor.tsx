@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface EmailTemplate {
   id: number;
@@ -40,6 +41,7 @@ const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { activeContext } = useOrg();
+  const { colors } = useTheme();
 
   const editorRef = useRef<any>(null);
   const editorReady = useRef(false);
@@ -644,9 +646,35 @@ const TemplateEditor: React.FC = () => {
           onReady={onEditorReady}
           options={{
             mergeTags: buildMergeTags(),
+            designTags: {
+              brand_color: colors.primary,
+              brand_secondary: colors.secondary,
+              brand_accent: colors.accent,
+              club_name: activeContext?.scope_name || 'Your Club',
+            },
+            customCSS: [
+              `.blockbuilder-branding { display: none !important; }`,
+            ],
             features: {
               textEditor: {
                 spellChecker: true,
+                tables: true,
+              },
+              colorPicker: {
+                presets: [
+                  colors.primary,
+                  colors.secondary,
+                  colors.accent,
+                  colors.primaryHover,
+                  '#ffffff',
+                  '#000000',
+                  '#f3f4f6',
+                  '#374151',
+                  '#ef4444',
+                  '#f59e0b',
+                  '#22c55e',
+                  '#3b82f6',
+                ],
               },
             },
             appearance: {
