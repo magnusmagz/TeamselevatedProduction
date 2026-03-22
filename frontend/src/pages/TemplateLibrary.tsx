@@ -124,7 +124,7 @@ const TemplateLibrary: React.FC = () => {
   const filteredTemplates = templates.filter((t) => {
     const matchesTab =
       activeTab === 'club'
-        ? t.scope === 'club'
+        ? t.scope === 'club' || t.scope === 'platform'
         : t.scope === 'personal' && t.created_by === user?.id;
     const matchesSearch =
       searchQuery === '' ||
