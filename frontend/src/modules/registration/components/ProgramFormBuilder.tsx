@@ -76,8 +76,9 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="absolute inset-0 bg-black bg-opacity-30" onClick={onClose} />
+      <div className="bg-white border border-brand-secondary rounded-md absolute inset-y-0 right-0 w-full max-w-[75vw] shadow-xl flex flex-col">
         <div className="border-b border-brand-secondary px-6 py-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">

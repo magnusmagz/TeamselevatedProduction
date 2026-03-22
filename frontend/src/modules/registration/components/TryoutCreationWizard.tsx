@@ -265,8 +265,9 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-brand-secondary rounded-md max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="absolute inset-0 bg-black bg-opacity-30" onClick={onCancel} />
+      <div className="bg-white border border-brand-secondary rounded-md absolute inset-y-0 right-0 w-full max-w-[75vw] shadow-xl flex flex-col">
         {/* Header */}
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
