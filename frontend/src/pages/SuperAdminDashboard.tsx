@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import PlatformStats from '../components/superadmin/PlatformStats';
 import ClubsList from '../components/superadmin/ClubsList';
 import ClubDetails from '../components/superadmin/ClubDetails';
@@ -10,7 +11,7 @@ import { generateColorPalette } from '../utils/colorExtractor';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
-type Tab = 'overview' | 'clubs' | 'users' | 'athletes';
+type Tab = 'overview' | 'clubs' | 'users' | 'athletes' | 'templates';
 
 interface Stats {
   total_clubs: number;
@@ -370,6 +371,7 @@ const SuperAdminDashboard: React.FC = () => {
     { key: 'clubs', label: 'Clubs' },
     { key: 'users', label: 'Users' },
     { key: 'athletes', label: 'Athletes' },
+    { key: 'templates', label: 'Email Templates' },
   ];
 
   return (
@@ -429,6 +431,32 @@ const SuperAdminDashboard: React.FC = () => {
           loading={athletesLoading}
           onSearch={fetchAthletes}
         />
+      )}
+
+      {activeTab === 'templates' && (
+        <div className="bg-white border border-brand-secondary rounded-md p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-brand-primary uppercase tracking-wide">Platform Email Templates</h2>
+              <p className="text-sm text-gray-600 mt-1">Create templates that are available to all clubs. Clubs get their own copy when they edit.</p>
+            </div>
+            <Link
+              to="/email-templates/new"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+            >
+              Create Platform Template
+            </Link>
+          </div>
+          <div className="border-t border-brand-secondary pt-4">
+            <Link
+              to="/email-templates"
+              className="text-brand-primary hover:underline font-medium"
+            >
+              Open Template Library →
+            </Link>
+            <p className="text-xs text-gray-500 mt-1">Set scope to "Platform" when creating to make templates available to all clubs.</p>
+          </div>
+        </div>
       )}
 
       {/* Club Details Modal */}
