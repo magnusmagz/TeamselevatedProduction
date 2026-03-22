@@ -92,11 +92,12 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
       .then(() => {
         if (cancelled || !inputRef.current || !window.google) return;
 
+        console.log('Google Places: attaching autocomplete to input', inputRef.current);
         const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-          types: ['address', 'establishment'],
           fields: ['address_components', 'formatted_address', 'geometry', 'name', 'url'],
           componentRestrictions: { country: 'us' },
         });
+        console.log('Google Places: autocomplete attached successfully');
 
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();

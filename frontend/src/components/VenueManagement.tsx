@@ -139,8 +139,6 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
   };
 
   const handleAddVenue = () => {
-    console.log('Google Maps API Key available:', !!process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
-    console.log('API Key value:', process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
     setSelectedVenue(null);
     setFormData({
       name: '',
