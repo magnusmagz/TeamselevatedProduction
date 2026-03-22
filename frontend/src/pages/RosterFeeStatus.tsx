@@ -71,6 +71,7 @@ export const RosterFeeStatus: React.FC = () => {
     if (!clubId) return;
 
     const fetchFilters = async () => {
+      const token = localStorage.getItem('auth_token');
       try {
         // Fetch programs
         const progRes = await fetch(`${API_URL}/api/programs.php?club_id=${clubId}`, {
@@ -82,7 +83,6 @@ export const RosterFeeStatus: React.FC = () => {
         }
 
         // Fetch teams
-        const token = localStorage.getItem('auth_token');
         const teamRes = await fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
