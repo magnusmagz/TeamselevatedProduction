@@ -92,6 +92,8 @@ try {
             }
 
             $template['team_visibility'] = json_decode($template['team_visibility'], true) ?: [];
+            $rawDesign = $template['design_json'];
+            error_log("Template GET id={$id}: design_json type=" . gettype($rawDesign) . " len=" . strlen($rawDesign ?? '') . " decode_result=" . gettype(json_decode($rawDesign ?? '', true)));
             $template['design_json'] = json_decode($template['design_json'], true);
             $template['is_active'] = (bool)$template['is_active'];
 
