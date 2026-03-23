@@ -45,6 +45,7 @@ const TemplateEditor: React.FC = () => {
 
   const editorRef = useRef<any>(null);
   const editorReady = useRef(false);
+  const [editorIsReady, setEditorIsReady] = useState(false);
   const hasUnsavedChanges = useRef(false);
 
   const isNew = !id || id === 'new';
@@ -137,10 +138,6 @@ const TemplateEditor: React.FC = () => {
         const brandedDesign = applyBrandColors(template.design_json);
         setExistingDesign(brandedDesign);
         existingDesignRef.current = brandedDesign;
-        const editor = getEditor();
-        if (editorReady.current && editor) {
-          editor.loadDesign(brandedDesign as any);
-        }
       }
     } catch (err) {
       console.error('Error fetching template:', err);
@@ -271,12 +268,9 @@ const TemplateEditor: React.FC = () => {
 
   const onEditorReady: EmailEditorProps['onReady'] = () => {
     editorReady.current = true;
+    setEditorIsReady(true);
 
     const editor = getEditor();
-    // Load existing design if available (use ref to get latest value)
-    if (existingDesignRef.current && editor) {
-      editor.loadDesign(existingDesignRef.current as any);
-    }
     // Update design tags with current brand colors
     if (editor?.setDesignTags) {
       editor.setDesignTags({
@@ -294,6 +288,16 @@ const TemplateEditor: React.FC = () => {
       });
     }
   };
+
+  // Load design into editor when both design data and editor are ready
+  useEffect(() => {
+    if (existingDesign && editorIsReady) {
+      const editor = getEditor();
+      if (editor) {
+        editor.loadDesign(existingDesign as any);
+      }
+    }
+  }, [existingDesign, editorIsReady]);
 
   const handleSave = () => {
     if (!templateName.trim()) {
