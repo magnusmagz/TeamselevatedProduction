@@ -65,6 +65,7 @@ const TemplateEditor: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [mergeFields, setMergeFields] = useState<MergeField[]>([]);
   const [existingDesign, setExistingDesign] = useState<object | null>(null);
+  const existingDesignRef = useRef<object | null>(null);
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -135,6 +136,7 @@ const TemplateEditor: React.FC = () => {
       if (template.design_json) {
         const brandedDesign = applyBrandColors(template.design_json);
         setExistingDesign(brandedDesign);
+        existingDesignRef.current = brandedDesign;
         // If editor is already ready, load the design immediately
         const editor = getEditor();
         if (editorReady.current && editor) {
@@ -272,9 +274,9 @@ const TemplateEditor: React.FC = () => {
     editorReady.current = true;
 
     const editor = getEditor();
-    // Load existing design if available (brand colors already applied in setExistingDesign)
-    if (existingDesign && editor) {
-      editor.loadDesign(existingDesign as any);
+    // Load existing design if available (use ref to get latest value)
+    if (existingDesignRef.current && editor) {
+      editor.loadDesign(existingDesignRef.current as any);
     }
     // Update design tags with current brand colors
     if (editor?.setDesignTags) {
