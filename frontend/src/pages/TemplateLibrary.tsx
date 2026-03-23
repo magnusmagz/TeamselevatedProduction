@@ -56,7 +56,7 @@ const TemplateLibrary: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `${API_URL}/api/email-templates.php?action=list&club_profile_id=${clubProfileId}`,
+        `${API_URL}/api/email-templates.php?action=list&club_profile_id=${clubProfileId}&channel=email`,
         {
           headers: {
             'Accept': 'application/json',

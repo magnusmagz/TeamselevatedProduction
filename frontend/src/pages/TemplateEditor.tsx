@@ -133,23 +133,14 @@ const TemplateEditor: React.FC = () => {
       setTeamVisibility(template.team_visibility || []);
       setIsActive(template.is_active);
 
-      console.log('Template data:', { has_design: !!template.design_json, type: typeof template.design_json, editorReady: editorReady.current, design_json: template.design_json, keys: template.design_json ? Object.keys(template.design_json) : 'none' });
       if (template.design_json) {
         const brandedDesign = applyBrandColors(template.design_json);
-        console.log('Branded design keys:', Object.keys(brandedDesign));
         setExistingDesign(brandedDesign);
         existingDesignRef.current = brandedDesign;
-        // If editor is already ready, load the design immediately
         const editor = getEditor();
-        console.log('Editor ready:', editorReady.current, 'editor:', !!editor);
         if (editorReady.current && editor) {
-          console.log('Loading design into editor NOW');
           editor.loadDesign(brandedDesign as any);
-        } else {
-          console.log('Editor not ready yet, design saved in ref for onReady');
         }
-      } else {
-        console.log('No design_json in template response');
       }
     } catch (err) {
       console.error('Error fetching template:', err);
