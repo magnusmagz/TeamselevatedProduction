@@ -13,6 +13,7 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         ),
         'P' => 
         array (
+            'Predis\\' => 7,
             'PHPMailer\\PHPMailer\\' => 20,
         ),
     );
@@ -22,6 +23,10 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
+        'Predis\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/predis/predis/src',
+        ),
         'PHPMailer\\PHPMailer\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
@@ -29,10 +34,16 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
     );
 
     public static $classMap = array (
+        'BracketGenerator' => __DIR__ . '/../..' . '/services/BracketGenerator.php',
         'CalendarInviteService' => __DIR__ . '/../..' . '/services/CalendarInviteService.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'EmailSendService' => __DIR__ . '/../..' . '/services/EmailSendService.php',
+        'MergeFieldService' => __DIR__ . '/../..' . '/services/MergeFieldService.php',
         'MockMailerService' => __DIR__ . '/../..' . '/services/MockMailerService.php',
         'RecipientService' => __DIR__ . '/../..' . '/services/RecipientService.php',
+        'ScheduleGenerator' => __DIR__ . '/../..' . '/services/ScheduleGenerator.php',
+        'SmsSendService' => __DIR__ . '/../..' . '/services/SmsSendService.php',
+        'StandingsCalculator' => __DIR__ . '/../..' . '/services/StandingsCalculator.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

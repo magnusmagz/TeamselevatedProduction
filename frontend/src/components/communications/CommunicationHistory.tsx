@@ -86,7 +86,7 @@ export const CommunicationHistory: React.FC<CommunicationHistoryProps> = ({
     const token = localStorage.getItem('auth_token');
 
     fetch(
-      `${API_URL}/api/communications.php?action=contact-history&contact_type=${contactType}&contact_id=${contactId}&club_profile_id=${clubProfileId}`,
+      `${API_URL}/api/communications?action=contact-history&contact_type=${contactType}&contact_id=${contactId}&club_profile_id=${clubProfileId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }

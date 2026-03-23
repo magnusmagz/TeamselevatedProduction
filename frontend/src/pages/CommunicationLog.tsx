@@ -140,7 +140,7 @@ export const CommunicationLog: React.FC = () => {
       if (!append) setLoading(true);
       else setLoadingMore(true);
 
-      let url = `${API_URL}/api/communications.php?action=log&club_profile_id=${clubProfileId}&page=${pageNum}&per_page=25`;
+      let url = `${API_URL}/api/communications?action=log&club_profile_id=${clubProfileId}&page=${pageNum}&per_page=25`;
       if (channelFilter !== 'all') url += `&channel=${channelFilter}`;
       if (statusFilter !== 'all') url += `&status=${statusFilter}`;
       if (dateFrom) url += `&date_from=${dateFrom}`;
@@ -189,7 +189,7 @@ export const CommunicationLog: React.FC = () => {
     setSelectedEntry(entry as CommunicationDetail);
 
     const token = localStorage.getItem('auth_token');
-    fetch(`${API_URL}/api/communications.php?action=log-detail&id=${entry.id}`, {
+    fetch(`${API_URL}/api/communications?action=log-detail&id=${entry.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())

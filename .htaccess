@@ -9,6 +9,22 @@ RewriteEngine On
 # Route for athlete full profile
 RewriteRule ^api/athletes/([0-9]+)/full-profile$ api/athletes-profile.php/$1 [L]
 
+# Email/SMS API routes
+RewriteRule ^api/communications api/communications-gateway.php [QSA,L]
+RewriteRule ^api/recipient-search api/recipient-search-gateway.php [QSA,L]
+RewriteRule ^api/analytics api/analytics-gateway.php [QSA,L]
+
+# Tracking routes (no auth)
+RewriteRule ^api/track/pixel/([a-f0-9]+)\.gif$ api/track/pixel.php?trackingId=$1 [QSA,L]
+RewriteRule ^api/track/click/([a-f0-9]+)/([a-f0-9]+)$ api/track/click.php?trackingId=$1&linkId=$2 [QSA,L]
+
+# Webhook routes (no auth)
+RewriteRule ^api/webhooks/sendgrid api/webhooks/sendgrid.php [QSA,L]
+RewriteRule ^api/webhooks/twilio-status api/webhooks/twilio-status.php [QSA,L]
+
+# Unsubscribe landing page
+RewriteRule ^unsubscribe api/communications-gateway.php?action=unsubscribe [QSA,L]
+
 # Default fallback
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

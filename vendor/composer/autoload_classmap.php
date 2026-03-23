@@ -6,8 +6,14 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'BracketGenerator' => $baseDir . '/services/BracketGenerator.php',
     'CalendarInviteService' => $baseDir . '/services/CalendarInviteService.php',
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'EmailSendService' => $baseDir . '/services/EmailSendService.php',
+    'MergeFieldService' => $baseDir . '/services/MergeFieldService.php',
     'MockMailerService' => $baseDir . '/services/MockMailerService.php',
     'RecipientService' => $baseDir . '/services/RecipientService.php',
+    'ScheduleGenerator' => $baseDir . '/services/ScheduleGenerator.php',
+    'SmsSendService' => $baseDir . '/services/SmsSendService.php',
+    'StandingsCalculator' => $baseDir . '/services/StandingsCalculator.php',
 );
