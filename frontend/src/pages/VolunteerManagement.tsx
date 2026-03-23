@@ -144,17 +144,17 @@ export const VolunteerManagement: React.FC = () => {
   const fetchTeams = useCallback(async () => {
     if (!currentClubId) return;
     try {
-      const endpoint = isClubAdmin
-        ? `${API_URL}/api/teams`
-        : `${API_URL}/api/coach/teams`;
-      const res = await fetch(endpoint, { headers });
+      const res = await fetch(
+        `${API_URL}/api/volunteer-gateway.php?action=available-teams&club_id=${currentClubId}`,
+        { headers }
+      );
       const data = await res.json();
       const teamList = data.teams || (Array.isArray(data) ? data : []);
       setTeams(teamList.map((t: any) => ({ id: t.id, name: t.name })));
     } catch (err) {
       console.error('Error fetching teams:', err);
     }
-  }, [currentClubId, isClubAdmin]);
+  }, [currentClubId]);
 
   const fetchCompliance = useCallback(async () => {
     if (!currentClubId) return;
@@ -190,7 +190,12 @@ export const VolunteerManagement: React.FC = () => {
           { headers }
         );
         const data = await res.json();
-        setUserResults(Array.isArray(data) ? data : data.users || []);
+        const users = Array.isArray(data) ? data : data.users || [];
+        // Normalize: backend returns background_check_status, frontend uses bg_check_status
+        setUserResults(users.map((u: any) => ({
+          ...u,
+          bg_check_status: u.bg_check_status || u.background_check_status || 'never_checked',
+        })));
       } catch (err) {
         console.error('Error searching users:', err);
       } finally {
