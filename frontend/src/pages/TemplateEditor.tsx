@@ -133,7 +133,7 @@ const TemplateEditor: React.FC = () => {
       setTeamVisibility(template.team_visibility || []);
       setIsActive(template.is_active);
 
-      console.log('Template data:', { has_design: !!template.design_json, type: typeof template.design_json, editorReady: editorReady.current });
+      console.log('Template data:', { has_design: !!template.design_json, type: typeof template.design_json, editorReady: editorReady.current, design_json: template.design_json, keys: template.design_json ? Object.keys(template.design_json) : 'none' });
       if (template.design_json) {
         const brandedDesign = applyBrandColors(template.design_json);
         console.log('Branded design keys:', Object.keys(brandedDesign));
