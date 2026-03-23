@@ -320,6 +320,157 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
+  // Create club
+  const handleCreateClub = async (data: { name: string; city: string; state: string; website: string; primary_color: string }): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=create-club`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchClubs();
+        fetchStats();
+        return true;
+      } else {
+        alert(result.error || 'Failed to create club');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error creating club:', error);
+      alert('Failed to create club');
+      return false;
+    }
+  };
+
+  // Update club
+  const handleUpdateClub = async (data: { id: number; name?: string; city?: string; state?: string; website?: string; primary_color?: string }): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=update-club`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchClubDetails(data.id);
+        fetchClubs();
+        return true;
+      } else {
+        alert(result.error || 'Failed to update club');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error updating club:', error);
+      alert('Failed to update club');
+      return false;
+    }
+  };
+
+  // Delete club
+  const handleDeleteClub = async (clubId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=delete-club&id=${clubId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSelectedClub(null);
+        fetchClubs();
+        fetchStats();
+        return true;
+      } else {
+        alert(result.error || 'Failed to delete club');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error deleting club:', error);
+      alert('Failed to delete club');
+      return false;
+    }
+  };
+
+  // Create user
+  const handleCreateUser = async (data: { first_name: string; last_name: string; email: string; password: string; system_role: string }): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=create-user`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchUsers();
+        fetchStats();
+        return true;
+      } else {
+        alert(result.error || 'Failed to create user');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('Failed to create user');
+      return false;
+    }
+  };
+
+  // Update user
+  const handleUpdateUser = async (data: { id: number; first_name?: string; last_name?: string; email?: string; phone?: string }): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=update-user`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchUserDetails(data.id);
+        fetchUsers();
+        return true;
+      } else {
+        alert(result.error || 'Failed to update user');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Failed to update user');
+      return false;
+    }
+  };
+
+  // Assign user to club
+  const handleAssignUserToClub = async (userId: number, clubId: number, role: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=assign-user-to-club`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ user_id: userId, club_id: clubId, role }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        // Refresh relevant data
+        if (selectedClub?.id === clubId) {
+          fetchClubDetails(clubId);
+        }
+        if (selectedUser?.id === userId) {
+          fetchUserDetails(userId);
+        }
+        fetchUsers();
+        fetchClubs();
+        return true;
+      } else {
+        alert(result.error || 'Failed to assign user to club');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error assigning user to club:', error);
+      alert('Failed to assign user to club');
+      return false;
+    }
+  };
+
   // Remove from club
   const handleRemoveFromClub = async (userId: number, clubId: number) => {
     try {
@@ -359,7 +510,16 @@ const SuperAdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'clubs' && clubs.length === 0) {
       fetchClubs();
-    } else if (activeTab === 'users' && users.length === 0) {
+    }
+    if (activeTab === 'clubs' && users.length === 0) {
+      // Preload users for assign-user search in club details
+      fetchUsers();
+    }
+    if (activeTab === 'users' && clubs.length === 0) {
+      // Preload clubs for assign-to-club dropdown in user details
+      fetchClubs();
+    }
+    if (activeTab === 'users' && users.length === 0) {
       fetchUsers();
     } else if (activeTab === 'athletes' && athletes.length === 0) {
       fetchAthletes();
@@ -412,6 +572,7 @@ const SuperAdminDashboard: React.FC = () => {
           loading={clubsLoading}
           onViewDetails={fetchClubDetails}
           onSearch={fetchClubs}
+          onCreateClub={handleCreateClub}
         />
       )}
 
@@ -422,6 +583,7 @@ const SuperAdminDashboard: React.FC = () => {
           onViewDetails={fetchUserDetails}
           onToggleSuperAdmin={handleToggleSuperAdmin}
           onSearch={fetchUsers}
+          onCreateUser={handleCreateUser}
         />
       )}
 
@@ -469,6 +631,10 @@ const SuperAdminDashboard: React.FC = () => {
           onClose={() => setSelectedClub(null)}
           onChangeRole={handleChangeClubRole}
           onRemoveUser={handleRemoveFromClub}
+          onUpdateClub={handleUpdateClub}
+          onDeleteClub={handleDeleteClub}
+          onAssignUser={handleAssignUserToClub}
+          allUsers={users.map(u => ({ id: u.id, first_name: u.first_name, last_name: u.last_name, email: u.email }))}
         />
       )}
 
@@ -481,6 +647,9 @@ const SuperAdminDashboard: React.FC = () => {
           onClose={() => setSelectedUser(null)}
           onToggleSuperAdmin={handleToggleSuperAdmin}
           onRemoveFromClub={handleRemoveFromClub}
+          onUpdateUser={handleUpdateUser}
+          onAssignToClub={handleAssignUserToClub}
+          allClubs={clubs.map(c => ({ id: c.id, name: c.name }))}
         />
       )}
     </main>

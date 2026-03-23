@@ -15,18 +15,128 @@ interface ClubsListProps {
   loading: boolean;
   onViewDetails: (clubId: number) => void;
   onSearch: (search: string) => void;
+  onCreateClub?: (data: { name: string; city: string; state: string; website: string; primary_color: string }) => Promise<boolean>;
 }
 
-const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, onSearch }) => {
+const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, onSearch, onCreateClub }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', city: '', state: '', website: '', primary_color: '#12443e' });
+  const [creating, setCreating] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchTerm);
   };
 
+  const handleCreateClub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onCreateClub || !createForm.name.trim()) return;
+    setCreating(true);
+    try {
+      const success = await onCreateClub(createForm);
+      if (success) {
+        setCreateForm({ name: '', city: '', state: '', website: '', primary_color: '#12443e' });
+        setShowCreateForm(false);
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div>
+      {/* Create Club Button & Form */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+        >
+          {showCreateForm ? 'Cancel' : 'Create Club'}
+        </button>
+
+        {showCreateForm && (
+          <form onSubmit={handleCreateClub} className="mt-4 bg-gray-50 border border-brand-secondary rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-brand-primary mb-1">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                  placeholder="Club name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brand-primary mb-1">City</label>
+                <input
+                  type="text"
+                  value={createForm.city}
+                  onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
+                  className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                  placeholder="City"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brand-primary mb-1">State</label>
+                <input
+                  type="text"
+                  value={createForm.state}
+                  onChange={(e) => setCreateForm({ ...createForm, state: e.target.value })}
+                  className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                  placeholder="State"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brand-primary mb-1">Website</label>
+                <input
+                  type="text"
+                  value={createForm.website}
+                  onChange={(e) => setCreateForm({ ...createForm, website: e.target.value })}
+                  className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brand-primary mb-1">Primary Color</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={createForm.primary_color}
+                    onChange={(e) => setCreateForm({ ...createForm, primary_color: e.target.value })}
+                    className="h-10 w-12 border border-brand-secondary rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={createForm.primary_color}
+                    onChange={(e) => setCreateForm({ ...createForm, primary_color: e.target.value })}
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="submit"
+                disabled={creating}
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
+              >
+                {creating ? 'Creating...' : 'Save Club'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-4">
         <div className="flex gap-2">

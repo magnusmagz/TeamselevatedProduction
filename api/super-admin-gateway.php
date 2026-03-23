@@ -31,6 +31,12 @@ if (!$auth->isSuperAdmin()) {
 $db = Database::getInstance();
 $pdo = $db->getConnection();
 
+function badRequest($msg) {
+    http_response_code(400);
+    echo json_encode(['error' => $msg]);
+    exit;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
@@ -94,6 +100,92 @@ try {
                 throw new Exception('user_id and club_id required');
             }
             handleRemoveClubAccess($pdo, (int)$userId, (int)$clubId);
+            break;
+
+        case 'create-club':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $name = $data['name'] ?? null;
+            if (!$name) { badRequest('Club name is required'); }
+            $stmt = $pdo->prepare("INSERT INTO club_profile (name, city, state, website, primary_color) VALUES (?, ?, ?, ?, ?) RETURNING id");
+            $stmt->execute([$name, $data['city'] ?? null, $data['state'] ?? null, $data['website'] ?? null, $data['primary_color'] ?? '#12443e']);
+            $id = $stmt->fetchColumn();
+            echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        case 'update-club':
+            if ($method !== 'PUT') { throw new Exception('PUT method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $clubId = $data['id'] ?? null;
+            if (!$clubId) { badRequest('Club ID required'); }
+            $fields = []; $values = [];
+            foreach (['name','city','state','website','primary_color'] as $f) {
+                if (isset($data[$f])) { $fields[] = "$f = ?"; $values[] = $data[$f]; }
+            }
+            if (!empty($fields)) {
+                $values[] = $clubId;
+                $stmt = $pdo->prepare("UPDATE club_profile SET " . implode(', ', $fields) . " WHERE id = ?");
+                $stmt->execute($values);
+            }
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'delete-club':
+            if ($method !== 'DELETE') { throw new Exception('DELETE method required'); }
+            $clubId = $_GET['id'] ?? null;
+            if (!$clubId) { badRequest('Club ID required'); }
+            $stmt = $pdo->prepare("DELETE FROM club_profile WHERE id = ?");
+            $stmt->execute([$clubId]);
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'create-user':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $email = $data['email'] ?? null;
+            $firstName = $data['first_name'] ?? null;
+            $lastName = $data['last_name'] ?? null;
+            if (!$email || !$firstName || !$lastName) { badRequest('email, first_name, last_name required'); }
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) { badRequest('Email already exists'); }
+            $password = password_hash($data['password'] ?? 'TempPass123!', PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO users (first_name, last_name, email, password_hash, system_role) VALUES (?, ?, ?, ?, ?) RETURNING id");
+            $stmt->execute([$firstName, $lastName, $email, $password, $data['system_role'] ?? 'user']);
+            $id = $stmt->fetchColumn();
+            echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        case 'update-user':
+            if ($method !== 'PUT') { throw new Exception('PUT method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $userId = $data['id'] ?? null;
+            if (!$userId) { badRequest('User ID required'); }
+            $fields = []; $values = [];
+            foreach (['first_name','last_name','email','phone','system_role'] as $f) {
+                if (isset($data[$f])) { $fields[] = "$f = ?"; $values[] = $data[$f]; }
+            }
+            if (!empty($fields)) {
+                $values[] = $userId;
+                $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
+                $stmt->execute($values);
+            }
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'assign-user-to-club':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            $userId = $data['user_id'] ?? null;
+            $clubId = $data['club_id'] ?? null;
+            $role = $data['role'] ?? 'coach';
+            if (!$userId || !$clubId) { badRequest('user_id and club_id required'); }
+            $stmt = $pdo->prepare("SELECT id FROM user_club_access WHERE user_id = ? AND club_profile_id = ?");
+            $stmt->execute([$userId, $clubId]);
+            if ($stmt->fetch()) { badRequest('User already assigned to this club'); }
+            $stmt = $pdo->prepare("INSERT INTO user_club_access (user_id, club_profile_id, role, active) VALUES (?, ?, ?, true)");
+            $stmt->execute([$userId, $clubId, $role]);
+            echo json_encode(['success' => true]);
             break;
 
         default:
