@@ -72,7 +72,7 @@ export const ParentDashboard: React.FC = () => {
       try {
         // Fetch invoices
         const invoicesRes = await fetch(
-          `${API_URL}/api/invoices.php?action=family&guardian_id=${user.id}`,
+          `${API_URL}/api/invoices.php?action=family`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

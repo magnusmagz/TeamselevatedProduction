@@ -38,7 +38,7 @@ export const PaymentStatusPage: React.FC = () => {
       try {
         const token = localStorage.getItem('auth_token');
         const response = await fetch(
-          `${API_URL}/api/invoices.php?action=family&guardian_id=${user.id}`,
+          `${API_URL}/api/invoices.php?action=family`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

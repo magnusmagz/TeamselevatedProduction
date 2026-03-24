@@ -33,7 +33,7 @@ try {
 
     switch ($action) {
         case 'list':
-            // List invoices for athlete, guardian, or league
+            // List invoices for athlete, guardian (resolved from JWT), or league
             $athlete_id = $_GET['athlete_id'] ?? null;
             $guardian_id = $_GET['guardian_id'] ?? null;
             $league_id = $_GET['league_id'] ?? null;
@@ -46,11 +46,21 @@ try {
                 $whereClauses[] = 'i.athlete_id = :athlete_id';
                 $params['athlete_id'] = $athlete_id;
             } elseif ($guardian_id) {
-                // Get all athletes linked to this guardian
+                // Resolve guardian from authenticated user's email, not client-supplied ID
+                $userEmail = $auth->getPayload()->email ?? '';
+                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email LIMIT 1");
+                $guardianStmt->execute(['email' => $userEmail]);
+                $resolvedGuardian = $guardianStmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$resolvedGuardian) {
+                    echo json_encode(['success' => true, 'invoices' => [], 'summary' => ['total_invoices' => 0, 'total_outstanding' => 0, 'total_paid' => 0, 'overdue_count' => 0]]);
+                    exit;
+                }
+
                 $whereClauses[] = 'i.athlete_id IN (
                     SELECT athlete_id FROM athlete_guardians WHERE guardian_id = :guardian_id
                 )';
-                $params['guardian_id'] = $guardian_id;
+                $params['guardian_id'] = $resolvedGuardian['id'];
             } elseif ($league_id) {
                 $whereClauses[] = 'i.league_id = :league_id';
                 $params['league_id'] = $league_id;
@@ -412,11 +422,28 @@ try {
             break;
 
         case 'family':
-            // Get all invoices for a guardian's family
-            $guardian_id = $_GET['guardian_id'] ?? null;
-            if (!$guardian_id) {
-                throw new Exception('guardian_id is required');
+            // Get all invoices for the authenticated user's family
+            // Resolve guardian_id server-side from JWT email — ignore client-supplied guardian_id
+            $userEmail = $auth->getPayload()->email ?? '';
+            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email LIMIT 1");
+            $guardianStmt->execute(['email' => $userEmail]);
+            $resolvedGuardian = $guardianStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$resolvedGuardian) {
+                echo json_encode([
+                    'success' => true,
+                    'athletes' => [],
+                    'invoices' => [],
+                    'summary' => [
+                        'total_outstanding' => 0,
+                        'total_paid' => 0,
+                        'overdue_count' => 0
+                    ]
+                ]);
+                exit;
             }
+
+            $guardian_id = $resolvedGuardian['id'];
 
             // Get all athletes for this guardian
             $athletesQuery = "

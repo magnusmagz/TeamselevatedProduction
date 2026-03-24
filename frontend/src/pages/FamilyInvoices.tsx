@@ -56,7 +56,7 @@ export const FamilyInvoices: React.FC = () => {
     // Fetch family invoices using guardian_id
     // Note: In production, get guardian_id from user context or API
     const token = localStorage.getItem('auth_token');
-    fetch(`${process.env.REACT_APP_API_URL}/api/invoices.php?action=family&guardian_id=${user.id}`, {
+    fetch(`${process.env.REACT_APP_API_URL}/api/invoices.php?action=family`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

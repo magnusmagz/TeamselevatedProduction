@@ -50,7 +50,7 @@ export const MakePaymentPage: React.FC = () => {
       try {
         // Fetch outstanding invoices
         const invoicesRes = await fetch(
-          `${API_URL}/api/invoices.php?action=family&guardian_id=${user.id}`,
+          `${API_URL}/api/invoices.php?action=family`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const invoicesData = await invoicesRes.json();
