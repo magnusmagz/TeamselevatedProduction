@@ -172,46 +172,62 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
     setSelectedSlots(newSelected);
   };
 
-  const publishSchedule = () => {
+  const publishSchedule = async () => {
     if (selectedSlots.size === 0) {
       alert('Please select at least one time slot');
       return;
     }
 
-    // Convert selected slots to practices
-    const existingPractices = JSON.parse(localStorage.getItem('teamPractices') || '[]');
-    const newPractices: any[] = [];
+    const token = localStorage.getItem('auth_token');
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+    let createdCount = 0;
 
-    selectedSlots.forEach(slotKey => {
+    for (const slotKey of Array.from(selectedSlots)) {
       const [dateStr, fieldId, time] = slotKey.split('-');
       const slot = availability[dateStr]?.find(s =>
         s.fieldId === parseInt(fieldId) && s.time === time
       );
 
       if (slot) {
-        // Calculate end time (assuming 1.5 hour practices)
         const startHour = parseInt(time.split(':')[0]);
         const endTime = `${startHour + 1}:30`;
 
-        newPractices.push({
-          id: Date.now() + Math.random(),
-          team_id: team.id,
-          team_name: team.name,
-          date: dateStr,
-          day: slot.dayName,
-          start_time: time,
-          end_time: endTime,
-          venue_id: selectedVenue,
-          field_id: parseInt(fieldId),
-          created_at: new Date().toISOString()
-        });
+        try {
+          const response = await fetch(`${API_URL}/legacy/events-gateway.php`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: `${team.name} Practice`,
+              type: 'practice',
+              event_date: dateStr,
+              start_time: time,
+              end_time: endTime,
+              venue_id: selectedVenue || null,
+              location: '',
+              description: '',
+              status: 'scheduled',
+              team_ids: [team.id],
+            }),
+          });
+
+          const result = await response.json();
+          if (response.ok && (result.success || result.event_id)) {
+            createdCount++;
+          }
+        } catch (err) {
+          console.error('Failed to create event:', err);
+        }
       }
-    });
+    }
 
-    // Save to localStorage
-    localStorage.setItem('teamPractices', JSON.stringify([...existingPractices, ...newPractices]));
-
-    alert(`Successfully scheduled ${newPractices.length} practices for ${team.name}!`);
+    if (createdCount > 0) {
+      alert(`Successfully scheduled ${createdCount} practices for ${team.name}!`);
+    } else {
+      alert('Failed to create practices');
+    }
     onClose();
   };
 

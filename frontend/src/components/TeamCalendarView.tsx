@@ -116,36 +116,18 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   }, [eventFormData, selectedEvent]);
 
   useEffect(() => {
-    // Load practices from localStorage
-    const loadPractices = () => {
-      const storedPractices = JSON.parse(localStorage.getItem('teamPractices') || '[]');
-      setPractices(storedPractices);
-    };
-
-    // Load initially
-    loadPractices();
     fetchEvents();
     fetchVenues();
     fetchTeams();
 
     // Reload when window gets focus (in case practices were added in another tab/component)
     const handleFocus = () => {
-      loadPractices();
       fetchEvents();
     };
     window.addEventListener('focus', handleFocus);
 
-    // Also reload when localStorage changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'teamPractices') {
-        loadPractices();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
     return () => {
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 

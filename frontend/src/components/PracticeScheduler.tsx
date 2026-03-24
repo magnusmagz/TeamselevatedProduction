@@ -277,35 +277,42 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
     setSaving(true);
     try {
-      // Simulate saving for demo purposes
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = localStorage.getItem('auth_token');
+      let createdCount = 0;
 
-      // Save to localStorage for demo
-      const existingPractices = JSON.parse(localStorage.getItem('teamPractices') || '[]');
-      const newPractices = practicesToCreate.map(practice => ({
-        ...practice,
-        id: Date.now() + Math.random(), // Generate unique ID
-        team_id: team.id,
-        team_name: team.name,
-        created_at: new Date().toISOString()
-      }));
+      for (const practice of practicesToCreate) {
+        const response = await fetch(`${API_URL}/legacy/events-gateway.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: `${team.name} Practice`,
+            type: 'practice',
+            event_date: practice.date,
+            start_time: practice.start_time,
+            end_time: practice.end_time,
+            venue_id: practice.venue_id || selectedVenue || null,
+            location: practice.notes || '',
+            description: '',
+            status: 'scheduled',
+            team_ids: [team.id],
+          }),
+        });
 
-      localStorage.setItem('teamPractices', JSON.stringify([...existingPractices, ...newPractices]));
+        const result = await response.json();
+        if (response.ok && (result.success || result.event_id)) {
+          createdCount++;
+        } else {
+          console.error('Failed to create event:', result);
+        }
+      }
 
-      console.log('Saved practices to localStorage:', newPractices);
-      console.log('Schedule pattern:', {
-        team_id: team.id,
-        pattern_name: `${team.name} Regular Practice`,
-        days_of_week: selectedDays,
-        start_time: startTime,
-        end_time: endTime,
-        venue_id: selectedVenue,
-        field_id: selectedField,
-        start_date: startDate,
-        end_date: endDate
-      });
+      if (createdCount === 0) {
+        throw new Error('No practices were created');
+      }
 
-      // Show success
       setStep('complete');
     } catch (error) {
       console.error('Error creating practices:', error);
