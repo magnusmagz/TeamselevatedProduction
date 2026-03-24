@@ -48,14 +48,20 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const isEditing = !!existingProgram;
 
+  // Strip time portion from datetime strings so date inputs can parse them
+  const toDateOnly = (val?: string | null): string => {
+    if (!val) return '';
+    return val.split(' ')[0].split('T')[0];
+  };
+
   // Step 1: Basic Info
   const [formData, setFormData] = useState<TryoutFormData>({
     name: existingProgram?.name || '',
     description: existingProgram?.description || '',
-    start_date: existingProgram?.start_date || '',
-    end_date: existingProgram?.end_date || '',
-    registration_opens: existingProgram?.registration_opens || '',
-    registration_closes: existingProgram?.registration_closes || '',
+    start_date: toDateOnly(existingProgram?.start_date),
+    end_date: toDateOnly(existingProgram?.end_date),
+    registration_opens: toDateOnly(existingProgram?.registration_opens),
+    registration_closes: toDateOnly(existingProgram?.registration_closes),
     min_age: existingProgram?.min_age?.toString() || '',
     max_age: existingProgram?.max_age?.toString() || '',
     capacity: existingProgram?.capacity?.toString() || ''
