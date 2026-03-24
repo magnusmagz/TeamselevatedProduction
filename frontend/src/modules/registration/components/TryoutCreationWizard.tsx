@@ -56,16 +56,33 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
   // Step 1: Basic Info
   const [formData, setFormData] = useState<TryoutFormData>({
-    name: existingProgram?.name || '',
-    description: existingProgram?.description || '',
-    start_date: toDateOnly(existingProgram?.start_date),
-    end_date: toDateOnly(existingProgram?.end_date),
-    registration_opens: toDateOnly(existingProgram?.registration_opens),
-    registration_closes: toDateOnly(existingProgram?.registration_closes),
-    min_age: existingProgram?.min_age?.toString() || '',
-    max_age: existingProgram?.max_age?.toString() || '',
-    capacity: existingProgram?.capacity?.toString() || ''
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    registration_opens: '',
+    registration_closes: '',
+    min_age: '',
+    max_age: '',
+    capacity: ''
   });
+
+  // Populate form when existingProgram is available
+  useEffect(() => {
+    if (existingProgram) {
+      setFormData({
+        name: existingProgram.name || '',
+        description: existingProgram.description || '',
+        start_date: toDateOnly(existingProgram.start_date),
+        end_date: toDateOnly(existingProgram.end_date),
+        registration_opens: toDateOnly(existingProgram.registration_opens),
+        registration_closes: toDateOnly(existingProgram.registration_closes),
+        min_age: existingProgram.min_age?.toString() || '',
+        max_age: existingProgram.max_age?.toString() || '',
+        capacity: existingProgram.capacity?.toString() || ''
+      });
+    }
+  }, [existingProgram]);
 
   // Step 2: Sessions
   const [sessions, setSessions] = useState<TryoutSession[]>([]);
