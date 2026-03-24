@@ -1055,4 +1055,46 @@ export const EmailReporting: React.FC = () => {
   );
 };
 
-export default EmailReporting;
+// Error boundary to catch rendering crashes
+class EmailReportingErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="container mx-auto p-6 max-w-7xl">
+          <h1 className="text-2xl font-bold text-brand-primary uppercase mb-4">Email & SMS Reporting</h1>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p className="text-red-700 font-medium mb-2">Something went wrong loading the reporting dashboard.</p>
+            <p className="text-red-500 text-sm mb-4">{this.state.error}</p>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: '' }); window.location.reload(); }}
+              className="bg-brand-primary text-white px-6 py-2 rounded-md font-medium"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const EmailReportingWithBoundary: React.FC = () => (
+  <EmailReportingErrorBoundary>
+    <EmailReporting />
+  </EmailReportingErrorBoundary>
+);
+
+export default EmailReportingWithBoundary;
