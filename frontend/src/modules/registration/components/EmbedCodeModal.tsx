@@ -46,8 +46,8 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div className="bg-white border border-brand-secondary rounded-md w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-brand-primary uppercase">
             Embed Registration Form
@@ -60,7 +60,7 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
           <div className="mb-6">
             <h4 className="text-brand-primary font-semibold mb-2 uppercase">Program</h4>
             <p className="text-gray-600">{program.name}</p>
