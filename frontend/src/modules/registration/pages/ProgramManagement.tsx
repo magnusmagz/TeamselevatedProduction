@@ -103,24 +103,24 @@ const ProgramManagement: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-brand-primary uppercase tracking-wide">
             Program Management
           </h1>
-          <p className="text-gray-600 mt-2">
-            Create and manage registration programs for camps, clinics, tryouts, and more
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
+            Create and manage registration programs
           </p>
         </div>
 
         {/* Action Bar */}
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div className="flex gap-3">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary flex-1 sm:flex-none"
             >
               <option value="all">All Statuses</option>
               <option value="published">Published</option>
@@ -131,7 +131,7 @@ const ProgramManagement: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary flex-1 sm:flex-none"
             >
               <option value="all">All Types</option>
               <option value="camp">Camp</option>
@@ -141,18 +141,18 @@ const ProgramManagement: React.FC = () => {
               <option value="tournament">Tournament</option>
             </select>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex gap-3">
             <button
               onClick={handleCreateProgram}
-              className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary uppercase font-semibold"
+              className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none"
             >
-              + Create New Program
+              + Program
             </button>
             <button
               onClick={() => setShowTryoutWizard(true)}
-              className="bg-brand-primary text-white px-6 py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold"
+              className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none"
             >
-              + Create Tryout
+              + Tryout
             </button>
           </div>
         </div>
