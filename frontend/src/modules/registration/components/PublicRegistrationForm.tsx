@@ -41,13 +41,22 @@ const PublicRegistrationForm: React.FC<PublicRegistrationFormProps> = ({ embedCo
       if (data && data.id) {
         setProgram(data);
 
-        // Parse options field from JSON string to array
-        const parsedFields = (data.form_fields || []).map((field: any) => ({
-          ...field,
-          options: field.options && typeof field.options === 'string'
-            ? JSON.parse(field.options)
-            : field.options
-        }));
+        // Parse options field from JSON string to array (handle double-encoding)
+        const parsedFields = (data.form_fields || []).map((field: any) => {
+          let options = field.options;
+          if (options && typeof options === 'string') {
+            try {
+              options = JSON.parse(options);
+              // Handle double-encoded: if still a string after parse, parse again
+              if (typeof options === 'string') {
+                options = JSON.parse(options);
+              }
+            } catch {
+              options = [];
+            }
+          }
+          return { ...field, options };
+        });
         setFormFields(parsedFields);
 
         // Initialize form data with empty values
