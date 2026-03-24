@@ -99,10 +99,7 @@ export function useParentAthletes(): UseParentAthletesReturn {
 
       setAthletes(athletesWithDetails);
 
-      // Auto-select first athlete if none selected
-      if (athletesWithDetails.length > 0 && !selectedAthleteId) {
-        setSelectedAthleteId(athletesWithDetails[0].id);
-      }
+      // Don't auto-select — let pages decide (dashboard shows "All", detail pages select specific)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load athletes');
     } finally {
