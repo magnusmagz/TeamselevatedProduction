@@ -32,12 +32,41 @@ const TeamManagement: React.FC = () => {
     search: '',
     season_id: '',
     age_group: '',
-    division: ''
+    division: '',
+    primary_coach_id: ''
   });
+
+  const [allCoaches, setAllCoaches] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     fetchTeams();
   }, [filters]);
+
+  // Build coach list from all teams (fetch unfiltered once)
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_URL}/legacy/teams-gateway.php`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const coachMap = new Map<number, string>();
+        (data.teams || []).forEach((t: Team) => {
+          if (t.primary_coach_id && t.coach_name) {
+            coachMap.set(t.primary_coach_id, t.coach_name);
+          }
+        });
+        setAllCoaches(
+          Array.from(coachMap, ([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+      } catch (err) {
+        console.error('Error fetching coaches:', err);
+      }
+    };
+    fetchCoaches();
+  }, [API_URL]);
 
   const fetchTeams = async () => {
     try {
@@ -156,7 +185,7 @@ const TeamManagement: React.FC = () => {
             + Create Team
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
           <select
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
@@ -178,6 +207,7 @@ const TeamManagement: React.FC = () => {
             <option value="U16">U16</option>
             <option value="U17">U17</option>
             <option value="U18">U18</option>
+            <option value="U19">U19</option>
             <option value="Adult">Adult</option>
           </select>
 
@@ -192,8 +222,21 @@ const TeamManagement: React.FC = () => {
             <option value="Elite">Elite</option>
           </select>
 
+          <select
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+            value={filters.primary_coach_id}
+            onChange={(e) => setFilters({ ...filters, primary_coach_id: e.target.value })}
+          >
+            <option value="">All Coaches</option>
+            {allCoaches.map((coach) => (
+              <option key={coach.id} value={coach.id}>
+                {coach.name}
+              </option>
+            ))}
+          </select>
+
           <button
-            onClick={() => setFilters({ search: '', season_id: '', age_group: '', division: '' })}
+            onClick={() => setFilters({ search: '', season_id: '', age_group: '', division: '', primary_coach_id: '' })}
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
