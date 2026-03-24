@@ -94,11 +94,29 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
     }
   };
 
-  const loadAvailability = () => {
+  const loadAvailability = async () => {
     setLoading(true);
 
-    // Load existing practices from localStorage
-    const existingPractices = JSON.parse(localStorage.getItem('teamPractices') || '[]');
+    // Load existing events from the API for conflict detection
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+    const token = localStorage.getItem('auth_token');
+    let existingPractices: any[] = [];
+    try {
+      const eventsRes = await fetch(`${API_URL}/legacy/events-gateway.php`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const eventsData = await eventsRes.json();
+      existingPractices = (eventsData.events || []).map((e: any) => ({
+        date: e.event_date,
+        start_time: e.start_time || '',
+        end_time: e.end_time || '',
+        venue_id: e.venue_id,
+        field_id: e.field_id || e.venue_id,
+        team_name: e.team_name || e.name,
+      }));
+    } catch (err) {
+      console.error('Error loading events for conflict check:', err);
+    }
 
     // Generate availability grid
     const availabilityGrid: { [key: string]: TimeSlot[] } = {};

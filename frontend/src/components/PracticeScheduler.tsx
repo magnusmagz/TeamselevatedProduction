@@ -171,8 +171,25 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
     setLoading(true);
     try {
-      // Load existing practices to check for conflicts
-      const existingPractices = JSON.parse(localStorage.getItem('teamPractices') || '[]');
+      // Load existing events from the API to check for conflicts
+      const token = localStorage.getItem('auth_token');
+      let existingPractices: Practice[] = [];
+      try {
+        const eventsRes = await fetch(`${API_URL}/legacy/events-gateway.php`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const eventsData = await eventsRes.json();
+        existingPractices = (eventsData.events || []).map((e: any) => ({
+          date: e.event_date,
+          start_time: e.start_time || '',
+          end_time: e.end_time || '',
+          venue_id: e.venue_id,
+          field_id: e.field_id || e.venue_id,
+          team_name: e.team_name || e.name,
+        }));
+      } catch (err) {
+        console.error('Error loading events for conflict check:', err);
+      }
 
       // Generate practices on the client side for now
       const practices: Practice[] = [];
