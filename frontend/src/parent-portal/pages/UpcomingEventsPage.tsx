@@ -35,7 +35,7 @@ export const UpcomingEventsPage: React.FC = () => {
         const token = localStorage.getItem('auth_token');
         const athleteParam = selectedAthleteId ? `&athlete_id=${selectedAthleteId}` : '';
         const response = await fetch(
-          `${API_URL}/api/events.php?action=upcoming${athleteParam}`,
+          `${API_URL}/api/calendar-events-gateway.php?action=upcoming${athleteParam}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();

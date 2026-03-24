@@ -169,7 +169,192 @@ function handleSendCalendarInvite($conn, $input) {
 
 // Route handler
 try {
-    if ($method === 'POST' && $action === 'send-invite') {
+    if ($method === 'GET' && $action === 'upcoming') {
+        // Get upcoming events, optionally filtered by athlete's teams
+        $athlete_id = $_GET['athlete_id'] ?? null;
+        $limit = $_GET['limit'] ?? 50;
+
+        $params = [];
+
+        if ($athlete_id) {
+            // Get events for teams this athlete belongs to
+            $query = "
+                SELECT DISTINCT
+                    ce.id, ce.name AS title, ce.type, ce.event_date AS date,
+                    ce.start_time, ce.end_time, ce.location, ce.description,
+                    ce.status,
+                    t.id AS team_id, t.name AS team_name
+                FROM calendar_events ce
+                JOIN calendar_event_teams cet ON ce.id = cet.event_id
+                JOIN teams t ON cet.team_id = t.id
+                JOIN team_members tm ON t.id = tm.team_id
+                WHERE tm.athlete_id = :athlete_id
+                  AND ce.event_date >= CURRENT_DATE
+                  AND (ce.status IS NULL OR ce.status != 'cancelled')
+                ORDER BY ce.event_date ASC, ce.start_time ASC
+                LIMIT :lim
+            ";
+            $params['athlete_id'] = $athlete_id;
+        } else {
+            // Get all upcoming events (for parents with multiple athletes, get all their teams)
+            $query = "
+                SELECT DISTINCT
+                    ce.id, ce.name AS title, ce.type, ce.event_date AS date,
+                    ce.start_time, ce.end_time, ce.location, ce.description,
+                    ce.status,
+                    t.id AS team_id, t.name AS team_name
+                FROM calendar_events ce
+                JOIN calendar_event_teams cet ON ce.id = cet.event_id
+                JOIN teams t ON cet.team_id = t.id
+                WHERE ce.event_date >= CURRENT_DATE
+                  AND (ce.status IS NULL OR ce.status != 'cancelled')
+                ORDER BY ce.event_date ASC, ce.start_time ASC
+                LIMIT :lim
+            ";
+        }
+        $params['lim'] = (int) $limit;
+
+        $stmt = $conn->prepare($query);
+        $stmt->execute($params);
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'events' => $events]);
+
+    } elseif ($method === 'GET' && $action === 'get') {
+        // Get single event with RSVP status for parent's athletes
+        $event_id = $_GET['id'] ?? null;
+        if (!$event_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Event ID is required']);
+            exit;
+        }
+
+        // Get event details
+        $stmt = $conn->prepare("
+            SELECT
+                ce.id, ce.name AS title, ce.type, ce.event_date AS date,
+                ce.start_time, ce.end_time, ce.location, ce.description,
+                ce.status
+            FROM calendar_events ce
+            WHERE ce.id = :event_id
+        ");
+        $stmt->execute(['event_id' => $event_id]);
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$event) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Event not found']);
+            exit;
+        }
+
+        // Get teams for this event
+        $stmt = $conn->prepare("
+            SELECT t.id, t.name
+            FROM calendar_event_teams cet
+            JOIN teams t ON cet.team_id = t.id
+            WHERE cet.event_id = :event_id
+        ");
+        $stmt->execute(['event_id' => $event_id]);
+        $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!empty($teams)) {
+            $event['team_id'] = $teams[0]['id'];
+            $event['team_name'] = implode(', ', array_column($teams, 'name'));
+        }
+
+        // Get RSVP status for athletes on these teams
+        $teamIds = array_column($teams, 'id');
+        $athletes_rsvp = [];
+
+        if (!empty($teamIds)) {
+            $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+            $stmt = $conn->prepare("
+                SELECT DISTINCT
+                    a.id AS athlete_id,
+                    a.first_name || ' ' || a.last_name AS athlete_name,
+                    cea.rsvp_status AS status
+                FROM team_members tm
+                JOIN athletes a ON tm.athlete_id = a.id
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id
+                LEFT JOIN guardians g ON ag.guardian_id = g.id
+                LEFT JOIN users u ON g.email = u.email
+                LEFT JOIN calendar_event_attendees cea ON cea.event_id = ? AND cea.user_id = u.id
+                WHERE tm.team_id IN ($placeholders)
+                  AND tm.athlete_id IS NOT NULL
+            ");
+            $executeParams = array_merge([$event_id], $teamIds);
+            $stmt->execute($executeParams);
+            $athletes_rsvp = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Map rsvp_status values to frontend format
+            foreach ($athletes_rsvp as &$ar) {
+                if ($ar['status'] === 'accepted') $ar['status'] = 'attending';
+                elseif ($ar['status'] === 'declined') $ar['status'] = 'not_attending';
+                elseif ($ar['status'] === 'tentative') $ar['status'] = 'maybe';
+            }
+        }
+
+        $event['athletes_rsvp'] = $athletes_rsvp;
+
+        echo json_encode(['success' => true, 'event' => $event]);
+
+    } elseif ($method === 'POST' && $action === 'rsvp') {
+        // Save RSVP for an athlete (via their guardian's user record)
+        $input = json_decode(file_get_contents('php://input'), true);
+        $event_id = $input['event_id'] ?? null;
+        $athlete_id = $input['athlete_id'] ?? null;
+        $status = $input['status'] ?? null;
+
+        if (!$event_id || !$athlete_id || !$status) {
+            http_response_code(400);
+            echo json_encode(['error' => 'event_id, athlete_id, and status are required']);
+            exit;
+        }
+
+        // Map frontend status to calendar attendee status
+        $statusMap = [
+            'attending' => 'accepted',
+            'not_attending' => 'declined',
+            'maybe' => 'tentative'
+        ];
+        $dbStatus = $statusMap[$status] ?? $status;
+
+        // Find the guardian's user_id for this athlete
+        $stmt = $conn->prepare("
+            SELECT u.id AS user_id, u.email
+            FROM athletes a
+            JOIN athlete_guardians ag ON a.id = ag.athlete_id
+            JOIN guardians g ON ag.guardian_id = g.id
+            JOIN users u ON g.email = u.email
+            WHERE a.id = :athlete_id
+            LIMIT 1
+        ");
+        $stmt->execute(['athlete_id' => $athlete_id]);
+        $guardian = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$guardian) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No linked guardian user found for this athlete']);
+            exit;
+        }
+
+        // Upsert RSVP
+        $stmt = $conn->prepare("
+            INSERT INTO calendar_event_attendees (event_id, user_id, email, rsvp_status, responded_at, created_at)
+            VALUES (:event_id, :user_id, :email, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (event_id, user_id)
+            DO UPDATE SET rsvp_status = :status, responded_at = CURRENT_TIMESTAMP
+        ");
+        $stmt->execute([
+            'event_id' => $event_id,
+            'user_id' => $guardian['user_id'],
+            'email' => $guardian['email'],
+            'status' => $dbStatus
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'RSVP updated']);
+
+    } elseif ($method === 'POST' && $action === 'send-invite') {
         $input = json_decode(file_get_contents('php://input'), true);
         $response = handleSendCalendarInvite($conn, $input);
         echo json_encode($response);

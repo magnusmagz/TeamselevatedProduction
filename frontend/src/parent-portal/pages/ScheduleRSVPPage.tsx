@@ -44,7 +44,7 @@ export const ScheduleRSVPPage: React.FC = () => {
 
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`${API_URL}/api/events.php?action=get&id=${id}`, {
+        const response = await fetch(`${API_URL}/api/calendar-events-gateway.php?action=get&id=${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -120,14 +120,13 @@ export const ScheduleRSVPPage: React.FC = () => {
     try {
       const token = localStorage.getItem('auth_token');
       const promises = Object.entries(rsvpStatus).map(([athleteId, status]) =>
-        fetch(`${API_URL}/api/events.php`, {
+        fetch(`${API_URL}/api/calendar-events-gateway.php?action=rsvp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            action: 'rsvp',
             event_id: event.id,
             athlete_id: parseInt(athleteId),
             status,

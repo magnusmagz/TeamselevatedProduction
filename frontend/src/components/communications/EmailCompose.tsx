@@ -151,7 +151,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
         action: 'list',
         club_profile_id: String(clubProfileId),
       });
-      const res = await fetch(`${API_URL}/api/events?${params}`, { headers });
+      const res = await fetch(`${API_URL}/legacy/events-gateway.php?${params}`, { headers });
       if (!res.ok) throw new Error('Failed to fetch events');
       const data = await res.json();
       setEvents(data.events || []);

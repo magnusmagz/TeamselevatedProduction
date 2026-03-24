@@ -97,7 +97,7 @@ export const ParentDashboard: React.FC = () => {
 
       try {
         // Fetch upcoming events
-        const eventsRes = await fetch(`${API_URL}/api/events.php?action=upcoming&limit=5`, {
+        const eventsRes = await fetch(`${API_URL}/api/calendar-events-gateway.php?action=upcoming&limit=5`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const eventsData = await eventsRes.json();
