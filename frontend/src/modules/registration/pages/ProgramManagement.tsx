@@ -256,7 +256,7 @@ const ProgramManagement: React.FC = () => {
                               onClick={() => setManageTryoutProgram(program)}
                               className="text-green-600 hover:text-green-500 uppercase text-xs font-semibold"
                             >
-                              Manage Tryout
+                              Manage
                             </button>
                           )}
                           {program.status === 'published' && (
@@ -276,7 +276,7 @@ const ProgramManagement: React.FC = () => {
                                 }}
                                 className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                               >
-                                Copy Link
+                                Link
                               </button>
                             </>
                           )}
@@ -367,7 +367,7 @@ const ProgramManagement: React.FC = () => {
                         onClick={() => setManageTryoutProgram(program)}
                         className="border border-green-200 rounded-md text-green-600 hover:bg-green-50 py-2 uppercase text-xs font-semibold"
                       >
-                        Manage Tryout
+                        Manage
                       </button>
                     )}
                     {program.status === 'published' && (
@@ -387,7 +387,7 @@ const ProgramManagement: React.FC = () => {
                           }}
                           className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
                         >
-                          Copy Link
+                          Link
                         </button>
                       </>
                     )}
