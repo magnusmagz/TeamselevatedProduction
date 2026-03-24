@@ -52,13 +52,22 @@ export const ParentDashboard: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Calculate outstanding balance
-  const outstandingBalance = invoices
+  // Filter data by selected athlete
+  const filteredInvoices = selectedAthleteId
+    ? invoices.filter((inv) => inv.athlete_id === selectedAthleteId)
+    : invoices;
+
+  const filteredAthletes = selectedAthleteId
+    ? athletes.filter((a) => a.id === selectedAthleteId)
+    : athletes;
+
+  // Calculate outstanding balance from filtered invoices
+  const outstandingBalance = filteredInvoices
     .filter((inv) => inv.status !== 'paid')
     .reduce((sum, inv) => sum + inv.balance_due, 0);
 
-  // Get upcoming due date
-  const upcomingDueDate = invoices
+  // Get upcoming due date from filtered invoices
+  const upcomingDueDate = filteredInvoices
     .filter((inv) => inv.status !== 'paid' && inv.due_date)
     .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())[0]?.due_date;
 
@@ -200,7 +209,7 @@ export const ParentDashboard: React.FC = () => {
         )}
 
         {/* Athletes Section */}
-        {!loading && athletes.length > 0 && (
+        {!loading && filteredAthletes.length > 0 && (
           <DashboardCard
             title="My Athletes"
             icon={
@@ -215,7 +224,7 @@ export const ParentDashboard: React.FC = () => {
             }
           >
             <div className="space-y-2">
-              {athletes.slice(0, 3).map((athlete) => (
+              {filteredAthletes.slice(0, 3).map((athlete) => (
                 <AthleteCard key={athlete.id} athlete={athlete} to={`/parent/athlete/${athlete.id}`} />
               ))}
             </div>
