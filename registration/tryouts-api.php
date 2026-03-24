@@ -9,6 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
+// Convert empty strings to null for database fields
+function emptyToNull($val) { return (is_string($val) && trim($val) === '') ? null : $val; }
+
 // Database connection
 require_once __DIR__ . '/../config/database.php';
 try {
@@ -278,15 +281,15 @@ function handlePost($connection, $path) {
                     foreach ($data['sessions'] as $session) {
                         $session_stmt->execute([
                             $program_id,
-                            $session['name'] ?? null,
-                            $session['session_date'],
-                            $session['start_time'] ?? null,
-                            $session['end_time'] ?? null,
-                            $session['location'] ?? null,
-                            $session['venue_id'] ?? null,
+                            emptyToNull($session['name'] ?? null),
+                            emptyToNull($session['session_date']),
+                            emptyToNull($session['start_time'] ?? null),
+                            emptyToNull($session['end_time'] ?? null),
+                            emptyToNull($session['location'] ?? null),
+                            emptyToNull($session['venue_id'] ?? null),
                             !empty($session['is_rain_date']) ? 't' : 'f',
-                            $session['age_group'] ?? null,
-                            $session['gender'] ?? null
+                            emptyToNull($session['age_group'] ?? null),
+                            emptyToNull($session['gender'] ?? null)
                         ]);
                     }
                 }
@@ -331,15 +334,15 @@ function handlePost($connection, $path) {
             ");
             $stmt->execute([
                 $data['program_id'],
-                $data['name'] ?? null,
-                $data['session_date'],
-                $data['start_time'] ?? null,
-                $data['end_time'] ?? null,
-                $data['location'] ?? null,
-                $data['venue_id'] ?? null,
+                emptyToNull($data['name'] ?? null),
+                emptyToNull($data['session_date']),
+                emptyToNull($data['start_time'] ?? null),
+                emptyToNull($data['end_time'] ?? null),
+                emptyToNull($data['location'] ?? null),
+                emptyToNull($data['venue_id'] ?? null),
                 !empty($data['is_rain_date']) ? 't' : 'f',
-                $data['age_group'] ?? null,
-                $data['gender'] ?? null
+                emptyToNull($data['age_group'] ?? null),
+                emptyToNull($data['gender'] ?? null)
             ]);
 
             echo json_encode([
@@ -667,15 +670,15 @@ function handlePut($connection, $path) {
                         foreach ($data['sessions'] as $session) {
                             $session_stmt->execute([
                                 $id,
-                                $session['name'] ?? null,
-                                $session['session_date'],
-                                $session['start_time'] ?? null,
-                                $session['end_time'] ?? null,
-                                $session['location'] ?? null,
-                                $session['venue_id'] ?? null,
+                                emptyToNull($session['name'] ?? null),
+                                emptyToNull($session['session_date']),
+                                emptyToNull($session['start_time'] ?? null),
+                                emptyToNull($session['end_time'] ?? null),
+                                emptyToNull($session['location'] ?? null),
+                                emptyToNull($session['venue_id'] ?? null),
                                 !empty($session['is_rain_date']) ? 't' : 'f',
-                                $session['age_group'] ?? null,
-                                $session['gender'] ?? null
+                                emptyToNull($session['age_group'] ?? null),
+                                emptyToNull($session['gender'] ?? null)
                             ]);
                         }
                     }
