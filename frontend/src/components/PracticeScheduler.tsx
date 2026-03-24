@@ -123,25 +123,27 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
   };
 
   const checkForConflicts = (newPractice: Practice, existingPractices: Practice[]): { hasConflict: boolean; conflictDetails?: any } => {
-    // Check for overlapping practices on the same field
+    // Normalize time to HH:MM for consistent comparison
+    const normalizeTime = (t: string) => t ? t.slice(0, 5) : '';
+
     for (const existing of existingPractices) {
-      // Skip if different field or venue
-      if (existing.field_id !== newPractice.field_id || existing.venue_id !== newPractice.venue_id) {
-        continue;
-      }
+      // Must be same date
+      if (existing.date !== newPractice.date) continue;
 
-      // Skip if different date
-      if (existing.date !== newPractice.date) {
-        continue;
-      }
+      // Must be same venue
+      const sameVenue = newPractice.venue_id && existing.venue_id
+        ? Number(existing.venue_id) === Number(newPractice.venue_id)
+        : false;
+      if (!sameVenue) continue;
 
-      // Check for time overlap
-      const newStart = newPractice.start_time;
-      const newEnd = newPractice.end_time;
-      const existingStart = existing.start_time;
-      const existingEnd = existing.end_time;
+      // Check for time overlap (normalize to HH:MM)
+      const newStart = normalizeTime(newPractice.start_time);
+      const newEnd = normalizeTime(newPractice.end_time);
+      const existingStart = normalizeTime(existing.start_time);
+      const existingEnd = normalizeTime(existing.end_time);
 
-      // Check if times overlap
+      if (!existingStart || !existingEnd || !newStart || !newEnd) continue;
+
       const overlaps = (
         (newStart >= existingStart && newStart < existingEnd) ||
         (newEnd > existingStart && newEnd <= existingEnd) ||
@@ -153,7 +155,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
           hasConflict: true,
           conflictDetails: {
             team: existing.team_name || 'Another team',
-            type: 'Field conflict',
+            type: 'Venue conflict',
             time: `${existingStart} - ${existingEnd}`
           }
         };
@@ -183,9 +185,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
           date: e.event_date,
           start_time: e.start_time || '',
           end_time: e.end_time || '',
-          venue_id: e.venue_id,
-          field_id: e.field_id || e.venue_id,
+          venue_id: e.venue_id ? Number(e.venue_id) : null,
+          field_id: 0,
           team_name: e.team_name || e.name,
+          day: '',
+          start_datetime: '',
+          end_datetime: '',
+          has_conflict: false,
         }));
       } catch (err) {
         console.error('Error loading events for conflict check:', err);
