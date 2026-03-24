@@ -23,6 +23,38 @@ interface RosterMember {
   last_name: string;
   email: string;
   role: string;
+  date_of_birth?: string;
+  jersey_number?: number;
+  primary_position?: string;
+}
+
+function calcAge(dob: string): number {
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function getAgeQuarter(dob: string): string {
+  const month = new Date(dob).getMonth();
+  if (month <= 2) return 'Q1';
+  if (month <= 5) return 'Q2';
+  if (month <= 8) return 'Q3';
+  return 'Q4';
+}
+
+function getUGroup(dob: string): string {
+  const birth = new Date(dob);
+  const today = new Date();
+  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  return `U${seasonYear - birth.getFullYear()}`;
+}
+
+function formatDOB(dob: string): string {
+  const d = new Date(dob);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 interface Volunteer {
@@ -516,8 +548,23 @@ export const TeamDetailPage: React.FC = () => {
                   >
                     {player.first_name} {player.last_name}
                   </Link>
-                  {player.email && (
-                    <div className="text-sm text-gray-500">{player.email}</div>
+                  {player.date_of_birth && (
+                    <div className="text-xs text-gray-500">
+                      Age {calcAge(player.date_of_birth)}
+                      <span className="ml-1 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
+                        {getAgeQuarter(player.date_of_birth)}
+                      </span>
+                      <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                        {getUGroup(player.date_of_birth)}
+                      </span>
+                      <span className="ml-1">· {formatDOB(player.date_of_birth)}</span>
+                    </div>
+                  )}
+                  {player.primary_position && (
+                    <div className="text-xs text-gray-500">
+                      {player.primary_position}
+                      {player.jersey_number && <span className="ml-1">· #{player.jersey_number}</span>}
+                    </div>
                   )}
                 </div>
 
