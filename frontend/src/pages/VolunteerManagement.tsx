@@ -133,7 +133,11 @@ export const VolunteerManagement: React.FC = () => {
         { headers }
       );
       const data = await res.json();
-      setVolunteers(Array.isArray(data) ? data : data.volunteers || []);
+      const raw = Array.isArray(data) ? data : data.volunteers || [];
+      setVolunteers(raw.map((v: any) => ({
+        ...v,
+        bg_check_status: v.bg_check_status || v.background_check_status || 'never_checked',
+      })));
     } catch (err) {
       console.error('Error fetching volunteers:', err);
     } finally {
@@ -243,7 +247,10 @@ export const VolunteerManagement: React.FC = () => {
         {
           method: 'PUT',
           headers,
-          body: JSON.stringify(editForm),
+          body: JSON.stringify({
+            ...editForm,
+            background_check_status: editForm.bg_check_status,
+          }),
         }
       );
       if (!res.ok) throw new Error('Update failed');
