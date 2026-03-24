@@ -222,7 +222,7 @@ export const PaymentStatusPage: React.FC = () => {
 
                 {invoice.status !== 'paid' && (
                   <Link
-                    to={`/pay/${invoice.id}`}
+                    to={`/parent/pay/${invoice.id}`}
                     className="mt-3 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
                   >
                     Pay Now

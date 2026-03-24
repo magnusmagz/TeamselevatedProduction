@@ -1030,6 +1030,7 @@ function AppContent() {
             <Route path="medical/:id" element={<MedicalInfoPage />} />
             <Route path="volunteer" element={<VolunteerPage />} />
             <Route path="more" element={<MoreMenuPage />} />
+            <Route path="pay/:invoiceId" element={<PaymentPage />} />
           </Route>
         </Routes>
 

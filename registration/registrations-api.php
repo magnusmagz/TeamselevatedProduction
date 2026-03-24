@@ -33,7 +33,7 @@ try {
                 // Get all registrations for a specific athlete
                 $stmt = $connection->prepare("
                     SELECT r.id, r.program_id, r.athlete_id, r.status, r.submitted_at, r.reviewed_at,
-                           p.name as program_name, p.season, p.start_date, p.end_date,
+                           p.name as program_name, p.season_type as season, p.start_date, p.end_date,
                            i.id as invoice_id, i.invoice_number, i.total_amount, i.amount_paid, i.status as invoice_status
                     FROM registrations r
                     LEFT JOIN programs p ON r.program_id = p.id
