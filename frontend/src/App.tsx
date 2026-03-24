@@ -161,7 +161,7 @@ const FundraiserAdminWrapper: React.FC<{ children: (props: { clubId: number; clu
 const TeamRosterPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { teamId } = useParams<{ teamId: string }>();
-  const [team, setTeam] = React.useState<{ id: number; name: string } | null>(null);
+  const [team, setTeam] = React.useState<{ id: number; name: string; age_group?: string } | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -175,7 +175,7 @@ const TeamRosterPage: React.FC = () => {
         });
         const data = await response.json();
         if (data.id && data.name) {
-          setTeam({ id: data.id, name: data.name });
+          setTeam({ id: data.id, name: data.name, age_group: data.age_group });
         }
       } catch (error) {
         console.error('Error fetching team:', error);

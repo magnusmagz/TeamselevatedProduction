@@ -5,6 +5,7 @@ import AthletePhotoUpload from './AthletePhotoUpload';
 interface Team {
   id: number;
   name: string;
+  age_group?: string;
 }
 
 interface Athlete {
@@ -62,6 +63,35 @@ function getUGroup(dob: string): string {
 function formatDOB(dob: string): string {
   const d = new Date(dob);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getUNumber(dob: string): number {
+  const birth = new Date(dob);
+  const today = new Date();
+  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  return seasonYear - birth.getFullYear();
+}
+
+function sortAthletesByU(athletes: Athlete[], teamAgeGroup?: string): Athlete[] {
+  const targetU = teamAgeGroup ? parseInt(teamAgeGroup.replace(/\D/g, '')) : null;
+
+  return [...athletes].sort((a, b) => {
+    // Athletes without DOB go to the bottom
+    if (!a.date_of_birth && !b.date_of_birth) return 0;
+    if (!a.date_of_birth) return 1;
+    if (!b.date_of_birth) return -1;
+
+    if (targetU) {
+      const aU = getUNumber(a.date_of_birth);
+      const bU = getUNumber(b.date_of_birth);
+      const aDist = Math.abs(aU - targetU);
+      const bDist = Math.abs(bU - targetU);
+      if (aDist !== bDist) return aDist - bDist;
+    }
+
+    // Secondary sort: name
+    return a.last_name.localeCompare(b.last_name);
+  });
 }
 
 const SOCCER_POSITIONS = [
@@ -413,7 +443,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">{team.name} Roster</h2>
+          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
+            {team.name} Roster{team.age_group ? ` ${team.age_group}` : ''}
+          </h2>
           <p className="text-gray-600 mt-2">{roster.length} players total</p>
         </div>
         <Link
@@ -434,7 +466,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               Available Athletes
             </h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {availableAthletes.map((athlete) => (
+              {sortAthletesByU(availableAthletes, team.age_group).map((athlete) => (
                 <div
                   key={athlete.id}
                   draggable
@@ -496,7 +528,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               Team Roster ({roster.length} players)
             </h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {roster.map((athlete) => (
+              {sortAthletesByU(roster, team.age_group).map((athlete) => (
                 <div
                   key={athlete.id}
                   className="bg-brand-secondary border border-brand-secondary p-3"
