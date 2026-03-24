@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
@@ -9,6 +10,7 @@ import { useAuth } from '../../../hooks/useAuth';
 
 const ProgramManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
