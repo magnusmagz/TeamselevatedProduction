@@ -67,8 +67,15 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
   // Step 3: Evaluation Criteria
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>(defaultCriteria);
 
-  // What to Bring list
-  const [whatToBring, setWhatToBring] = useState<string[]>(existingProgram?.what_to_bring || defaultWhatToBring);
+  // What to Bring list — parse if string (JSONB comes back as string from list API)
+  const parseWhatToBring = (val: unknown): string[] => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch {}
+    }
+    return defaultWhatToBring;
+  };
+  const [whatToBring, setWhatToBring] = useState<string[]>(parseWhatToBring(existingProgram?.what_to_bring));
   const [newItem, setNewItem] = useState('');
 
   // Locations for dropdown (venues and fields)
