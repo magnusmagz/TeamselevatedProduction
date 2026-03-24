@@ -789,7 +789,7 @@ export const EmailReporting: React.FC = () => {
                                 : 'bg-gray-50 text-gray-600'
                             }`}
                           >
-                            {send.status.charAt(0).toUpperCase() + send.status.slice(1)}
+                            {(send.status || 'unknown').charAt(0).toUpperCase() + (send.status || 'unknown').slice(1)}
                           </span>
                         </td>
                       </tr>
@@ -958,7 +958,7 @@ export const EmailReporting: React.FC = () => {
                             : 'bg-gray-50 text-gray-600'
                         }`}
                       >
-                        {send.status}
+                        {send.status || 'unknown'}
                       </span>
                     </div>
                   </div>
