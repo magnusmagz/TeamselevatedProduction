@@ -108,10 +108,9 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
       const eventsData = await eventsRes.json();
       existingPractices = (eventsData.events || []).map((e: any) => ({
         date: e.event_date,
-        start_time: e.start_time || '',
-        end_time: e.end_time || '',
-        venue_id: e.venue_id,
-        field_id: e.field_id || e.venue_id,
+        start_time: (e.start_time || '').slice(0, 5),
+        end_time: (e.end_time || '').slice(0, 5),
+        venue_id: e.venue_id ? Number(e.venue_id) : null,
         team_name: e.team_name || e.name,
       }));
     } catch (err) {
@@ -133,13 +132,13 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
       timeSlots.forEach((time, timeIndex) => {
         // For each field
         fields.forEach(field => {
-          // Check if this slot is already booked
+          // Check if this slot is already booked at this venue
+          const slotTime = time.slice(0, 5);
           const isBooked = existingPractices.find((p: any) =>
             p.date === dateStr &&
-            p.field_id === field.id &&
             p.venue_id === selectedVenue &&
-            p.start_time <= time &&
-            p.end_time > time
+            p.start_time <= slotTime &&
+            p.end_time > slotTime
           );
 
           availabilityGrid[dateStr].push({
