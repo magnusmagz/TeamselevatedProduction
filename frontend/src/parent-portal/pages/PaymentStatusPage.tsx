@@ -114,10 +114,10 @@ export const PaymentStatusPage: React.FC = () => {
           <p className="text-3xl font-bold">${totalOutstanding.toFixed(2)}</p>
           {totalOutstanding > 0 && (
             <Link
-              to="/parent/payments/checkout"
+              to="/parent/payments"
               className="inline-block mt-4 bg-white text-brand-primary px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
             >
-              Make a Payment
+              View Invoices
             </Link>
           )}
         </div>
@@ -222,7 +222,7 @@ export const PaymentStatusPage: React.FC = () => {
 
                 {invoice.status !== 'paid' && (
                   <Link
-                    to={`/parent/payments/checkout?invoice=${invoice.id}`}
+                    to={`/pay/${invoice.id}`}
                     className="mt-3 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
                   >
                     Pay Now

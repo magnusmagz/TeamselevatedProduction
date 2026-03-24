@@ -601,16 +601,138 @@ export const PaymentPage: React.FC = () => {
               </div>
             )}
 
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 mb-6">
               A receipt has been sent to {invoice.guardian_email}
             </p>
 
-            <a
-              href="/"
-              className="text-brand-primary hover:text-brand-primary-hover text-sm font-medium"
+            {/* Download Receipt */}
+            <button
+              onClick={() => {
+                const receiptWindow = window.open('', '_blank');
+                if (receiptWindow) {
+                  const plan = getSelectedPlanDetails();
+                  receiptWindow.document.write(`
+                    <html>
+                    <head>
+                      <title>Receipt - ${invoice.invoice_number}</title>
+                      <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; color: #333; }
+                        .header { border-bottom: 3px solid #1a73a7; padding-bottom: 20px; margin-bottom: 20px; }
+                        .header h1 { margin: 0; color: #1a73a7; font-size: 24px; }
+                        .header p { margin: 4px 0 0; color: #666; font-size: 14px; }
+                        .badge { display: inline-block; background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+                        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+                        .grid-item label { display: block; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+                        .grid-item p { margin: 0; font-size: 14px; font-weight: 500; }
+                        .divider { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0; border-bottom: 1px solid #eee; }
+                        th:last-child { text-align: right; }
+                        td { padding: 10px 0; font-size: 14px; }
+                        td:last-child { text-align: right; font-weight: 600; }
+                        .total-row td { border-top: 2px solid #1a73a7; font-size: 16px; color: #1a73a7; padding-top: 12px; }
+                        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; font-size: 12px; color: #999; }
+                        @media print { body { margin: 0; } }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="header">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                          <div>
+                            <h1>Payment Receipt</h1>
+                            <p>Invoice #${invoice.invoice_number}</p>
+                          </div>
+                          <span class="badge">PAID</span>
+                        </div>
+                      </div>
+
+                      <div class="grid">
+                        <div class="grid-item">
+                          <label>Athlete</label>
+                          <p>${athleteName}</p>
+                        </div>
+                        <div class="grid-item">
+                          <label>Program</label>
+                          <p>${invoice.program_name}</p>
+                        </div>
+                        <div class="grid-item">
+                          <label>Date Paid</label>
+                          <p>${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                        <div class="grid-item">
+                          <label>Payment Method</label>
+                          <p>Card ending in ${cardNumber.replace(/\s/g, '').slice(-4)}</p>
+                        </div>
+                        <div class="grid-item">
+                          <label>Bill To</label>
+                          <p>${guardianName || 'Guardian'}</p>
+                        </div>
+                        <div class="grid-item">
+                          <label>Invoice Date</label>
+                          <p>${new Date(invoice.invoice_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                      </div>
+
+                      <hr class="divider" />
+
+                      <table>
+                        <thead>
+                          <tr><th>Description</th><th>Amount</th></tr>
+                        </thead>
+                        <tbody>
+                          ${invoice.items && invoice.items.length > 0
+                            ? invoice.items.map(item => `<tr><td>${item.description}</td><td>${formatCurrency(item.line_total)}</td></tr>`).join('')
+                            : `<tr><td>${invoice.program_name} - Registration</td><td>${formatCurrency(invoice.total_amount)}</td></tr>`
+                          }
+                          ${isSplit ? `<tr><td style="color:#1a73a7;">50/50 Split - Your portion</td><td style="color:#1a73a7;">-${formatCurrency(amountRemaining / 2)}</td></tr>` : ''}
+                        </tbody>
+                        <tfoot>
+                          <tr class="total-row">
+                            <td><strong>Amount Paid</strong></td>
+                            <td><strong>${formatCurrency(getAmountDueToday())}</strong></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+
+                      ${plan && plan.payments.length > 1 ? `
+                        <hr class="divider" />
+                        <p style="font-size:13px;font-weight:600;color:#1a73a7;margin-bottom:8px;">Upcoming Payments</p>
+                        ${plan.payments.slice(1).map(p => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;"><span>${p.dueDate}</span><span style="font-weight:600;">${formatCurrency(p.amount)}</span></div>`).join('')}
+                      ` : ''}
+
+                      <div class="footer">
+                        <p>Thank you for your payment.</p>
+                        <p>Teams Elevated &bull; ${invoice.guardian_email}</p>
+                      </div>
+                    </body>
+                    </html>
+                  `);
+                  receiptWindow.document.close();
+                  receiptWindow.print();
+                }
+              }}
+              className="w-full mb-3 py-3 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
             >
-              Return to Home
-            </a>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download Receipt
+            </button>
+
+            <div className="flex flex-col gap-2">
+              <a
+                href="/parent/payments"
+                className="text-brand-primary hover:text-brand-primary-hover text-sm font-medium"
+              >
+                Back to Payments
+              </a>
+              <a
+                href="/"
+                className="text-gray-500 hover:text-gray-700 text-sm"
+              >
+                Return to Home
+              </a>
+            </div>
           </div>
         </div>
       </div>
