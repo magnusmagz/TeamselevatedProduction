@@ -846,8 +846,8 @@ export const VolunteerManagement: React.FC = () => {
                           selectedUser.bg_check_status.slice(1)}
                     </span>
                     {selectedUser.bg_check_status !== 'cleared' && (
-                      <p className="text-xs text-red-600 mt-1">
-                        Background check must be cleared before this volunteer can be assigned.
+                      <p className="text-xs text-amber-600 mt-1">
+                        Background check status: {selectedUser.bg_check_status}. You can update this after assigning.
                       </p>
                     )}
                   </div>
@@ -926,7 +926,7 @@ export const VolunteerManagement: React.FC = () => {
                 disabled={
                   addSaving ||
                   !addForm.team_id ||
-                  (addMode === 'existing' && (!selectedUser || selectedUser.bg_check_status !== 'cleared')) ||
+                  (addMode === 'existing' && !selectedUser) ||
                   (addMode === 'new' && (!newVolunteerForm.first_name || !newVolunteerForm.last_name || !newVolunteerForm.email))
                 }
                 className="px-4 py-2 text-sm font-semibold uppercase text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

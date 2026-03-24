@@ -177,16 +177,8 @@ try {
 
             requireTeamAccess($auth, $db, $teamId);
 
-            // Check background check status
+            // Get background check status (informational, not blocking)
             $bgStatus = getUserBackgroundCheckStatus($db, $volunteerUserId);
-            if ($bgStatus !== 'cleared') {
-                http_response_code(403);
-                echo json_encode([
-                    'error' => 'Cannot assign volunteer: background check not cleared',
-                    'background_check_status' => $bgStatus
-                ]);
-                exit();
-            }
 
             // Check if already assigned
             $checkStmt = $db->prepare("SELECT id FROM team_volunteers WHERE team_id = ? AND user_id = ?");
