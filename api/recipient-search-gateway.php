@@ -404,9 +404,9 @@ function handleGroups($connection, $auth, $userId) {
                COUNT(DISTINCT g.id) as guardian_count
         FROM teams t
         LEFT JOIN team_members tm ON t.id = tm.team_id AND tm.status = 'active'
-        LEFT JOIN athlete_guardians ag ON tm.athlete_id = ag.athlete_id AND ag.active_status = TRUE
+        LEFT JOIN athlete_guardians ag ON tm.athlete_id = ag.athlete_id
         LEFT JOIN guardians g ON ag.guardian_id = g.id
-        WHERE t.club_id = ?
+        WHERE t.club_id = ? AND t.deleted_at IS NULL
         {$teamFilter['sql']}
         GROUP BY t.id, t.name, t.age_group
         ORDER BY t.name
