@@ -165,6 +165,16 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
             </ol>
           </div>
         </div>
+
+        {/* Footer with Cancel */}
+        <div className="border-t border-brand-secondary px-6 py-4 flex justify-end shrink-0">
+          <button
+            onClick={onClose}
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
