@@ -18,6 +18,23 @@ interface AthleteDetails {
   teams?: Array<{ id: number; name: string }>;
 }
 
+interface Registration {
+  id: number;
+  program_id: number;
+  program_name: string;
+  season?: string;
+  start_date?: string;
+  end_date?: string;
+  status: string;
+  submitted_at: string;
+  reviewed_at?: string;
+  invoice_id?: number;
+  invoice_number?: string;
+  total_amount?: string;
+  amount_paid?: string;
+  invoice_status?: string;
+}
+
 export const AthleteDetailPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
@@ -26,42 +43,33 @@ export const AthleteDetailPage: React.FC = () => {
   const [athlete, setAthlete] = useState<AthleteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [registrationsLoading, setRegistrationsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('[AthleteDetailPage] useEffect triggered, id:', id);
-
     const fetchAthlete = async () => {
-      if (!id) {
-        console.log('[AthleteDetailPage] No ID, skipping fetch');
-        return;
-      }
+      if (!id) return;
 
       setLoading(true);
       setError(null);
 
       try {
         const token = localStorage.getItem('auth_token');
-        const url = `${API_URL}/api/athletes/?action=get&id=${id}`;
-        console.log('[AthleteDetailPage] Fetching:', url);
-
-        const response = await fetch(url, {
+        const response = await fetch(`${API_URL}/api/athletes/?action=get&id=${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
-        console.log('[AthleteDetailPage] Response:', data);
 
         if (data.success && data.athlete) {
           setAthlete(data.athlete);
         } else {
-          console.error('[AthleteDetailPage] No athlete in response:', data);
           setError(data.error || 'Athlete not found');
         }
       } catch (err) {
-        console.error('[AthleteDetailPage] Fetch error:', err);
         setError('Failed to load athlete details');
       } finally {
         setLoading(false);
@@ -69,6 +77,31 @@ export const AthleteDetailPage: React.FC = () => {
     };
 
     fetchAthlete();
+  }, [API_URL, id]);
+
+  useEffect(() => {
+    const fetchRegistrations = async () => {
+      if (!id) return;
+
+      setRegistrationsLoading(true);
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(
+          `${API_URL}/registration/registrations-api.php?athlete_id=${id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setRegistrations(data);
+        }
+      } catch (err) {
+        console.error('Error fetching registrations:', err);
+      } finally {
+        setRegistrationsLoading(false);
+      }
+    };
+
+    fetchRegistrations();
   }, [API_URL, id]);
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -244,6 +277,74 @@ export const AthleteDetailPage: React.FC = () => {
             </div>
             <span className="font-medium text-gray-900">Schedule</span>
           </Link>
+        </div>
+
+        {/* Registrations */}
+        <div className="px-4 mb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h2 className="font-semibold text-brand-primary mb-3">Registrations</h2>
+            {registrationsLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary"></div>
+              </div>
+            ) : registrations.length === 0 ? (
+              <p className="text-sm text-gray-500 py-2">No registrations yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {registrations.map((reg) => (
+                  <div key={reg.id} className="border border-gray-100 rounded-lg p-3">
+                    <div className="flex items-start justify-between mb-1">
+                      <div>
+                        <p className="font-medium text-gray-900">{reg.program_name}</p>
+                        {reg.season && (
+                          <p className="text-xs text-gray-500">{reg.season}</p>
+                        )}
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded ${
+                          reg.status === 'approved'
+                            ? 'bg-green-100 text-green-800'
+                            : reg.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : reg.status === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {reg.status.charAt(0).toUpperCase() + reg.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Submitted {new Date(reg.submitted_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </div>
+                    {reg.invoice_id && (
+                      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          Invoice #{reg.invoice_number}
+                        </span>
+                        <span
+                          className={`font-medium ${
+                            reg.invoice_status === 'paid'
+                              ? 'text-green-600'
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          ${parseFloat(reg.total_amount || '0').toFixed(2)}
+                          {reg.invoice_status && reg.invoice_status !== 'paid' && (
+                            <span className="text-xs text-gray-500 ml-1">({reg.invoice_status})</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Contact Info */}

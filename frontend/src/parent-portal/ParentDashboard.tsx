@@ -79,7 +79,17 @@ export const ParentDashboard: React.FC = () => {
         );
         const invoicesData = await invoicesRes.json();
         if (invoicesData.success && invoicesData.invoices) {
-          setInvoices(invoicesData.invoices);
+          const mapped = invoicesData.invoices.map((inv: Record<string, unknown>) => ({
+            id: inv.id,
+            athlete_id: inv.athlete_id,
+            athlete_name: `${inv.athlete_first || ''} ${inv.athlete_last || ''}`.trim(),
+            total_amount: parseFloat(String(inv.total_amount || 0)),
+            paid_amount: parseFloat(String(inv.amount_paid || 0)),
+            balance_due: parseFloat(String(inv.amount_remaining || 0)),
+            due_date: inv.due_date as string | undefined,
+            status: inv.is_overdue ? 'overdue' : (inv.status as string),
+          }));
+          setInvoices(mapped);
         }
       } catch (err) {
         console.error('Error fetching invoices:', err);

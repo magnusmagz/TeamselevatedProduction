@@ -25,25 +25,46 @@ $method = $_SERVER['REQUEST_METHOD'];
 try {
     switch ($method) {
         case 'GET':
-            // Get registrations for a program
-            $program_id = $_GET['program_id'] ?? 0;
+            // Get registrations — filter by program_id or athlete_id
+            $program_id = $_GET['program_id'] ?? null;
+            $athlete_id = $_GET['athlete_id'] ?? null;
 
-            $stmt = $connection->prepare("
-                SELECT r.*, p.name as program_name,
-                       i.id as invoice_id, i.invoice_number, i.total_amount, i.status as invoice_status
-                FROM registrations r
-                LEFT JOIN programs p ON r.program_id = p.id
-                LEFT JOIN athlete_payments ap ON ap.athlete_id = r.athlete_id AND ap.program_id = r.program_id
-                LEFT JOIN invoices i ON i.athlete_payment_id = ap.id
-                WHERE r.program_id = ?
-                ORDER BY r.submitted_at DESC
-            ");
-            $stmt->execute([$program_id]);
+            if ($athlete_id) {
+                // Get all registrations for a specific athlete
+                $stmt = $connection->prepare("
+                    SELECT r.id, r.program_id, r.athlete_id, r.status, r.submitted_at, r.reviewed_at,
+                           p.name as program_name, p.season, p.start_date, p.end_date,
+                           i.id as invoice_id, i.invoice_number, i.total_amount, i.amount_paid, i.status as invoice_status
+                    FROM registrations r
+                    LEFT JOIN programs p ON r.program_id = p.id
+                    LEFT JOIN athlete_payments ap ON ap.athlete_id = r.athlete_id AND ap.program_id = r.program_id
+                    LEFT JOIN invoices i ON i.athlete_payment_id = ap.id
+                    WHERE r.athlete_id = ?
+                    ORDER BY r.submitted_at DESC
+                ");
+                $stmt->execute([$athlete_id]);
+            } else {
+                // Get registrations for a program (existing behavior)
+                $stmt = $connection->prepare("
+                    SELECT r.*, p.name as program_name,
+                           i.id as invoice_id, i.invoice_number, i.total_amount, i.status as invoice_status
+                    FROM registrations r
+                    LEFT JOIN programs p ON r.program_id = p.id
+                    LEFT JOIN athlete_payments ap ON ap.athlete_id = r.athlete_id AND ap.program_id = r.program_id
+                    LEFT JOIN invoices i ON i.athlete_payment_id = ap.id
+                    WHERE r.program_id = ?
+                    ORDER BY r.submitted_at DESC
+                ");
+                $stmt->execute([$program_id ?? 0]);
+            }
+
             $registrations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Decode JSON form data
+            // Decode JSON form data if present
             foreach ($registrations as &$registration) {
-                $registration['form_data'] = json_decode($registration['form_data'], true);
+                if (isset($registration['form_data'])) {
+                    $registration['form_data'] = json_decode($registration['form_data'], true);
+                }
             }
 
             echo json_encode($registrations);

@@ -12,12 +12,7 @@ interface Invoice {
   paid_amount: number;
   balance_due: number;
   due_date?: string;
-  status: 'pending' | 'partial' | 'paid' | 'overdue';
-  payment_items?: Array<{
-    id: number;
-    name: string;
-    amount: number;
-  }>;
+  status: string;
 }
 
 export const PaymentStatusPage: React.FC = () => {
@@ -46,7 +41,19 @@ export const PaymentStatusPage: React.FC = () => {
         const data = await response.json();
 
         if (data.success && data.invoices) {
-          setInvoices(data.invoices);
+          // Map API field names to component field names
+          const mapped = data.invoices.map((inv: Record<string, unknown>) => ({
+            id: inv.id,
+            athlete_id: inv.athlete_id,
+            athlete_name: `${inv.athlete_first || ''} ${inv.athlete_last || ''}`.trim(),
+            description: inv.program_name || inv.memo || 'Invoice',
+            total_amount: parseFloat(String(inv.total_amount || 0)),
+            paid_amount: parseFloat(String(inv.amount_paid || 0)),
+            balance_due: parseFloat(String(inv.amount_remaining || 0)),
+            due_date: inv.due_date as string | undefined,
+            status: inv.is_overdue ? 'overdue' : (inv.status as string),
+          }));
+          setInvoices(mapped);
         } else {
           setError(data.error || 'Failed to load invoices');
         }
@@ -70,22 +77,20 @@ export const PaymentStatusPage: React.FC = () => {
     .filter((inv) => inv.status !== 'paid')
     .reduce((sum, inv) => sum + inv.balance_due, 0);
 
-  const getStatusBadge = (status: Invoice['status']) => {
-    const styles = {
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-800',
+      sent: 'bg-blue-100 text-blue-800',
+      viewed: 'bg-blue-100 text-blue-800',
       pending: 'bg-yellow-100 text-yellow-800',
       partial: 'bg-blue-100 text-blue-800',
       paid: 'bg-green-100 text-green-800',
       overdue: 'bg-red-100 text-red-800',
     };
-    const labels = {
-      pending: 'Pending',
-      partial: 'Partial',
-      paid: 'Paid',
-      overdue: 'Overdue',
-    };
+    const label = status.charAt(0).toUpperCase() + status.slice(1);
     return (
-      <span className={`px-2 py-0.5 text-xs font-medium rounded ${styles[status]}`}>
-        {labels[status]}
+      <span className={`px-2 py-0.5 text-xs font-medium rounded ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+        {label}
       </span>
     );
   };
