@@ -30,7 +30,7 @@ export const InstallPrompt: React.FC = () => {
   // Show iOS-specific instructions
   if (isIOS) {
     return (
-      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20 sticky top-0 z-50">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +66,7 @@ export const InstallPrompt: React.FC = () => {
   // Show Android/Chrome install prompt (native prompt available)
   if (isInstallable) {
     return (
-      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0">
             <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +101,7 @@ export const InstallPrompt: React.FC = () => {
   // Android fallback: Chrome hasn't fired beforeinstallprompt yet, show manual instructions
   if (isAndroid) {
     return (
-      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20">
+      <div className="bg-brand-secondary px-4 py-3 border-b border-brand-primary/20 sticky top-0 z-50">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
             <svg className="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
