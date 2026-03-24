@@ -63,6 +63,8 @@ const ProgramManagement: React.FC = () => {
   const handleEditProgram = (program: Program) => {
     if (program.type === 'tryout') {
       setEditingTryout(program);
+    } else if (program.type === 'tournament') {
+      navigate(`/tournaments/${program.id}/edit`);
     } else {
       setSelectedProgram(program);
       setShowFormBuilder(true);
