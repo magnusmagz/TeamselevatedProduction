@@ -450,7 +450,7 @@
   .slide > *:nth-child(3) { animation-delay: 0.16s; }
   .slide > *:nth-child(4) { animation-delay: 0.24s; }
 
-  /* ── Responsive ── */
+  /* ── Responsive: Tablet ── */
   @media (max-width: 1024px) {
     .slide { padding: 40px; }
     h1 { font-size: 2.2rem; }
@@ -459,6 +459,70 @@
     .grid-2, .grid-3, .grid-4, .stat-grid { grid-template-columns: 1fr 1fr; }
     .feature-list { grid-template-columns: 1fr; }
     .roadmap { flex-direction: column; }
+    .compare-table th, .compare-table td { padding: 10px 12px; font-size: 0.8rem; }
+  }
+
+  /* ── Responsive: Mobile ── */
+  @media (max-width: 640px) {
+    .slide { padding: 24px 20px; min-height: auto; min-height: 100svh; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.3rem; }
+    h3 { font-size: 0.95rem; }
+    .slide-hero h1 { font-size: 1.8rem; }
+    .slide-hero .subtitle { font-size: 1rem; }
+    .subtitle { font-size: 0.95rem; }
+    .label { font-size: 0.65rem; letter-spacing: 2px; }
+    .tagline { font-size: 0.75rem; padding: 8px 16px; }
+    .logo-hero { height: 40px; margin-bottom: 20px; }
+
+    .grid-2, .grid-3, .grid-4, .stat-grid, .ask-grid { grid-template-columns: 1fr; gap: 16px; }
+    .card { padding: 20px; }
+    .card-icon { width: 40px; height: 40px; margin-bottom: 12px; }
+    .card-icon svg { width: 20px; height: 20px; }
+
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .stat-box { padding: 16px; }
+    .stat-number { font-size: 1.8rem; }
+    .stat-label { font-size: 0.75rem; }
+
+    .feature-section { padding: 20px; }
+    .feature-badge { font-size: 0.7rem; padding: 4px 10px; }
+    .feature-badge svg { width: 14px; height: 14px; }
+    .feature-list { grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+    .feature-list li { font-size: 0.82rem; }
+
+    .pain-item { gap: 12px; padding: 12px 0; }
+    .pain-icon { width: 36px; height: 36px; }
+    .pain-icon svg { width: 18px; height: 18px; }
+    .pain-item h3 { font-size: 0.9rem; }
+    .pain-item p { font-size: 0.82rem; }
+
+    .compare-table { font-size: 0.7rem; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .compare-table th, .compare-table td { padding: 8px 10px; white-space: nowrap; }
+    .compare-table th { font-size: 0.6rem; }
+
+    .roadmap { flex-direction: column; gap: 16px; }
+    .roadmap-phase { padding: 20px; }
+    .roadmap-phase.primary ul { columns: 1; }
+    .roadmap-phase li { font-size: 0.82rem; }
+
+    .role-icon { width: 32px; height: 32px; }
+    .role-icon svg { width: 16px; height: 16px; }
+
+    .nav-dots { display: none; }
+    .key-hint { display: none; }
+    .slide-number { font-size: 11px; top: 20px; right: 20px; }
+
+    .btn-primary, .btn-secondary { padding: 10px 24px; font-size: 0.9rem; }
+
+    /* PE slide grid stack on mobile */
+    #slide-2b .grid-2 { grid-template-columns: 1fr; }
+
+    /* Password gate mobile */
+    #pw-gate h2 { font-size: 1.1rem; }
+    #pw-gate img { height: 36px; }
+    #pw-form { flex-direction: column; width: 80%; }
+    #pw-form input, #pw-form button { width: 100%; }
   }
 
   .key-hint {
