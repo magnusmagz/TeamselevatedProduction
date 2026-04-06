@@ -454,7 +454,10 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
-            {team.name} Roster{team.age_group ? ` ${team.age_group}` : ''}
+            <Link to={`/team/${team.id}`} className="hover:text-brand-secondary transition-colors">
+              {team.name}
+            </Link>
+            {' '}Roster{team.age_group ? ` ${team.age_group}` : ''}
           </h2>
           <p className="text-gray-600 mt-2">{roster.length} players total</p>
         </div>
