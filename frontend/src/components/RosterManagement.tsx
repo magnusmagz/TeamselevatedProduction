@@ -102,6 +102,13 @@ const SOCCER_POSITIONS = [
 
 const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: string; teamId: number; onUpdate: () => void }> = ({ athlete, onClose, apiUrl, teamId, onUpdate }) => {
   const [guardian, setGuardian] = useState<GuardianInfo | null>(null);
+  const [jerseyNumber, setJerseyNumber] = useState<string>(athlete.jersey_number?.toString() || '');
+  const [position, setPosition] = useState<string>(athlete.primary_position || '');
+
+  useEffect(() => {
+    setJerseyNumber(athlete.jersey_number?.toString() || '');
+    setPosition(athlete.primary_position || '');
+  }, [athlete.id, athlete.jersey_number, athlete.primary_position]);
 
   useEffect(() => {
     fetch(`${apiUrl}/legacy/athletes-gateway.php?id=${athlete.id}`)
@@ -201,9 +208,10 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Primary Position</label>
                   <select
-                    value={athlete.primary_position || ''}
+                    value={position}
                     onChange={async (e) => {
                       const pos = e.target.value;
+                      setPosition(pos);
                       const token = localStorage.getItem('auth_token');
                       try {
                         await fetch(`${apiUrl}/legacy/team-players-gateway.php`, {
@@ -232,9 +240,11 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
                   <label className="text-xs text-gray-500 block mb-1">Jersey Number</label>
                   <input
                     type="number"
-                    value={athlete.jersey_number || ''}
-                    onChange={async (e) => {
-                      const num = e.target.value ? parseInt(e.target.value) : null;
+                    value={jerseyNumber}
+                    onChange={(e) => setJerseyNumber(e.target.value)}
+                    onBlur={async () => {
+                      const num = jerseyNumber ? parseInt(jerseyNumber) : null;
+                      if (num === (athlete.jersey_number ?? null)) return;
                       const token = localStorage.getItem('auth_token');
                       try {
                         await fetch(`${apiUrl}/legacy/team-players-gateway.php`, {

@@ -101,18 +101,37 @@ try {
 
         case 'PUT':
             // Update team player
-            $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
             $input = json_decode(file_get_contents('php://input'), true);
+            $id = isset($_GET['id']) ? (int)$_GET['id'] : ($input['team_member_id'] ?? null);
 
             if (!$id) {
                 throw new Exception('Team player ID is required');
             }
 
-            $status = $input['status'] ?? null;
+            $fields = [];
+            $values = [];
 
-            if ($status) {
-                $stmt = $pdo->prepare("UPDATE team_members SET status = ? WHERE id = ?");
-                $stmt->execute([$status, $id]);
+            if (isset($input['status'])) {
+                $fields[] = 'status = ?';
+                $values[] = $input['status'];
+            }
+            if (array_key_exists('jersey_number', $input)) {
+                $fields[] = 'jersey_number = ?';
+                $values[] = $input['jersey_number'];
+            }
+            if (array_key_exists('primary_position', $input)) {
+                $fields[] = 'primary_position = ?';
+                $values[] = $input['primary_position'];
+            }
+            if (array_key_exists('positions', $input)) {
+                $fields[] = 'positions = ?';
+                $values[] = json_encode($input['positions']);
+            }
+
+            if (!empty($fields)) {
+                $values[] = $id;
+                $stmt = $pdo->prepare("UPDATE team_members SET " . implode(', ', $fields) . " WHERE id = ?");
+                $stmt->execute($values);
             }
 
             echo json_encode(['success' => true, 'message' => 'Team player updated successfully']);
