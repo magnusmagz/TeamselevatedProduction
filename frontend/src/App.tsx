@@ -952,6 +952,7 @@ function AppContent() {
 
           {/* Real payment page - public, fetches invoice by ID */}
           <Route path="/pay/:invoiceId" element={<PaymentPage />} />
+          <Route path="/contribute/:invoiceId" element={<PaymentPage />} />
 
           {/* Fundraiser Campaign routes - public */}
           <Route path="/donate/:clubSlug/campaign/:campaignSlug" element={<FundraiserCampaign />} />
