@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Teams Elevated — Presentation</title>
+<title>Teams Elevated, Presentation</title>
 <style>
   @font-face {
     font-family: 'Orbitron';
@@ -130,7 +130,7 @@
   }
   .slide-hero h1 { font-size: 4rem; }
   .slide-hero .subtitle { max-width: 800px; font-size: 1.3rem; text-align: center; }
-  .logo-hero { height: 56px; margin-bottom: 32px; }
+  .logo-hero { height: 120px; margin-bottom: 32px; }
   .tagline {
     margin-top: 40px;
     display: inline-block;
@@ -339,9 +339,8 @@
 
   /* ── Roadmap ── */
   .roadmap { display: flex; gap: 24px; margin-top: 32px; align-items: stretch; }
-  .roadmap-2-1 { grid-template-columns: 2fr 1fr; }
-  .roadmap-phase.primary { flex: 2; }
-  .roadmap-phase.primary ul { columns: 2; column-gap: 24px; }
+  .roadmap-phase.primary { flex: 1; }
+  .roadmap-phase ul { columns: 2; column-gap: 24px; }
   .roadmap-phase.primary li { break-inside: avoid; }
   .roadmap-phase {
     flex: 1;
@@ -473,7 +472,7 @@
     .subtitle { font-size: 0.95rem; }
     .label { font-size: 0.65rem; letter-spacing: 2px; }
     .tagline { font-size: 0.75rem; padding: 8px 16px; }
-    .logo-hero { height: 40px; margin-bottom: 20px; }
+    .logo-hero { height: 80px; margin-bottom: 20px; }
 
     .grid-2, .grid-3, .grid-4, .stat-grid, .ask-grid { grid-template-columns: 1fr; gap: 16px; }
     .card { padding: 20px; }
@@ -551,7 +550,7 @@
 
 <!-- ═══════════════════════════ PASSWORD GATE ═══════════════════════════ -->
 <div id="pw-gate" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(to bottom,#f0fdf9,#fff);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;">
-  <img src="/logo.png" alt="Teams Elevated" style="height:48px;">
+  <img src="logo.png" alt="Teams Elevated" style="height:48px;">
   <h2 style="font-family:'Orbitron',sans-serif;color:#12443e;font-size:1.4rem;margin:0;">Enter Password</h2>
   <form id="pw-form" style="display:flex;gap:12px;" onsubmit="return checkPw()">
     <input id="pw-input" type="password" placeholder="Password" autofocus style="padding:12px 20px;border:2px solid #e5e7eb;border-radius:0.25rem;font-family:'Inter',sans-serif;font-size:1rem;outline:none;width:240px;" />
@@ -579,8 +578,7 @@ document.body.style.overflow='hidden';
 
 <!-- ═══════════════════════════ SLIDE 1: TITLE ═══════════════════════════ -->
 <section class="slide slide-hero" id="slide-1">
-  <img src="/logo.png" alt="Teams Elevated" class="logo-hero">
-  <h1>Teams Elevated</h1>
+  <img src="logo.png" alt="Teams Elevated" class="logo-hero">
   <p class="subtitle">The all-in-one platform that replaces the 6+ disconnected tools youth sports clubs duct-tape together today.</p>
   <span class="tagline">Team Management &bull; Communications &bull; Payments &bull; Registration &bull; Parent Portal</span>
 </section>
@@ -590,7 +588,7 @@ document.body.style.overflow='hidden';
   <span class="slide-number">01</span>
   <div class="accent-bar" style="margin-left: auto; margin-right: auto;"></div>
   <p class="label">Who We Are</p>
-  <h2>Why Teams Elevated Exists</h2>
+  <h2>The Path To A Better World <br>Goes Straight Through Youth Sports</h2>
   <p class="subtitle" style="text-align: center; max-width: 750px; margin-top: 16px;">
     We started Teams Elevated because we believe the cost of running a youth sports club shouldn't be a barrier to giving kids a place to play. When you lower that barrier, more kids get on the field.
   </p>
@@ -601,7 +599,7 @@ document.body.style.overflow='hidden';
       Strong leaders make a better world.
     </p>
     <p style="margin-top: 32px; font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 1.5rem; color: var(--primary);">
-      The way to change the world is through youth sports.
+      The world is in desperate need of strong leaders who can play as a team.
     </p>
   </div>
 </section>
@@ -615,10 +613,10 @@ document.body.style.overflow='hidden';
   <div class="grid-2" style="margin-top: 8px; align-items: start;">
     <div>
       <p class="subtitle" style="max-width: 800px;">
-        Youth sports is a $40 billion industry — and private equity has noticed. In just the last few years, PE firms have poured billions into acquiring the platforms clubs depend on. KKR bought Varsity Brands for $4.75B. EQT acquired IMG Academy for $1.25B. Waud Capital took over TeamSnap and rolled up 8 companies. Genstar Capital merged PlayMetrics and Stack Sports. SportsEngine is reportedly on the block for $400–500M.<sup><a href="#appendix" style="color: var(--accent); text-decoration: none;">1</a></sup>
+        Youth sports generates about $40 billion annually and private equity has noticed. In just the last few years, PE firms have poured <strong>billions</strong> into acquiring the platforms clubs depend on. KKR bought Varsity Brands for $4.75B. EQT acquired IMG Academy for $1.25B. Waud Capital took over TeamSnap and rolled up 8 companies. Genstar Capital merged PlayMetrics and Stack Sports.<sup><a href="#appendix" style="color: var(--accent); text-decoration: none;">1</a></sup>
       </p>
       <p class="subtitle" style="max-width: 800px; margin-top: 20px;">
-        The result? Prices go up, platforms get bloated, and the organizations closest to kids pay more for tools that weren't built for them. Family costs have jumped 46% since 2019 — now averaging over $1,000 per child per year.<sup><a href="#appendix" style="color: var(--accent); text-decoration: none;">2</a></sup>
+        <strong>The result?</strong> Prices go up, platforms get bloated, and the organizations closest to kids pay more. Family costs have jumped 46% since 2019, now averaging over $1,000 per child per year.<sup><a href="#appendix" style="color: var(--accent); text-decoration: none;">2</a></sup>
       </p>
     </div>
     <div class="card" style="background: var(--forest-50); border-color: var(--secondary);">
@@ -724,9 +722,9 @@ document.body.style.overflow='hidden';
   <span class="slide-number">02</span>
   <div class="accent-bar"></div>
   <p class="label">The Real Cost</p>
-  <h2>Bad Software Doesn't Just<br>Waste Time — It Ruins the Experience</h2>
+  <h2>Bad Software Doesn't Just<br>Waste Time, It Ruins the Experience</h2>
   <p class="subtitle" style="max-width: 800px;">
-    When the tools don't work, the stress doesn't stay with the admin. It flows downhill — to coaches, to parents, to kids. And when the experience breaks down, people walk away.
+    When the tools don't work, the stress doesn't stay with the admin. It flows downhill, to coaches, to parents, to kids. When the experience breaks down, people walk away.
   </p>
 
   <div class="grid-3" style="margin-top: 40px;">
@@ -735,21 +733,21 @@ document.body.style.overflow='hidden';
         <svg style="color: var(--red-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       </div>
       <h3>Coaches Burn Out</h3>
-      <p>Volunteers who signed up to coach are drowning in admin work — chasing payments, managing spreadsheets, sending texts one by one. The passion that got them started gets buried under busywork.</p>
+      <p>Volunteers who signed up to coach are drowning in admin work, chasing payments, managing spreadsheets, sending texts one by one. The passion that got them started gets buried under busywork.</p>
     </div>
     <div class="card">
       <div class="card-icon" style="background: var(--red-50);">
         <svg style="color: var(--red-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
       </div>
-      <h3>Parents Get Frustrated</h3>
-      <p>Missed schedules, confusing payment requests, no idea where to find info. Parents lose trust in the club. Frustration turns into complaints — or worse, they quietly pull their kids out.</p>
+      <h3>Frustrated Parents Walk Away</h3>
+      <p>Missed schedules, confusing payment requests, no idea where to find info. Parents lose trust in the club. Frustration turns into complaints, they pull their kids or worse, kids associate stressed mom or dad with sport.</p>
     </div>
     <div class="card">
       <div class="card-icon" style="background: var(--red-50);">
         <svg style="color: var(--red-600);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
       </div>
       <h3>Kids Stop Playing</h3>
-      <p>When clubs can't operate smoothly, programs shrink, fees climb, and families leave. The kids who need sports the most — for confidence, discipline, and belonging — are the first to lose access.</p>
+      <p>When clubs can't operate smoothly, programs shrink, fees climb, and families leave. The kids who need sports the most, for confidence, discipline, and belonging, are the first to lose access.</p>
     </div>
   </div>
 
@@ -785,7 +783,7 @@ document.body.style.overflow='hidden';
   </div>
 
   <p class="subtitle" style="margin-top: 40px;">
-    Youth sports is one of the last major industries still running on spreadsheets, group texts, and paper forms. The organizations that serve millions of families deserve software built for them.
+    Youth sports is still running on spreadsheets, group texts, and paper forms. The organizations that serve millions of families deserve software built for them.
   </p>
 </section>
 
@@ -799,23 +797,23 @@ document.body.style.overflow='hidden';
 
   <div class="grid-2" style="margin-top: 32px;">
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"TeamSnap One, which we have nicknamed TeamSnap Zero, is absolutely awful. About a third of team members were unable to figure out how to use it."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"TeamSnap One, which we have nicknamed <strong>TeamSnap Zero</strong>, is absolutely awful. About 1/3 of team members were unable to figure out how to use it."</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— TEAMSNAP USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"Literally nothing with the new platform works completely as intended. Complete waste of time and money. Coaches hate using SportsEngine."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"Literally nothing with the new platform works completely as intended. Complete waste of time and money. <strong>Coaches hate using SportsEngine.</strong>"</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— SPORTSENGINE USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"The app is down 23 hours per day... families won't leave a club over it, I just have to survive."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"The app is <strong>down 23 hours per day...</strong> families won't leave a club over it, I just have to survive."</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— PLAYMETRICS USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"Truly awful tool, impossible to use, not remotely fit for purpose. So many features it completely overwhelms everyone."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"Truly awful tool, <strong>impossible to use, not remotely fit for purpose.</strong> So many features it completely overwhelms everyone."</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— GOTSOCCER USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"They charge a usage fee for the team management, but they abuse the team participants with advertisements on every click."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"They charge a usage fee for the team management, but they <strong>abuse the team participants with advertisements</strong> on every click."</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— TEAMSNAP USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
@@ -827,7 +825,7 @@ document.body.style.overflow='hidden';
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— SPORTSENGINE USER</p>
     </div>
     <div class="card" style="border-left: 3px solid var(--red-600); background: var(--gray-50);">
-      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"Crashes about 70% of the time that you try to use it. Cost you a fortune to stop — cancellation took a year."</p>
+      <p style="font-style: italic; color: var(--gray-800); font-size: 0.95rem; line-height: 1.7;">"<strong>Crashes about 70% of the time</strong> that you try to use it. Cost you a fortune to stop, cancellation took a year."</p>
       <p style="margin-top: 12px; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--gray-600); letter-spacing: 1px;">— UPPER HAND USER</p>
     </div>
   </div>
@@ -839,7 +837,7 @@ document.body.style.overflow='hidden';
   <div class="accent-bar"></div>
   <p class="label">The Product</p>
   <h2>One Platform. Every Club Operation.</h2>
-  <p class="subtitle">Teams Elevated replaces the patchwork — a single system for admins, coaches, and parents.</p>
+  <p class="subtitle">Teams Elevated replaces the patchwork, a single system for admins, coaches, and parents.</p>
 
   <div class="grid-4">
     <div class="card">
@@ -855,13 +853,6 @@ document.body.style.overflow='hidden';
       </div>
       <h3>Email & SMS</h3>
       <p>Gmail-style compose with templates, merge fields, delivery tracking, and compliance.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-      </div>
-      <h3>Payments</h3>
-      <p>Invoicing, multi-child checkout, payment plans, balance tracking, revenue dashboards.</p>
     </div>
     <div class="card">
       <div class="card-icon">
@@ -889,14 +880,21 @@ document.body.style.overflow='hidden';
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
       </div>
       <h3>Parent Portal</h3>
-      <p>Mobile-first PWA: schedules, payments, medical, chat, RSVP — all in their pocket.</p>
+      <p>Mobile-first PWA: schedules, payments, medical, chat, RSVP, all in their pocket.</p>
     </div>
     <div class="card">
       <div class="card-icon">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
       </div>
       <h3>Fundraising</h3>
-      <p>Campaign pages, progress bars, donor walls, public donation links — built in.</p>
+      <p>Campaign pages, progress bars, donor walls, public donation links. All built in.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+      </div>
+      <h3>Payments (coming soon)</h3>
+      <p>Invoicing, multi-child checkout, payment plans, balance tracking, revenue dashboards.</p>
     </div>
   </div>
 </section>
@@ -916,7 +914,7 @@ document.body.style.overflow='hidden';
         Revenue Dashboard
       </span>
       <ul class="feature-list">
-        <li>Total revenue, collected vs. outstanding at a glance</li>
+        <li>Revenue, collected vs. outstanding at a glance</li>
         <li>Revenue breakdown by program</li>
         <li>One-click payment reminders to families</li>
         <li>Outstanding balances with overdue badges</li>
@@ -930,11 +928,11 @@ document.body.style.overflow='hidden';
         Communications Hub
       </span>
       <ul class="feature-list">
-        <li>Gmail-style recipient picker with typeahead</li>
+        <li>Gmail-style email experience</li>
         <li>Group sends: "All parents of U14 Boys"</li>
         <li>Drag-and-drop email template builder</li>
         <li>Dynamic merge fields from event data</li>
-        <li>SMS via Twilio with delivery tracking</li>
+        <li>Text messaging with delivery tracking</li>
         <li>Open/click/bounce analytics per send</li>
       </ul>
     </div>
@@ -951,7 +949,7 @@ document.body.style.overflow='hidden';
         <li>Auto-generate round-robin schedules</li>
         <li>Live bracket visualization</li>
         <li>Real-time standings as scores come in</li>
-        <li>Public pages for spectators — no login</li>
+        <li>Public pages for spectators, no login</li>
         <li>Team registration and fee collection</li>
       </ul>
     </div>
@@ -1031,16 +1029,12 @@ document.body.style.overflow='hidden';
       Installable PWA
     </span>
     <span class="feature-badge">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-      Works Offline
-    </span>
-    <span class="feature-badge">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
       Push Notifications
     </span>
     <span class="feature-badge">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-      Role-Scoped — Parents See Only Their Athletes
+      Role-Scoped, Parents See Only Their Athletes
     </span>
   </div>
 </section>
@@ -1074,12 +1068,12 @@ document.body.style.overflow='hidden';
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       </div>
       <h3>Coach</h3>
-      <p style="margin-bottom: 14px; color: var(--gray-600);">Scoped to assigned teams — data stays in their lane.</p>
+      <p style="margin-bottom: 14px; color: var(--gray-600);">Scoped to assigned teams, data stays in their lane.</p>
       <ul class="feature-list" style="grid-template-columns: 1fr;">
         <li>Own team rosters only</li>
         <li>Team-scoped communications</li>
         <li>Calendar & attendance</li>
-        <li>Use templates (can't create)</li>
+        <li>Use templates</li>
         <li>Tryout evaluations</li>
         <li>Team-level reporting</li>
       </ul>
@@ -1108,8 +1102,7 @@ document.body.style.overflow='hidden';
   <div class="accent-bar"></div>
   <p class="label">Differentiation</p>
   <h2>How We Compare</h2>
-  <p class="subtitle">Most solutions do one thing well. Teams Elevated does everything clubs actually need.</p>
-
+  <p class="subtitle">Most solutions do one thing well. <br>Teams Elevated does everything clubs actually need.</p>
   <table class="compare-table">
     <thead>
       <tr>
@@ -1117,24 +1110,24 @@ document.body.style.overflow='hidden';
         <th>TeamSnap</th>
         <th>SportsEngine</th>
         <th>PlayMetrics</th>
-        <th>GotSoccer</th>
+        <th>GotSport</th>
         <th>Teams Elevated</th>
       </tr>
     </thead>
     <tbody>
       <tr><td>Player profiles with medical info</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="check">&#10003;</td></tr>
-      <tr><td>Email template builder (drag & drop)</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Email delivery tracking (opens/clicks)</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Payment plans / installments</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Email template builder (drag & drop)</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Email delivery tracking (opens/clicks)</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Payment plans / installments</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="check">&#10003;</td></tr>
       <tr><td>Revenue dashboard</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Automated payment reminders</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Tryout registration & evaluation</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Tournament brackets & live standings</td><td class="cross">&#10007;</td><td class="paid">$</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Automated payment reminders</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Tryout registration & evaluation</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="check">&#10003;</td></tr>
+      <tr><td>Tournament brackets & live standings</td><td class="partial">Partial</td><td class="paid">$</td><td class="partial">Partial</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
       <tr><td>No app download required (PWA)</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Multi-child family view</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Multi-child family view</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
       <tr><td>Fundraising & donor campaigns</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Background check compliance</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
-      <tr><td>Club branding (colors, logo)</td><td class="partial">Partial</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Background check compliance</td><td class="partial">Partial</td><td class="check">&#10003;</td><td class="partial">Partial</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Club branding (colors, logo)</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="partial">Partial</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
       <tr><td>Ad-free experience</td><td class="paid">$</td><td class="partial">Partial</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
     </tbody>
   </table>
@@ -1153,14 +1146,14 @@ document.body.style.overflow='hidden';
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
       </div>
       <h3>Truly All-in-One</h3>
-      <p>Every module designed to work together from day one. Data flows across teams, rosters, payments, communications, and events seamlessly — not bolted on after the fact.</p>
+      <p>Every module designed to work together from day one. Data flows across teams, rosters, payments, communications, and events seamlessly, not bolted on after the fact.</p>
     </div>
     <div class="card">
       <div class="card-icon">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4 4 4 0 004-4V5z"/></svg>
       </div>
       <h3>White-Label Branding</h3>
-      <p>Every club gets their own colors, logo, and identity throughout the platform. Parents see their club's brand — not ours. This drives adoption and loyalty.</p>
+      <p>Every club gets their own colors, logo, and identity throughout the platform. Parents see their club's brand, not ours. This drives adoption and loyalty.</p>
     </div>
     <div class="card">
       <div class="card-icon">
@@ -1174,7 +1167,7 @@ document.body.style.overflow='hidden';
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
       </div>
       <h3>Role-Scoped by Design</h3>
-      <p>Admins, coaches, and parents each get exactly the access they need. Enforced at the API level — not just hidden in the UI.</p>
+      <p>Admins, coaches, and parents each get exactly the access they need. Enforced at the API level, not just hidden in the UI.</p>
     </div>
   </div>
 </section>
@@ -1215,7 +1208,7 @@ document.body.style.overflow='hidden';
 
   <div class="roadmap">
     <div class="roadmap-phase current primary">
-      <div class="phase-label now">Now — Live</div>
+      <div class="phase-label now">Now, Live</div>
       <h3>Core Platform</h3>
       <ul>
         <li>Team & roster management</li>
@@ -1233,11 +1226,12 @@ document.body.style.overflow='hidden';
       </ul>
     </div>
     <div class="roadmap-phase">
-      <div class="phase-label future">Next 12–24 Months</div>
+      <div class="phase-label future">Next 3–12 Months</div>
       <h3>Scale & Expand</h3>
       <ul>
         <li>Payments & invoicing</li>
-        <li>Chat moderation</li>
+        <li>Key integrations</li>
+        <li>Individual Player Development</li>
         <li>Multi-sport league management</li>
         <li>Advanced analytics & reporting</li>
         <li>AI-powered communications</li>
@@ -1280,7 +1274,7 @@ document.body.style.overflow='hidden';
 
 <!-- ═══════════════════════════ SLIDE 13: CLOSING ═══════════════════════════ -->
 <section class="slide slide-closing" id="slide-13">
-  <img src="/logo.png" alt="Teams Elevated" class="logo-hero">
+  <img src="logo.png" alt="Teams Elevated" class="logo-hero">
   <h1>Let's Elevate<br>Youth Sports Together</h1>
   <p class="subtitle" style="text-align: center; max-width: 600px;">One platform for the clubs, coaches, and families<br>who power the next generation of athletes.</p>
   <div style="margin-top: 48px; display: flex; gap: 16px;">
@@ -1303,23 +1297,23 @@ document.body.style.overflow='hidden';
       <p style="font-weight: 600; color: var(--primary); margin-bottom: 4px;"><sup>1</sup> Private Equity in Youth Sports</p>
       <ul style="list-style: none; padding: 0; margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>Bloomberg</strong> — "Private Equity Targets $30 Billion Youth Sports Industry" (Aug 2024)<br>
+          <strong>Bloomberg</strong>, "Private Equity Targets $30 Billion Youth Sports Industry" (Aug 2024)<br>
           <a href="https://www.bloomberg.com/news/features/2024-08-29/private-equity-targets-30-billion-youth-sports-industry" style="color: var(--accent); font-size: 0.8rem;">bloomberg.com</a>
         </li>
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>Axios</strong> — "Private Equity Takes on Youth Sports" (Aug 2024)<br>
+          <strong>Axios</strong>, "Private Equity Takes on Youth Sports" (Aug 2024)<br>
           <a href="https://www.axios.com/2024/08/30/youth-sports-private-equity" style="color: var(--accent); font-size: 0.8rem;">axios.com</a>
         </li>
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>NPR</strong> — "When Private Equity Invests in Youth Sports Facilities" (Nov 2025)<br>
+          <strong>NPR</strong>, "When Private Equity Invests in Youth Sports Facilities" (Nov 2025)<br>
           <a href="https://www.npr.org/2025/11/25/nx-s1-5616428/when-private-equity-invests-in-youth-sports-facilities" style="color: var(--accent); font-size: 0.8rem;">npr.org</a>
         </li>
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>Youth Sports Business Report</strong> — "How Youth Sports Became a Magnet for Private Equity"<br>
+          <strong>Youth Sports Business Report</strong>, "How Youth Sports Became a Magnet for Private Equity"<br>
           <a href="https://youthsportsbusinessreport.com/how-youth-sports-became-a-magnet-for-private-equity/" style="color: var(--accent); font-size: 0.8rem;">youthsportsbusinessreport.com</a>
         </li>
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>Marketplace (APM)</strong> — "Why Private Equity Is Warming Up to Youth Sports" (Jul 2025)<br>
+          <strong>Marketplace (APM)</strong>, "Why Private Equity Is Warming Up to Youth Sports" (Jul 2025)<br>
           <a href="https://www.marketplace.org/story/2025/07/31/why-private-equity-is-warming-up-to-youth-sports" style="color: var(--accent); font-size: 0.8rem;">marketplace.org</a>
         </li>
       </ul>
@@ -1329,7 +1323,7 @@ document.body.style.overflow='hidden';
       <p style="font-weight: 600; color: var(--primary); margin-bottom: 4px;"><sup>2</sup> Family Cost Data</p>
       <ul style="list-style: none; padding: 0; margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
         <li style="font-size: 0.85rem; color: var(--gray-600);">
-          <strong>Empower</strong> — "Game On: The $40 Billion Play in Youth Sports" — family costs averaging $1,016/child, up 46% since 2019<br>
+          <strong>Empower</strong>, "Game On: The $40 Billion Play in Youth Sports", family costs averaging $1,016/child, up 46% since 2019<br>
           <a href="https://www.empower.com/the-currency/play/game-on-the-40-billion-play-in-youth-sports-news" style="color: var(--accent); font-size: 0.8rem;">empower.com</a>
         </li>
       </ul>
@@ -1338,11 +1332,11 @@ document.body.style.overflow='hidden';
     <div style="padding: 16px 0; border-bottom: 1px solid var(--gray-200);">
       <p style="font-weight: 600; color: var(--primary); margin-bottom: 4px;">Key Acquisitions Referenced</p>
       <ul style="list-style: none; padding: 0; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-        <li style="font-size: 0.85rem; color: var(--gray-600);">KKR &rarr; Varsity Brands — $4.75B (2024)</li>
-        <li style="font-size: 0.85rem; color: var(--gray-600);">EQT &rarr; IMG Academy — $1.25B</li>
-        <li style="font-size: 0.85rem; color: var(--gray-600);">Waud Capital &rarr; TeamSnap — ~$150M + 8 subsequent acquisitions</li>
+        <li style="font-size: 0.85rem; color: var(--gray-600);">KKR &rarr; Varsity Brands, $4.75B (2024)</li>
+        <li style="font-size: 0.85rem; color: var(--gray-600);">EQT &rarr; IMG Academy, $1.25B</li>
+        <li style="font-size: 0.85rem; color: var(--gray-600);">Waud Capital &rarr; TeamSnap, ~$150M + 8 subsequent acquisitions</li>
         <li style="font-size: 0.85rem; color: var(--gray-600);">Genstar Capital &rarr; PlayMetrics + Stack Sports merger (2025)</li>
-        <li style="font-size: 0.85rem; color: var(--gray-600);">SportsEngine — reportedly for sale at $400–500M valuation</li>
+        <li style="font-size: 0.85rem; color: var(--gray-600);">SportsEngine, reportedly for sale at $400–500M valuation</li>
       </ul>
     </div>
 
