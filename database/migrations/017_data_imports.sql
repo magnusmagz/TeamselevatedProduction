@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS import_jobs (
     status VARCHAR(20) NOT NULL DEFAULT 'queued',
     original_filename VARCHAR(255),
     csv_content TEXT,
+    column_mapping JSONB,
     total_rows INTEGER DEFAULT 0,
     processed_rows INTEGER DEFAULT 0,
     created_count INTEGER DEFAULT 0,

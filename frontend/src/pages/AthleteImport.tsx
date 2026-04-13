@@ -1,7 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+
+interface Team {
+  id: number;
+  name: string;
+}
+
+interface PreviewResponse {
+  success: boolean;
+  headers: string[];
+  suggested_mapping: Record<string, string>;
+  required_fields: string[];
+  optional_fields: string[];
+  preview_rows: Record<string, string>[];
+  total_rows: number;
+}
 
 interface ImportJob {
   id: number;
@@ -13,9 +28,6 @@ interface ImportJob {
   updated_count: number;
   skipped_count: number;
   error_count: number;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
 }
 
 interface ImportError {
@@ -24,19 +36,58 @@ interface ImportError {
   row_json: Record<string, string> | null;
 }
 
+type WizardStep = 'upload' | 'map' | 'status';
+
+const SAMPLE_CSV = [
+  'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian1_is_primary,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
+  'Ashley,Adams,2018-03-24,Female,3,Lincoln Elementary,Ava,Adams,ava.adams@example.com,5551001000,Parent,true,,,,,',
+  'Marcus,Jones,2014-06-15,Male,5,Roosevelt Middle,John,Jones,thejones@example.com,5551002000,Parent,true,Jane,Jones,thejones@example.com,5551002001,Parent',
+].join('\n');
+
+const FIELD_LABELS: Record<string, string> = {
+  athlete_first_name: 'Athlete First Name',
+  athlete_last_name: 'Athlete Last Name',
+  athlete_dob: 'Athlete Date of Birth (YYYY-MM-DD)',
+  athlete_gender: 'Athlete Gender (Male/Female/Non-binary/Prefer not to say)',
+  athlete_grade_level: 'Grade Level',
+  athlete_school: 'School',
+  guardian1_first_name: 'Guardian 1 First Name',
+  guardian1_last_name: 'Guardian 1 Last Name',
+  guardian1_email: 'Guardian 1 Email',
+  guardian1_mobile: 'Guardian 1 Mobile',
+  guardian1_relationship: 'Guardian 1 Relationship',
+  guardian1_is_primary: 'Guardian 1 Is Primary',
+  guardian2_first_name: 'Guardian 2 First Name',
+  guardian2_last_name: 'Guardian 2 Last Name',
+  guardian2_email: 'Guardian 2 Email',
+  guardian2_mobile: 'Guardian 2 Mobile',
+  guardian2_relationship: 'Guardian 2 Relationship',
+};
+
+const UNMAPPED = '__unmapped__';
+
 const AthleteImport: React.FC = () => {
   const token = localStorage.getItem('auth_token');
   const { currentClubId, isClubAdmin } = useOrg();
 
+  const [step, setStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [jobId, setJobId] = useState<number | null>(null);
   const [job, setJob] = useState<ImportJob | null>(null);
-  const [errors, setErrors] = useState<ImportError[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [importErrors, setImportErrors] = useState<ImportError[]>([]);
   const pollRef = useRef<number | null>(null);
 
-  const isAdmin = isClubAdmin;
+  const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
     return () => {
@@ -44,40 +95,128 @@ const AthleteImport: React.FC = () => {
     };
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    setErrorMessage(null);
+  // Fetch teams for the picker. Club admins use the analytics endpoint;
+  // coaches fall back to /api/coach/teams.
+  useEffect(() => {
+    if (!currentClubId) return;
+    const fetchTeams = async () => {
+      try {
+        const url = isClubAdmin
+          ? `${API_URL}/api/analytics?action=teams&club_profile_id=${currentClubId}`
+          : `${API_URL}/api/coach/teams`;
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.teams)) {
+          setTeams(data.teams);
+        } else if (Array.isArray(data)) {
+          setTeams(data);
+        }
+      } catch {
+        // non-fatal; team picker just shows empty
+      }
+    };
+    fetchTeams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentClubId, isClubAdmin]);
+
+  const handleDownloadSample = () => {
+    const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'athlete-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleUpload = async () => {
-    if (!file || !currentClubId) return;
-    setUploading(true);
+  const handleFileSelected = async (f: File) => {
     setErrorMessage(null);
-    setJob(null);
-    setErrors([]);
-    setJobId(null);
-
+    setFile(f);
+    setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append('file', f);
+      const res = await fetch(
+        `${API_URL}/api/imports-gateway.php?action=preview-athletes`,
+        { method: 'POST', headers, body: formData }
+      );
+      const data: PreviewResponse & { error?: string } = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Preview failed');
+      }
+      setPreview(data);
+      const initialMapping: Record<string, string> = {};
+      [...data.required_fields, ...data.optional_fields].forEach((field) => {
+        initialMapping[field] = data.suggested_mapping[field] || UNMAPPED;
+      });
+      setMapping(initialMapping);
+      setStep('map');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Preview failed');
+      setFile(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFileSelected(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleFileSelected(f);
+  };
+
+  const handleMappingChange = (dest: string, source: string) => {
+    setMapping((prev) => ({ ...prev, [dest]: source }));
+  };
+
+  const missingRequired = preview
+    ? preview.required_fields.filter((f) => !mapping[f] || mapping[f] === UNMAPPED)
+    : [];
+
+  const handleStartImport = async () => {
+    if (!file || !currentClubId || !preview) return;
+    if (missingRequired.length > 0) {
+      setErrorMessage('Please map all required fields before starting the import.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const cleanMapping: Record<string, string> = {};
+      Object.entries(mapping).forEach(([k, v]) => {
+        if (v && v !== UNMAPPED) cleanMapping[k] = v;
+      });
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('club_profile_id', String(currentClubId));
+      if (selectedTeamId) formData.append('team_id', selectedTeamId);
+      formData.append('column_mapping', JSON.stringify(cleanMapping));
 
-      const res = await fetch(`${API_URL}/api/imports-gateway.php?action=upload-athletes`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const res = await fetch(
+        `${API_URL}/api/imports-gateway.php?action=upload-athletes`,
+        { method: 'POST', headers, body: formData }
+      );
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || (data.details && data.details.join(', ')) || 'Upload failed');
       }
       setJobId(data.job_id);
+      setStep('status');
       startPolling(data.job_id);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Upload failed');
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
@@ -87,12 +226,12 @@ const AthleteImport: React.FC = () => {
       try {
         const res = await fetch(
           `${API_URL}/api/imports-gateway.php?action=status&job_id=${id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers }
         );
         const data = await res.json();
         if (data.success) {
           setJob(data.job);
-          setErrors(data.errors || []);
+          setImportErrors(data.errors || []);
           if (data.job.status === 'completed' || data.job.status === 'failed') {
             if (pollRef.current !== null) window.clearInterval(pollRef.current);
             pollRef.current = null;
@@ -109,21 +248,22 @@ const AthleteImport: React.FC = () => {
   const handleReset = () => {
     if (pollRef.current !== null) window.clearInterval(pollRef.current);
     pollRef.current = null;
+    setStep('upload');
     setFile(null);
+    setPreview(null);
+    setMapping({});
+    setSelectedTeamId('');
     setJobId(null);
     setJob(null);
-    setErrors([]);
+    setImportErrors([]);
     setErrorMessage(null);
   };
 
-  if (!isAdmin) {
+  if (!currentClubId) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-brand-primary mb-4">Import Athletes</h1>
-        <p className="text-gray-600">
-          The bulk importer is currently available to club admins only.
-          Coach-scoped imports are coming in the next iteration.
-        </p>
+        <p className="text-gray-600">Select a club to continue.</p>
       </main>
     );
   }
@@ -133,109 +273,158 @@ const AthleteImport: React.FC = () => {
     : 0;
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
+    <main className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-brand-primary mb-2">Import Athletes</h1>
-      <p className="text-sm text-gray-600 mb-6">
-        Upload a CSV with one row per athlete. Required columns: athlete_first_name,
-        athlete_last_name, athlete_dob (YYYY-MM-DD), athlete_gender, guardian1_first_name,
-        guardian1_last_name, guardian1_email, guardian1_mobile. Optional: a second guardian
-        as guardian2_*.
-      </p>
 
-      {!jobId && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">CSV file</label>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-brand-primary file:text-white file:cursor-pointer"
-          />
-          {file && (
-            <p className="mt-2 text-sm text-gray-600">
-              Selected: <span className="font-medium">{file.name}</span> ({Math.round(file.size / 1024)} KB)
-            </p>
-          )}
-          {errorMessage && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {errorMessage}
-            </div>
-          )}
-          <button
-            onClick={handleUpload}
-            disabled={!file || uploading}
-            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploading ? 'Uploading…' : 'Start Import'}
-          </button>
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 mb-6 text-sm">
+        {(['upload', 'map', 'status'] as WizardStep[]).map((s, i) => (
+          <React.Fragment key={s}>
+            {i > 0 && <span className="text-gray-300">→</span>}
+            <span className={`px-3 py-1 rounded-full ${
+              step === s ? 'bg-brand-primary text-white font-semibold' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {i + 1}. {s === 'upload' ? 'Upload' : s === 'map' ? 'Map columns' : 'Import'}
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {errorMessage && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          {errorMessage}
         </div>
       )}
 
-      {jobId && job && (
+      {/* ── Step 1: Upload ─────────────────────────────────────── */}
+      {step === 'upload' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <p className="text-sm text-gray-600 mb-4">
+            Upload a CSV with one row per athlete. Each row can include up to two guardians.
+            {' '}
+            <button
+              type="button"
+              onClick={handleDownloadSample}
+              className="text-brand-primary underline"
+            >
+              Download sample template
+            </button>
+          </p>
+
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Assign to team (optional)
+          </label>
+          <select
+            value={selectedTeamId}
+            onChange={(e) => setSelectedTeamId(e.target.value)}
+            className="w-full mb-4 p-2 border border-gray-300 rounded"
+          >
+            <option value="">— None (import without team assignment) —</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+
+          <div
+            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragActive ? 'border-brand-primary bg-brand-primary/5' : 'border-gray-300'
+            }`}
+          >
+            <p className="text-sm text-gray-600 mb-3">
+              Drag and drop a CSV file here, or click to browse
+            </p>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileInput}
+              className="hidden"
+              id="athlete-csv-input"
+            />
+            <label
+              htmlFor="athlete-csv-input"
+              className="inline-block px-4 py-2 bg-brand-primary text-white rounded cursor-pointer"
+            >
+              {loading ? 'Parsing…' : 'Choose file'}
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2: Map columns ───────────────────────────────── */}
+      {step === 'map' && preview && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-lg font-semibold">Job #{job.id}</h2>
-              <p className="text-sm text-gray-600">{job.original_filename}</p>
+              <h2 className="text-lg font-semibold">Map columns</h2>
+              <p className="text-sm text-gray-600">
+                {preview.total_rows} rows detected in {file?.name}.
+                We auto-matched {Object.values(preview.suggested_mapping).length} columns — review and adjust below.
+              </p>
             </div>
-            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-              job.status === 'completed' ? 'bg-green-100 text-green-700' :
-              job.status === 'failed' ? 'bg-red-100 text-red-700' :
-              job.status === 'processing' ? 'bg-blue-100 text-blue-700' :
-              'bg-gray-100 text-gray-700'
-            }`}>
-              {job.status}
-            </span>
+            <button
+              onClick={handleReset}
+              className="text-sm text-gray-500 underline"
+            >
+              Start over
+            </button>
           </div>
 
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>{job.processed_rows} of {job.total_rows} rows</span>
-              <span>{progressPct}%</span>
+          {missingRequired.length > 0 && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              {missingRequired.length} required field(s) not yet mapped: {missingRequired.map((f) => FIELD_LABELS[f] || f).join(', ')}
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-brand-primary h-2 rounded-full transition-all"
-                style={{ width: `${progressPct}%` }}
+          )}
+
+          <div className="space-y-3 mb-6">
+            {preview.required_fields.map((field) => (
+              <MappingRow
+                key={field}
+                destField={field}
+                label={FIELD_LABELS[field] || field}
+                required
+                value={mapping[field] || UNMAPPED}
+                headers={preview.headers}
+                onChange={(v) => handleMappingChange(field, v)}
               />
+            ))}
+            <div className="pt-2 border-t border-gray-200">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Optional fields</h3>
+              {preview.optional_fields.map((field) => (
+                <MappingRow
+                  key={field}
+                  destField={field}
+                  label={FIELD_LABELS[field] || field}
+                  required={false}
+                  value={mapping[field] || UNMAPPED}
+                  headers={preview.headers}
+                  onChange={(v) => handleMappingChange(field, v)}
+                />
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 text-center mb-4">
-            <div className="bg-green-50 rounded p-3">
-              <div className="text-2xl font-bold text-green-700">{job.created_count}</div>
-              <div className="text-xs text-green-700">Created</div>
-            </div>
-            <div className="bg-blue-50 rounded p-3">
-              <div className="text-2xl font-bold text-blue-700">{job.updated_count}</div>
-              <div className="text-xs text-blue-700">Updated</div>
-            </div>
-            <div className="bg-gray-50 rounded p-3">
-              <div className="text-2xl font-bold text-gray-700">{job.skipped_count}</div>
-              <div className="text-xs text-gray-700">Skipped</div>
-            </div>
-            <div className="bg-red-50 rounded p-3">
-              <div className="text-2xl font-bold text-red-700">{job.error_count}</div>
-              <div className="text-xs text-red-700">Errors</div>
-            </div>
-          </div>
-
-          {errors.length > 0 && (
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-2">Errors ({errors.length} shown)</h3>
-              <div className="max-h-64 overflow-y-auto border border-gray-200 rounded">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0">
+          {preview.preview_rows.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold mb-2">Preview (first {preview.preview_rows.length} rows)</h3>
+              <div className="overflow-x-auto border border-gray-200 rounded">
+                <table className="text-xs">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left p-2">Row</th>
-                      <th className="text-left p-2">Error</th>
+                      {preview.headers.map((h) => (
+                        <th key={h} className="text-left p-2 whitespace-nowrap">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {errors.map((err, i) => (
+                    {preview.preview_rows.map((row, i) => (
                       <tr key={i} className="border-t border-gray-200">
-                        <td className="p-2 font-mono">{err.row_number}</td>
-                        <td className="p-2 text-red-700">{err.error_message}</td>
+                        {preview.headers.map((h) => (
+                          <td key={h} className="p-2 whitespace-nowrap">{row[h]}</td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
@@ -244,18 +433,138 @@ const AthleteImport: React.FC = () => {
             </div>
           )}
 
-          {(job.status === 'completed' || job.status === 'failed') && (
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 bg-brand-primary text-white rounded"
-            >
-              Import another file
-            </button>
+          <button
+            onClick={handleStartImport}
+            disabled={loading || missingRequired.length > 0}
+            className="px-4 py-2 bg-brand-primary text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Starting…' : `Start import (${preview.total_rows} rows)`}
+          </button>
+        </div>
+      )}
+
+      {/* ── Step 3: Status ────────────────────────────────────── */}
+      {step === 'status' && jobId && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-lg font-semibold">Job #{jobId}</h2>
+              <p className="text-sm text-gray-600">{job?.original_filename}</p>
+            </div>
+            {job && (
+              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                job.status === 'failed' ? 'bg-red-100 text-red-700' :
+                job.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {job.status}
+              </span>
+            )}
+          </div>
+
+          {job && (
+            <>
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>{job.processed_rows} of {job.total_rows} rows</span>
+                  <span>{progressPct}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-brand-primary h-2 rounded-full transition-all"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3 text-center mb-4">
+                <div className="bg-green-50 rounded p-3">
+                  <div className="text-2xl font-bold text-green-700">{job.created_count}</div>
+                  <div className="text-xs text-green-700">Created</div>
+                </div>
+                <div className="bg-blue-50 rounded p-3">
+                  <div className="text-2xl font-bold text-blue-700">{job.updated_count}</div>
+                  <div className="text-xs text-blue-700">Updated</div>
+                </div>
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="text-2xl font-bold text-gray-700">{job.skipped_count}</div>
+                  <div className="text-xs text-gray-700">Skipped</div>
+                </div>
+                <div className="bg-red-50 rounded p-3">
+                  <div className="text-2xl font-bold text-red-700">{job.error_count}</div>
+                  <div className="text-xs text-red-700">Errors</div>
+                </div>
+              </div>
+
+              {importErrors.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-2">Errors ({importErrors.length} shown)</h3>
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Row</th>
+                          <th className="text-left p-2">Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importErrors.map((err, i) => (
+                          <tr key={i} className="border-t border-gray-200">
+                            <td className="p-2 font-mono">{err.row_number}</td>
+                            <td className="p-2 text-red-700">{err.error_message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {(job.status === 'completed' || job.status === 'failed') && (
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-2 bg-brand-primary text-white rounded"
+                >
+                  Import another file
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
     </main>
   );
 };
+
+interface MappingRowProps {
+  destField: string;
+  label: string;
+  required: boolean;
+  value: string;
+  headers: string[];
+  onChange: (value: string) => void;
+}
+
+const MappingRow: React.FC<MappingRowProps> = ({ label, required, value, headers, onChange }) => (
+  <div className="flex items-center gap-3">
+    <div className="flex-1 text-sm">
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`flex-1 p-2 border rounded text-sm ${
+        required && value === UNMAPPED ? 'border-red-300 bg-red-50' : 'border-gray-300'
+      }`}
+    >
+      <option value={UNMAPPED}>— Not mapped —</option>
+      {headers.map((h) => (
+        <option key={h} value={h}>{h}</option>
+      ))}
+    </select>
+  </div>
+);
 
 export default AthleteImport;

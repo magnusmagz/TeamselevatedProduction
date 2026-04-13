@@ -10,17 +10,6 @@
 class AthleteImportService {
     private $pdo;
 
-    private static $REQUIRED_HEADERS = [
-        'athlete_first_name',
-        'athlete_last_name',
-        'athlete_dob',
-        'athlete_gender',
-        'guardian1_first_name',
-        'guardian1_last_name',
-        'guardian1_email',
-        'guardian1_mobile',
-    ];
-
     private static $ALLOWED_GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
     private static $ALLOWED_RELATIONSHIPS = ['Parent', 'Guardian', 'Emergency Contact', 'Other'];
 
@@ -49,13 +38,10 @@ class AthleteImportService {
                 return;
             }
 
-            $headers = array_keys($rows[0]);
-            $missing = array_diff(self::$REQUIRED_HEADERS, $headers);
-            if (!empty($missing)) {
-                $this->recordError($jobId, 0, null, 'Missing required columns: ' . implode(', ', $missing));
-                $this->markFinished($jobId, 'failed');
-                return;
-            }
+            $mapping = is_string($job['column_mapping'] ?? null)
+                ? json_decode($job['column_mapping'], true)
+                : ($job['column_mapping'] ?? []);
+            if (!is_array($mapping)) $mapping = [];
 
             $created = 0; $updated = 0; $skipped = 0; $errors = 0;
 
@@ -64,6 +50,7 @@ class AthleteImportService {
                 try {
                     $result = $this->processRow(
                         $row,
+                        $mapping,
                         (int) $job['club_profile_id'],
                         $job['team_id'] !== null ? (int) $job['team_id'] : null,
                         (int) $job['user_id']
@@ -143,11 +130,20 @@ class AthleteImportService {
         return $rows;
     }
 
-    private function processRow(array $row, int $clubId, ?int $teamId, int $createdBy): string {
-        $athleteFirst = $row['athlete_first_name'] ?? '';
-        $athleteLast  = $row['athlete_last_name'] ?? '';
-        $athleteDob   = $row['athlete_dob'] ?? '';
-        $athleteGender = $row['athlete_gender'] ?? '';
+    /**
+     * Resolve a destination field to its value in the current row via the column mapping.
+     * Falls back to the destination name as the source column if no mapping is provided.
+     */
+    private function field(array $row, array $mapping, string $destField): string {
+        $sourceCol = $mapping[$destField] ?? $destField;
+        return trim((string) ($row[$sourceCol] ?? ''));
+    }
+
+    private function processRow(array $row, array $mapping, int $clubId, ?int $teamId, int $createdBy): string {
+        $athleteFirst  = $this->field($row, $mapping, 'athlete_first_name');
+        $athleteLast   = $this->field($row, $mapping, 'athlete_last_name');
+        $athleteDob    = $this->field($row, $mapping, 'athlete_dob');
+        $athleteGender = $this->field($row, $mapping, 'athlete_gender');
 
         if ($athleteFirst === '' || $athleteLast === '' || $athleteDob === '') {
             throw new RuntimeException('Missing athlete first_name, last_name, or dob');
@@ -161,14 +157,23 @@ class AthleteImportService {
 
         $this->pdo->beginTransaction();
         try {
-            $athleteResult = $this->upsertAthlete($row, $clubId, $createdBy);
+            $athleteResult = $this->upsertAthlete(
+                $athleteFirst,
+                $athleteLast,
+                $athleteDob,
+                $athleteGender,
+                $this->intOrNull($this->field($row, $mapping, 'athlete_grade_level')),
+                $this->strOrNull($this->field($row, $mapping, 'athlete_school')),
+                $clubId,
+                $createdBy
+            );
             $athleteId = $athleteResult['id'];
             $rowOutcome = $athleteResult['outcome'];
 
             for ($n = 1; $n <= 2; $n++) {
-                $gFirst = $row["guardian{$n}_first_name"] ?? '';
-                $gLast  = $row["guardian{$n}_last_name"] ?? '';
-                $gEmail = $row["guardian{$n}_email"] ?? '';
+                $gFirst = $this->field($row, $mapping, "guardian{$n}_first_name");
+                $gLast  = $this->field($row, $mapping, "guardian{$n}_last_name");
+                $gEmail = $this->field($row, $mapping, "guardian{$n}_email");
                 if ($gFirst === '' && $gLast === '' && $gEmail === '') continue;
                 if ($gFirst === '' || $gLast === '' || $gEmail === '') {
                     throw new RuntimeException("guardian{$n} requires first_name, last_name, and email");
@@ -178,14 +183,15 @@ class AthleteImportService {
                     'first_name'   => $gFirst,
                     'last_name'    => $gLast,
                     'email'        => $gEmail,
-                    'mobile_phone' => $row["guardian{$n}_mobile"] ?? '',
+                    'mobile_phone' => $this->field($row, $mapping, "guardian{$n}_mobile"),
                 ]);
 
-                $relationship = $row["guardian{$n}_relationship"] ?? 'Guardian';
-                if (!in_array($relationship, self::$ALLOWED_RELATIONSHIPS, true)) {
+                $relationship = $this->field($row, $mapping, "guardian{$n}_relationship");
+                if ($relationship === '' || !in_array($relationship, self::$ALLOWED_RELATIONSHIPS, true)) {
                     $relationship = 'Guardian';
                 }
-                $isPrimary = $this->parseBool($row["guardian{$n}_is_primary"] ?? ($n === 1 ? 'true' : 'false'));
+                $primaryRaw = $this->field($row, $mapping, "guardian{$n}_is_primary");
+                $isPrimary = $primaryRaw !== '' ? $this->parseBool($primaryRaw) : ($n === 1);
 
                 $this->upsertAthleteGuardianLink($athleteId, $guardianId, $relationship, $isPrimary);
             }
@@ -202,15 +208,24 @@ class AthleteImportService {
         }
     }
 
-    private function upsertAthlete(array $row, int $clubId, int $createdBy): array {
+    private function upsertAthlete(
+        string $firstName,
+        string $lastName,
+        string $dob,
+        string $gender,
+        ?int $gradeLevel,
+        ?string $school,
+        int $clubId,
+        int $createdBy
+    ): array {
         $stmt = $this->pdo->prepare('
             SELECT id FROM athletes
             WHERE first_name = :first AND last_name = :last AND date_of_birth = :dob AND club_id = :club
         ');
         $stmt->execute([
-            'first' => $row['athlete_first_name'],
-            'last'  => $row['athlete_last_name'],
-            'dob'   => $row['athlete_dob'],
+            'first' => $firstName,
+            'last'  => $lastName,
+            'dob'   => $dob,
             'club'  => $clubId,
         ]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -227,12 +242,12 @@ class AthleteImportService {
             RETURNING id
         ');
         $insert->execute([
-            'first'      => $row['athlete_first_name'],
-            'last'       => $row['athlete_last_name'],
-            'dob'        => $row['athlete_dob'],
-            'gender'     => $row['athlete_gender'],
-            'grade'      => $this->intOrNull($row['athlete_grade_level'] ?? ''),
-            'school'     => $this->strOrNull($row['athlete_school'] ?? ''),
+            'first'      => $firstName,
+            'last'       => $lastName,
+            'dob'        => $dob,
+            'gender'     => $gender,
+            'grade'      => $gradeLevel,
+            'school'     => $school,
             'club'       => $clubId,
             'created_by' => $createdBy,
         ]);

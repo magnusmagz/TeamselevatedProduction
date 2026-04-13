@@ -344,6 +344,7 @@ function AppContent() {
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
     { to: '/club-documents', label: 'Documents' },
+    { to: '/imports/athletes', label: 'Import' },
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
@@ -351,6 +352,7 @@ function AppContent() {
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
+    { to: '/imports/athletes', label: 'Import' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
 
