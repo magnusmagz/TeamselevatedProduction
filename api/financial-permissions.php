@@ -96,7 +96,9 @@ try {
                 if ($role === 'parent') $isParent = true;
             }
 
-            // Check if user is a guardian
+            // Aggregate across ALL guardian rows sharing this email — shared-household support.
+            // NOTE: does NOT fix the separate bug where users.email != guardians.email —
+            // that requires the Phase 2 user_guardians link table (see project_household_shared_email.md).
             $guardianStmt = $pdo->prepare("
                 SELECT g.id, COUNT(ag.athlete_id) as athlete_count
                 FROM guardians g
@@ -105,9 +107,16 @@ try {
                 GROUP BY g.id
             ");
             $guardianStmt->execute(['email' => $userEmail]);
-            $guardianInfo = $guardianStmt->fetch(PDO::FETCH_ASSOC);
+            $guardianRows = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            if ($guardianInfo && $guardianInfo['athlete_count'] > 0) {
+            $guardianIds = [];
+            $totalAthleteCount = 0;
+            foreach ($guardianRows as $row) {
+                $guardianIds[] = $row['id'];
+                $totalAthleteCount += (int) $row['athlete_count'];
+            }
+
+            if ($totalAthleteCount > 0) {
                 $isParent = true;
             }
 
@@ -135,15 +144,16 @@ try {
             // Get athletes this user can view
             $accessibleAthletes = [];
 
-            if ($isParent && $guardianInfo) {
-                // Get guardian's athletes
+            if ($isParent && !empty($guardianIds)) {
+                // Get athletes linked to ANY of the matching guardian rows.
+                $placeholders = implode(',', array_fill(0, count($guardianIds), '?'));
                 $athleteStmt = $pdo->prepare("
-                    SELECT a.id, a.first_name, a.last_name
+                    SELECT DISTINCT a.id, a.first_name, a.last_name
                     FROM athletes a
                     JOIN athlete_guardians ag ON a.id = ag.athlete_id
-                    WHERE ag.guardian_id = :guardian_id
+                    WHERE ag.guardian_id IN ($placeholders)
                 ");
-                $athleteStmt->execute(['guardian_id' => $guardianInfo['id']]);
+                $athleteStmt->execute($guardianIds);
                 $accessibleAthletes = $athleteStmt->fetchAll(PDO::FETCH_ASSOC);
             }
 

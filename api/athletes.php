@@ -149,9 +149,16 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($data['guardian']) && !empty($data['guardian']['email'])) {
             $guardian = $data['guardian'];
 
-            // Check if guardian already exists
-            $checkGuardian = $pdo->prepare("SELECT id FROM guardians WHERE email = ?");
-            $checkGuardian->execute([$guardian['email']]);
+            // Composite match: email + first_name + last_name, matching AthleteController::createOrFindGuardian()
+            // so families can share an email (e.g. thejones@gmail.com for both parents).
+            $checkGuardian = $pdo->prepare(
+                "SELECT id FROM guardians WHERE email = :email AND first_name = :first_name AND last_name = :last_name"
+            );
+            $checkGuardian->execute([
+                ':email' => $guardian['email'],
+                ':first_name' => $guardian['first_name'],
+                ':last_name' => $guardian['last_name']
+            ]);
             $existingGuardian = $checkGuardian->fetch();
 
             if ($existingGuardian) {

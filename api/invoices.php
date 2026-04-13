@@ -46,21 +46,26 @@ try {
                 $whereClauses[] = 'i.athlete_id = :athlete_id';
                 $params['athlete_id'] = $athlete_id;
             } elseif ($guardian_id) {
-                // Resolve guardian from authenticated user's email, not client-supplied ID
+                // Resolve ALL guardian rows matching the authenticated user's email — shared-household support.
                 $userEmail = $auth->getPayload()->email ?? '';
-                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email LIMIT 1");
+                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email");
                 $guardianStmt->execute(['email' => $userEmail]);
-                $resolvedGuardian = $guardianStmt->fetch(PDO::FETCH_ASSOC);
+                $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
 
-                if (!$resolvedGuardian) {
+                if (empty($resolvedGuardianIds)) {
                     echo json_encode(['success' => true, 'invoices' => [], 'summary' => ['total_invoices' => 0, 'total_outstanding' => 0, 'total_paid' => 0, 'overdue_count' => 0]]);
                     exit;
                 }
 
+                $guardianPlaceholders = [];
+                foreach ($resolvedGuardianIds as $idx => $gid) {
+                    $placeholder = ":guardian_id_{$idx}";
+                    $guardianPlaceholders[] = $placeholder;
+                    $params["guardian_id_{$idx}"] = $gid;
+                }
                 $whereClauses[] = 'i.athlete_id IN (
-                    SELECT athlete_id FROM athlete_guardians WHERE guardian_id = :guardian_id
+                    SELECT athlete_id FROM athlete_guardians WHERE guardian_id IN (' . implode(',', $guardianPlaceholders) . ')
                 )';
-                $params['guardian_id'] = $resolvedGuardian['id'];
             } elseif ($league_id) {
                 $whereClauses[] = 'i.league_id = :league_id';
                 $params['league_id'] = $league_id;
@@ -422,14 +427,14 @@ try {
             break;
 
         case 'family':
-            // Get all invoices for the authenticated user's family
-            // Resolve guardian_id server-side from JWT email — ignore client-supplied guardian_id
+            // Get all invoices for the authenticated user's family.
+            // Resolve ALL guardian rows matching the JWT email — shared-household support.
             $userEmail = $auth->getPayload()->email ?? '';
-            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email LIMIT 1");
+            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email");
             $guardianStmt->execute(['email' => $userEmail]);
-            $resolvedGuardian = $guardianStmt->fetch(PDO::FETCH_ASSOC);
+            $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
 
-            if (!$resolvedGuardian) {
+            if (empty($resolvedGuardianIds)) {
                 echo json_encode([
                     'success' => true,
                     'athletes' => [],
@@ -443,21 +448,20 @@ try {
                 exit;
             }
 
-            $guardian_id = $resolvedGuardian['id'];
-
-            // Get all athletes for this guardian
+            // Union athletes across ALL matching guardian rows (DISTINCT so dual-linked athletes show once).
+            $guardianPlaceholders = implode(',', array_fill(0, count($resolvedGuardianIds), '?'));
             $athletesQuery = "
-                SELECT
+                SELECT DISTINCT
                     a.id,
                     a.first_name,
                     a.last_name
                 FROM athletes a
                 JOIN athlete_guardians ag ON a.id = ag.athlete_id
-                WHERE ag.guardian_id = :guardian_id
+                WHERE ag.guardian_id IN ($guardianPlaceholders)
                 ORDER BY a.first_name
             ";
             $stmt = $pdo->prepare($athletesQuery);
-            $stmt->execute(['guardian_id' => $guardian_id]);
+            $stmt->execute($resolvedGuardianIds);
             $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $athlete_ids = array_column($athletes, 'id');
