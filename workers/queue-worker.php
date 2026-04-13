@@ -15,6 +15,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
+require_once __DIR__ . '/../services/AthleteImportService.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -22,8 +23,9 @@ $queue = RedisQueue::getInstance();
 $db = Database::getInstance()->getConnection();
 $emailService = new EmailSendService($db);
 $smsService = new SmsSendService($db);
+$athleteImportService = new AthleteImportService($db);
 
-$queues = ['email_queue', 'sms_queue'];
+$queues = ['email_queue', 'sms_queue', 'import_queue'];
 
 // Graceful shutdown via signals (SIGTERM from Heroku dyno manager)
 $running = true;
@@ -66,6 +68,8 @@ while ($running) {
             $emailService->processJob($payload);
         } elseif ($fromQueue === 'sms_queue') {
             $smsService->processJob($payload);
+        } elseif ($fromQueue === 'import_queue') {
+            $athleteImportService->processJob($payload);
         } else {
             echo "[Worker] Unknown queue: {$fromQueue}, skipping\n";
             continue;

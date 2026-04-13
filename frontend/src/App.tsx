@@ -79,6 +79,7 @@ import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
+import AthleteImport from './pages/AthleteImport';
 import SmsTemplates from './pages/SmsTemplates';
 // Volunteer Management
 import VolunteerManagement from './pages/VolunteerManagement';
@@ -855,6 +856,11 @@ function AppContent() {
           <Route path="/email-reporting" element={
             <ProtectedRoute>
               <EmailReporting />
+            </ProtectedRoute>
+          } />
+          <Route path="/imports/athletes" element={
+            <ProtectedRoute>
+              <AthleteImport />
             </ProtectedRoute>
           } />
           <Route path="/sms-templates" element={
