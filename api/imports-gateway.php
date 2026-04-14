@@ -6,6 +6,7 @@
  * user-configurable column mapping.
  *
  * Actions:
+ *   GET  ?action=teams             — list club-scoped teams the user can target
  *   POST ?action=preview-athletes  — upload CSV, get headers + auto-detected
  *                                    mapping + preview rows (stateless)
  *   POST ?action=upload-athletes   — upload CSV with column_mapping, enqueue job
@@ -60,6 +61,11 @@ $action = $_GET['action'] ?? null;
 
 try {
     switch ($action) {
+        case 'teams':
+            if ($method !== 'GET') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
+            handleTeamsList($auth, $pdo);
+            break;
+
         case 'preview-athletes':
             if ($method !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
             handleAthletePreview();
@@ -181,6 +187,52 @@ function readUploadedCsv(): string {
 // ─────────────────────────────────────────────────────────────────────
 // Handlers
 
+function handleTeamsList(AuthMiddleware $auth, PDO $pdo): void {
+    $clubProfileId = isset($_GET['club_profile_id']) ? (int) $_GET['club_profile_id'] : 0;
+    if ($clubProfileId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'club_profile_id is required']);
+        return;
+    }
+
+    if (!$auth->canAccessClub($clubProfileId) && !$auth->isSuperAdmin()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'No access to this club']);
+        return;
+    }
+
+    $isClubAdmin = $auth->hasRole('club_admin', $clubProfileId, 'club') || $auth->isSuperAdmin();
+
+    if ($isClubAdmin) {
+        $stmt = $pdo->prepare('
+            SELECT id, name
+            FROM teams
+            WHERE club_id = :club AND deleted_at IS NULL
+            ORDER BY name
+        ');
+        $stmt->execute(['club' => $clubProfileId]);
+    } else {
+        // Coach: only teams where the user is primary coach OR a team_members
+        // row flagged as assistant_coach / team_manager.
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT t.id, t.name
+            FROM teams t
+            LEFT JOIN team_members tm
+                ON tm.team_id = t.id
+               AND tm.user_id = :user_id
+               AND tm.role IN ('assistant_coach', 'team_manager')
+            WHERE t.club_id = :club
+              AND t.deleted_at IS NULL
+              AND (t.primary_coach_id = :user_id OR tm.id IS NOT NULL)
+            ORDER BY t.name
+        ");
+        $stmt->execute(['user_id' => $auth->getUserId(), 'club' => $clubProfileId]);
+    }
+
+    $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['success' => true, 'teams' => $teams]);
+}
+
 function handleAthletePreview(): void {
     $content = readUploadedCsv();
     $parsed = parseCsvHeadersAndRows($content, 5);
@@ -224,10 +276,10 @@ function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
     }
 
     if ($teamId !== null) {
-        $teamCheck = $pdo->prepare('SELECT club_profile_id FROM teams WHERE id = :id');
+        $teamCheck = $pdo->prepare('SELECT club_id FROM teams WHERE id = :id AND deleted_at IS NULL');
         $teamCheck->execute(['id' => $teamId]);
         $teamRow = $teamCheck->fetch(PDO::FETCH_ASSOC);
-        if (!$teamRow || (int) $teamRow['club_profile_id'] !== $clubProfileId) {
+        if (!$teamRow || (int) $teamRow['club_id'] !== $clubProfileId) {
             http_response_code(403);
             echo json_encode(['error' => 'Team not found or not in this club']);
             return;

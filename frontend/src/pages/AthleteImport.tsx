@@ -68,7 +68,7 @@ const UNMAPPED = '__unmapped__';
 
 const AthleteImport: React.FC = () => {
   const token = localStorage.getItem('auth_token');
-  const { currentClubId, isClubAdmin } = useOrg();
+  const { currentClubId } = useOrg();
 
   const [step, setStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -95,21 +95,18 @@ const AthleteImport: React.FC = () => {
     };
   }, []);
 
-  // Fetch teams for the picker. Club admins use the analytics endpoint;
-  // coaches fall back to /api/coach/teams.
+  // Fetch teams for the picker. Uses the importer's own club/role-scoped endpoint.
   useEffect(() => {
     if (!currentClubId) return;
     const fetchTeams = async () => {
       try {
-        const url = isClubAdmin
-          ? `${API_URL}/api/analytics?action=teams&club_profile_id=${currentClubId}`
-          : `${API_URL}/api/coach/teams`;
-        const res = await fetch(url, { headers });
+        const res = await fetch(
+          `${API_URL}/api/imports-gateway.php?action=teams&club_profile_id=${currentClubId}`,
+          { headers }
+        );
         const data = await res.json();
         if (data.success && Array.isArray(data.teams)) {
           setTeams(data.teams);
-        } else if (Array.isArray(data)) {
-          setTeams(data);
         }
       } catch {
         // non-fatal; team picker just shows empty
@@ -117,7 +114,7 @@ const AthleteImport: React.FC = () => {
     };
     fetchTeams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentClubId, isClubAdmin]);
+  }, [currentClubId]);
 
   const handleDownloadSample = () => {
     const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
