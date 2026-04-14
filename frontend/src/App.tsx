@@ -871,6 +871,11 @@ function AppContent() {
               <DataImport entity="athletes" />
             </ProtectedRoute>
           } />
+          <Route path="/imports/facilities" element={
+            <ProtectedRoute>
+              <DataImport entity="facilities" />
+            </ProtectedRoute>
+          } />
           <Route path="/sms-templates" element={
             <ProtectedRoute>
               <SmsTemplates />

@@ -56,6 +56,13 @@ const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
 
 const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
   athletes: 'Upload a CSV with one row per athlete. Each row can include up to two guardians.',
+  facilities: 'Upload a CSV with one row per field or court. Each row can include inline venue info — venues are auto-created by name if they don\'t already exist.',
+};
+
+// Entity types that support optional team assignment at upload time.
+// Athletes can be added to a team roster; facilities belong to venues, not teams.
+const ENTITIES_WITH_TEAM_ASSIGNMENT: Partial<Record<ImportEntity, boolean>> = {
+  athletes: true,
 };
 
 const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
@@ -63,6 +70,12 @@ const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
     'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian1_is_primary,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
     'Ashley,Adams,2018-03-24,Female,3,Lincoln Elementary,Ava,Adams,ava.adams@example.com,5551001000,Parent,true,,,,,',
     'Marcus,Jones,2014-06-15,Male,5,Roosevelt Middle,John,Jones,thejones@example.com,5551002000,Parent,true,Jane,Jones,thejones@example.com,5551002001,Parent',
+  ].join('\n'),
+  facilities: [
+    'venue_name,venue_address,venue_city,venue_state,venue_zip_code,venue_type,venue_has_lights,field_name,field_type,surface_type,dimensions,capacity,field_has_lights,location_notes',
+    'Greenlake Park,1234 Park Way,Seattle,WA,98103,Park,true,Field A,Soccer,Grass,U12 Full Size,200,true,Near the parking lot',
+    'Greenlake Park,1234 Park Way,Seattle,WA,98103,Park,true,Field B,Soccer,Turf,U8 Small Sided,80,true,Back corner',
+    'Magnuson Sports Complex,7400 Sand Point Way NE,Seattle,WA,98115,Complex,true,Court 1,Basketball,Court,Regulation,150,true,',
   ].join('\n'),
 };
 
@@ -101,9 +114,10 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
     };
   }, []);
 
-  // Fetch teams for the picker. Uses the importer's own club/role-scoped endpoint.
+  // Fetch teams for the picker, but only if this entity supports team assignment.
   useEffect(() => {
     if (!currentClubId) return;
+    if (!(ENTITIES_WITH_TEAM_ASSIGNMENT[entity] ?? false)) return;
     const fetchTeams = async () => {
       try {
         const res = await fetch(
@@ -120,11 +134,12 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
     };
     fetchTeams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentClubId]);
+  }, [currentClubId, entity]);
 
   const sampleCsv = SAMPLE_CSVS[entity];
   const displayName = ENTITY_DISPLAY_NAMES[entity];
   const description = ENTITY_DESCRIPTIONS[entity] ?? `Upload a CSV with one row per ${displayName.toLowerCase().replace(/s$/, '')}.`;
+  const supportsTeamAssignment = ENTITIES_WITH_TEAM_ASSIGNMENT[entity] ?? false;
 
   const handleDownloadSample = () => {
     if (!sampleCsv) return;
@@ -323,19 +338,23 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
             )}
           </p>
 
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Assign to team (optional)
-          </label>
-          <select
-            value={selectedTeamId}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="w-full mb-4 p-2 border border-gray-300 rounded"
-          >
-            <option value="">— None (import without team assignment) —</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+          {supportsTeamAssignment && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Assign to team (optional)
+              </label>
+              <select
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="w-full mb-4 p-2 border border-gray-300 rounded"
+              >
+                <option value="">— None (import without team assignment) —</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </>
+          )}
 
           <div
             onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}

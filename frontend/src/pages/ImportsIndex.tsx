@@ -18,8 +18,8 @@ const TILES: EntityTile[] = [
   {
     slug: 'facilities',
     name: 'Facilities',
-    description: 'Fields, gyms, pools, and other venues.',
-    enabled: false,
+    description: 'Venues + fields/courts. One row = one field with inline venue info; venues are auto-created by name.',
+    enabled: true,
   },
   {
     slug: 'volunteers',

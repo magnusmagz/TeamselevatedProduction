@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/ImportStrategy.php';
 require_once __DIR__ . '/AthleteImportStrategy.php';
+require_once __DIR__ . '/FacilityImportStrategy.php';
 
 /**
  * ImportJobProcessor — the entity-agnostic outer loop for bulk imports.
@@ -43,7 +44,8 @@ class ImportJobProcessor {
     public static function buildDefault(PDO $pdo): self {
         $processor = new self($pdo);
         $processor->register(new AthleteImportStrategy());
-        // Future: facilities, volunteers, coaches, users, teams
+        $processor->register(new FacilityImportStrategy());
+        // Future: volunteers, coaches, users, teams
         return $processor;
     }
 
