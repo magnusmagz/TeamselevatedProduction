@@ -10,10 +10,12 @@ interface Team {
 
 interface PreviewResponse {
   success: boolean;
+  entity: string;
   headers: string[];
   suggested_mapping: Record<string, string>;
   required_fields: string[];
   optional_fields: string[];
+  field_labels: Record<string, string>;
   preview_rows: Record<string, string>[];
   total_rows: number;
 }
@@ -38,35 +40,39 @@ interface ImportError {
 
 type WizardStep = 'upload' | 'map' | 'status';
 
-const SAMPLE_CSV = [
-  'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian1_is_primary,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
-  'Ashley,Adams,2018-03-24,Female,3,Lincoln Elementary,Ava,Adams,ava.adams@example.com,5551001000,Parent,true,,,,,',
-  'Marcus,Jones,2014-06-15,Male,5,Roosevelt Middle,John,Jones,thejones@example.com,5551002000,Parent,true,Jane,Jones,thejones@example.com,5551002001,Parent',
-].join('\n');
+// Per-entity display config. Adding a new entity = one entry here + one
+// backend ImportStrategy class. The page title, sample CSV template, and
+// helper copy all read from these tables.
+export type ImportEntity = 'athletes' | 'facilities' | 'volunteers' | 'coaches' | 'users' | 'teams';
 
-const FIELD_LABELS: Record<string, string> = {
-  athlete_first_name: 'Athlete First Name',
-  athlete_last_name: 'Athlete Last Name',
-  athlete_dob: 'Athlete Date of Birth (YYYY-MM-DD)',
-  athlete_gender: 'Athlete Gender (Male/Female/Non-binary/Prefer not to say)',
-  athlete_grade_level: 'Grade Level',
-  athlete_school: 'School',
-  guardian1_first_name: 'Guardian 1 First Name',
-  guardian1_last_name: 'Guardian 1 Last Name',
-  guardian1_email: 'Guardian 1 Email',
-  guardian1_mobile: 'Guardian 1 Mobile',
-  guardian1_relationship: 'Guardian 1 Relationship',
-  guardian1_is_primary: 'Guardian 1 Is Primary',
-  guardian2_first_name: 'Guardian 2 First Name',
-  guardian2_last_name: 'Guardian 2 Last Name',
-  guardian2_email: 'Guardian 2 Email',
-  guardian2_mobile: 'Guardian 2 Mobile',
-  guardian2_relationship: 'Guardian 2 Relationship',
+const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
+  athletes: 'Athletes',
+  facilities: 'Facilities',
+  volunteers: 'Volunteers',
+  coaches: 'Coaches',
+  users: 'Users',
+  teams: 'Teams',
+};
+
+const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
+  athletes: 'Upload a CSV with one row per athlete. Each row can include up to two guardians.',
+};
+
+const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
+  athletes: [
+    'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian1_is_primary,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
+    'Ashley,Adams,2018-03-24,Female,3,Lincoln Elementary,Ava,Adams,ava.adams@example.com,5551001000,Parent,true,,,,,',
+    'Marcus,Jones,2014-06-15,Male,5,Roosevelt Middle,John,Jones,thejones@example.com,5551002000,Parent,true,Jane,Jones,thejones@example.com,5551002001,Parent',
+  ].join('\n'),
 };
 
 const UNMAPPED = '__unmapped__';
 
-const AthleteImport: React.FC = () => {
+interface DataImportProps {
+  entity: ImportEntity;
+}
+
+const DataImport: React.FC<DataImportProps> = ({ entity }) => {
   const token = localStorage.getItem('auth_token');
   const { currentClubId } = useOrg();
 
@@ -116,12 +122,17 @@ const AthleteImport: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentClubId]);
 
+  const sampleCsv = SAMPLE_CSVS[entity];
+  const displayName = ENTITY_DISPLAY_NAMES[entity];
+  const description = ENTITY_DESCRIPTIONS[entity] ?? `Upload a CSV with one row per ${displayName.toLowerCase().replace(/s$/, '')}.`;
+
   const handleDownloadSample = () => {
-    const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
+    if (!sampleCsv) return;
+    const blob = new Blob([sampleCsv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'athlete-import-template.csv';
+    a.download = `${entity}-import-template.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -134,7 +145,7 @@ const AthleteImport: React.FC = () => {
       const formData = new FormData();
       formData.append('file', f);
       const res = await fetch(
-        `${API_URL}/api/imports-gateway.php?action=preview-athletes`,
+        `${API_URL}/api/imports-gateway.php?action=preview&entity=${entity}`,
         { method: 'POST', headers, body: formData }
       );
       const data: PreviewResponse & { error?: string } = await res.json();
@@ -200,7 +211,7 @@ const AthleteImport: React.FC = () => {
       formData.append('column_mapping', JSON.stringify(cleanMapping));
 
       const res = await fetch(
-        `${API_URL}/api/imports-gateway.php?action=upload-athletes`,
+        `${API_URL}/api/imports-gateway.php?action=upload&entity=${entity}`,
         { method: 'POST', headers, body: formData }
       );
       const data = await res.json();
@@ -271,7 +282,7 @@ const AthleteImport: React.FC = () => {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-brand-primary mb-2">Import Athletes</h1>
+      <h1 className="text-2xl font-bold text-brand-primary mb-2">Import {displayName}</h1>
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6 text-sm">
@@ -297,15 +308,19 @@ const AthleteImport: React.FC = () => {
       {step === 'upload' && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <p className="text-sm text-gray-600 mb-4">
-            Upload a CSV with one row per athlete. Each row can include up to two guardians.
-            {' '}
-            <button
-              type="button"
-              onClick={handleDownloadSample}
-              className="text-brand-primary underline"
-            >
-              Download sample template
-            </button>
+            {description}
+            {sampleCsv && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  onClick={handleDownloadSample}
+                  className="text-brand-primary underline"
+                >
+                  Download sample template
+                </button>
+              </>
+            )}
           </p>
 
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -372,7 +387,7 @@ const AthleteImport: React.FC = () => {
 
           {missingRequired.length > 0 && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-              {missingRequired.length} required field(s) not yet mapped: {missingRequired.map((f) => FIELD_LABELS[f] || f).join(', ')}
+              {missingRequired.length} required field(s) not yet mapped: {missingRequired.map((f) => preview.field_labels[f] || f).join(', ')}
             </div>
           )}
 
@@ -381,7 +396,7 @@ const AthleteImport: React.FC = () => {
               <MappingRow
                 key={field}
                 destField={field}
-                label={FIELD_LABELS[field] || field}
+                label={preview.field_labels[field] || field}
                 required
                 value={mapping[field] || UNMAPPED}
                 headers={preview.headers}
@@ -394,7 +409,7 @@ const AthleteImport: React.FC = () => {
                 <MappingRow
                   key={field}
                   destField={field}
-                  label={FIELD_LABELS[field] || field}
+                  label={preview.field_labels[field] || field}
                   required={false}
                   value={mapping[field] || UNMAPPED}
                   headers={preview.headers}
@@ -564,4 +579,4 @@ const MappingRow: React.FC<MappingRowProps> = ({ label, required, value, headers
   </div>
 );
 
-export default AthleteImport;
+export default DataImport;

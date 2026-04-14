@@ -15,7 +15,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
-require_once __DIR__ . '/../services/AthleteImportService.php';
+require_once __DIR__ . '/../services/ImportJobProcessor.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -23,7 +23,7 @@ $queue = RedisQueue::getInstance();
 $db = Database::getInstance()->getConnection();
 $emailService = new EmailSendService($db);
 $smsService = new SmsSendService($db);
-$athleteImportService = new AthleteImportService($db);
+$importProcessor = ImportJobProcessor::buildDefault($db);
 
 $queues = ['email_queue', 'sms_queue', 'import_queue'];
 
@@ -69,7 +69,7 @@ while ($running) {
         } elseif ($fromQueue === 'sms_queue') {
             $smsService->processJob($payload);
         } elseif ($fromQueue === 'import_queue') {
-            $athleteImportService->processJob($payload);
+            $importProcessor->processJob($payload);
         } else {
             echo "[Worker] Unknown queue: {$fromQueue}, skipping\n";
             continue;

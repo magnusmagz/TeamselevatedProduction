@@ -2,15 +2,19 @@
 /**
  * Imports Gateway API
  *
- * Bulk CSV imports. Supports athletes + guardians family-row format with
- * user-configurable column mapping.
+ * Generic bulk CSV import gateway. Dispatches to per-entity strategies
+ * registered in ImportJobProcessor.
  *
  * Actions:
- *   GET  ?action=teams             — list club-scoped teams the user can target
- *   POST ?action=preview-athletes  — upload CSV, get headers + auto-detected
- *                                    mapping + preview rows (stateless)
- *   POST ?action=upload-athletes   — upload CSV with column_mapping, enqueue job
- *   GET  ?action=status            — poll job status
+ *   GET  ?action=entities                          — list supported entity types
+ *   GET  ?action=teams&club_profile_id=X           — list club-scoped teams the user can target
+ *   POST ?action=preview&entity=X                  — upload CSV, get headers + auto-detected mapping + preview rows
+ *   POST ?action=upload&entity=X                   — upload CSV with column_mapping, enqueue job
+ *   GET  ?action=status&job_id=X                   — poll job status
+ *
+ * Legacy aliases (kept for zero-downtime frontend/backend drift):
+ *   POST ?action=preview-athletes   → preview&entity=athletes
+ *   POST ?action=upload-athletes    → upload&entity=athletes
  */
 
 require_once __DIR__ . '/../lib/Cors.php';
@@ -22,29 +26,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
-
-const IMPORT_REQUIRED_DEST_FIELDS = [
-    'athlete_first_name',
-    'athlete_last_name',
-    'athlete_dob',
-    'athlete_gender',
-    'guardian1_first_name',
-    'guardian1_last_name',
-    'guardian1_email',
-    'guardian1_mobile',
-];
-
-const IMPORT_OPTIONAL_DEST_FIELDS = [
-    'athlete_grade_level',
-    'athlete_school',
-    'guardian1_relationship',
-    'guardian1_is_primary',
-    'guardian2_first_name',
-    'guardian2_last_name',
-    'guardian2_email',
-    'guardian2_mobile',
-    'guardian2_relationship',
-];
+require_once __DIR__ . '/../services/ImportJobProcessor.php';
 
 try {
     $db = Database::getInstance();
@@ -56,24 +38,36 @@ try {
 }
 
 $auth = AuthMiddleware::requireAuth();
+$processor = ImportJobProcessor::buildDefault($pdo);
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? null;
+$entity = $_GET['entity'] ?? null;
+
+// Legacy aliases — resolve them to the generic action + entity pair.
+if ($action === 'preview-athletes') { $action = 'preview'; $entity = 'athletes'; }
+elseif ($action === 'upload-athletes') { $action = 'upload'; $entity = 'athletes'; }
 
 try {
     switch ($action) {
+        case 'entities':
+            if ($method !== 'GET') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
+            echo json_encode(['success' => true, 'entities' => $processor->getEntityTypes()]);
+            break;
+
         case 'teams':
             if ($method !== 'GET') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
             handleTeamsList($auth, $pdo);
             break;
 
-        case 'preview-athletes':
+        case 'preview':
             if ($method !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
-            handleAthletePreview();
+            handlePreview($processor, $entity);
             break;
 
-        case 'upload-athletes':
+        case 'upload':
             if ($method !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
-            handleAthleteUpload($auth, $pdo);
+            handleUpload($auth, $pdo, $processor, $entity);
             break;
 
         case 'status':
@@ -93,6 +87,21 @@ try {
 // ─────────────────────────────────────────────────────────────────────
 // Helpers
 
+function resolveStrategy(ImportJobProcessor $processor, ?string $entity): ImportStrategy {
+    if ($entity === null || $entity === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'entity parameter is required']);
+        exit;
+    }
+    $strategy = $processor->getStrategy($entity);
+    if (!$strategy) {
+        http_response_code(400);
+        echo json_encode(['error' => "Unknown entity type '{$entity}'"]);
+        exit;
+    }
+    return $strategy;
+}
+
 function parseCsvHeadersAndRows(string $content, int $previewLimit = 5): array {
     $lines = preg_split("/\r\n|\n|\r/", trim($content));
     if (count($lines) < 1) return ['headers' => [], 'rows' => [], 'total' => 0];
@@ -111,63 +120,6 @@ function parseCsvHeadersAndRows(string $content, int $previewLimit = 5): array {
         }
     }
     return ['headers' => $headers, 'rows' => $preview, 'total' => $totalDataRows];
-}
-
-function normalizeHeader(string $s): string {
-    return preg_replace('/[^a-z0-9]/', '', strtolower($s));
-}
-
-function autoDetectMapping(array $headers): array {
-    // Synonym groups: destination => list of normalized header patterns that should match
-    $synonyms = [
-        'athlete_first_name' => ['athletefirstname', 'playerfirstname', 'childfirstname', 'firstname', 'first', 'givenname'],
-        'athlete_last_name'  => ['athletelastname', 'playerlastname', 'childlastname', 'lastname', 'last', 'surname', 'familyname'],
-        'athlete_dob'        => ['athletedob', 'dob', 'dateofbirth', 'birthdate', 'birthday'],
-        'athlete_gender'     => ['athletegender', 'gender', 'sex'],
-        'athlete_grade_level' => ['athletegradelevel', 'gradelevel', 'grade'],
-        'athlete_school'     => ['athleteschool', 'schoolname', 'school'],
-        'guardian1_first_name' => ['guardian1firstname', 'parent1firstname', 'parentfirstname', 'guardianfirstname', 'primaryparentfirstname'],
-        'guardian1_last_name'  => ['guardian1lastname', 'parent1lastname', 'parentlastname', 'guardianlastname', 'primaryparentlastname'],
-        'guardian1_email'      => ['guardian1email', 'parent1email', 'parentemail', 'guardianemail', 'primaryparentemail', 'email'],
-        'guardian1_mobile'     => ['guardian1mobile', 'parent1mobile', 'parent1phone', 'parentmobile', 'parentphone', 'guardianmobile', 'guardianphone', 'mobile', 'phone', 'cell'],
-        'guardian1_relationship' => ['guardian1relationship', 'parent1relationship', 'relationship'],
-        'guardian1_is_primary' => ['guardian1isprimary', 'guardian1primary', 'isprimary', 'primarycontact'],
-        'guardian2_first_name' => ['guardian2firstname', 'parent2firstname', 'secondaryparentfirstname'],
-        'guardian2_last_name'  => ['guardian2lastname', 'parent2lastname', 'secondaryparentlastname'],
-        'guardian2_email'      => ['guardian2email', 'parent2email', 'secondaryparentemail'],
-        'guardian2_mobile'     => ['guardian2mobile', 'parent2mobile', 'parent2phone', 'secondaryparentmobile'],
-        'guardian2_relationship' => ['guardian2relationship', 'parent2relationship'],
-    ];
-
-    $normalizedHeaders = [];
-    foreach ($headers as $h) {
-        $normalizedHeaders[normalizeHeader($h)] = $h;
-    }
-
-    $mapping = [];
-    foreach ($synonyms as $dest => $candidates) {
-        foreach ($candidates as $cand) {
-            if (isset($normalizedHeaders[$cand])) {
-                $mapping[$dest] = $normalizedHeaders[$cand];
-                break;
-            }
-        }
-    }
-    return $mapping;
-}
-
-function validateMapping(array $mapping, array $headers): array {
-    $errors = [];
-    foreach (IMPORT_REQUIRED_DEST_FIELDS as $dest) {
-        if (!isset($mapping[$dest]) || $mapping[$dest] === '') {
-            $errors[] = "Required field '{$dest}' is not mapped";
-            continue;
-        }
-        if (!in_array($mapping[$dest], $headers, true)) {
-            $errors[] = "Mapped column '{$mapping[$dest]}' for '{$dest}' is not in the CSV headers";
-        }
-    }
-    return $errors;
 }
 
 function readUploadedCsv(): string {
@@ -212,8 +164,6 @@ function handleTeamsList(AuthMiddleware $auth, PDO $pdo): void {
         ');
         $stmt->execute(['club' => $clubProfileId]);
     } else {
-        // Coach: only teams where the user is primary coach OR a team_members
-        // row flagged as assistant_coach / team_manager.
         $stmt = $pdo->prepare("
             SELECT DISTINCT t.id, t.name
             FROM teams t
@@ -229,27 +179,30 @@ function handleTeamsList(AuthMiddleware $auth, PDO $pdo): void {
         $stmt->execute(['user_id' => $auth->getUserId(), 'club' => $clubProfileId]);
     }
 
-    $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo json_encode(['success' => true, 'teams' => $teams]);
+    echo json_encode(['success' => true, 'teams' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
-function handleAthletePreview(): void {
+function handlePreview(ImportJobProcessor $processor, ?string $entity): void {
+    $strategy = resolveStrategy($processor, $entity);
     $content = readUploadedCsv();
     $parsed = parseCsvHeadersAndRows($content, 5);
-    $mapping = autoDetectMapping($parsed['headers']);
+    $mapping = $strategy->autoDetectMapping($parsed['headers']);
 
     echo json_encode([
-        'success'            => true,
-        'headers'            => $parsed['headers'],
-        'suggested_mapping'  => $mapping,
-        'required_fields'    => IMPORT_REQUIRED_DEST_FIELDS,
-        'optional_fields'    => IMPORT_OPTIONAL_DEST_FIELDS,
-        'preview_rows'       => $parsed['rows'],
-        'total_rows'         => $parsed['total'],
+        'success'           => true,
+        'entity'            => $strategy->getEntityType(),
+        'headers'           => $parsed['headers'],
+        'suggested_mapping' => $mapping,
+        'required_fields'   => $strategy->getRequiredFields(),
+        'optional_fields'   => $strategy->getOptionalFields(),
+        'field_labels'      => $strategy->getFieldLabels(),
+        'preview_rows'      => $parsed['rows'],
+        'total_rows'        => $parsed['total'],
     ]);
 }
 
-function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
+function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $processor, ?string $entity): void {
+    $strategy = resolveStrategy($processor, $entity);
     $content = readUploadedCsv();
 
     $clubProfileId = isset($_POST['club_profile_id']) ? (int) $_POST['club_profile_id'] : 0;
@@ -287,7 +240,7 @@ function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
     }
 
     $isClubAdmin = $auth->hasRole('club_admin', $clubProfileId, 'club') || $auth->isSuperAdmin();
-    $isCoach = $auth->hasRole('coach', $clubProfileId, 'club');
+    $isCoach     = $auth->hasRole('coach', $clubProfileId, 'club');
 
     if (!$isClubAdmin && !$isCoach) {
         http_response_code(403);
@@ -302,7 +255,7 @@ function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
     }
 
     $parsed = parseCsvHeadersAndRows($content, 0);
-    $mappingErrors = validateMapping($mapping, $parsed['headers']);
+    $mappingErrors = $strategy->validateMapping($mapping, $parsed['headers']);
     if (!empty($mappingErrors)) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid column mapping', 'details' => $mappingErrors]);
@@ -313,13 +266,14 @@ function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
         INSERT INTO import_jobs
             (user_id, club_profile_id, team_id, entity_type, status, original_filename, csv_content, column_mapping, total_rows)
         VALUES
-            (:user_id, :club_profile_id, :team_id, 'athletes', 'queued', :filename, :csv, :mapping, :total)
+            (:user_id, :club_profile_id, :team_id, :entity, 'queued', :filename, :csv, :mapping, :total)
         RETURNING id
     ");
     $stmt->execute([
         'user_id'         => $auth->getUserId(),
         'club_profile_id' => $clubProfileId,
         'team_id'         => $teamId,
+        'entity'          => $strategy->getEntityType(),
         'filename'        => $_FILES['file']['name'],
         'csv'             => $content,
         'mapping'         => json_encode($mapping),
@@ -331,7 +285,7 @@ function handleAthleteUpload(AuthMiddleware $auth, PDO $pdo): void {
         $redis = RedisQueue::getInstance();
         $redis->push('import_queue', [
             'id'           => 'import_' . $jobId,
-            'type'         => 'athlete_import',
+            'type'         => $strategy->getEntityType() . '_import',
             'job_id'       => $jobId,
             'max_attempts' => 1,
         ]);

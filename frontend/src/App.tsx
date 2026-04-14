@@ -79,7 +79,8 @@ import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
-import AthleteImport from './pages/AthleteImport';
+import DataImport from './pages/DataImport';
+import ImportsIndex from './pages/ImportsIndex';
 import SmsTemplates from './pages/SmsTemplates';
 // Volunteer Management
 import VolunteerManagement from './pages/VolunteerManagement';
@@ -344,7 +345,7 @@ function AppContent() {
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
     { to: '/club-documents', label: 'Documents' },
-    { to: '/imports/athletes', label: 'Import' },
+    { to: '/imports', label: 'Import' },
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
@@ -352,7 +353,7 @@ function AppContent() {
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
-    { to: '/imports/athletes', label: 'Import' },
+    { to: '/imports', label: 'Import' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
 
@@ -860,9 +861,14 @@ function AppContent() {
               <EmailReporting />
             </ProtectedRoute>
           } />
+          <Route path="/imports" element={
+            <ProtectedRoute>
+              <ImportsIndex />
+            </ProtectedRoute>
+          } />
           <Route path="/imports/athletes" element={
             <ProtectedRoute>
-              <AthleteImport />
+              <DataImport entity="athletes" />
             </ProtectedRoute>
           } />
           <Route path="/sms-templates" element={

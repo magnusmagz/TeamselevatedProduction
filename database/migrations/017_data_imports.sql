@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS import_jobs (
     started_at TIMESTAMP,
     finished_at TIMESTAMP,
     CONSTRAINT import_jobs_status_check CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
-    CONSTRAINT import_jobs_entity_type_check CHECK (entity_type IN ('athletes'))
+    CONSTRAINT import_jobs_entity_type_check CHECK (entity_type IN ('athletes','facilities','volunteers','coaches','users','teams'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_import_jobs_user ON import_jobs(user_id);
