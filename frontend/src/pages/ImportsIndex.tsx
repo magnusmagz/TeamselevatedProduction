@@ -30,8 +30,8 @@ const TILES: EntityTile[] = [
   {
     slug: 'coaches',
     name: 'Coaches',
-    description: 'Head coaches, assistant coaches, and their role assignments.',
-    enabled: false,
+    description: 'Coaches at the club level. Creates a user account if needed and grants the coach role on your club. Team assignments happen later in the team UI.',
+    enabled: true,
   },
   {
     slug: 'users',
