@@ -34,16 +34,10 @@ const TILES: EntityTile[] = [
     enabled: true,
   },
   {
-    slug: 'users',
-    name: 'Users',
-    description: 'System users without a club role (rare).',
-    enabled: false,
-  },
-  {
     slug: 'teams',
     name: 'Teams',
-    description: 'Team rosters — requires coaches and facilities to exist first.',
-    enabled: false,
+    description: 'Teams in your club. Identified by (name + age_group). Optional foreign keys (season, primary coach, home field) are looked up by name or email if provided.',
+    enabled: true,
   },
 ];
 

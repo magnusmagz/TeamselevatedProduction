@@ -43,14 +43,13 @@ type WizardStep = 'upload' | 'map' | 'status';
 // Per-entity display config. Adding a new entity = one entry here + one
 // backend ImportStrategy class. The page title, sample CSV template, and
 // helper copy all read from these tables.
-export type ImportEntity = 'athletes' | 'facilities' | 'volunteers' | 'coaches' | 'users' | 'teams';
+export type ImportEntity = 'athletes' | 'facilities' | 'volunteers' | 'coaches' | 'teams';
 
 const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
   athletes: 'Athletes',
   facilities: 'Facilities',
   volunteers: 'Volunteers',
   coaches: 'Coaches',
-  users: 'Users',
   teams: 'Teams',
 };
 
@@ -59,6 +58,7 @@ const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
   facilities: 'Upload a CSV with one row per field or court. Each row can include inline venue info — venues are auto-created by name if they don\'t already exist.',
   volunteers: 'Upload a CSV with one row per volunteer assignment. Each row references a team by name, so one file can span multiple teams in your club. Users without accounts will be created (login disabled until they claim it).',
   coaches: 'Upload a CSV with one row per coach. Creates a user account if needed and grants the coach role on your club. Team assignments are not handled here — assign coaches to specific teams from the team management UI after they\'re imported.',
+  teams: 'Upload a CSV with one row per team. Required: name and age_group. A team is identified by the combination (e.g. "Tigers U12" and "Tigers U14" are distinct teams). Optional foreign keys — season, primary coach, home field — are looked up by name/email if provided.',
 };
 
 // Entity types that support optional team assignment at upload time.
@@ -90,6 +90,12 @@ const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
     'Pat,Henderson,pat.henderson@example.com,5552001000',
     'Riley,Nakamura,riley.nakamura@example.com,5552001001',
     'Jordan,Goldberg,jordan.goldberg@example.com,',
+  ].join('\n'),
+  teams: [
+    'name,age_group,division,skill_level,gender,season_name,primary_coach_email,home_venue_name,home_field_name',
+    'Tigers,U12,Competitive,Intermediate,Mixed,Spring 2026,pat.henderson@example.com,Greenlake Park,Field A',
+    'Tigers,U14,Competitive,Advanced,Mixed,Spring 2026,riley.nakamura@example.com,Greenlake Park,Field B',
+    'Lightning,U10,Recreational,Beginner,Mixed,,,,',
   ].join('\n'),
 };
 
