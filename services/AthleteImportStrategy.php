@@ -18,6 +18,13 @@ class AthleteImportStrategy extends ImportStrategy {
         return 'athletes';
     }
 
+    public function requiresUploadTeamId(): bool {
+        // Athletes can be optionally added to a single team's roster at upload time
+        // via the wizard's team picker. Coaches are required to pick one so the
+        // gateway's coach-team enforcement fires for this strategy.
+        return true;
+    }
+
     public function getRequiredFields(): array {
         return [
             'athlete_first_name',

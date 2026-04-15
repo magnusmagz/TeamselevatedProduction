@@ -49,6 +49,20 @@ abstract class ImportStrategy {
      */
     abstract public function processRow(array $row, array $mapping, array $context): string;
 
+    /**
+     * Whether this strategy uses the upload-form `team_id` parameter to
+     * assign imported rows to a specific team. If true, the gateway will
+     * enforce that a coach (without club_admin role) must select a team
+     * before uploading. If false, team membership comes from elsewhere
+     * (per-row CSV column, or the entity is team-independent).
+     *
+     * Default: false. Override to return true only for strategies that
+     * read context['team_id'] during processRow().
+     */
+    public function requiresUploadTeamId(): bool {
+        return false;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Shared helpers — usable from any subclass or the gateway.
 

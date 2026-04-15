@@ -24,8 +24,8 @@ const TILES: EntityTile[] = [
   {
     slug: 'volunteers',
     name: 'Volunteers',
-    description: 'Non-playing helpers (team managers, team parents, event volunteers).',
-    enabled: false,
+    description: 'Team managers, team parents, assistant coaches. Each row is assigned to a team by name — one CSV can span multiple teams in your club.',
+    enabled: true,
   },
   {
     slug: 'coaches',

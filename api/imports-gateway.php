@@ -248,7 +248,7 @@ function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $proces
         return;
     }
 
-    if ($isCoach && !$isClubAdmin && $teamId === null) {
+    if ($strategy->requiresUploadTeamId() && $isCoach && !$isClubAdmin && $teamId === null) {
         http_response_code(400);
         echo json_encode(['error' => 'Coaches must select a team for the import']);
         return;
