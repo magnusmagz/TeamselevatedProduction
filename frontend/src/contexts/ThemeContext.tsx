@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useOrg } from './OrgContext';
+import { useAuth } from './AuthContext';
 import { generateColorPalette } from '../utils/colorExtractor';
 
 // Default forest green colors (fallback when no branding is set)
@@ -44,6 +45,8 @@ function applyThemeToDOM(colors: ThemeColors) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { currentClubId } = useOrg();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.system_role === 'super_admin';
   const [colors, setColors] = useState<ThemeColors>(() => {
     // Generate default palette
     const palette = generateColorPalette(DEFAULT_PRIMARY);
@@ -54,11 +57,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
-  // Fetch club branding on mount and when club changes
+  // Fetch club branding on mount and when club changes.
+  // Super admins always see platform-level branding regardless of which
+  // clubs they have access to, so their marketing screenshots of the app
+  // don't pick up arbitrary client logos or colors.
   useEffect(() => {
     const fetchBranding = async () => {
-      if (!currentClubId) {
-        // No club selected, use defaults
+      if (isSuperAdmin || !currentClubId) {
         const defaultPalette = generateColorPalette(DEFAULT_PRIMARY);
         setColors(defaultPalette);
         applyThemeToDOM(defaultPalette);
@@ -95,7 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchBranding();
-  }, [currentClubId, API_URL]);
+  }, [currentClubId, API_URL, isSuperAdmin]);
 
   /**
    * Update theme colors immediately (called when branding is saved)
