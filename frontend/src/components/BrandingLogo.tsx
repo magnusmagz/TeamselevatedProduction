@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface BrandingData {
@@ -44,16 +45,20 @@ const BrandingLogo: React.FC<BrandingLogoProps> = ({
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { activeContext, currentClubId } = useOrg();
+  const { user } = useAuth();
   const { brandingVersion } = useTheme();
+  const isSuperAdmin = user?.system_role === 'super_admin';
 
   const [branding, setBranding] = useState<BrandingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
 
-  // Determine context from props or OrgContext
+  // Determine context from props or OrgContext.
+  // Super admins always see the platform text logo regardless of props or
+  // active context — this keeps marketing screenshots free of client branding.
   const effectiveContextType = contextType || activeContext?.scope_type || 'club';
-  const effectiveContextId = contextId || currentClubId;
+  const effectiveContextId = isSuperAdmin ? null : (contextId || currentClubId);
 
   // Size classes
   const sizeClasses = {
