@@ -84,7 +84,7 @@ try {
                 FROM athlete_payments ap
                 JOIN athletes a ON ap.athlete_id = a.id
                 JOIN programs p ON ap.program_id = p.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
                 WHERE $whereClause
@@ -131,7 +131,7 @@ try {
                 FROM athlete_payments ap
                 JOIN athletes a ON ap.athlete_id = a.id
                 JOIN programs p ON ap.program_id = p.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
                 WHERE ap.id = :payment_id
@@ -253,7 +253,7 @@ Teams Elevated
                         SELECT ap.id, g.email
                         FROM athlete_payments ap
                         JOIN athletes a ON ap.athlete_id = a.id
-                        LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                        LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                         LEFT JOIN guardians g ON ag.guardian_id = g.id
                         WHERE ap.id = :payment_id
                     ");

@@ -35,13 +35,16 @@ try {
     }
 
     // Fetch guardians
+    // Aliases (relationship_type, is_primary_contact) preserve the key names
+    // the frontend TypeScript interfaces expect from the MySQL-era schema.
     $guardiansQuery = "
-        SELECT g.*, ag.relationship_type, ag.is_primary_contact,
-               ag.can_authorize_medical, ag.can_pickup, ag.financial_responsible
+        SELECT g.*, ag.relationship AS relationship_type,
+               ag.is_primary AS is_primary_contact,
+               ag.can_pickup, ag.emergency_contact
         FROM guardians g
         INNER JOIN athlete_guardians ag ON g.id = ag.guardian_id
-        WHERE ag.athlete_id = ? AND ag.active_status = 1
-        ORDER BY ag.is_primary_contact DESC, g.last_name, g.first_name
+        WHERE ag.athlete_id = ?
+        ORDER BY ag.is_primary DESC, g.last_name, g.first_name
     ";
     $stmt = $pdo->prepare($guardiansQuery);
     $stmt->execute([$athleteId]);

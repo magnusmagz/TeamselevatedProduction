@@ -60,7 +60,7 @@ try {
                 END as payment_status
             FROM registrations r
             JOIN athletes a ON r.athlete_id = a.id
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id AND ap.program_id = r.program_id
             WHERE r.program_id = :program_id
@@ -101,7 +101,7 @@ try {
                 END as payment_status
             FROM team_members tm
             JOIN athletes a ON tm.athlete_id = a.id
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             WHERE tm.team_id = :team_id
@@ -137,7 +137,7 @@ try {
                 END as payment_status,
                 COUNT(DISTINCT ap.program_id) as program_count
             FROM athletes a
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id

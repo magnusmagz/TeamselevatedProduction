@@ -60,7 +60,7 @@ try {
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
                 JOIN athletes a ON ap.athlete_id = a.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
                 LEFT JOIN programs p ON ap.program_id = p.id
@@ -136,7 +136,7 @@ try {
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
                 JOIN athletes a ON ap.athlete_id = a.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
                 LEFT JOIN programs p ON ap.program_id = p.id

@@ -95,7 +95,7 @@ try {
         JOIN athletes a ON ap.athlete_id = a.id
         JOIN payment_items pi ON ap.payment_item_id = pi.id
         JOIN programs p ON ap.program_id = p.id
-        LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary_contact = true
+        LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
         LEFT JOIN guardians g ON ag.guardian_id = g.id
         WHERE $where_clause
         GROUP BY a.id, a.first_name, a.last_name, g.first_name, g.last_name, g.email, g.mobile_phone

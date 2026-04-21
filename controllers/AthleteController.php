@@ -63,26 +63,18 @@ class AthleteController {
 
                 // Create relationship
                 $sql = "INSERT INTO athlete_guardians (
-                            athlete_id, guardian_id, relationship_type, is_primary_contact,
-                            has_legal_custody, can_authorize_medical, can_pickup,
-                            receives_communications, financial_responsible
+                            athlete_id, guardian_id, relationship, is_primary, can_pickup
                         ) VALUES (
-                            :athlete_id, :guardian_id, :relationship_type, :is_primary_contact,
-                            :has_legal_custody, :can_authorize_medical, :can_pickup,
-                            :receives_communications, :financial_responsible
+                            :athlete_id, :guardian_id, :relationship, :is_primary, :can_pickup
                         )";
 
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute([
                     ':athlete_id' => $athleteId,
                     ':guardian_id' => $guardianId,
-                    ':relationship_type' => $data['guardian']['relationship_type'] ?? 'Guardian',
-                    ':is_primary_contact' => true,
-                    ':has_legal_custody' => $data['guardian']['has_legal_custody'] ?? true,
-                    ':can_authorize_medical' => $data['guardian']['can_authorize_medical'] ?? true,
+                    ':relationship' => $data['guardian']['relationship_type'] ?? 'Guardian',
+                    ':is_primary' => true,
                     ':can_pickup' => $data['guardian']['can_pickup'] ?? true,
-                    ':receives_communications' => true,
-                    ':financial_responsible' => $data['guardian']['financial_responsible'] ?? true
                 ]);
             }
 
@@ -337,26 +329,18 @@ class AthleteController {
 
             // Create relationship
             $sql = "INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship_type, is_primary_contact,
-                        has_legal_custody, can_authorize_medical, can_pickup,
-                        receives_communications, financial_responsible
+                        athlete_id, guardian_id, relationship, is_primary, can_pickup
                     ) VALUES (
-                        :athlete_id, :guardian_id, :relationship_type, :is_primary_contact,
-                        :has_legal_custody, :can_authorize_medical, :can_pickup,
-                        :receives_communications, :financial_responsible
+                        :athlete_id, :guardian_id, :relationship, :is_primary, :can_pickup
                     )";
 
             $stmt = $this->db->prepare($sql);
             $stmt->execute([
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
-                ':relationship_type' => $data['relationship_type'] ?? 'Guardian',
-                ':is_primary_contact' => $data['is_primary_contact'] ?? false,
-                ':has_legal_custody' => $data['has_legal_custody'] ?? true,
-                ':can_authorize_medical' => $data['can_authorize_medical'] ?? true,
+                ':relationship' => $data['relationship_type'] ?? 'Guardian',
+                ':is_primary' => $data['is_primary_contact'] ?? false,
                 ':can_pickup' => $data['can_pickup'] ?? true,
-                ':receives_communications' => $data['receives_communications'] ?? true,
-                ':financial_responsible' => $data['financial_responsible'] ?? false
             ]);
 
             $this->db->commit();
@@ -402,26 +386,18 @@ class AthleteController {
 
         try {
             $sql = "UPDATE athlete_guardians
-                    SET relationship_type = :relationship_type,
-                        is_primary_contact = :is_primary_contact,
-                        has_legal_custody = :has_legal_custody,
-                        can_authorize_medical = :can_authorize_medical,
-                        can_pickup = :can_pickup,
-                        receives_communications = :receives_communications,
-                        financial_responsible = :financial_responsible
+                    SET relationship = :relationship,
+                        is_primary = :is_primary,
+                        can_pickup = :can_pickup
                     WHERE athlete_id = :athlete_id AND guardian_id = :guardian_id";
 
             $stmt = $this->db->prepare($sql);
             $result = $stmt->execute([
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
-                ':relationship_type' => $data['relationship_type'],
-                ':is_primary_contact' => $data['is_primary_contact'] ?? false,
-                ':has_legal_custody' => $data['has_legal_custody'] ?? true,
-                ':can_authorize_medical' => $data['can_authorize_medical'] ?? true,
+                ':relationship' => $data['relationship_type'] ?? 'Guardian',
+                ':is_primary' => $data['is_primary_contact'] ?? false,
                 ':can_pickup' => $data['can_pickup'] ?? true,
-                ':receives_communications' => $data['receives_communications'] ?? true,
-                ':financial_responsible' => $data['financial_responsible'] ?? false
             ]);
 
             if ($result) {
