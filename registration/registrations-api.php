@@ -351,12 +351,14 @@ try {
                 ]);
 
                 $athlete_payment_id = null;
+                $invoice_id = null;
 
-                // If approving, ensure athlete_payment exists
+                // If approving, ensure athlete_payment + invoice exist
                 if ($data['status'] === 'approved') {
                     // Check if athlete_payment already exists
                     $stmt = $connection->prepare("
-                        SELECT id FROM athlete_payments
+                        SELECT id, final_amount, base_amount, discount_amount, due_date
+                        FROM athlete_payments
                         WHERE athlete_id = ? AND program_id = ?
                     ");
                     $stmt->execute([$registration['athlete_id'], $registration['program_id']]);
@@ -364,24 +366,111 @@ try {
 
                     if ($existingPayment) {
                         $athlete_payment_id = $existingPayment['id'];
-                    } elseif ($registration['registration_fee'] && floatval($registration['registration_fee']) > 0) {
-                        // Create athlete_payment from program's registration_fee
-                        $fee = floatval($registration['registration_fee']);
+                    } else {
+                        // Determine fee: check payment_items first (matches the
+                        // registration submission flow), then fall back to
+                        // programs.registration_fee.
+                        $fee = 0;
+                        $payment_item_id = null;
+
                         $stmt = $connection->prepare("
-                            INSERT INTO athlete_payments (
-                                athlete_id, payment_item_id, program_id,
-                                base_amount, discount_amount, scholarship_amount, final_amount,
-                                status, amount_paid, amount_remaining, created_at
-                            ) VALUES (?, NULL, ?, ?, 0, 0, ?, 'pending', 0, ?, NOW())
+                            SELECT id, base_price
+                            FROM payment_items
+                            WHERE program_id = ? AND item_type = 'registration' AND active = true
+                            LIMIT 1
                         ");
-                        $stmt->execute([
-                            $registration['athlete_id'],
-                            $registration['program_id'],
-                            $fee,
-                            $fee,
-                            $fee
-                        ]);
-                        $athlete_payment_id = $connection->lastInsertId();
+                        $stmt->execute([$registration['program_id']]);
+                        $paymentItem = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                        if ($paymentItem) {
+                            $fee = floatval($paymentItem['base_price']);
+                            $payment_item_id = $paymentItem['id'];
+                        } elseif ($registration['registration_fee'] && floatval($registration['registration_fee']) > 0) {
+                            $fee = floatval($registration['registration_fee']);
+                        }
+
+                        if ($fee > 0) {
+                            $stmt = $connection->prepare("
+                                INSERT INTO athlete_payments (
+                                    athlete_id, payment_item_id, program_id,
+                                    base_amount, discount_amount, scholarship_amount, final_amount,
+                                    status, amount_paid, amount_remaining, created_at
+                                ) VALUES (?, ?, ?, ?, 0, 0, ?, 'pending', 0, ?, NOW())
+                                RETURNING id
+                            ");
+                            $stmt->execute([
+                                $registration['athlete_id'],
+                                $payment_item_id,
+                                $registration['program_id'],
+                                $fee,
+                                $fee,
+                                $fee
+                            ]);
+                            $athlete_payment_id = $stmt->fetchColumn();
+                        }
+                    }
+
+                    // Auto-create invoice if we have a payment and no invoice yet
+                    if ($athlete_payment_id) {
+                        $stmt = $connection->prepare("
+                            SELECT id FROM invoices WHERE athlete_payment_id = ? LIMIT 1
+                        ");
+                        $stmt->execute([$athlete_payment_id]);
+
+                        if (!$stmt->fetch()) {
+                            // Load payment details for the invoice
+                            $stmt = $connection->prepare("
+                                SELECT ap.*, pi.name as item_name, p.name as program_name
+                                FROM athlete_payments ap
+                                LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
+                                LEFT JOIN programs p ON ap.program_id = p.id
+                                WHERE ap.id = ?
+                            ");
+                            $stmt->execute([$athlete_payment_id]);
+                            $payment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                            if ($payment) {
+                                $inv_number = $connection->query("SELECT generate_invoice_number()")->fetchColumn();
+                                $due_date = $payment['due_date'] ?? date('Y-m-d', strtotime('+30 days'));
+                                $subtotal = floatval($payment['base_amount']);
+                                $discount = floatval($payment['discount_amount']) + floatval($payment['scholarship_amount']);
+                                $total = floatval($payment['final_amount']);
+
+                                $stmt = $connection->prepare("
+                                    INSERT INTO invoices (
+                                        invoice_number, athlete_id, athlete_payment_id, program_id,
+                                        invoice_date, due_date, subtotal, discount_amount, total_amount,
+                                        status, memo
+                                    ) VALUES (?, ?, ?, ?, CURRENT_DATE, ?, ?, ?, ?, 'draft', NULL)
+                                    RETURNING id
+                                ");
+                                $stmt->execute([
+                                    $inv_number,
+                                    $registration['athlete_id'],
+                                    $athlete_payment_id,
+                                    $registration['program_id'],
+                                    $due_date,
+                                    $subtotal,
+                                    $discount,
+                                    $total
+                                ]);
+                                $invoice_id = $stmt->fetchColumn();
+
+                                // Auto-create line item
+                                $description = $payment['item_name']
+                                    ?? ($payment['program_name'] ? $payment['program_name'] . ' Registration' : 'Registration Fee');
+                                $connection->prepare("
+                                    INSERT INTO invoice_items (invoice_id, payment_item_id, description, quantity, unit_price, line_total)
+                                    VALUES (?, ?, ?, 1, ?, ?)
+                                ")->execute([
+                                    $invoice_id,
+                                    $payment['payment_item_id'],
+                                    $description,
+                                    $total,
+                                    $total
+                                ]);
+                            }
+                        }
                     }
                 }
 
@@ -390,7 +479,8 @@ try {
                 echo json_encode([
                     'success' => true,
                     'message' => 'Registration updated',
-                    'athlete_payment_id' => $athlete_payment_id
+                    'athlete_payment_id' => $athlete_payment_id,
+                    'invoice_id' => $invoice_id
                 ]);
 
             } catch (Exception $e) {
