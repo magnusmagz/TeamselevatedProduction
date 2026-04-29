@@ -13,7 +13,14 @@ class BracketGenerator {
     }
 
     /**
-     * Generate knockout bracket for a division
+     * Generate knockout bracket for a division.
+     *
+     * Wrapped in a transaction so a partial bracket cannot be left committed
+     * if any insert fails partway through (e.g., the
+     * tournament_matches_division_match_number_unique constraint added in
+     * migration 021 would trip on a duplicate match_number — without the
+     * transaction the first N matches would commit and the rest would error,
+     * leaving an inconsistent half-bracket).
      */
     public function generateBracket(int $divisionId, array $options): array {
         $includeThirdPlace = $options['include_third_place'] ?? false;
@@ -49,6 +56,11 @@ class BracketGenerator {
         }
 
         if ($numTeams < 2) throw new \Exception('Need at least 2 teams for knockout bracket');
+
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+
+        try {
 
         // Delete existing scheduled knockout matches
         $this->db->prepare("
@@ -131,7 +143,13 @@ class BracketGenerator {
             }
         }
 
+        if ($ownsTransaction) $this->db->commit();
         return $createdMatches;
+
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /**

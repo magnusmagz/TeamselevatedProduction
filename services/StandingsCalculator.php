@@ -14,7 +14,19 @@ class StandingsCalculator {
     }
 
     /**
-     * Recalculate all standings for a group from completed matches
+     * Recalculate all standings for a group from completed matches.
+     *
+     * Implementation note: this method intentionally uses DELETE + INSERT
+     * inside a transaction rather than INSERT ... ON CONFLICT DO UPDATE.
+     *
+     * Why: a 2026-04-29 incident on Spring Classic 2026 produced a state
+     * where one team's standings row silently failed to update via the
+     * upsert path even though its matches were correctly tallied in memory.
+     * Root cause was never definitively identified (suspected interaction
+     * between row-level locks held by an in-flight bracket-slot operation
+     * and the upsert's conflict resolution path), but DELETE + INSERT
+     * eliminates upsert ambiguity entirely. The trade-off is one extra
+     * round-trip per recalculation, which is trivial at our scale.
      */
     public function recalculate(int $groupId): array {
         // Get division config
@@ -117,23 +129,37 @@ class StandingsCalculator {
         $standingsArray = array_values($standings);
         $standingsArray = $this->resolvePositions($standingsArray, $tiebreakerRules, $groupId);
 
-        // Update database
-        foreach ($standingsArray as $i => $s) {
-            $this->db->prepare("
-                INSERT INTO tournament_standings (group_id, registration_id, played, won, drawn, lost, goals_for, goals_against, goal_difference, points, position, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT (group_id, registration_id) DO UPDATE SET
-                    played = EXCLUDED.played, won = EXCLUDED.won, drawn = EXCLUDED.drawn, lost = EXCLUDED.lost,
-                    goals_for = EXCLUDED.goals_for, goals_against = EXCLUDED.goals_against,
-                    goal_difference = EXCLUDED.goal_difference, points = EXCLUDED.points,
-                    position = EXCLUDED.position, updated_at = CURRENT_TIMESTAMP
-            ")->execute([
-                $groupId, $s['registration_id'],
-                $s['played'], $s['won'], $s['drawn'], $s['lost'],
-                $s['goals_for'], $s['goals_against'], $s['goal_difference'], $s['points'],
-                $i + 1,
-            ]);
-            $standingsArray[$i]['position'] = $i + 1;
+        // Persist via DELETE + INSERT in a transaction. See class doc comment
+        // for why this is preferred over INSERT ... ON CONFLICT DO UPDATE here.
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+
+        try {
+            $this->db->prepare("DELETE FROM tournament_standings WHERE group_id = ?")
+                     ->execute([$groupId]);
+
+            $insertStmt = $this->db->prepare("
+                INSERT INTO tournament_standings (
+                    group_id, registration_id, played, won, drawn, lost,
+                    goals_for, goals_against, goal_difference, points, position, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+
+            foreach ($standingsArray as $i => $s) {
+                $position = $i + 1;
+                $insertStmt->execute([
+                    $groupId, $s['registration_id'],
+                    $s['played'], $s['won'], $s['drawn'], $s['lost'],
+                    $s['goals_for'], $s['goals_against'], $s['goal_difference'], $s['points'],
+                    $position,
+                ]);
+                $standingsArray[$i]['position'] = $position;
+            }
+
+            if ($ownsTransaction) $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $e;
         }
 
         return $standingsArray;
