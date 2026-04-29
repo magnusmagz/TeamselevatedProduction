@@ -7,9 +7,26 @@ interface Props {
   groupId: number;
   groupName: string;
   advancingCount: number;
+  tiebreakerRules?: string[] | null;
 }
 
-const StandingsTable: React.FC<Props> = ({ groupId, groupName, advancingCount }) => {
+// Map raw tiebreaker keys to friendly labels for the caption.
+const TIEBREAKER_LABELS: Record<string, string> = {
+  points:           'Points',
+  head_to_head:     'Head-to-head',
+  goal_difference:  'Goal difference',
+  goals_for:        'Goals for',
+  goals_against:    'Goals against',
+  wins:             'Wins',
+  coin_flip:        'Coin flip',
+};
+
+function formatTiebreakerChain(rules?: string[] | null): string {
+  if (!rules || rules.length === 0) return '';
+  return rules.map((r) => TIEBREAKER_LABELS[r] || r).join(' → ');
+}
+
+const StandingsTable: React.FC<Props> = ({ groupId, groupName, advancingCount, tiebreakerRules }) => {
   const [standings, setStandings] = useState<TournamentStanding[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +89,18 @@ const StandingsTable: React.FC<Props> = ({ groupId, groupName, advancingCount })
           </tbody>
         </table>
       </div>
+      <p className="text-xs text-gray-500 mt-2">
+        <span className="inline-block w-2 h-2 bg-green-200 rounded-sm mr-1 align-middle" />
+        Top {advancingCount} advance
+        {tiebreakerRules && tiebreakerRules.length > 0 && (
+          <>
+            {' '}<span className="text-gray-400">·</span>{' '}
+            <span title="Order applied when teams are tied">
+              Tiebreakers: {formatTiebreakerChain(tiebreakerRules)}
+            </span>
+          </>
+        )}
+      </p>
     </div>
   );
 };

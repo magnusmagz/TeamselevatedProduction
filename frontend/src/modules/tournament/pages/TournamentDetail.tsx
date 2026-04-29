@@ -15,7 +15,11 @@ import ScoreEntry from '../components/ScoreEntry';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 // Helper component to load groups for a division and render standings tables
-const StandingsView: React.FC<{ divisionId: number; advancingCount: number }> = ({ divisionId, advancingCount }) => {
+const StandingsView: React.FC<{
+  divisionId: number;
+  advancingCount: number;
+  tiebreakerRules?: string[] | null;
+}> = ({ divisionId, advancingCount, tiebreakerRules }) => {
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
@@ -33,7 +37,13 @@ const StandingsView: React.FC<{ divisionId: number; advancingCount: number }> = 
   return (
     <>
       {groups.map((g) => (
-        <StandingsTable key={g.id} groupId={g.id} groupName={g.name} advancingCount={advancingCount} />
+        <StandingsTable
+          key={g.id}
+          groupId={g.id}
+          groupName={g.name}
+          advancingCount={advancingCount}
+          tiebreakerRules={tiebreakerRules}
+        />
       ))}
     </>
   );
@@ -372,7 +382,11 @@ const TournamentDetail: React.FC = () => {
             return (
               <div key={div.id}>
                 <h3 className="text-md font-semibold text-gray-700 mb-3">{div.name}</h3>
-                <StandingsView divisionId={div.id} advancingCount={div.teams_advancing_per_group} />
+                <StandingsView
+                  divisionId={div.id}
+                  advancingCount={div.teams_advancing_per_group}
+                  tiebreakerRules={div.tiebreaker_rules}
+                />
               </div>
             );
           })}

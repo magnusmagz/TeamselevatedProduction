@@ -64,6 +64,21 @@ function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+const TIEBREAKER_LABELS: Record<string, string> = {
+  points:           'Points',
+  head_to_head:     'Head-to-head',
+  goal_difference:  'Goal difference',
+  goals_for:        'Goals for',
+  goals_against:    'Goals against',
+  wins:             'Wins',
+  coin_flip:        'Coin flip',
+};
+
+function formatTiebreakerChain(rules?: string[] | null): string {
+  if (!rules || rules.length === 0) return '';
+  return rules.map((r) => TIEBREAKER_LABELS[r] || r).join(' → ');
+}
+
 function formatTime(d: string | null): string {
   if (!d) return 'TBD';
   return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -80,6 +95,8 @@ const PublicTournament: React.FC = () => {
   // Data states
   const [matches, setMatches] = useState<PublicMatch[]>([]);
   const [standingsGroups, setStandingsGroups] = useState<{ name: string; standings: StandingEntry[] }[]>([]);
+  const [standingsTiebreakers, setStandingsTiebreakers] = useState<string[] | null>(null);
+  const [standingsAdvancing, setStandingsAdvancing] = useState<number>(0);
   const [bracketRounds, setBracketRounds] = useState<{ name: string; matches: any[] }[]>([]);
 
   useEffect(() => {
@@ -109,6 +126,8 @@ const PublicTournament: React.FC = () => {
       const res = await fetch(`${API_URL}/api/tournament-public-gateway.php?action=public-standings&division_id=${activeDivision}`);
       const data = await res.json();
       setStandingsGroups(data.groups || []);
+      setStandingsTiebreakers(data.tiebreaker_rules || null);
+      setStandingsAdvancing(data.teams_advancing_per_group || 0);
     } else if (activeTab === 'bracket' && activeDivision) {
       const res = await fetch(`${API_URL}/api/tournament-public-gateway.php?action=public-bracket&division_id=${activeDivision}`);
       const data = await res.json();
@@ -261,23 +280,44 @@ const PublicTournament: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {g.standings.map((s) => (
-                          <tr key={s.team_name}>
-                            <td className="px-2 py-2 text-gray-400">{s.position}</td>
-                            <td className="px-2 py-2 font-medium">{s.team_name}</td>
-                            <td className="px-2 py-2 text-center">{s.played}</td>
-                            <td className="px-2 py-2 text-center">{s.won}</td>
-                            <td className="px-2 py-2 text-center">{s.drawn}</td>
-                            <td className="px-2 py-2 text-center">{s.lost}</td>
-                            <td className="px-2 py-2 text-center">{s.goals_for}</td>
-                            <td className="px-2 py-2 text-center">{s.goals_against}</td>
-                            <td className="px-2 py-2 text-center">{s.goal_difference > 0 ? '+' : ''}{s.goal_difference}</td>
-                            <td className="px-2 py-2 text-center font-bold">{s.points}</td>
-                          </tr>
-                        ))}
+                        {g.standings.map((s) => {
+                          const advancing = standingsAdvancing > 0 && s.position <= standingsAdvancing;
+                          return (
+                            <tr key={s.team_name} className={advancing ? 'bg-green-50' : ''}>
+                              <td className="px-2 py-2 text-gray-400">{s.position}</td>
+                              <td className="px-2 py-2 font-medium">{s.team_name}</td>
+                              <td className="px-2 py-2 text-center">{s.played}</td>
+                              <td className="px-2 py-2 text-center">{s.won}</td>
+                              <td className="px-2 py-2 text-center">{s.drawn}</td>
+                              <td className="px-2 py-2 text-center">{s.lost}</td>
+                              <td className="px-2 py-2 text-center">{s.goals_for}</td>
+                              <td className="px-2 py-2 text-center">{s.goals_against}</td>
+                              <td className="px-2 py-2 text-center">{s.goal_difference > 0 ? '+' : ''}{s.goal_difference}</td>
+                              <td className="px-2 py-2 text-center font-bold">{s.points}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
+                  {(standingsAdvancing > 0 || (standingsTiebreakers && standingsTiebreakers.length > 0)) && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      {standingsAdvancing > 0 && (
+                        <>
+                          <span className="inline-block w-2 h-2 bg-green-200 rounded-sm mr-1 align-middle" />
+                          Top {standingsAdvancing} advance
+                        </>
+                      )}
+                      {standingsAdvancing > 0 && standingsTiebreakers && standingsTiebreakers.length > 0 && (
+                        <span className="text-gray-400"> · </span>
+                      )}
+                      {standingsTiebreakers && standingsTiebreakers.length > 0 && (
+                        <span title="Order applied when teams are tied">
+                          Tiebreakers: {formatTiebreakerChain(standingsTiebreakers)}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               ))
             )}

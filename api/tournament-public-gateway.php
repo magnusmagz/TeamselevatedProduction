@@ -148,9 +148,10 @@ try {
             $divisionId = $_GET['division_id'] ?? null;
             if (!$divisionId) { http_response_code(400); echo json_encode(['error' => 'division_id required']); exit(); }
 
-            // Verify division is in a public tournament
+            // Verify division is in a public tournament; pull tiebreaker rules
+            // and advancing count so the standings UI can render the chain caption.
             $divCheck = $db->prepare("
-                SELECT td.name AS division_name, t.status
+                SELECT td.name AS division_name, td.tiebreaker_rules, td.teams_advancing_per_group, t.status
                 FROM tournament_divisions td
                 JOIN tournaments t ON t.id = td.tournament_id
                 WHERE td.id = ?
@@ -182,7 +183,16 @@ try {
                 $group['standings'] = $standingsStmt->fetchAll(PDO::FETCH_ASSOC);
             }
 
-            echo json_encode(['division_name' => $divData['division_name'], 'groups' => $groups]);
+            // Decode tiebreaker_rules JSONB for client consumption
+            $rules = $divData['tiebreaker_rules'];
+            if (is_string($rules)) $rules = json_decode($rules, true);
+
+            echo json_encode([
+                'division_name'             => $divData['division_name'],
+                'tiebreaker_rules'          => $rules,
+                'teams_advancing_per_group' => (int)$divData['teams_advancing_per_group'],
+                'groups'                    => $groups,
+            ]);
             break;
 
         case 'public-bracket':
