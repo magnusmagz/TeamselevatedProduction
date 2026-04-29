@@ -231,14 +231,25 @@ const TournamentDetail: React.FC = () => {
                   <dd className="text-gray-900 mt-1">{tournament.description}</dd>
                 </div>
               )}
-              {tournament.location_name && (
+              {(tournament.venue_name || tournament.location_name) && (
                 <div>
-                  <dt className="text-gray-500">Location</dt>
+                  <dt className="text-gray-500">Venue</dt>
                   <dd className="text-gray-900 mt-1">
-                    {tournament.location_name}
-                    {tournament.location_address && <><br />{tournament.location_address}</>}
-                    {tournament.location_city && (
-                      <><br />{tournament.location_city}, {tournament.location_state} {tournament.location_zip}</>
+                    {tournament.venue_name || tournament.location_name}
+                    {(tournament.venue_address || tournament.location_address) && (
+                      <><br />{tournament.venue_address || tournament.location_address}</>
+                    )}
+                    {(tournament.venue_city || tournament.location_city) && (
+                      <><br />
+                        {tournament.venue_city || tournament.location_city}
+                        {(tournament.venue_state || tournament.location_state) ? `, ${tournament.venue_state || tournament.location_state}` : ''}
+                        {(tournament.venue_zip || tournament.location_zip) ? ` ${tournament.venue_zip || tournament.location_zip}` : ''}
+                      </>
+                    )}
+                    {typeof tournament.venue_field_count === 'number' && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {tournament.venue_field_count} field{tournament.venue_field_count === 1 ? '' : 's'} available
+                      </div>
                     )}
                   </dd>
                 </div>

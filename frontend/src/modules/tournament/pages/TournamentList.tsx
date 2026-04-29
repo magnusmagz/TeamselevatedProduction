@@ -136,13 +136,14 @@ const TournamentList: React.FC = () => {
                     {tournament.end_date !== tournament.start_date && ` – ${formatDate(tournament.end_date)}`}
                   </div>
 
-                  {tournament.location_name && (
+                  {(tournament.venue_name || tournament.location_name) && (
                     <div className="flex items-center">
                       <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                      {tournament.location_name}
+                      {tournament.venue_name || tournament.location_name}
+                      {tournament.venue_city && <span className="text-gray-500 ml-1">— {tournament.venue_city}{tournament.venue_state ? `, ${tournament.venue_state}` : ''}</span>}
                     </div>
                   )}
 

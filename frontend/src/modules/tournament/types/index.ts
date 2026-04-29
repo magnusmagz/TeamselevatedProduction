@@ -29,6 +29,18 @@ export interface Tournament {
   sport: string;
   start_date: string;
   end_date: string;
+  // Venue link (preferred). Legacy location_* fields below remain as
+  // override / fallback for tournaments without a venue selected.
+  venue_id: number | null;
+  daily_start_time: string;       // 'HH:MM:SS' — defaults '08:00:00'
+  daily_end_time: string;         // 'HH:MM:SS' — defaults '20:00:00'
+  // Joined venue summary from the get/list endpoints (read-only)
+  venue_name?: string | null;
+  venue_address?: string | null;
+  venue_city?: string | null;
+  venue_state?: string | null;
+  venue_zip?: string | null;
+  venue_field_count?: number;
   location_name: string | null;
   location_address: string | null;
   location_city: string | null;
@@ -180,6 +192,9 @@ export interface TournamentFormData {
   sport: string;
   start_date: string;
   end_date: string;
+  venue_id: number | null;
+  daily_start_time: string;       // 'HH:MM' or 'HH:MM:SS'
+  daily_end_time: string;         // 'HH:MM' or 'HH:MM:SS'
   location_name: string;
   location_address: string;
   location_city: string;
@@ -195,6 +210,16 @@ export interface TournamentFormData {
   public_url_slug: string;
   season_id: number | null;
   rules_document_url: string;
+}
+
+export interface VenueSummary {
+  id: number;
+  name: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+  field_count?: number;
 }
 
 // Status display config

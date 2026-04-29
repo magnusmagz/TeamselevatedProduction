@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { TournamentFormData } from '../types';
 import { createTournament, getTournament, updateTournament } from '../api/tournamentApi';
+import VenuePicker from '../components/VenuePicker';
 
 function generateSlug(name: string): string {
   return name
@@ -17,6 +18,9 @@ const EMPTY_FORM: TournamentFormData = {
   sport: 'soccer',
   start_date: '',
   end_date: '',
+  venue_id: null,
+  daily_start_time: '08:00',
+  daily_end_time: '20:00',
   location_name: '',
   location_address: '',
   location_city: '',
@@ -57,6 +61,9 @@ const TournamentCreate: React.FC = () => {
             sport: t.sport || 'soccer',
             start_date: t.start_date,
             end_date: t.end_date,
+            venue_id: t.venue_id ?? null,
+            daily_start_time: (t.daily_start_time || '08:00:00').slice(0, 5),
+            daily_end_time: (t.daily_end_time || '20:00:00').slice(0, 5),
             location_name: t.location_name || '',
             location_address: t.location_address || '',
             location_city: t.location_city || '',
@@ -271,46 +278,46 @@ const TournamentCreate: React.FC = () => {
           </div>
         </section>
 
-        {/* Location */}
+        {/* Venue */}
         <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Location</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Venue</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            Select the venue where this tournament's matches will be played. The schedule generator will use this venue's fields.
+          </p>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
-            <input
-              type="text"
-              name="location_name"
-              value={form.location_name}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="Memorial Park"
-            />
-          </div>
+          <VenuePicker
+            value={form.venue_id}
+            onChange={(venueId) => setForm((prev) => ({ ...prev, venue_id: venueId }))}
+          />
+        </section>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              type="text"
-              name="location_address"
-              value={form.location_address}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="123 Park Rd"
-            />
-          </div>
+        {/* Daily Window */}
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Daily Schedule Window</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            The earliest and latest times matches can be scheduled each day. The generator will roll matches to the next day if they would extend past the end time.
+          </p>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input type="text" name="location_city" value={form.location_city} onChange={handleChange} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Earliest match start</label>
+              <input
+                type="time"
+                name="daily_start_time"
+                value={form.daily_start_time}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <input type="text" name="location_state" value={form.location_state} onChange={handleChange} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Zip</label>
-              <input type="text" name="location_zip" value={form.location_zip} onChange={handleChange} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Latest match end</label>
+              <input
+                type="time"
+                name="daily_end_time"
+                value={form.daily_end_time}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
             </div>
           </div>
         </section>

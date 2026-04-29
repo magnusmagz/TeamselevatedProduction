@@ -10,6 +10,12 @@ interface PublicTournamentData {
   sport: string;
   start_date: string;
   end_date: string;
+  venue_id: number | null;
+  venue_name: string | null;
+  venue_address: string | null;
+  venue_city: string | null;
+  venue_state: string | null;
+  venue_zip: string | null;
   location_name: string | null;
   location_address: string | null;
   location_city: string | null;
@@ -146,7 +152,15 @@ const PublicTournament: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">{tournament.name}</h1>
               <div className="text-sm text-gray-500 mt-1 space-x-3">
                 <span>{formatDate(tournament.start_date)} – {formatDate(tournament.end_date)}</span>
-                {tournament.location_name && <span>| {tournament.location_name}</span>}
+                {(tournament.venue_name || tournament.location_name) && (
+                  <span>| {tournament.venue_name || tournament.location_name}
+                    {(tournament.venue_city || tournament.location_city) && (
+                      <span className="text-gray-400">
+                        {' '}({tournament.venue_city || tournament.location_city}{(tournament.venue_state || tournament.location_state) ? `, ${tournament.venue_state || tournament.location_state}` : ''})
+                      </span>
+                    )}
+                  </span>
+                )}
                 <span className="capitalize">| {tournament.sport}</span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">{tournament.club_name}</p>
