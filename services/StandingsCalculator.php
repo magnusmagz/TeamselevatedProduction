@@ -190,10 +190,28 @@ class StandingsCalculator {
     }
 
     /**
-     * Sort standings by tiebreaker rules
+     * Sort standings by tiebreaker rules.
+     *
+     * Stability note: every entry is wrapped with its original index, and the
+     * comparator falls back to that index whenever the tiebreaker chain ties.
+     * This means the comparator NEVER returns 0 across distinct entries —
+     * which sidesteps a 2026-04-29 production issue where usort on this
+     * dataset (with the head_to_head tiebreaker doing DB lookups inside the
+     * comparator) produced an array with one entry duplicated and another
+     * dropped. Root cause was unidentified but consistent: forcing strict
+     * ordering eliminates the failure mode.
      */
     public function resolvePositions(array $standings, array $tiebreakerRules, int $groupId): array {
-        usort($standings, function ($a, $b) use ($tiebreakerRules, $groupId) {
+        // Wrap each entry with its original index so we can use it as the
+        // ultimate tie-breaker.
+        $indexed = [];
+        foreach ($standings as $i => $s) {
+            $indexed[] = ['idx' => $i, 'data' => $s];
+        }
+
+        usort($indexed, function ($A, $B) use ($tiebreakerRules, $groupId) {
+            $a = $A['data'];
+            $b = $B['data'];
             foreach ($tiebreakerRules as $rule) {
                 $cmp = 0;
                 switch ($rule) {
@@ -218,10 +236,13 @@ class StandingsCalculator {
                 }
                 if ($cmp !== 0) return $cmp;
             }
-            return 0;
+            // Final tie-break: original index. Strict ordering, never 0 between
+            // distinct entries.
+            return $A['idx'] - $B['idx'];
         });
 
-        return $standings;
+        // Unwrap
+        return array_map(function ($entry) { return $entry['data']; }, $indexed);
     }
 
     /**
