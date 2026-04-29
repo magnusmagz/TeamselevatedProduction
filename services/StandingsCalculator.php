@@ -16,17 +16,21 @@ class StandingsCalculator {
     /**
      * Recalculate all standings for a group from completed matches.
      *
-     * Implementation note: this method intentionally uses DELETE + INSERT
-     * inside a transaction rather than INSERT ... ON CONFLICT DO UPDATE.
+     * Persistence pattern: explicit UPDATE-first, INSERT-if-missing.
      *
-     * Why: a 2026-04-29 incident on Spring Classic 2026 produced a state
-     * where one team's standings row silently failed to update via the
-     * upsert path even though its matches were correctly tallied in memory.
-     * Root cause was never definitively identified (suspected interaction
-     * between row-level locks held by an in-flight bracket-slot operation
-     * and the upsert's conflict resolution path), but DELETE + INSERT
-     * eliminates upsert ambiguity entirely. The trade-off is one extra
-     * round-trip per recalculation, which is trivial at our scale.
+     * Why this pattern: the original code used INSERT ... ON CONFLICT DO UPDATE
+     * but on 2026-04-29 a team's row silently failed to update in production
+     * even though its matches were correctly tallied in memory. A quick switch
+     * to DELETE + INSERT inside a transaction also failed (same group, same
+     * data) with a phantom unique-constraint violation on a row that had just
+     * been deleted in the same transaction — a behavior we couldn't reproduce
+     * outside the StandingsCalculator code path. Root cause never definitively
+     * identified.
+     *
+     * Avoiding both ON CONFLICT and DELETE-then-INSERT eliminates whatever
+     * PDO/Postgres edge case produces those failures. Cost: at most one extra
+     * round-trip per row when a row doesn't yet exist (the INSERT fallback).
+     * Trivial at our scale.
      */
     public function recalculate(int $groupId): array {
         // Get division config
@@ -129,37 +133,40 @@ class StandingsCalculator {
         $standingsArray = array_values($standings);
         $standingsArray = $this->resolvePositions($standingsArray, $tiebreakerRules, $groupId);
 
-        // Persist via DELETE + INSERT in a transaction. See class doc comment
-        // for why this is preferred over INSERT ... ON CONFLICT DO UPDATE here.
-        $ownsTransaction = !$this->db->inTransaction();
-        if ($ownsTransaction) $this->db->beginTransaction();
+        // Persist: UPDATE each row, fall back to INSERT if no row existed.
+        // See class doc comment for why this avoids both ON CONFLICT and
+        // DELETE+INSERT patterns.
+        $updateStmt = $this->db->prepare("
+            UPDATE tournament_standings SET
+                played = ?, won = ?, drawn = ?, lost = ?,
+                goals_for = ?, goals_against = ?, goal_difference = ?, points = ?,
+                position = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE group_id = ? AND registration_id = ?
+        ");
+        $insertStmt = $this->db->prepare("
+            INSERT INTO tournament_standings (
+                group_id, registration_id, played, won, drawn, lost,
+                goals_for, goals_against, goal_difference, points, position, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ");
 
-        try {
-            $this->db->prepare("DELETE FROM tournament_standings WHERE group_id = ?")
-                     ->execute([$groupId]);
-
-            $insertStmt = $this->db->prepare("
-                INSERT INTO tournament_standings (
-                    group_id, registration_id, played, won, drawn, lost,
-                    goals_for, goals_against, goal_difference, points, position, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ");
-
-            foreach ($standingsArray as $i => $s) {
-                $position = $i + 1;
+        foreach ($standingsArray as $i => $s) {
+            $position = $i + 1;
+            $updateStmt->execute([
+                $s['played'], $s['won'], $s['drawn'], $s['lost'],
+                $s['goals_for'], $s['goals_against'], $s['goal_difference'], $s['points'],
+                $position, $groupId, $s['registration_id'],
+            ]);
+            if ($updateStmt->rowCount() === 0) {
+                // No existing row — INSERT fresh
                 $insertStmt->execute([
                     $groupId, $s['registration_id'],
                     $s['played'], $s['won'], $s['drawn'], $s['lost'],
                     $s['goals_for'], $s['goals_against'], $s['goal_difference'], $s['points'],
                     $position,
                 ]);
-                $standingsArray[$i]['position'] = $position;
             }
-
-            if ($ownsTransaction) $this->db->commit();
-        } catch (\Throwable $e) {
-            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
-            throw $e;
+            $standingsArray[$i]['position'] = $position;
         }
 
         return $standingsArray;
