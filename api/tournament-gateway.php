@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../services/TournamentNotificationService.php';
 
 // Require authentication on all tournament gateway endpoints
 $auth = AuthMiddleware::requireAuth();
@@ -42,6 +43,11 @@ if (!$isAdmin && !$isCoach) {
 
 $database = Database::getInstance();
 $db = $database->getConnection();
+
+// Tournament notification service — every public method is feature-flagged + try/catch
+// internally, so calls into it are safe to fire from any action handler. Failures are
+// logged via error_log and never propagate up to break the originating tournament action.
+$tournamentNotifications = new TournamentNotificationService($db);
 
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -442,6 +448,15 @@ try {
 
             $stmt = $db->prepare("UPDATE tournaments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$newStatus, (int)$tournamentId]);
+
+            // Tournament status transitions trigger notifications. Only the actual
+            // transition fires (entering 'in_progress' = schedule published, entering
+            // 'weather_delay' = delay broadcast). Other transitions are silent.
+            if ($newStatus === 'in_progress' && $currentStatus !== 'in_progress') {
+                $tournamentNotifications->notifySchedulePublished((int)$tournamentId, $userId);
+            } elseif ($newStatus === 'weather_delay' && $currentStatus !== 'weather_delay') {
+                $tournamentNotifications->notifyWeatherDelay((int)$tournamentId, $userId);
+            }
 
             echo json_encode(['success' => true, 'message' => "Status updated to $newStatus"]);
             break;
@@ -937,8 +952,24 @@ try {
                 }
             }
 
+            // Capture current status BEFORE the update so we only notify on actual transitions.
+            $priorStatusStmt = $db->prepare("SELECT status FROM tournament_registrations WHERE id = ?");
+            $priorStatusStmt->execute([(int)$regId]);
+            $priorRegStatus = $priorStatusStmt->fetchColumn();
+
             $stmt = $db->prepare("UPDATE tournament_registrations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$newStatus, (int)$regId]);
+
+            // Fire trigger only on actual status change.
+            if ($newStatus !== $priorRegStatus) {
+                if ($newStatus === 'accepted') {
+                    $tournamentNotifications->notifyRegistrationAccepted((int)$regId, $userId);
+                } elseif ($newStatus === 'rejected') {
+                    $tournamentNotifications->notifyRegistrationDeclined((int)$regId, $userId);
+                } elseif ($newStatus === 'waitlisted') {
+                    $tournamentNotifications->notifyRegistrationWaitlisted((int)$regId, $userId);
+                }
+            }
 
             echo json_encode(['success' => true, 'message' => "Registration status updated to $newStatus"]);
             break;
@@ -964,6 +995,11 @@ try {
                 exit();
             }
 
+            // Capture prior payment_status so we only notify on transition to 'paid'.
+            $priorPayStmt = $db->prepare("SELECT payment_status FROM tournament_registrations WHERE id = ?");
+            $priorPayStmt->execute([(int)$regId]);
+            $priorPaymentStatus = $priorPayStmt->fetchColumn();
+
             $stmt = $db->prepare("
                 UPDATE tournament_registrations
                 SET payment_status = ?,
@@ -978,6 +1014,10 @@ try {
                 $data['payment_reference'] ?? null,
                 (int)$regId,
             ]);
+
+            if ($data['payment_status'] === 'paid' && $priorPaymentStatus !== 'paid') {
+                $tournamentNotifications->notifyPaymentReceived((int)$regId, $userId);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Payment status updated']);
             break;
@@ -1381,9 +1421,24 @@ try {
             }
             if (empty($setClauses)) { http_response_code(400); echo json_encode(['error' => 'No fields to update']); exit(); }
 
+            // Capture prior field/time so we only notify on actual schedule changes.
+            // (Editing notes alone shouldn't broadcast a "rescheduled" alert.)
+            $priorMatchStmt = $db->prepare("SELECT field_id, scheduled_time FROM tournament_matches WHERE id = ?");
+            $priorMatchStmt->execute([(int)$matchId]);
+            $priorMatch = $priorMatchStmt->fetch(PDO::FETCH_ASSOC) ?: ['field_id' => null, 'scheduled_time' => null];
+
             $setClauses[] = "updated_at = CURRENT_TIMESTAMP";
             $params[] = (int)$matchId;
             $db->prepare("UPDATE tournament_matches SET " . implode(', ', $setClauses) . " WHERE id = ?")->execute($params);
+
+            $fieldChanged = array_key_exists('field_id', $data)
+                && (string)($data['field_id'] ?? '') !== (string)($priorMatch['field_id'] ?? '');
+            $timeChanged = array_key_exists('scheduled_time', $data)
+                && (string)($data['scheduled_time'] ?? '') !== (string)($priorMatch['scheduled_time'] ?? '');
+
+            if ($fieldChanged || $timeChanged) {
+                $tournamentNotifications->notifyMatchRescheduled((int)$matchId, $userId);
+            }
 
             echo json_encode(['success' => true]);
             break;
@@ -1465,6 +1520,11 @@ try {
                 $calc = new StandingsCalculator($db);
                 $standings = $calc->recalculate((int)$match['group_id']);
             }
+
+            // Score-posted notification (email + SMS) — fires once per match completion.
+            // Re-scoring the same match will fire again, which is expected: a score
+            // correction is news to the parents/players too.
+            $tournamentNotifications->notifyScorePosted((int)$matchId, $userId);
 
             echo json_encode([
                 'success' => true,
@@ -1597,6 +1657,9 @@ try {
             require_once __DIR__ . '/../services/BracketGenerator.php';
             $bracketGen = new BracketGenerator($db);
             $advancedTo = $bracketGen->advanceWinner((int)$matchId);
+
+            // Score-posted notification (email + SMS), same as group-stage match-score.
+            $tournamentNotifications->notifyScorePosted((int)$matchId, $userId);
 
             echo json_encode([
                 'success' => true,

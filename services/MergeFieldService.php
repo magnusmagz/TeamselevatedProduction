@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../config/env.php';
+
 class MergeFieldService {
     private $pdo;
     private $cache = []; // Cache loaded data to avoid duplicate queries
@@ -46,6 +48,22 @@ class MergeFieldService {
             $data = $this->loadClubData($context['club_profile_id'] ?? null);
             $replacements = array_merge($replacements, $data);
         }
+        if (preg_match('/\{\{tournament_/', $text)) {
+            $data = $this->loadTournamentData($context['tournament_id'] ?? null);
+            $replacements = array_merge($replacements, $data);
+        }
+        if (preg_match('/\{\{division_/', $text)) {
+            $data = $this->loadDivisionData($context['division_id'] ?? null);
+            $replacements = array_merge($replacements, $data);
+        }
+        if (preg_match('/\{\{match_/', $text)) {
+            $data = $this->loadMatchData($context['match_id'] ?? null);
+            $replacements = array_merge($replacements, $data);
+        }
+        if (preg_match('/\{\{registration_/', $text)) {
+            $data = $this->loadRegistrationData($context['registration_id'] ?? null);
+            $replacements = array_merge($replacements, $data);
+        }
 
         // Replace all found variables, leave unresolved ones as-is
         foreach ($replacements as $key => $value) {
@@ -77,6 +95,22 @@ class MergeFieldService {
             ['key' => 'sender_last_name', 'label' => 'Sender Last Name', 'group' => 'Sender'],
             ['key' => 'sender_full_name', 'label' => 'Sender Full Name', 'group' => 'Sender'],
             ['key' => 'sender_email', 'label' => 'Sender Email', 'group' => 'Sender'],
+            ['key' => 'tournament_name', 'label' => 'Tournament Name', 'group' => 'Tournament'],
+            ['key' => 'tournament_start_date', 'label' => 'Tournament Start Date', 'group' => 'Tournament'],
+            ['key' => 'tournament_end_date', 'label' => 'Tournament End Date', 'group' => 'Tournament'],
+            ['key' => 'tournament_location', 'label' => 'Tournament Location', 'group' => 'Tournament'],
+            ['key' => 'tournament_url', 'label' => 'Tournament Public URL', 'group' => 'Tournament'],
+            ['key' => 'division_name', 'label' => 'Division Name', 'group' => 'Tournament'],
+            ['key' => 'division_age_group', 'label' => 'Division Age Group', 'group' => 'Tournament'],
+            ['key' => 'match_kickoff', 'label' => 'Match Kickoff Time', 'group' => 'Tournament'],
+            ['key' => 'match_field_name', 'label' => 'Match Field', 'group' => 'Tournament'],
+            ['key' => 'match_round', 'label' => 'Match Round', 'group' => 'Tournament'],
+            ['key' => 'match_home_team', 'label' => 'Home Team', 'group' => 'Tournament'],
+            ['key' => 'match_away_team', 'label' => 'Away Team', 'group' => 'Tournament'],
+            ['key' => 'match_home_score', 'label' => 'Home Score', 'group' => 'Tournament'],
+            ['key' => 'match_away_score', 'label' => 'Away Score', 'group' => 'Tournament'],
+            ['key' => 'registration_team_name', 'label' => 'Registered Team Name', 'group' => 'Tournament'],
+            ['key' => 'registration_status', 'label' => 'Registration Status', 'group' => 'Tournament'],
         ];
     }
 
@@ -283,6 +317,150 @@ class MergeFieldService {
         $data = [
             'club_name' => $clubName,
         ];
+
+        $this->cache[$key] = $data;
+        return $data;
+    }
+
+    private function loadTournamentData($tournamentId) {
+        if (!$tournamentId) return [];
+        $key = "tournament_$tournamentId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        $stmt = $this->pdo->prepare("
+            SELECT id, name, start_date, end_date,
+                   location_name, location_city, location_state,
+                   public_url_slug, club_profile_id
+            FROM tournaments
+            WHERE id = ?
+        ");
+        $stmt->execute([$tournamentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            $this->cache[$key] = [];
+            return [];
+        }
+
+        $startDate = $row['start_date'] ? new \DateTime($row['start_date']) : null;
+        $endDate = $row['end_date'] ? new \DateTime($row['end_date']) : null;
+
+        // Build location string: "Venue Name, City, ST" with sensible falls-throughs
+        $locationParts = [];
+        if (!empty($row['location_name'])) $locationParts[] = $row['location_name'];
+        $cityState = trim(($row['location_city'] ?? '') . ' ' . ($row['location_state'] ?? ''));
+        if ($cityState !== '') $locationParts[] = $cityState;
+        $location = implode(', ', $locationParts);
+
+        // Public URL: APP_URL + /tournament/{slug}; fall back to empty if no slug
+        $appUrl = rtrim(Env::get('APP_URL', ''), '/');
+        $url = '';
+        if ($appUrl !== '' && !empty($row['public_url_slug'])) {
+            $url = $appUrl . '/tournament/' . $row['public_url_slug'];
+        }
+
+        $data = [
+            'tournament_name' => $row['name'] ?? '',
+            'tournament_start_date' => $startDate ? $startDate->format('l, F j, Y') : '',
+            'tournament_end_date' => $endDate ? $endDate->format('l, F j, Y') : '',
+            'tournament_location' => $location,
+            'tournament_url' => $url,
+        ];
+
+        $this->cache[$key] = $data;
+        return $data;
+    }
+
+    private function loadDivisionData($divisionId) {
+        if (!$divisionId) return [];
+        $key = "division_$divisionId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        $stmt = $this->pdo->prepare("SELECT name, age_group FROM tournament_divisions WHERE id = ?");
+        $stmt->execute([$divisionId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $data = $row ? [
+            'division_name' => $row['name'],
+            'division_age_group' => $row['age_group'],
+        ] : [];
+
+        $this->cache[$key] = $data;
+        return $data;
+    }
+
+    private function loadMatchData($matchId) {
+        if (!$matchId) return [];
+        $key = "match_$matchId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        // Resolve home/away team names through the registration → team chain.
+        // Falls back to home_placeholder / away_placeholder when team isn't slotted yet
+        // (e.g., bracket placeholders like "Winner Match 5").
+        $stmt = $this->pdo->prepare("
+            SELECT
+                m.round,
+                m.scheduled_time,
+                m.home_score,
+                m.away_score,
+                m.home_placeholder,
+                m.away_placeholder,
+                f.name AS field_name,
+                COALESCE(NULLIF(rh.team_name_override, ''), th.name, m.home_placeholder, '') AS home_team_name,
+                COALESCE(NULLIF(ra.team_name_override, ''), ta.name, m.away_placeholder, '') AS away_team_name
+            FROM tournament_matches m
+            LEFT JOIN fields f ON m.field_id = f.id
+            LEFT JOIN tournament_registrations rh ON m.home_registration_id = rh.id
+            LEFT JOIN teams th ON rh.team_id = th.id
+            LEFT JOIN tournament_registrations ra ON m.away_registration_id = ra.id
+            LEFT JOIN teams ta ON ra.team_id = ta.id
+            WHERE m.id = ?
+        ");
+        $stmt->execute([$matchId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            $this->cache[$key] = [];
+            return [];
+        }
+
+        $kickoff = $row['scheduled_time'] ? new \DateTime($row['scheduled_time']) : null;
+
+        $data = [
+            'match_round' => $row['round'] ?? '',
+            'match_kickoff' => $kickoff ? $kickoff->format('l, F j, Y \a\t g:i A') : 'TBD',
+            'match_field_name' => $row['field_name'] ?? 'TBD',
+            'match_home_team' => $row['home_team_name'] ?? '',
+            'match_away_team' => $row['away_team_name'] ?? '',
+            'match_home_score' => $row['home_score'] !== null ? (string)$row['home_score'] : '',
+            'match_away_score' => $row['away_score'] !== null ? (string)$row['away_score'] : '',
+        ];
+
+        $this->cache[$key] = $data;
+        return $data;
+    }
+
+    private function loadRegistrationData($registrationId) {
+        if (!$registrationId) return [];
+        $key = "registration_$registrationId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        // team_name_override wins for guest teams; otherwise fall through to teams.name.
+        $stmt = $this->pdo->prepare("
+            SELECT
+                COALESCE(NULLIF(r.team_name_override, ''), t.name, '') AS team_name,
+                r.status
+            FROM tournament_registrations r
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE r.id = ?
+        ");
+        $stmt->execute([$registrationId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $data = $row ? [
+            'registration_team_name' => $row['team_name'],
+            'registration_status' => $row['status'],
+        ] : [];
 
         $this->cache[$key] = $data;
         return $data;

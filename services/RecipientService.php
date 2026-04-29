@@ -416,5 +416,125 @@ class RecipientService {
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    // ============================================
+    // Tournament recipient resolution
+    // ============================================
+    // These methods translate tournament-domain IDs (registration, tournament, match)
+    // into the same recipient shape the comms pipeline expects, leaning on the existing
+    // getEventRecipients helper for the actual roster→athletes/guardians/coaches walk.
+
+    /**
+     * Recipients for a single tournament registration: athletes + guardians + coaches
+     * of the registered team. Guest-team registrations may return empty if the stub
+     * team has no roster — that's expected.
+     *
+     * @param int $registrationId
+     * @return array Recipient rows in the standard shape
+     */
+    public function getRegistrationRecipients($registrationId) {
+        $stmt = $this->pdo->prepare("SELECT team_id FROM tournament_registrations WHERE id = ?");
+        $stmt->execute([$registrationId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || empty($row['team_id'])) {
+            return [];
+        }
+
+        return $this->getEventRecipients(null, [(int)$row['team_id']]);
+    }
+
+    /**
+     * Recipients for the user who submitted the registration (registered_by).
+     * Used for payment receipts and similar transactional confirmations where we
+     * deliberately don't want to spam the whole roster.
+     *
+     * @param int $registrationId
+     * @return array Single-element recipient list (or empty on missing user)
+     */
+    public function getRegistrationSubmitter($registrationId) {
+        $stmt = $this->pdo->prepare("
+            SELECT u.id, u.first_name, u.last_name, u.email
+            FROM tournament_registrations r
+            JOIN users u ON r.registered_by = u.id
+            WHERE r.id = ?
+        ");
+        $stmt->execute([$registrationId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || empty($row['email']) || !$this->isValidEmail($row['email'])) {
+            return [];
+        }
+
+        return [[
+            'email' => strtolower($row['email']),
+            'name' => trim($row['first_name'] . ' ' . $row['last_name']),
+            'type' => 'user',
+            'id' => (int)$row['id'],
+        ]];
+    }
+
+    /**
+     * Recipients across an entire tournament — all teams whose registration
+     * status matches one of $statusFilter (default: 'accepted').
+     *
+     * @param int      $tournamentId
+     * @param string[] $statusFilter Registration statuses to include
+     * @return array
+     */
+    public function getTournamentRecipients($tournamentId, array $statusFilter = ['accepted']) {
+        if (empty($statusFilter)) {
+            $statusFilter = ['accepted'];
+        }
+        $placeholders = str_repeat('?,', count($statusFilter) - 1) . '?';
+
+        $stmt = $this->pdo->prepare("
+            SELECT DISTINCT team_id
+            FROM tournament_registrations
+            WHERE tournament_id = ?
+                AND status IN ($placeholders)
+                AND team_id IS NOT NULL
+        ");
+        $stmt->execute(array_merge([$tournamentId], $statusFilter));
+        $teamIds = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'team_id');
+
+        if (empty($teamIds)) {
+            return [];
+        }
+
+        return $this->getEventRecipients(null, $teamIds);
+    }
+
+    /**
+     * Recipients for a single match — both home and away teams' rosters.
+     * Returns empty if neither team is slotted yet (placeholder bracket slots).
+     *
+     * @param int $matchId
+     * @return array
+     */
+    public function getMatchRecipients($matchId) {
+        $stmt = $this->pdo->prepare("
+            SELECT
+                rh.team_id AS home_team_id,
+                ra.team_id AS away_team_id
+            FROM tournament_matches m
+            LEFT JOIN tournament_registrations rh ON m.home_registration_id = rh.id
+            LEFT JOIN tournament_registrations ra ON m.away_registration_id = ra.id
+            WHERE m.id = ?
+        ");
+        $stmt->execute([$matchId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) return [];
+
+        $teamIds = array_filter([
+            $row['home_team_id'] ?? null,
+            $row['away_team_id'] ?? null,
+        ]);
+
+        if (empty($teamIds)) return [];
+
+        return $this->getEventRecipients(null, array_map('intval', array_values($teamIds)));
+    }
 }
 ?>
