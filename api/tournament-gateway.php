@@ -256,23 +256,23 @@ try {
                 $data['start_date'],
                 $data['end_date'],
                 !empty($data['venue_id']) ? (int)$data['venue_id'] : null,
-                $data['daily_start_time'] ?? '08:00:00',
-                $data['daily_end_time']   ?? '20:00:00',
+                nullIfEmpty($data['daily_start_time'] ?? null) ?? '08:00:00',
+                nullIfEmpty($data['daily_end_time']   ?? null) ?? '20:00:00',
                 $data['location_name'] ?? null,
                 $data['location_address'] ?? null,
                 $data['location_city'] ?? null,
                 $data['location_state'] ?? null,
                 $data['location_zip'] ?? null,
-                $data['registration_open_date'] ?? null,
-                $data['registration_close_date'] ?? null,
+                nullIfEmpty($data['registration_open_date'] ?? null),
+                nullIfEmpty($data['registration_close_date'] ?? null),
                 (int)($data['entry_fee_cents'] ?? 0),
-                $data['max_teams_per_division'] ?? null,
+                nullIfEmpty($data['max_teams_per_division'] ?? null),
                 $data['rules_document_url'] ?? null,
                 $data['contact_name'] ?? null,
                 $data['contact_email'] ?? null,
                 $data['contact_phone'] ?? null,
                 $data['public_url_slug'] ?? null,
-                $data['season_id'] ?? null,
+                nullIfEmpty($data['season_id'] ?? null),
                 $userId,
             ]);
 
@@ -343,12 +343,24 @@ try {
                 'public_url_slug', 'season_id',
             ];
 
+            // Fields stored as DATE / TIMESTAMP / TIME / nullable INT — empty
+            // strings from the frontend get coerced to NULL so Postgres doesn't
+            // reject "" with SQLSTATE 22007.
+            $nullableFields = [
+                'start_date', 'end_date',
+                'registration_open_date', 'registration_close_date',
+                'daily_start_time', 'daily_end_time',
+                'venue_id', 'season_id', 'max_teams_per_division', 'entry_fee_cents',
+            ];
+
             $setClauses = [];
             $params = [];
             foreach ($fields as $field) {
                 if (array_key_exists($field, $data)) {
                     $setClauses[] = "$field = ?";
-                    $params[] = $data[$field];
+                    $params[] = in_array($field, $nullableFields, true)
+                        ? nullIfEmpty($data[$field])
+                        : $data[$field];
                 }
             }
 
@@ -1885,6 +1897,17 @@ function requireAdmin($isAdmin) {
         echo json_encode(['error' => 'Club admin access required']);
         exit();
     }
+}
+
+/**
+ * Treat empty strings the same as null for optional date/time/timestamp fields.
+ * The frontend sends empty strings when a date/time input is left blank, but
+ * Postgres rejects '' as a TIMESTAMP/DATE/TIME value (SQLSTATE 22007).
+ */
+function nullIfEmpty($v) {
+    if ($v === null) return null;
+    if (is_string($v) && trim($v) === '') return null;
+    return $v;
 }
 
 function methodNotAllowed() {
