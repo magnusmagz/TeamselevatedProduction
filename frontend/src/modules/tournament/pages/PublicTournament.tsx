@@ -23,6 +23,8 @@ interface PublicTournamentData {
   status: string;
   contact_name: string | null;
   contact_email: string | null;
+  contact_phone: string | null;
+  rules_document_url: string | null;
   club_name: string;
   club_logo_url: string | null;
   primary_color: string | null;
@@ -77,6 +79,18 @@ const TIEBREAKER_LABELS: Record<string, string> = {
 function formatTiebreakerChain(rules?: string[] | null): string {
   if (!rules || rules.length === 0) return '';
   return rules.map((r) => TIEBREAKER_LABELS[r] || r).join(' → ');
+}
+
+/**
+ * Build a Google Maps directions URL for a destination address.
+ * Works on desktop (opens maps.google.com) and mobile (iOS/Android route to
+ * the OS's default maps app via Google's universal handler).
+ */
+function getDirectionsUrl(parts: { name?: string | null; address?: string | null; city?: string | null; state?: string | null; zip?: string | null }): string | null {
+  const segments = [parts.name, parts.address, parts.city, parts.state, parts.zip].filter(Boolean);
+  if (segments.length === 0) return null;
+  const destination = segments.join(', ');
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 }
 
 function formatTime(d: string | null): string {
@@ -157,32 +171,96 @@ const PublicTournament: React.FC = () => {
   }
 
   const brandColor = tournament.primary_color || '#1a56db';
+  const venueName = tournament.venue_name || tournament.location_name;
+  const venueCity = tournament.venue_city || tournament.location_city;
+  const venueState = tournament.venue_state || tournament.location_state;
+  const directionsUrl = getDirectionsUrl({
+    name: venueName,
+    address: tournament.venue_address || tournament.location_address,
+    city: venueCity,
+    state: venueState,
+    zip: tournament.venue_zip,
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b" style={{ borderBottomColor: brandColor }}>
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
+      {/* Hero Header */}
+      <header className="bg-white border-b-4" style={{ borderBottomColor: brandColor }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <div className="flex items-start gap-4">
             {tournament.club_logo_url && (
-              <img src={tournament.club_logo_url} alt="" className="w-12 h-12 object-contain" />
+              <img src={tournament.club_logo_url} alt="" className="w-16 h-16 sm:w-20 sm:h-20 object-contain flex-shrink-0" />
             )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{tournament.name}</h1>
-              <div className="text-sm text-gray-500 mt-1 space-x-3">
-                <span>{formatDate(tournament.start_date)} – {formatDate(tournament.end_date)}</span>
-                {(tournament.venue_name || tournament.location_name) && (
-                  <span>| {tournament.venue_name || tournament.location_name}
-                    {(tournament.venue_city || tournament.location_city) && (
-                      <span className="text-gray-400">
-                        {' '}({tournament.venue_city || tournament.location_city}{(tournament.venue_state || tournament.location_state) ? `, ${tournament.venue_state || tournament.location_state}` : ''})
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: brandColor }}>
+                {tournament.club_name}
+              </p>
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 mt-1 leading-tight">
+                {tournament.name}
+              </h1>
+              {tournament.description && (
+                <p className="text-sm sm:text-base text-gray-600 mt-2 max-w-2xl">
+                  {tournament.description}
+                </p>
+              )}
+
+              {/* Meta row */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 text-sm text-gray-700">
+                <span className="inline-flex items-center gap-1">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {formatDate(tournament.start_date)} – {formatDate(tournament.end_date)}
+                </span>
+                {venueName && (
+                  <span className="inline-flex items-center gap-1">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {venueName}
+                    {venueCity && (
+                      <span className="text-gray-400 ml-1">
+                        · {venueCity}{venueState ? `, ${venueState}` : ''}
                       </span>
+                    )}
+                    {directionsUrl && (
+                      <a
+                        href={directionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-gray-200 hover:bg-gray-50"
+                        title="Open in Google Maps"
+                      >
+                        🧭 Directions
+                      </a>
                     )}
                   </span>
                 )}
-                <span className="capitalize">| {tournament.sport}</span>
+                <span className="capitalize text-gray-500">{tournament.sport}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">{tournament.club_name}</p>
+
+              {/* Contact + rules row */}
+              {(tournament.contact_name || tournament.contact_email || tournament.contact_phone || tournament.rules_document_url) && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
+                  {tournament.contact_name && <span>Contact: <span className="text-gray-700 font-medium">{tournament.contact_name}</span></span>}
+                  {tournament.contact_email && (
+                    <a href={`mailto:${tournament.contact_email}`} className="hover:underline" style={{ color: brandColor }}>
+                      ✉ {tournament.contact_email}
+                    </a>
+                  )}
+                  {tournament.contact_phone && (
+                    <a href={`tel:${tournament.contact_phone}`} className="hover:underline" style={{ color: brandColor }}>
+                      ☎ {tournament.contact_phone}
+                    </a>
+                  )}
+                  {tournament.rules_document_url && (
+                    <a href={tournament.rules_document_url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: brandColor }}>
+                      📄 Rules & policies
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -229,27 +307,55 @@ const PublicTournament: React.FC = () => {
             {matches.length === 0 ? (
               <p className="text-center text-gray-400 py-8">No matches scheduled yet.</p>
             ) : (
-              matches.map((m, i) => (
-                <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3 flex-1">
-                    <span className="text-xs text-gray-400 w-6">#{m.match_number}</span>
-                    <span className="text-sm font-medium text-right w-36 truncate">{m.home_team || m.home_placeholder || 'TBD'}</span>
-                    <div className="w-16 text-center">
-                      {m.status === 'completed' ? (
-                        <span className="font-bold">{m.home_score} – {m.away_score}</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">vs</span>
-                      )}
+              matches.map((m, i) => {
+                const fieldDirUrl = m.field_name && (tournament.venue_address || tournament.location_address)
+                  ? getDirectionsUrl({
+                      name: `${tournament.venue_name || tournament.location_name || ''} ${m.field_name}`.trim(),
+                      address: tournament.venue_address || tournament.location_address,
+                      city: tournament.venue_city || tournament.location_city,
+                      state: tournament.venue_state || tournament.location_state,
+                      zip: tournament.venue_zip,
+                    })
+                  : null;
+                return (
+                  <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <span className="text-xs text-gray-400 w-6">#{m.match_number}</span>
+                      <span className="text-sm font-medium text-right w-36 truncate">{m.home_team || m.home_placeholder || 'TBD'}</span>
+                      <div className="w-16 text-center">
+                        {m.status === 'completed' ? (
+                          <span className="font-bold">{m.home_score} – {m.away_score}</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">vs</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium w-36 truncate">{m.away_team || m.away_placeholder || 'TBD'}</span>
                     </div>
-                    <span className="text-sm font-medium w-36 truncate">{m.away_team || m.away_placeholder || 'TBD'}</span>
+                    <div className="text-right text-xs text-gray-500 ml-4">
+                      <div>{formatTime(m.scheduled_time)}</div>
+                      {m.field_name && (
+                        <div className="inline-flex items-center gap-1">
+                          <span>{m.field_name}</span>
+                          {fieldDirUrl && (
+                            <a
+                              href={fieldDirUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-gray-400 hover:text-gray-700"
+                              title="Get directions"
+                              aria-label={`Get directions to ${m.field_name}`}
+                            >
+                              🧭
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {m.group_name && <div className="text-gray-400">{m.group_name}</div>}
+                    </div>
                   </div>
-                  <div className="text-right text-xs text-gray-500 ml-4">
-                    <div>{formatTime(m.scheduled_time)}</div>
-                    {m.field_name && <div>{m.field_name}</div>}
-                    {m.group_name && <div className="text-gray-400">{m.group_name}</div>}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
