@@ -278,6 +278,12 @@ class TournamentNotificationService {
      * {{athlete_first_name}} which only resolve when guardian_id / athlete_id
      * are passed in the merge context. We load the template once, then loop
      * recipients, building a recipient-specific merge ctx each time.
+     *
+     * Recipients with a tournament-scope unsubscribe (email_suppressions row
+     * with scope='tournament') are filtered out here — that lets parents opt
+     * out of *just* tournament alerts without losing their team emails. Any
+     * broader suppression (scope='club' / 'team') is still caught by
+     * EmailSendService::queueEmail's own isSuppressed check downstream.
      */
     private function dispatchEmail($kind, array $ctx, array $recipients, $actorUserId) {
         if (empty($recipients)) return;
@@ -287,6 +293,10 @@ class TournamentNotificationService {
             error_log("TournamentNotificationService [$kind]: no active template found");
             return;
         }
+
+        $clubProfileId = $ctx['club_profile_id'] ?? null;
+        $recipients = $this->filterTournamentSuppressed($recipients, $clubProfileId);
+        if (empty($recipients)) return;
 
         foreach ($recipients as $recipient) {
             $perRecipientCtx = $this->buildPerRecipientCtx($ctx, $recipient, $actorUserId);
@@ -314,12 +324,17 @@ class TournamentNotificationService {
      * Render the SMS body per-recipient (so {{guardian_first_name}} works in
      * SMS templates too) and queue. Recipients without phones are filtered
      * upstream by withPhones(); SmsSendService applies its own opt-out checks.
+     * Tournament-scope unsubscribed recipients are also filtered here.
      */
     private function dispatchSms($kind, array $ctx, array $recipients, $actorUserId) {
         if (empty($recipients)) return;
 
         $tpl = $this->loadTemplate($kind, $ctx['club_profile_id'] ?? null);
         if (!$tpl || empty($tpl['body_text'])) return;
+
+        $clubProfileId = $ctx['club_profile_id'] ?? null;
+        $recipients = $this->filterTournamentSuppressed($recipients, $clubProfileId);
+        if (empty($recipients)) return;
 
         foreach ($recipients as $recipient) {
             $perRecipientCtx = $this->buildPerRecipientCtx($ctx, $recipient, $actorUserId);
@@ -410,6 +425,40 @@ class TournamentNotificationService {
             $kind,
             $entityId,
             $e->getMessage()
+        ));
+    }
+
+    /**
+     * Filter out recipients whose email has a tournament-scope suppression
+     * (email_suppressions.scope = 'tournament') for the given club. Single
+     * bulk query, no N+1 lookup.
+     */
+    private function filterTournamentSuppressed(array $recipients, $clubProfileId): array {
+        if (empty($recipients) || !$clubProfileId) return $recipients;
+
+        $emails = array_values(array_unique(array_filter(array_map(
+            fn($r) => isset($r['email']) ? strtolower($r['email']) : null,
+            $recipients
+        ))));
+        if (empty($emails)) return $recipients;
+
+        $placeholders = implode(',', array_fill(0, count($emails), '?'));
+        $stmt = $this->pdo->prepare("
+            SELECT LOWER(email) AS email
+            FROM email_suppressions
+            WHERE club_profile_id = ?
+              AND channel = 'email'
+              AND scope = 'tournament'
+              AND email IN ($placeholders)
+        ");
+        $stmt->execute(array_merge([(int)$clubProfileId], $emails));
+        $suppressed = array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'email');
+        if (empty($suppressed)) return $recipients;
+
+        $suppressedSet = array_flip($suppressed);
+        return array_values(array_filter(
+            $recipients,
+            fn($r) => !isset($suppressedSet[strtolower($r['email'] ?? '')])
         ));
     }
 }

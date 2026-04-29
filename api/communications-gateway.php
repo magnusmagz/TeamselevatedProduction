@@ -1042,6 +1042,11 @@ function handleUnsubscribePage($connection) {
             color: #12443E;
             border: 2px solid #12443E;
         }
+        .btn-tournament {
+            background-color: #fff;
+            color: #1a56db;
+            border: 2px solid #1a56db;
+        }
         .footer-text {
             font-size: 12px;
             color: #999;
@@ -1060,13 +1065,16 @@ function handleUnsubscribePage($connection) {
         <div class="club-name">{$clubName}</div>
         <div class="email-display">{$safeEmail}</div>
         <h2>Manage Email Preferences</h2>
-        <p class="description">Choose how you would like to update your email preferences. You can unsubscribe from all emails from this organization, or from team-specific emails only.</p>
+        <p class="description">Choose how you would like to update your email preferences. You can unsubscribe from all emails from this organization, only team-specific emails, or only tournament alerts.</p>
         <div class="options">
             <button class="option-btn btn-club" onclick="processUnsubscribe('club')">
                 <span class="spinner">&#8987; </span>Unsubscribe from all {$clubName} emails
             </button>
             <button class="option-btn btn-team" onclick="processUnsubscribe('team')">
                 <span class="spinner">&#8987; </span>Unsubscribe from team emails only
+            </button>
+            <button class="option-btn btn-tournament" onclick="processUnsubscribe('tournament')">
+                <span class="spinner">&#8987; </span>Unsubscribe from tournament alerts only
             </button>
         </div>
         <p class="footer-text">
@@ -1111,7 +1119,7 @@ function handleProcessUnsubscribe($connection) {
     $token = $data['token'] ?? null;
     $scope = $data['scope'] ?? null;
 
-    if (!$token || !$scope || !in_array($scope, ['club', 'team'])) {
+    if (!$token || !$scope || !in_array($scope, ['club', 'team', 'tournament'])) {
         echo renderUnsubscribeError('Invalid request. Please use the link in your email.');
         return;
     }
@@ -1128,7 +1136,12 @@ function handleProcessUnsubscribe($connection) {
     $email             = $tokenData['email'];
     $clubProfileId     = $tokenData['club_profile_id'];
 
-    $reason = ($scope === 'club') ? 'unsubscribe_all' : 'unsubscribe_team';
+    $reason = match ($scope) {
+        'club'       => 'unsubscribe_all',
+        'team'       => 'unsubscribe_team',
+        'tournament' => 'unsubscribe_tournament',
+        default      => 'unsubscribe',
+    };
 
     // Determine team_id if team-scoped unsubscribe
     $teamId = null;
@@ -1186,9 +1199,12 @@ function handleProcessUnsubscribe($connection) {
         $clubName = htmlspecialchars($club['club_name'] ?? $club['name'] ?? 'your organization');
     }
 
-    $scopeLabel = ($scope === 'club')
-        ? "all emails from <strong>{$clubName}</strong>"
-        : "team-specific emails from <strong>{$clubName}</strong>";
+    $scopeLabel = match ($scope) {
+        'club'       => "all emails from <strong>{$clubName}</strong>",
+        'team'       => "team-specific emails from <strong>{$clubName}</strong>",
+        'tournament' => "tournament alerts from <strong>{$clubName}</strong>",
+        default      => "emails from <strong>{$clubName}</strong>",
+    };
 
     echo renderUnsubscribeConfirmation($scopeLabel, htmlspecialchars($email));
 }
