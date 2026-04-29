@@ -273,8 +273,11 @@ class TournamentNotificationService {
     // ============================================
 
     /**
-     * Render the kind's template with $ctx merge fields and queue email to
-     * $recipients. Empty recipient list is a silent no-op (legitimate case).
+     * Render the kind's template per-recipient and queue. Per-recipient render
+     * is required because templates may include {{guardian_first_name}} or
+     * {{athlete_first_name}} which only resolve when guardian_id / athlete_id
+     * are passed in the merge context. We load the template once, then loop
+     * recipients, building a recipient-specific merge ctx each time.
      */
     private function dispatchEmail($kind, array $ctx, array $recipients, $actorUserId) {
         if (empty($recipients)) return;
@@ -285,26 +288,32 @@ class TournamentNotificationService {
             return;
         }
 
-        $mergeCtx = array_merge($ctx, ['user_id' => $actorUserId]);
-        $subject = $this->mergeFieldService->resolveVariables($tpl['subject'] ?? '', $mergeCtx);
-        $html    = $this->mergeFieldService->resolveVariables($tpl['html_output'] ?? '', $mergeCtx);
-        $body    = $this->mergeFieldService->resolveVariables($tpl['body_text'] ?? strip_tags($html), $mergeCtx);
+        foreach ($recipients as $recipient) {
+            $perRecipientCtx = $this->buildPerRecipientCtx($ctx, $recipient, $actorUserId);
 
-        $this->emailService->queueEmail([
-            'user_id'         => $actorUserId,
-            'club_profile_id' => $ctx['club_profile_id'] ?? null,
-            'recipients'      => $recipients,
-            'subject'         => $subject,
-            'html_body'       => $html,
-            'body'            => $body,
-            'template_id'     => $tpl['id'],
-        ]);
+            $subject = $this->mergeFieldService->resolveVariables($tpl['subject'] ?? '', $perRecipientCtx);
+            $html    = $this->mergeFieldService->resolveVariables($tpl['html_output'] ?? '', $perRecipientCtx);
+            $body    = $this->mergeFieldService->resolveVariables(
+                $tpl['body_text'] ?? strip_tags($html),
+                $perRecipientCtx
+            );
+
+            $this->emailService->queueEmail([
+                'user_id'         => $actorUserId,
+                'club_profile_id' => $ctx['club_profile_id'] ?? null,
+                'recipients'      => [$recipient],
+                'subject'         => $subject,
+                'html_body'       => $html,
+                'body'            => $body,
+                'template_id'     => $tpl['id'],
+            ]);
+        }
     }
 
     /**
-     * Render the SMS body (uses body_text from the same template) and queue
-     * SMS to $recipients. Recipients without phones are filtered upstream
-     * by withPhones().
+     * Render the SMS body per-recipient (so {{guardian_first_name}} works in
+     * SMS templates too) and queue. Recipients without phones are filtered
+     * upstream by withPhones(); SmsSendService applies its own opt-out checks.
      */
     private function dispatchSms($kind, array $ctx, array $recipients, $actorUserId) {
         if (empty($recipients)) return;
@@ -312,15 +321,42 @@ class TournamentNotificationService {
         $tpl = $this->loadTemplate($kind, $ctx['club_profile_id'] ?? null);
         if (!$tpl || empty($tpl['body_text'])) return;
 
-        $mergeCtx = array_merge($ctx, ['user_id' => $actorUserId]);
-        $body = $this->mergeFieldService->resolveVariables($tpl['body_text'], $mergeCtx);
+        foreach ($recipients as $recipient) {
+            $perRecipientCtx = $this->buildPerRecipientCtx($ctx, $recipient, $actorUserId);
+            $body = $this->mergeFieldService->resolveVariables($tpl['body_text'], $perRecipientCtx);
 
-        $this->smsService->queueSms([
-            'user_id'         => $actorUserId,
-            'club_profile_id' => $ctx['club_profile_id'] ?? null,
-            'recipients'      => $recipients,
-            'body'            => $body,
-        ]);
+            $this->smsService->queueSms([
+                'user_id'         => $actorUserId,
+                'club_profile_id' => $ctx['club_profile_id'] ?? null,
+                'recipients'      => [$recipient],
+                'body'            => $body,
+            ]);
+        }
+    }
+
+    /**
+     * Merge the trigger context with per-recipient identifiers so that
+     * MergeFieldService can resolve {{guardian_*}}, {{athlete_*}}, etc.
+     * Recipient rows come from RecipientService and carry `type` plus a
+     * domain id we can map to the merge service's expected keys.
+     */
+    private function buildPerRecipientCtx(array $ctx, array $recipient, $actorUserId) {
+        $out = array_merge($ctx, ['user_id' => $actorUserId]);
+
+        $type = $recipient['type'] ?? null;
+        $rid  = $recipient['id'] ?? null;
+
+        if ($type === 'guardian' && $rid) {
+            $out['guardian_id'] = (int)$rid;
+            if (!empty($recipient['athlete_id'])) {
+                $out['athlete_id'] = (int)$recipient['athlete_id'];
+            }
+        } elseif ($type === 'athlete' && $rid) {
+            $out['athlete_id'] = (int)$rid;
+        }
+        // 'coach' / 'user' types currently don't expose a merge-field group;
+        // sender_* uses user_id which is the action-taker, not the recipient.
+        return $out;
     }
 
     /**
