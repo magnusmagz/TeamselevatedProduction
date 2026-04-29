@@ -33,6 +33,7 @@ interface PublicTournamentData {
   primary_color: string | null;
   secondary_color: string | null;
   divisions: { id: number; name: string; age_group: string; gender: string; format: string; sport_rule_notes: string[] | null }[];
+  sponsors?: { id: number; name: string; website: string | null; logo_data: string | null }[];
 }
 
 interface PublicMatch {
@@ -476,6 +477,46 @@ const PublicTournament: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Sponsor strip (footer) */}
+      {tournament.sponsors && tournament.sponsors.length > 0 && (
+        <footer className="border-t border-gray-200 bg-white mt-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 text-center mb-4">
+              Tournament Sponsors
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+              {tournament.sponsors.map((s) => {
+                const inner = s.logo_data ? (
+                  <img
+                    src={s.logo_data}
+                    alt={s.name}
+                    className="h-12 sm:h-14 max-w-[160px] object-contain grayscale hover:grayscale-0 transition"
+                  />
+                ) : (
+                  <span className="text-sm font-medium text-gray-600">{s.name}</span>
+                );
+                return s.website ? (
+                  <a
+                    key={s.id}
+                    href={s.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={s.name}
+                    className="opacity-80 hover:opacity-100 transition"
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <div key={s.id} title={s.name} className="opacity-80">
+                    {inner}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   );
 };

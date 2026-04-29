@@ -80,6 +80,19 @@ try {
             $divStmt->execute([$tournament['id']]);
             $tournament['divisions'] = $divStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Fetch active club sponsors so the public page can render a
+            // sponsor strip. Sponsors are club-scoped (cross-tournament).
+            $sponsorStmt = $db->prepare("
+                SELECT id, name, website, logo_data
+                FROM sponsors
+                WHERE club_id = (SELECT club_id FROM tournaments WHERE id = ?)
+                  AND is_active = true
+                  AND deleted_at IS NULL
+                ORDER BY display_order, name
+            ");
+            $sponsorStmt->execute([$tournament['id']]);
+            $tournament['sponsors'] = $sponsorStmt->fetchAll(PDO::FETCH_ASSOC);
+
             echo json_encode($tournament);
             break;
 
