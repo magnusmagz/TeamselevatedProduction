@@ -14,22 +14,73 @@ class ScheduleGenerator {
     }
 
     /**
-     * Generate round-robin schedule for all groups in a division
+     * Generate round-robin schedule for all groups in a division.
+     *
+     * Field selection cascade:
+     *   1. options['field_ids']  — explicit caller override
+     *   2. tournament.venue_id   — all active fields at the tournament's venue
+     *   3. neither               — throw "no fields configured"
+     *
+     * Time anchoring:
+     *   1. options['start_time'] — explicit caller override
+     *   2. tournament.start_date + tournament.daily_start_time
+     *
+     * Daily window: matches scheduled past tournament.daily_end_time roll over
+     * to the next day at daily_start_time. Throws if scheduling would extend
+     * past tournament.end_date.
      */
     public function generateRoundRobin(int $divisionId, array $options): array {
-        $startTime = $options['start_time'] ?? date('Y-m-d 08:00:00');
         $intervalMinutes = (int)($options['game_interval_minutes'] ?? 70);
-        $minRestMinutes = (int)($options['min_rest_minutes'] ?? 120);
-        $fieldIds = $options['field_ids'] ?? [];
+        $minRestMinutes  = (int)($options['min_rest_minutes'] ?? 120);
+        $fieldIds        = $options['field_ids'] ?? [];
 
-        // Get division info
-        $divStmt = $this->db->prepare("SELECT * FROM tournament_divisions WHERE id = ?");
+        // Get division info + parent tournament's venue/window/dates
+        $divStmt = $this->db->prepare("
+            SELECT td.*,
+                   t.id               AS tournament_id,
+                   t.venue_id         AS tournament_venue_id,
+                   t.start_date       AS tournament_start_date,
+                   t.end_date         AS tournament_end_date,
+                   t.daily_start_time AS tournament_daily_start,
+                   t.daily_end_time   AS tournament_daily_end
+            FROM tournament_divisions td
+            JOIN tournaments t ON t.id = td.tournament_id
+            WHERE td.id = ?
+        ");
         $divStmt->execute([$divisionId]);
         $division = $divStmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$division) {
             throw new \Exception('Division not found');
         }
+
+        // Resolve field set: caller override → tournament's venue → error.
+        if (empty($fieldIds) && !empty($division['tournament_venue_id'])) {
+            $venueFieldStmt = $this->db->prepare("
+                SELECT id FROM fields
+                WHERE venue_id = ? AND active = true
+                ORDER BY name
+            ");
+            $venueFieldStmt->execute([(int)$division['tournament_venue_id']]);
+            $fieldIds = array_column($venueFieldStmt->fetchAll(PDO::FETCH_ASSOC), 'id');
+        }
+        if (empty($fieldIds)) {
+            throw new \Exception(
+                'No fields configured for this tournament. ' .
+                'Set the tournament venue (in Tournament Setup) or pass explicit field_ids.'
+            );
+        }
+
+        // Resolve schedule anchor: caller override → tournament start_date + daily_start_time.
+        $startTime = $options['start_time'] ?? null;
+        if (!$startTime) {
+            $startTime = trim($division['tournament_start_date'] . ' ' . $division['tournament_daily_start']);
+        }
+
+        // Daily window — used by assignTimesAndFields to roll past midnight.
+        $dailyStart = $division['tournament_daily_start'] ?? '08:00:00';
+        $dailyEnd   = $division['tournament_daily_end']   ?? '20:00:00';
+        $tournamentEndDate = $division['tournament_end_date'] ?? null;
 
         // Get groups with their teams
         $groupStmt = $this->db->prepare("
@@ -86,8 +137,13 @@ class ScheduleGenerator {
             }
         }
 
-        // Assign times and fields
-        $scheduled = $this->assignTimesAndFields($allMatches, $fieldIds, $startTime, $intervalMinutes, $minRestMinutes);
+        // Assign times and fields (respects daily window + tournament end date)
+        $gameDurationMinutes = (int)$division['game_duration_minutes'];
+        $scheduled = $this->assignTimesAndFields(
+            $allMatches, $fieldIds, $startTime,
+            $intervalMinutes, $minRestMinutes,
+            $dailyStart, $dailyEnd, $tournamentEndDate, $gameDurationMinutes
+        );
 
         // Insert into database
         $insertStmt = $this->db->prepare("
@@ -166,30 +222,48 @@ class ScheduleGenerator {
     }
 
     /**
-     * Assign match times and fields respecting rest constraints
+     * Assign match times and fields respecting:
+     *   - rest constraints between matches for the same team
+     *   - field non-overlap
+     *   - daily window (rolls to next day at $dailyStart if past $dailyEnd)
+     *   - tournament end date (errors if matches would overflow)
+     *
+     * Backwards-compatible signature: caller may omit window args; defaults
+     * yield the legacy "schedule continuously" behavior. Note: callers are
+     * encouraged to pass the new args — generateRoundRobin always does so now.
      */
-    public function assignTimesAndFields(array $matches, array $fieldIds, string $startTime, int $intervalMinutes, int $minRestMinutes): array {
-        if (empty($fieldIds) || empty($matches)) {
-            // No fields: assign times sequentially without fields
-            $time = strtotime($startTime);
-            foreach ($matches as &$match) {
-                $match['scheduled_time'] = date('Y-m-d H:i:s', $time);
-                $match['field_id'] = null;
-                $time += $intervalMinutes * 60;
-            }
-            return $matches;
+    public function assignTimesAndFields(
+        array $matches,
+        array $fieldIds,
+        string $startTime,
+        int $intervalMinutes,
+        int $minRestMinutes,
+        ?string $dailyStart = null,
+        ?string $dailyEnd = null,
+        ?string $tournamentEndDate = null,
+        int $gameDurationMinutes = 0
+    ): array {
+        if (empty($matches)) return [];
+
+        if (empty($fieldIds)) {
+            throw new \Exception(
+                'assignTimesAndFields called with no field_ids — caller must resolve fields before scheduling.'
+            );
         }
 
-        // Track when each team last played and when each field is free
+        $anchorTs = strtotime($startTime);
         $teamLastGame = [];
-        $fieldNextFree = array_fill_keys($fieldIds, strtotime($startTime));
+        $fieldNextFree = array_fill_keys($fieldIds, $anchorTs);
+
+        // Hard cap so we don't infinite-loop in pathological cases.
+        $endCap = $tournamentEndDate ? strtotime($tournamentEndDate . ' 23:59:59') : null;
 
         $scheduled = [];
         foreach ($matches as $match) {
             $homeId = $match['home_registration_id'];
             $awayId = $match['away_registration_id'];
 
-            // Find earliest time respecting rest for both teams
+            // Earliest start respecting per-team rest
             $earliestTeamTime = max(
                 $teamLastGame[$homeId] ?? 0,
                 $teamLastGame[$awayId] ?? 0
@@ -198,30 +272,72 @@ class ScheduleGenerator {
                 $earliestTeamTime += $minRestMinutes * 60;
             }
 
-            // Find first available field at or after earliest team time
+            // Pick the field that frees up earliest after $earliestTeamTime,
+            // then roll the chosen time into the daily window.
             $bestField = null;
-            $bestTime = PHP_INT_MAX;
+            $bestTime  = PHP_INT_MAX;
 
             foreach ($fieldIds as $fid) {
-                $fieldTime = max($fieldNextFree[$fid], $earliestTeamTime, strtotime($startTime));
+                $fieldTime = max($fieldNextFree[$fid], $earliestTeamTime, $anchorTs);
+                $fieldTime = $this->rollIntoDailyWindow(
+                    $fieldTime, $dailyStart, $dailyEnd, $gameDurationMinutes
+                );
                 if ($fieldTime < $bestTime) {
-                    $bestTime = $fieldTime;
+                    $bestTime  = $fieldTime;
                     $bestField = $fid;
                 }
             }
 
-            $match['field_id'] = $bestField;
-            $match['scheduled_time'] = date('Y-m-d H:i:s', $bestTime);
+            // Tournament end-date guard
+            if ($endCap !== null && $bestTime > $endCap) {
+                throw new \Exception(
+                    'Schedule would extend past tournament end date. ' .
+                    'Reduce match count, extend the tournament, or widen the daily window.'
+                );
+            }
 
-            // Update trackers
-            $teamLastGame[$homeId] = $bestTime;
-            $teamLastGame[$awayId] = $bestTime;
+            $match['field_id']        = $bestField;
+            $match['scheduled_time']  = date('Y-m-d H:i:s', $bestTime);
+
+            $teamLastGame[$homeId]    = $bestTime;
+            $teamLastGame[$awayId]    = $bestTime;
             $fieldNextFree[$bestField] = $bestTime + ($intervalMinutes * 60);
 
             $scheduled[] = $match;
         }
 
         return $scheduled;
+    }
+
+    /**
+     * If the given timestamp falls outside [dailyStart, dailyEnd] OR if a
+     * match starting at this time wouldn't finish before dailyEnd, advance
+     * to the next day's dailyStart. Returns unchanged when window args are
+     * null (legacy continuous-scheduling mode).
+     */
+    private function rollIntoDailyWindow(
+        int $ts,
+        ?string $dailyStart,
+        ?string $dailyEnd,
+        int $gameDurationMinutes
+    ): int {
+        if (!$dailyStart || !$dailyEnd) return $ts;
+
+        $dateStr      = date('Y-m-d', $ts);
+        $startOfWindow = strtotime("$dateStr $dailyStart");
+        $endOfWindow   = strtotime("$dateStr $dailyEnd");
+        $matchEnd      = $ts + ($gameDurationMinutes * 60);
+
+        // Before today's window opens
+        if ($ts < $startOfWindow) {
+            return $startOfWindow;
+        }
+        // Match would end after today's window closes — roll to tomorrow
+        if ($matchEnd > $endOfWindow) {
+            $tomorrow = date('Y-m-d', $ts + 86400);
+            return strtotime("$tomorrow $dailyStart");
+        }
+        return $ts;
     }
 
     /**

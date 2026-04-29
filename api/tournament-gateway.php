@@ -79,9 +79,13 @@ try {
             }
 
             $sql = "SELECT t.*,
+                        v.name  AS venue_name,
+                        v.city  AS venue_city,
+                        v.state AS venue_state,
                         (SELECT COUNT(*) FROM tournament_divisions WHERE tournament_id = t.id) AS division_count,
                         (SELECT COUNT(*) FROM tournament_registrations WHERE tournament_id = t.id) AS registration_count
                     FROM tournaments t
+                    LEFT JOIN venues v ON t.venue_id = v.id
                     WHERE t.club_id = ?";
             $params = [(int)$clubId];
 
@@ -124,7 +128,18 @@ try {
                 exit();
             }
 
-            $stmt = $db->prepare("SELECT * FROM tournaments WHERE id = ?");
+            $stmt = $db->prepare("
+                SELECT t.*,
+                       v.name    AS venue_name,
+                       v.address AS venue_address,
+                       v.city    AS venue_city,
+                       v.state   AS venue_state,
+                       v.zip_code AS venue_zip,
+                       (SELECT COUNT(*) FROM fields WHERE venue_id = t.venue_id AND active = true) AS venue_field_count
+                FROM tournaments t
+                LEFT JOIN venues v ON t.venue_id = v.id
+                WHERE t.id = ?
+            ");
             $stmt->execute([(int)$tournamentId]);
             $tournament = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -224,12 +239,13 @@ try {
             $stmt = $db->prepare("
                 INSERT INTO tournaments (
                     club_id, name, description, sport, start_date, end_date,
+                    venue_id, daily_start_time, daily_end_time,
                     location_name, location_address, location_city, location_state, location_zip,
                     registration_open_date, registration_close_date,
                     entry_fee_cents, max_teams_per_division,
                     rules_document_url, contact_name, contact_email, contact_phone,
                     public_url_slug, season_id, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -239,6 +255,9 @@ try {
                 $data['sport'] ?? 'soccer',
                 $data['start_date'],
                 $data['end_date'],
+                !empty($data['venue_id']) ? (int)$data['venue_id'] : null,
+                $data['daily_start_time'] ?? '08:00:00',
+                $data['daily_end_time']   ?? '20:00:00',
                 $data['location_name'] ?? null,
                 $data['location_address'] ?? null,
                 $data['location_city'] ?? null,
@@ -316,6 +335,7 @@ try {
             // Build dynamic update
             $fields = [
                 'name', 'description', 'sport', 'start_date', 'end_date',
+                'venue_id', 'daily_start_time', 'daily_end_time',
                 'location_name', 'location_address', 'location_city', 'location_state', 'location_zip',
                 'registration_open_date', 'registration_close_date',
                 'entry_fee_cents', 'max_teams_per_division',

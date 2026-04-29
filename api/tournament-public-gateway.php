@@ -45,10 +45,17 @@ try {
                        t.location_name, t.location_address, t.location_city, t.location_state,
                        t.location_zip, t.location_coordinates, t.status,
                        t.contact_name, t.contact_email, t.contact_phone,
+                       t.venue_id,
+                       v.name    AS venue_name,
+                       v.address AS venue_address,
+                       v.city    AS venue_city,
+                       v.state   AS venue_state,
+                       v.zip_code AS venue_zip,
                        cp.name AS club_name, cp.logo_url AS club_logo_url,
                        cp.primary_color, cp.secondary_color
                 FROM tournaments t
                 JOIN club_profile cp ON cp.id = t.club_id
+                LEFT JOIN venues v ON v.id = t.venue_id
                 WHERE t.public_url_slug = ?
                 AND t.status IN ($placeholders)
             ");
