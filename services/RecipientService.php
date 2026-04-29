@@ -62,7 +62,7 @@ class RecipientService {
             JOIN team_members tm ON a.id = tm.athlete_id
             WHERE tm.team_id IN ($placeholders)
                 AND tm.status = 'active'
-                AND a.active_status = 1
+                AND a.active_status = true
         ");
         $stmt->execute($teamIds);
         $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -91,7 +91,7 @@ class RecipientService {
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 WHERE ag.athlete_id = ?
-                    AND g.receive_invites = 1
+                    AND g.receive_invites = true
             ");
             $guardianStmt->execute([$athlete['id']]);
             $guardians = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -388,7 +388,7 @@ class RecipientService {
         $stmt = $this->pdo->prepare("
             SELECT COUNT(*) FROM guardians
             WHERE (email = ? OR personal_email = ?)
-                AND receive_invites = 0
+                AND receive_invites = false
         ");
         $stmt->execute([$email, $email]);
 

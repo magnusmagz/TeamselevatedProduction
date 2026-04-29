@@ -1293,7 +1293,7 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
                     a.id, a.first_name, a.last_name, a.email, tm.team_id
                 FROM athletes a
                 JOIN team_members tm ON a.id = tm.athlete_id
-                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = 1
+                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = true
                     AND a.email IS NOT NULL AND a.email != ''
             ");
         } else {
@@ -1302,7 +1302,7 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
                     a.id, a.first_name, a.last_name, a.phone, tm.team_id
                 FROM athletes a
                 JOIN team_members tm ON a.id = tm.athlete_id
-                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = 1
+                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = true
                     AND a.phone IS NOT NULL AND a.phone != ''
             ");
         }
@@ -1336,9 +1336,9 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 JOIN team_members tm ON ag.athlete_id = tm.athlete_id AND tm.status = 'active'
-                JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = 1
+                JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = true
                 WHERE tm.team_id IN ($placeholders)
-                    AND g.receive_invites = 1
+                    AND g.receive_invites = true
                     AND (g.email IS NOT NULL AND g.email != '')
             ");
         } else {
@@ -1349,7 +1349,7 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 JOIN team_members tm ON ag.athlete_id = tm.athlete_id AND tm.status = 'active'
-                JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = 1
+                JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = true
                 WHERE tm.team_id IN ($placeholders)
                     AND g.mobile_phone IS NOT NULL AND g.mobile_phone != ''
             ");

@@ -23,7 +23,7 @@ if (!$athleteId) {
 
 try {
     // Fetch athlete basic information
-    $athleteQuery = "SELECT * FROM athletes WHERE id = ? AND active_status = 1";
+    $athleteQuery = "SELECT * FROM athletes WHERE id = ? AND active_status = true";
     $stmt = $pdo->prepare($athleteQuery);
     $stmt->execute([$athleteId]);
     $athlete = $stmt->fetch(PDO::FETCH_ASSOC);
