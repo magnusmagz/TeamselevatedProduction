@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -25,6 +27,7 @@ interface PublicTournamentData {
   contact_email: string | null;
   contact_phone: string | null;
   rules_document_url: string | null;
+  faq_markdown: string | null;
   club_name: string;
   club_logo_url: string | null;
   primary_color: string | null;
@@ -103,7 +106,7 @@ const PublicTournament: React.FC = () => {
   const [tournament, setTournament] = useState<PublicTournamentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [activeTab, setActiveTab] = useState<'schedule' | 'standings' | 'bracket'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'standings' | 'bracket' | 'info'>('schedule');
   const [activeDivision, setActiveDivision] = useState<number | null>(null);
 
   // Data states
@@ -287,7 +290,7 @@ const PublicTournament: React.FC = () => {
 
         {/* Tabs */}
         <div className="flex space-x-4 border-b border-gray-200 mb-6">
-          {['schedule', 'standings', 'bracket'].map((tab) => (
+          {(['schedule', 'standings', 'bracket', ...(tournament.faq_markdown ? ['info'] : [])] as const).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={`py-2 px-3 text-sm font-medium capitalize border-b-2 ${
@@ -459,6 +462,17 @@ const PublicTournament: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Info / FAQ */}
+        {activeTab === 'info' && tournament.faq_markdown && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-3xl">
+            <article className="prose prose-sm max-w-none text-gray-800">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {tournament.faq_markdown}
+              </ReactMarkdown>
+            </article>
           </div>
         )}
       </div>

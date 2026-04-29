@@ -45,7 +45,7 @@ try {
                        t.location_name, t.location_address, t.location_city, t.location_state,
                        t.location_zip, t.location_coordinates, t.status,
                        t.contact_name, t.contact_email, t.contact_phone,
-                       t.rules_document_url,
+                       t.rules_document_url, t.faq_markdown,
                        t.venue_id,
                        v.name    AS venue_name,
                        v.address AS venue_address,

@@ -58,6 +58,7 @@ export interface Tournament {
   contact_phone: string | null;
   public_url_slug: string | null;
   season_id: number | null;
+  faq_markdown: string | null;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -210,6 +211,7 @@ export interface TournamentFormData {
   public_url_slug: string;
   season_id: number | null;
   rules_document_url: string;
+  faq_markdown: string;
 }
 
 export interface VenueSummary {

@@ -36,6 +36,7 @@ const EMPTY_FORM: TournamentFormData = {
   public_url_slug: '',
   season_id: null,
   rules_document_url: '',
+  faq_markdown: '',
 };
 
 const TournamentCreate: React.FC = () => {
@@ -79,6 +80,7 @@ const TournamentCreate: React.FC = () => {
             public_url_slug: t.public_url_slug || '',
             season_id: t.season_id,
             rules_document_url: t.rules_document_url || '',
+            faq_markdown: t.faq_markdown || '',
           });
           setEntryFeeDisplay(t.entry_fee_cents ? (t.entry_fee_cents / 100).toFixed(2) : '');
         })
@@ -372,6 +374,24 @@ const TournamentCreate: React.FC = () => {
               <input type="tel" name="contact_phone" value={form.contact_phone} onChange={handleChange} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             </div>
           </div>
+        </section>
+
+        {/* Public FAQ */}
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Public FAQ</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            Markdown-formatted answers to common questions (parking, check-in, weather, food).
+            Renders on the public tournament page under an "Info" tab. Use <code className="bg-gray-100 px-1 rounded">## Section</code> for headings,
+            <code className="bg-gray-100 px-1 rounded ml-1">**bold**</code>, and standard markdown bullets/links.
+          </p>
+          <textarea
+            name="faq_markdown"
+            value={form.faq_markdown}
+            onChange={handleChange}
+            rows={10}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"
+            placeholder={'## Check-In\nCheck in 30 minutes before your first match...\n\n## Parking\nFree parking at the main lot...\n\n## Weather Policy\nLightning within 8 miles → 30-minute delay.'}
+          />
         </section>
 
         {/* Actions */}

@@ -244,8 +244,8 @@ try {
                     registration_open_date, registration_close_date,
                     entry_fee_cents, max_teams_per_division,
                     rules_document_url, contact_name, contact_email, contact_phone,
-                    public_url_slug, season_id, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    public_url_slug, season_id, faq_markdown, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -273,6 +273,7 @@ try {
                 $data['contact_phone'] ?? null,
                 $data['public_url_slug'] ?? null,
                 nullIfEmpty($data['season_id'] ?? null),
+                $data['faq_markdown'] ?? null,
                 $userId,
             ]);
 
@@ -340,7 +341,7 @@ try {
                 'registration_open_date', 'registration_close_date',
                 'entry_fee_cents', 'max_teams_per_division',
                 'rules_document_url', 'contact_name', 'contact_email', 'contact_phone',
-                'public_url_slug', 'season_id',
+                'public_url_slug', 'season_id', 'faq_markdown',
             ];
 
             // Fields stored as DATE / TIMESTAMP / TIME / nullable INT — empty
