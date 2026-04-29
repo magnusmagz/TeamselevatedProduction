@@ -330,7 +330,7 @@ class MergeFieldService {
         $stmt = $this->pdo->prepare("
             SELECT id, name, start_date, end_date,
                    location_name, location_city, location_state,
-                   public_url_slug, club_profile_id
+                   public_url_slug
             FROM tournaments
             WHERE id = ?
         ");
