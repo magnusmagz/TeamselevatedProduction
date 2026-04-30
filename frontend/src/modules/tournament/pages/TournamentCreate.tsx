@@ -37,6 +37,11 @@ const EMPTY_FORM: TournamentFormData = {
   season_id: null,
   rules_document_url: '',
   faq_markdown: '',
+  insurance_certificate_url: '',
+  insurance_certificate_filename: '',
+  insurance_expiry_date: '',
+  insurance_policy_number: '',
+  insurance_provider: '',
 };
 
 const TournamentCreate: React.FC = () => {
@@ -81,6 +86,11 @@ const TournamentCreate: React.FC = () => {
             season_id: t.season_id,
             rules_document_url: t.rules_document_url || '',
             faq_markdown: t.faq_markdown || '',
+            insurance_certificate_url: t.insurance_certificate_url || '',
+            insurance_certificate_filename: t.insurance_certificate_filename || '',
+            insurance_expiry_date: t.insurance_expiry_date || '',
+            insurance_policy_number: t.insurance_policy_number || '',
+            insurance_provider: t.insurance_provider || '',
           });
           setEntryFeeDisplay(t.entry_fee_cents ? (t.entry_fee_cents / 100).toFixed(2) : '');
         })
@@ -144,29 +154,36 @@ const TournamentCreate: React.FC = () => {
 
   if (loading) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center text-gray-500">Loading...</div>
       </main>
     );
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           {isEdit ? 'Edit Tournament' : 'Create Tournament'}
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {errors.submit && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm">
             {errors.submit}
           </div>
         )}
 
+        {/*
+          Two-column grid on lg+. Sections that benefit from the full width
+          (Description, FAQ) get lg:col-span-2 explicitly. Default flow keeps
+          shorter sections paired side-by-side.
+        */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
         {/* Basic Info */}
-        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
 
           <div>
@@ -357,7 +374,7 @@ const TournamentCreate: React.FC = () => {
         </section>
 
         {/* Contact */}
-        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
 
           <div className="grid grid-cols-3 gap-4">
@@ -376,8 +393,108 @@ const TournamentCreate: React.FC = () => {
           </div>
         </section>
 
+        {/* Insurance Certificate */}
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
+          <h2 className="text-lg font-semibold text-gray-900">Insurance Certificate</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            Required by most governing bodies (USYS / US Club / AYSO). Upload the certificate, set the expiry, and record the policy number / provider for compliance reference.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Certificate file</label>
+              {form.insurance_certificate_url ? (
+                <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+                  <span className="text-sm text-gray-700 truncate flex-1">
+                    📄 {form.insurance_certificate_filename || 'Insurance certificate'}
+                  </span>
+                  <a
+                    href={form.insurance_certificate_url.startsWith('http') ? form.insurance_certificate_url : `${process.env.REACT_APP_API_URL || ''}${form.insurance_certificate_url}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-brand-primary hover:underline"
+                  >View</a>
+                  <button type="button" onClick={() => setForm((p) => ({ ...p, insurance_certificate_url: '', insurance_certificate_filename: '' }))}
+                    className="text-xs text-red-600 hover:underline">Remove</button>
+                </div>
+              ) : (
+                <label className="block border-2 border-dashed border-gray-300 rounded-md p-3 text-center cursor-pointer hover:border-brand-primary text-sm text-gray-500">
+                  📎 Click to upload PDF or image
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const token = localStorage.getItem('auth_token');
+                      const fd = new FormData();
+                      fd.append('file', file);
+                      fd.append('type', 'tournament-insurance');
+                      try {
+                        const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8889'}/api/upload.php`, {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}` },
+                          body: fd,
+                        });
+                        if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Upload failed'); }
+                        const data = await res.json();
+                        const url = data.url || data.path || '';
+                        setForm((p) => ({
+                          ...p,
+                          insurance_certificate_url: url,
+                          insurance_certificate_filename: file.name,
+                        }));
+                      } catch (err: any) {
+                        setErrors((prev) => ({ ...prev, insurance_certificate_url: err.message || 'Upload failed' }));
+                      }
+                    }}
+                  />
+                </label>
+              )}
+              {errors.insurance_certificate_url && (
+                <p className="text-red-500 text-xs mt-1">{errors.insurance_certificate_url}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expires</label>
+              <input
+                type="date"
+                name="insurance_expiry_date"
+                value={form.insurance_expiry_date}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Policy number</label>
+              <input
+                type="text"
+                name="insurance_policy_number"
+                value={form.insurance_policy_number}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                placeholder="e.g., POL-2026-44210"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+              <input
+                type="text"
+                name="insurance_provider"
+                value={form.insurance_provider}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                placeholder="e.g., Sadler Sports Insurance"
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Public FAQ */}
-        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900">Public FAQ</h2>
           <p className="text-xs text-gray-500 -mt-2">
             Markdown-formatted answers to common questions (parking, check-in, weather, food).
@@ -393,6 +510,9 @@ const TournamentCreate: React.FC = () => {
             placeholder={'## Check-In\nCheck in 30 minutes before your first match...\n\n## Parking\nFree parking at the main lot...\n\n## Weather Policy\nLightning within 8 miles → 30-minute delay.'}
           />
         </section>
+
+        </div>
+        {/* /grid */}
 
         {/* Actions */}
         <div className="flex justify-end space-x-3">

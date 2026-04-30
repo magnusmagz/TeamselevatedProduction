@@ -244,8 +244,11 @@ try {
                     registration_open_date, registration_close_date,
                     entry_fee_cents, max_teams_per_division,
                     rules_document_url, contact_name, contact_email, contact_phone,
-                    public_url_slug, season_id, faq_markdown, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    public_url_slug, season_id, faq_markdown,
+                    insurance_certificate_url, insurance_certificate_filename,
+                    insurance_expiry_date, insurance_policy_number, insurance_provider,
+                    created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -274,6 +277,11 @@ try {
                 $data['public_url_slug'] ?? null,
                 nullIfEmpty($data['season_id'] ?? null),
                 $data['faq_markdown'] ?? null,
+                $data['insurance_certificate_url'] ?? null,
+                $data['insurance_certificate_filename'] ?? null,
+                nullIfEmpty($data['insurance_expiry_date'] ?? null),
+                $data['insurance_policy_number'] ?? null,
+                $data['insurance_provider'] ?? null,
                 $userId,
             ]);
 
@@ -342,6 +350,8 @@ try {
                 'entry_fee_cents', 'max_teams_per_division',
                 'rules_document_url', 'contact_name', 'contact_email', 'contact_phone',
                 'public_url_slug', 'season_id', 'faq_markdown',
+                'insurance_certificate_url', 'insurance_certificate_filename',
+                'insurance_expiry_date', 'insurance_policy_number', 'insurance_provider',
             ];
 
             // Fields stored as DATE / TIMESTAMP / TIME / nullable INT — empty
@@ -352,6 +362,7 @@ try {
                 'registration_open_date', 'registration_close_date',
                 'daily_start_time', 'daily_end_time',
                 'venue_id', 'season_id', 'max_teams_per_division', 'entry_fee_cents',
+                'insurance_expiry_date',
             ];
 
             $setClauses = [];

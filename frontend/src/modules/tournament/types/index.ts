@@ -59,6 +59,11 @@ export interface Tournament {
   public_url_slug: string | null;
   season_id: number | null;
   faq_markdown: string | null;
+  insurance_certificate_url: string | null;
+  insurance_certificate_filename: string | null;
+  insurance_expiry_date: string | null;       // ISO date 'YYYY-MM-DD'
+  insurance_policy_number: string | null;
+  insurance_provider: string | null;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -216,6 +221,11 @@ export interface TournamentFormData {
   season_id: number | null;
   rules_document_url: string;
   faq_markdown: string;
+  insurance_certificate_url: string;
+  insurance_certificate_filename: string;
+  insurance_expiry_date: string;
+  insurance_policy_number: string;
+  insurance_provider: string;
 }
 
 export interface VenueSummary {

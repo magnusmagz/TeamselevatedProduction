@@ -309,6 +309,65 @@ const TournamentDetail: React.FC = () => {
             </dl>
           </div>
 
+          {/* Insurance */}
+          {(tournament.insurance_certificate_url || tournament.insurance_expiry_date || tournament.insurance_policy_number || tournament.insurance_provider) && (() => {
+            const expiry = tournament.insurance_expiry_date ? new Date(tournament.insurance_expiry_date + 'T00:00:00') : null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const daysUntilExpiry = expiry ? Math.floor((expiry.getTime() - today.getTime()) / 86_400_000) : null;
+            let chip: { label: string; cls: string } | null = null;
+            if (daysUntilExpiry !== null) {
+              if (daysUntilExpiry < 0) chip = { label: `Expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) === 1 ? '' : 's'} ago`, cls: 'bg-red-100 text-red-700' };
+              else if (daysUntilExpiry <= 30) chip = { label: `Expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`, cls: 'bg-amber-100 text-amber-700' };
+              else chip = { label: 'Active', cls: 'bg-green-100 text-green-700' };
+            }
+            return (
+              <div className="bg-white border border-gray-200 rounded-lg p-6 md:col-span-2">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Insurance Certificate</h3>
+                  {chip && (
+                    <span className={`text-xs font-medium px-2 py-1 rounded ${chip.cls}`}>{chip.label}</span>
+                  )}
+                </div>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  {tournament.insurance_certificate_url && (
+                    <div>
+                      <dt className="text-gray-500">Certificate</dt>
+                      <dd className="mt-1">
+                        <a
+                          href={tournament.insurance_certificate_url.startsWith('http') ? tournament.insurance_certificate_url : `${process.env.REACT_APP_API_URL || ''}${tournament.insurance_certificate_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-primary hover:underline"
+                        >
+                          📄 {tournament.insurance_certificate_filename || 'View certificate'}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {tournament.insurance_expiry_date && (
+                    <div>
+                      <dt className="text-gray-500">Expires</dt>
+                      <dd className="text-gray-900 mt-1">{formatDate(tournament.insurance_expiry_date)}</dd>
+                    </div>
+                  )}
+                  {tournament.insurance_policy_number && (
+                    <div>
+                      <dt className="text-gray-500">Policy number</dt>
+                      <dd className="text-gray-900 mt-1">{tournament.insurance_policy_number}</dd>
+                    </div>
+                  )}
+                  {tournament.insurance_provider && (
+                    <div>
+                      <dt className="text-gray-500">Provider</dt>
+                      <dd className="text-gray-900 mt-1">{tournament.insurance_provider}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            );
+          })()}
+
           {/* Divisions summary */}
           <div className="bg-white border border-gray-200 rounded-lg p-6 md:col-span-2">
             <div className="flex justify-between items-center mb-4">

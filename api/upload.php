@@ -63,22 +63,24 @@ $finfo = finfo_open(FILEINFO_MIME_TYPE);
 $mimeType = finfo_file($finfo, $file['tmp_name']);
 finfo_close($finfo);
 
-// Allow document types for club-documents uploads
-if ($type === 'club-documents') {
+// Allow document types for upload categories that may include PDFs / office docs
+$documentTypeWhitelist = ['club-documents', 'tournament-insurance', 'tournament-rules'];
+$allowsDocuments = in_array($type, $documentTypeWhitelist, true);
+if ($allowsDocuments) {
     $allowedTypes = array_merge($imageTypes, $documentTypes);
 } else {
     $allowedTypes = $imageTypes;
 }
 
 if (!in_array($mimeType, $allowedTypes)) {
-    $label = $type === 'club-documents' ? 'images, PDFs, and office documents' : 'images';
+    $label = $allowsDocuments ? 'images, PDFs, and office documents' : 'images';
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => "Invalid file type. Only $label are allowed."]);
     exit;
 }
 
 // Validate file size (max 10MB for documents, 5MB for images)
-$maxSize = $type === 'club-documents' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+$maxSize = $allowsDocuments ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
 if ($file['size'] > $maxSize) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'File size exceeds 5MB limit']);
