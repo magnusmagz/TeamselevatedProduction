@@ -10,7 +10,6 @@ import GroupManager from '../components/GroupManager';
 import ScheduleManager from '../components/ScheduleManager';
 import StandingsTable from '../components/StandingsTable';
 import BracketView from '../components/BracketView';
-import ScoreEntry from '../components/ScoreEntry';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 

@@ -156,6 +156,10 @@ export interface TournamentMatch {
   winner_registration_id: number | null;
   group_name?: string;
   notes: string | null;
+  // Match Center referee-report fields (migration 023)
+  field_conditions?: string | null;
+  incident_report?: string | null;
+  match_card_photo_url?: string | null;
   scored_by: number | null;
   scored_at: string | null;
   created_at: string;

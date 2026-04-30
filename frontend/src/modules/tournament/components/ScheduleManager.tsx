@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentMatch, TournamentDivision } from '../types';
+import MatchCenterModal from './MatchCenterModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -17,6 +18,7 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -84,36 +86,57 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
             <div key={groupName}>
               <h5 className="text-sm font-medium text-gray-600 mb-2">{groupName}</h5>
               <div className="space-y-2">
-                {groupMatches.map((match) => (
-                  <div key={match.id} className="bg-white border border-gray-200 rounded-md p-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <span className="text-xs text-gray-400 w-8">#{match.match_number}</span>
-                      <span className="text-sm font-medium text-gray-900 w-40 text-right truncate">
-                        {match.home_team_name || match.home_placeholder || 'TBD'}
-                      </span>
-                      <div className="text-center w-20">
-                        {match.status === 'completed' ? (
-                          <span className="text-lg font-bold text-gray-900">
-                            {match.home_score} – {match.away_score}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">vs</span>
+                {groupMatches.map((match) => {
+                  const canScore = isAdmin && match.home_registration_id && match.away_registration_id;
+                  return (
+                    <div
+                      key={match.id}
+                      onClick={canScore ? () => setOpenMatch(match) : undefined}
+                      className={`bg-white border border-gray-200 rounded-md p-3 flex items-center justify-between ${canScore ? 'cursor-pointer hover:border-brand-primary hover:bg-gray-50' : ''}`}
+                    >
+                      <div className="flex items-center space-x-4">
+                        <span className="text-xs text-gray-400 w-8">#{match.match_number}</span>
+                        <span className="text-sm font-medium text-gray-900 w-40 text-right truncate">
+                          {match.home_team_name || match.home_placeholder || 'TBD'}
+                        </span>
+                        <div className="text-center w-20">
+                          {match.status === 'completed' ? (
+                            <span className="text-lg font-bold text-gray-900">
+                              {match.home_score} – {match.away_score}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">vs</span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 w-40 truncate">
+                          {match.away_team_name || match.away_placeholder || 'TBD'}
+                        </span>
+                      </div>
+                      <div className="text-right text-xs text-gray-500 space-y-0.5">
+                        <div>{formatTime(match.scheduled_time)}</div>
+                        {match.field_name && <div>{match.field_name}</div>}
+                        {canScore && (
+                          <div className="text-brand-primary font-medium">
+                            {match.status === 'completed' ? 'Edit / Report' : 'Open Match Center'}
+                          </div>
                         )}
                       </div>
-                      <span className="text-sm font-medium text-gray-900 w-40 truncate">
-                        {match.away_team_name || match.away_placeholder || 'TBD'}
-                      </span>
                     </div>
-                    <div className="text-right text-xs text-gray-500 space-y-0.5">
-                      <div>{formatTime(match.scheduled_time)}</div>
-                      {match.field_name && <div>{match.field_name}</div>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {openMatch && (
+        <MatchCenterModal
+          match={openMatch}
+          isKnockout={false}
+          onClose={() => setOpenMatch(null)}
+          onSaved={() => { setOpenMatch(null); fetchMatches(); }}
+        />
       )}
     </div>
   );

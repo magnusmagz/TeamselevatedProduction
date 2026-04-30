@@ -1449,8 +1449,20 @@ try {
 
             $setClauses = [];
             $params = [];
-            foreach (['field_id', 'scheduled_time', 'scheduled_end_time', 'notes'] as $f) {
-                if (array_key_exists($f, $data)) { $setClauses[] = "$f = ?"; $params[] = $data[$f]; }
+            // Whitelist: scheduling fields + Match Center referee-report fields.
+            // Optional text fields preserve empty strings as valid clears
+            // ("the conditions textarea is now empty"); date/FK fields get
+            // nullIfEmpty so blank inputs become NULL not ''.
+            foreach ([
+                'field_id', 'scheduled_time', 'scheduled_end_time',
+                'notes', 'field_conditions', 'incident_report', 'match_card_photo_url',
+            ] as $f) {
+                if (array_key_exists($f, $data)) {
+                    $setClauses[] = "$f = ?";
+                    $params[] = in_array($f, ['field_id', 'scheduled_time', 'scheduled_end_time'], true)
+                        ? nullIfEmpty($data[$f])
+                        : $data[$f];
+                }
             }
             if (empty($setClauses)) { http_response_code(400); echo json_encode(['error' => 'No fields to update']); exit(); }
 
@@ -1707,6 +1719,110 @@ try {
                 ],
                 'advanced_to_match_ids' => $advancedTo,
             ]);
+            break;
+
+        // ============================================
+        // MATCH EVENTS — yellow/red cards, goals, etc.
+        // ============================================
+
+        case 'match-events-list':
+            // GET ?action=match-events-list&match_id={id}
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $matchId = $_GET['match_id'] ?? null;
+            if (!$matchId) { http_response_code(400); echo json_encode(['error' => 'match_id is required']); exit(); }
+
+            $stmt = $db->prepare("
+                SELECT e.id, e.match_id, e.registration_id, e.event_type, e.minute,
+                       e.athlete_id, e.details, e.created_at,
+                       COALESCE(NULLIF(r.team_name_override, ''), t.name) AS team_name,
+                       COALESCE(a.first_name || ' ' || a.last_name, '') AS athlete_name,
+                       COALESCE(NULLIF(e.details->>'player_name', ''), '') AS free_text_player
+                FROM tournament_match_events e
+                LEFT JOIN tournament_registrations r ON e.registration_id = r.id
+                LEFT JOIN teams t ON r.team_id = t.id
+                LEFT JOIN athletes a ON e.athlete_id = a.id
+                WHERE e.match_id = ?
+                ORDER BY e.minute NULLS LAST, e.id
+            ");
+            $stmt->execute([(int)$matchId]);
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Decode JSONB details for client
+            foreach ($events as &$evt) {
+                if (is_string($evt['details'])) {
+                    $evt['details'] = json_decode($evt['details'], true);
+                }
+            }
+            echo json_encode(['events' => $events]);
+            break;
+
+        case 'match-event-add':
+            // POST ?action=match-event-add&match_id={id}
+            if ($method !== 'POST') { methodNotAllowed(); }
+
+            $matchId = $_GET['match_id'] ?? null;
+            if (!$matchId) { http_response_code(400); echo json_encode(['error' => 'match_id is required']); exit(); }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $validTypes = [
+                'goal','own_goal','penalty_goal','missed_penalty',
+                'yellow_card','red_card','second_yellow',
+                'substitution_in','substitution_out','injury',
+            ];
+            $eventType = $data['event_type'] ?? null;
+            $registrationId = $data['registration_id'] ?? null;
+            if (!$eventType || !in_array($eventType, $validTypes, true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid event_type. Allowed: ' . implode(', ', $validTypes)]);
+                exit();
+            }
+            if (!$registrationId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'registration_id is required (which team committed the event)']);
+                exit();
+            }
+
+            // Free-text player name lives in details.player_name when athlete_id
+            // can't be selected from a roster (e.g., guest team or rapid entry).
+            $details = [];
+            if (!empty($data['player_name'])) {
+                $details['player_name'] = (string)$data['player_name'];
+            }
+            if (!empty($data['notes'])) {
+                $details['notes'] = (string)$data['notes'];
+            }
+
+            $stmt = $db->prepare("
+                INSERT INTO tournament_match_events
+                    (match_id, registration_id, event_type, minute, athlete_id, details, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, CURRENT_TIMESTAMP)
+                RETURNING id
+            ");
+            $stmt->execute([
+                (int)$matchId,
+                (int)$registrationId,
+                $eventType,
+                nullIfEmpty($data['minute'] ?? null),
+                nullIfEmpty($data['athlete_id'] ?? null),
+                empty($details) ? null : json_encode($details),
+                $userId,
+            ]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            http_response_code(201);
+            echo json_encode(['id' => (int)$row['id']]);
+            break;
+
+        case 'match-event-delete':
+            // DELETE ?action=match-event-delete&id={eventId}
+            if ($method !== 'DELETE') { methodNotAllowed(); }
+
+            $eventId = $_GET['id'] ?? null;
+            if (!$eventId) { http_response_code(400); echo json_encode(['error' => 'id is required']); exit(); }
+
+            $stmt = $db->prepare("DELETE FROM tournament_match_events WHERE id = ?");
+            $stmt->execute([(int)$eventId]);
+            echo json_encode(['success' => true, 'deleted' => $stmt->rowCount()]);
             break;
 
         case 'slot-group-winners':

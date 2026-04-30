@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentMatch } from '../types';
-import ScoreEntry from './ScoreEntry';
+import MatchCenterModal from './MatchCenterModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -13,7 +13,7 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [scoringMatchId, setScoringMatchId] = useState<number | null>(null);
+  const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -137,17 +137,13 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
                         )}
                       </div>
 
-                      {/* Score entry */}
-                      {match.status === 'scheduled' && match.home_registration_id && match.away_registration_id && isAdmin && (
+                      {/* Match Center */}
+                      {match.home_registration_id && match.away_registration_id && isAdmin && (
                         <div className="mt-2 pt-2 border-t border-gray-100">
-                          {scoringMatchId === match.id ? (
-                            <ScoreEntry match={match} isKnockout onScored={() => { setScoringMatchId(null); fetchMatches(); }} />
-                          ) : (
-                            <button onClick={() => setScoringMatchId(match.id)}
-                              className="text-xs text-brand-primary hover:underline">
-                              Enter Score
-                            </button>
-                          )}
+                          <button onClick={() => setOpenMatch(match)}
+                            className="text-xs text-brand-primary hover:underline">
+                            {match.status === 'completed' ? 'Edit / Report' : 'Open Match Center'}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -156,6 +152,15 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
               </div>
             ))}
         </div>
+      )}
+
+      {openMatch && (
+        <MatchCenterModal
+          match={openMatch}
+          isKnockout
+          onClose={() => setOpenMatch(null)}
+          onSaved={() => { setOpenMatch(null); fetchMatches(); }}
+        />
       )}
     </div>
   );
