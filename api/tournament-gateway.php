@@ -1825,6 +1825,109 @@ try {
             echo json_encode(['success' => true, 'deleted' => $stmt->rowCount()]);
             break;
 
+        case 'tournament-disciplinary-list':
+            // GET ?action=tournament-disciplinary-list&tournament_id={id}
+            // Returns all yellow/red/second-yellow events across the tournament
+            // plus a per-player accumulation summary so directors can see who
+            // is approaching or has crossed the suspension threshold.
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $tournamentId = $_GET['tournament_id'] ?? null;
+            if (!$tournamentId) { http_response_code(400); echo json_encode(['error' => 'tournament_id is required']); exit(); }
+
+            verifyTournamentAccess($db, $auth, (int)$tournamentId);
+
+            $stmt = $db->prepare("
+                SELECT e.id, e.match_id, e.registration_id, e.event_type, e.minute, e.athlete_id,
+                       e.details, e.created_at,
+                       m.match_number, m.round,
+                       d.id   AS division_id,
+                       d.name AS division_name,
+                       d.age_group,
+                       COALESCE(NULLIF(r.team_name_override, ''), t.name) AS team_name,
+                       COALESCE(a.first_name || ' ' || a.last_name, '')   AS athlete_name,
+                       COALESCE(NULLIF(rh.team_name_override, ''), th.name, m.home_placeholder, '') AS home_team,
+                       COALESCE(NULLIF(ra.team_name_override, ''), ta.name, m.away_placeholder, '') AS away_team
+                FROM tournament_match_events e
+                JOIN tournament_matches m ON e.match_id = m.id
+                JOIN tournament_divisions d ON m.division_id = d.id
+                LEFT JOIN tournament_registrations r  ON e.registration_id = r.id
+                LEFT JOIN teams t   ON r.team_id = t.id
+                LEFT JOIN athletes a ON e.athlete_id = a.id
+                LEFT JOIN tournament_registrations rh ON m.home_registration_id = rh.id
+                LEFT JOIN teams th ON rh.team_id = th.id
+                LEFT JOIN tournament_registrations ra ON m.away_registration_id = ra.id
+                LEFT JOIN teams ta ON ra.team_id = ta.id
+                WHERE d.tournament_id = ?
+                  AND e.event_type IN ('yellow_card', 'red_card', 'second_yellow')
+                ORDER BY e.created_at DESC, e.id DESC
+            ");
+            $stmt->execute([(int)$tournamentId]);
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Decode JSONB details + extract player_name fallback
+            foreach ($events as &$evt) {
+                if (is_string($evt['details'])) {
+                    $evt['details'] = json_decode($evt['details'], true);
+                }
+                $evt['player_label'] = $evt['athlete_name'] !== ''
+                    ? $evt['athlete_name']
+                    : ($evt['details']['player_name'] ?? 'Unknown player');
+            }
+            unset($evt);
+
+            // Per-player accumulation summary keyed by (team_name, player_label)
+            // Suspension thresholds (per spec): 2 yellow_card → 1 match suspension,
+            // any red_card → 1+ match suspension. We compute the boolean flag here
+            // so the UI can simply render an "auto-suspended" badge without
+            // re-running the math.
+            $accumulation = [];
+            foreach ($events as $evt) {
+                $key = ($evt['team_name'] ?? '?') . '||' . $evt['player_label'];
+                if (!isset($accumulation[$key])) {
+                    $accumulation[$key] = [
+                        'team_name'        => $evt['team_name'] ?? '?',
+                        'division_name'    => $evt['division_name'],
+                        'player_label'     => $evt['player_label'],
+                        'yellow_count'     => 0,
+                        'red_count'        => 0,
+                        'second_yellow_count' => 0,
+                    ];
+                }
+                if ($evt['event_type'] === 'yellow_card')   $accumulation[$key]['yellow_count']++;
+                if ($evt['event_type'] === 'red_card')      $accumulation[$key]['red_count']++;
+                if ($evt['event_type'] === 'second_yellow') $accumulation[$key]['second_yellow_count']++;
+            }
+            // Flatten + flag suspension status
+            $accumulationList = array_values(array_map(function ($entry) {
+                $entry['suspended'] = ($entry['yellow_count'] >= 2)
+                                   || ($entry['red_count'] >= 1)
+                                   || ($entry['second_yellow_count'] >= 1);
+                return $entry;
+            }, $accumulation));
+
+            // Sort suspended-first, then by yellow_count desc
+            usort($accumulationList, function ($a, $b) {
+                if ($a['suspended'] !== $b['suspended']) {
+                    return $b['suspended'] <=> $a['suspended'];
+                }
+                return ($b['yellow_count'] + $b['red_count'] + $b['second_yellow_count'])
+                     - ($a['yellow_count'] + $a['red_count'] + $a['second_yellow_count']);
+            });
+
+            echo json_encode([
+                'events'       => $events,
+                'accumulation' => $accumulationList,
+                'totals' => [
+                    'cards'            => count($events),
+                    'yellows'          => count(array_filter($events, fn($e) => $e['event_type'] === 'yellow_card')),
+                    'reds'             => count(array_filter($events, fn($e) => $e['event_type'] === 'red_card')),
+                    'second_yellows'   => count(array_filter($events, fn($e) => $e['event_type'] === 'second_yellow')),
+                    'suspended_players'=> count(array_filter($accumulationList, fn($p) => $p['suspended'])),
+                ],
+            ]);
+            break;
+
         case 'slot-group-winners':
             // POST ?action=slot-group-winners&division_id={id}
             if ($method !== 'POST') { methodNotAllowed(); }

@@ -10,6 +10,7 @@ import GroupManager from '../components/GroupManager';
 import ScheduleManager from '../components/ScheduleManager';
 import StandingsTable from '../components/StandingsTable';
 import BracketView from '../components/BracketView';
+import DisciplinaryView from '../components/DisciplinaryView';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -143,6 +144,7 @@ const TournamentDetail: React.FC = () => {
     { key: 'schedule', label: 'Schedule' },
     { key: 'standings', label: 'Standings' },
     ...(hasKnockout ? [{ key: 'bracket', label: 'Bracket' }] : []),
+    { key: 'disciplinary', label: 'Disciplinary' },
   ];
 
   return (
@@ -400,6 +402,14 @@ const TournamentDetail: React.FC = () => {
               <BracketView key={div.id} divisionId={div.id} isAdmin={isAdmin} />
             ))}
         </div>
+      )}
+
+      {activeTab === 'disciplinary' && tournament.divisions && (
+        <DisciplinaryView
+          tournamentId={tournament.id}
+          divisions={tournament.divisions.map((d) => ({ id: d.id, name: d.name }))}
+          isAdmin={isAdmin}
+        />
       )}
     </main>
   );
