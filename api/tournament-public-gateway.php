@@ -209,6 +209,122 @@ try {
             ]);
             break;
 
+        case 'public-live-scoreboard':
+            // GET ?action=public-live-scoreboard&slug={slug}
+            // Returns matches grouped by field, each field tagged with:
+            //   - live:    in-progress now (NOW within scheduled_time..scheduled_end_time AND status='scheduled')
+            //   - upcoming: next scheduled match on that field after NOW
+            //   - recent:  last completed match on that field
+            // Fields with zero matches across the whole tournament are excluded.
+            $slug = $_GET['slug'] ?? '';
+            if (!$slug) { http_response_code(400); echo json_encode(['error' => 'slug required']); exit(); }
+
+            $placeholders = implode(',', array_fill(0, count($publicStatuses), '?'));
+            $tStmt = $db->prepare("
+                SELECT t.id, t.name, t.start_date, t.end_date, t.status,
+                       cp.name AS club_name, cp.logo_url AS club_logo_url,
+                       cp.primary_color
+                FROM tournaments t
+                JOIN club_profile cp ON cp.id = t.club_id
+                WHERE t.public_url_slug = ? AND t.status IN ($placeholders)
+            ");
+            $tStmt->execute(array_merge([$slug], $publicStatuses));
+            $tournament = $tStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$tournament) { http_response_code(404); echo json_encode(['error' => 'Tournament not found']); exit(); }
+
+            // All non-placeholder matches with a field assigned
+            $stmt = $db->prepare("
+                SELECT m.id, m.match_number, m.round, m.status,
+                       m.scheduled_time, m.scheduled_end_time,
+                       m.home_score, m.away_score,
+                       m.home_penalty_score, m.away_penalty_score,
+                       m.scored_at,
+                       f.id   AS field_id,
+                       f.name AS field_name,
+                       d.name AS division_name,
+                       g.name AS group_name,
+                       COALESCE(NULLIF(rh.team_name_override, ''), th.name, m.home_placeholder, 'TBD') AS home_team,
+                       COALESCE(NULLIF(ra.team_name_override, ''), ta.name, m.away_placeholder, 'TBD') AS away_team
+                FROM tournament_matches m
+                JOIN tournament_divisions d ON m.division_id = d.id
+                JOIN fields f ON m.field_id = f.id
+                LEFT JOIN tournament_groups g ON m.group_id = g.id
+                LEFT JOIN tournament_registrations rh ON m.home_registration_id = rh.id
+                LEFT JOIN teams th ON rh.team_id = th.id
+                LEFT JOIN tournament_registrations ra ON m.away_registration_id = ra.id
+                LEFT JOIN teams ta ON ra.team_id = ta.id
+                WHERE d.tournament_id = ?
+                ORDER BY f.name, m.scheduled_time
+            ");
+            $stmt->execute([(int)$tournament['id']]);
+            $allMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Group by field, derive live/upcoming/recent
+            $now = time();
+            $byField = [];
+            foreach ($allMatches as $m) {
+                $fid = $m['field_id'];
+                if (!isset($byField[$fid])) {
+                    $byField[$fid] = [
+                        'field_id'   => (int)$fid,
+                        'field_name' => $m['field_name'],
+                        'live'       => null,
+                        'upcoming'   => null,
+                        'recent'     => null,
+                    ];
+                }
+
+                $startTs = $m['scheduled_time']     ? strtotime($m['scheduled_time'])     : null;
+                $endTs   = $m['scheduled_end_time'] ? strtotime($m['scheduled_end_time']) : null;
+
+                $isLive = $m['status'] === 'scheduled'
+                       && $startTs !== null && $endTs !== null
+                       && $startTs <= $now && $now <= $endTs;
+                $isCompleted = $m['status'] === 'completed';
+                $isUpcoming = $m['status'] === 'scheduled' && $startTs !== null && $startTs > $now;
+
+                if ($isLive && !$byField[$fid]['live']) {
+                    $byField[$fid]['live'] = $m;
+                }
+                if ($isUpcoming && (!$byField[$fid]['upcoming']
+                    || strtotime($m['scheduled_time']) < strtotime($byField[$fid]['upcoming']['scheduled_time']))) {
+                    $byField[$fid]['upcoming'] = $m;
+                }
+                if ($isCompleted && (!$byField[$fid]['recent']
+                    || ($m['scored_at'] && (!$byField[$fid]['recent']['scored_at']
+                        || strtotime($m['scored_at']) > strtotime($byField[$fid]['recent']['scored_at']))))) {
+                    $byField[$fid]['recent'] = $m;
+                }
+            }
+
+            // Drop fields with no representative match in any of the three slots
+            $fields = array_values(array_filter($byField, function ($f) {
+                return $f['live'] || $f['upcoming'] || $f['recent'];
+            }));
+
+            // Sort fields: live first, then by name
+            usort($fields, function ($a, $b) {
+                $aLive = $a['live'] ? 0 : 1;
+                $bLive = $b['live'] ? 0 : 1;
+                if ($aLive !== $bLive) return $aLive - $bLive;
+                return strnatcmp($a['field_name'], $b['field_name']);
+            });
+
+            echo json_encode([
+                'tournament' => [
+                    'id'              => (int)$tournament['id'],
+                    'name'            => $tournament['name'],
+                    'start_date'      => $tournament['start_date'],
+                    'end_date'        => $tournament['end_date'],
+                    'club_name'       => $tournament['club_name'],
+                    'club_logo_url'   => $tournament['club_logo_url'],
+                    'primary_color'   => $tournament['primary_color'],
+                ],
+                'server_time' => date('c', $now),
+                'fields'      => $fields,
+            ]);
+            break;
+
         case 'public-bracket':
             // GET ?action=public-bracket&division_id={id}
             $divisionId = $_GET['division_id'] ?? null;

@@ -244,27 +244,33 @@ const PublicTournament: React.FC = () => {
                 <span className="capitalize text-gray-500">{tournament.sport}</span>
               </div>
 
-              {/* Contact + rules row */}
-              {(tournament.contact_name || tournament.contact_email || tournament.contact_phone || tournament.rules_document_url) && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
-                  {tournament.contact_name && <span>Contact: <span className="text-gray-700 font-medium">{tournament.contact_name}</span></span>}
-                  {tournament.contact_email && (
-                    <a href={`mailto:${tournament.contact_email}`} className="hover:underline" style={{ color: brandColor }}>
-                      ✉ {tournament.contact_email}
-                    </a>
-                  )}
-                  {tournament.contact_phone && (
-                    <a href={`tel:${tournament.contact_phone}`} className="hover:underline" style={{ color: brandColor }}>
-                      ☎ {tournament.contact_phone}
-                    </a>
-                  )}
-                  {tournament.rules_document_url && (
-                    <a href={tournament.rules_document_url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: brandColor }}>
-                      📄 Rules & policies
-                    </a>
-                  )}
-                </div>
-              )}
+              {/* Contact + rules + live row */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
+                <a
+                  href={`/tournament/${slug}/live`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold text-white"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  Live Scoreboard
+                </a>
+                {tournament.contact_name && <span>Contact: <span className="text-gray-700 font-medium">{tournament.contact_name}</span></span>}
+                {tournament.contact_email && (
+                  <a href={`mailto:${tournament.contact_email}`} className="hover:underline" style={{ color: brandColor }}>
+                    ✉ {tournament.contact_email}
+                  </a>
+                )}
+                {tournament.contact_phone && (
+                  <a href={`tel:${tournament.contact_phone}`} className="hover:underline" style={{ color: brandColor }}>
+                    ☎ {tournament.contact_phone}
+                  </a>
+                )}
+                {tournament.rules_document_url && (
+                  <a href={tournament.rules_document_url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: brandColor }}>
+                    📄 Rules & policies
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>

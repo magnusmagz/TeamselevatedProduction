@@ -72,6 +72,7 @@ import TournamentList from './modules/tournament/pages/TournamentList';
 import TournamentCreate from './modules/tournament/pages/TournamentCreate';
 import TournamentDetail from './modules/tournament/pages/TournamentDetail';
 import PublicTournament from './modules/tournament/pages/PublicTournament';
+import PublicLiveScoreboard from './modules/tournament/pages/PublicLiveScoreboard';
 // Player Cards
 import PlayerCards from './pages/PlayerCards';
 // Communications & Email
@@ -699,6 +700,7 @@ function AppContent() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/tournament/:slug" element={<PublicTournament />} />
+          <Route path="/tournament/:slug/live" element={<PublicLiveScoreboard />} />
           <Route path="/consent/confirm" element={<ConsentConfirm />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
