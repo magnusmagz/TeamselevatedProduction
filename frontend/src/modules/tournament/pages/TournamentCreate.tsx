@@ -4,6 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { TournamentFormData } from '../types';
 import { createTournament, getTournament, updateTournament } from '../api/tournamentApi';
 import VenuePicker from '../components/VenuePicker';
+import MarkdownEditor from '../components/MarkdownEditor';
 
 function generateSlug(name: string): string {
   return name
@@ -497,17 +498,13 @@ const TournamentCreate: React.FC = () => {
         <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900">Public FAQ</h2>
           <p className="text-xs text-gray-500 -mt-2">
-            Markdown-formatted answers to common questions (parking, check-in, weather, food).
-            Renders on the public tournament page under an "Info" tab. Use <code className="bg-gray-100 px-1 rounded">## Section</code> for headings,
-            <code className="bg-gray-100 px-1 rounded ml-1">**bold**</code>, and standard markdown bullets/links.
+            Common questions (parking, check-in, weather, food). Renders on the public tournament page under an "Info" tab.
           </p>
-          <textarea
-            name="faq_markdown"
+          <MarkdownEditor
             value={form.faq_markdown}
-            onChange={handleChange}
-            rows={10}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"
-            placeholder={'## Check-In\nCheck in 30 minutes before your first match...\n\n## Parking\nFree parking at the main lot...\n\n## Weather Policy\nLightning within 8 miles → 30-minute delay.'}
+            onChange={(md) => setForm((prev) => ({ ...prev, faq_markdown: md }))}
+            placeholder="Add sections like Check-In, Parking, Weather Policy..."
+            minHeight={260}
           />
         </section>
 
