@@ -19,11 +19,16 @@ interface Props {
   isAdmin: boolean;
 }
 
+// `null` source = team came from the unassigned pool.
+type DragPayload = { registrationId: number; sourceGroupId: number | null };
+
 const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [unassigned, setUnassigned] = useState<GroupTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [dragging, setDragging] = useState<DragPayload | null>(null);
+  const [hoverTarget, setHoverTarget] = useState<number | 'unassigned' | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -74,16 +79,91 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
     }
   };
 
-  const handleMoveTeam = async (registrationId: number, targetGroupId: number) => {
-    // Get current teams in target group
-    const targetGroup = groups.find(g => g.id === targetGroupId);
-    const currentIds = (targetGroup?.teams || []).map(t => t.registration_id);
+  // Replace a group's roster in one call. group-assign-teams nulls the
+  // group's current members then assigns the provided list — moving a
+  // team's group_id implicitly evicts it from any other group.
+  const writeGroupRoster = async (groupId: number, registrationIds: number[]) => {
+    const res = await fetch(`${API_URL}/api/tournament-gateway.php?action=group-assign-teams&group_id=${groupId}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ registration_ids: registrationIds }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to update group');
+    }
+  };
 
+  // Drop on a target group: append the dragged team to that group's roster.
+  // The backend reassignment removes it from the source automatically.
+  const handleDropOnGroup = async (targetGroupId: number) => {
+    if (!dragging) return;
+    if (dragging.sourceGroupId === targetGroupId) {
+      setDragging(null); setHoverTarget(null);
+      return;
+    }
+    const target = groups.find((g) => g.id === targetGroupId);
+    if (!target) return;
+    const ids = [...target.teams.map((t) => t.registration_id), dragging.registrationId];
     try {
-      await fetch(`${API_URL}/api/tournament-gateway.php?action=group-assign-teams&group_id=${targetGroupId}`, {
-        method: 'PUT', headers,
-        body: JSON.stringify({ registration_ids: [...currentIds, registrationId] }),
-      });
+      await writeGroupRoster(targetGroupId, ids);
+      await fetchGroups();
+    } catch (err: any) {
+      alert(err.message || 'Failed to move team');
+    } finally {
+      setDragging(null);
+      setHoverTarget(null);
+    }
+  };
+
+  // Drop on the unassigned pool: rewrite the source group without the
+  // dragged team. group_id falls to NULL because the backend nulls all
+  // current members of the source group before re-applying the new list.
+  const handleDropOnUnassigned = async () => {
+    if (!dragging || dragging.sourceGroupId === null) {
+      setDragging(null); setHoverTarget(null);
+      return;
+    }
+    const source = groups.find((g) => g.id === dragging.sourceGroupId);
+    if (!source) return;
+    const ids = source.teams
+      .map((t) => t.registration_id)
+      .filter((id) => id !== dragging.registrationId);
+    try {
+      await writeGroupRoster(source.id, ids);
+      await fetchGroups();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove team from group');
+    } finally {
+      setDragging(null);
+      setHoverTarget(null);
+    }
+  };
+
+  const handleDragStart = (registrationId: number, sourceGroupId: number | null) => (e: React.DragEvent) => {
+    setDragging({ registrationId, sourceGroupId });
+    e.dataTransfer.effectAllowed = 'move';
+    // Required by Firefox to actually start the drag.
+    e.dataTransfer.setData('text/plain', String(registrationId));
+  };
+
+  const handleDragOver = (target: number | 'unassigned') => (e: React.DragEvent) => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (hoverTarget !== target) setHoverTarget(target);
+  };
+
+  const handleDragLeave = () => {
+    setHoverTarget(null);
+  };
+
+  // Pre-existing fallback for non-drag flows (e.g., keyboard users who
+  // can't drag): keep the "Move to..." select on unassigned chips.
+  const handleMoveTeamViaSelect = async (registrationId: number, targetGroupId: number) => {
+    const target = groups.find((g) => g.id === targetGroupId);
+    const currentIds = (target?.teams || []).map((t) => t.registration_id);
+    try {
+      await writeGroupRoster(targetGroupId, [...currentIds, registrationId]);
       fetchGroups();
     } catch (err) {
       alert('Failed to move team');
@@ -95,6 +175,35 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
   }
 
   const totalTeams = groups.reduce((sum, g) => sum + (g.teams?.length || 0), 0) + unassigned.length;
+  const isHover = (target: number | 'unassigned') => hoverTarget === target;
+
+  const teamChip = (
+    team: GroupTeam,
+    sourceGroupId: number | null,
+    extraClasses = ''
+  ) => {
+    const isDraggingThis = dragging?.registrationId === team.registration_id;
+    return (
+      <div
+        key={team.registration_id}
+        draggable={isAdmin}
+        onDragStart={handleDragStart(team.registration_id, sourceGroupId)}
+        onDragEnd={() => { setDragging(null); setHoverTarget(null); }}
+        className={`flex items-center justify-between rounded px-3 py-2 select-none ${
+          isAdmin ? 'cursor-grab active:cursor-grabbing' : ''
+        } ${isDraggingThis ? 'opacity-40' : ''} ${extraClasses}`}
+        title={isAdmin ? 'Drag to another group' : undefined}
+      >
+        <div className="flex items-center space-x-2 min-w-0">
+          {isAdmin && (
+            <span className="text-gray-400 text-xs flex-shrink-0" aria-hidden>⋮⋮</span>
+          )}
+          {team.seed && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex-shrink-0">#{team.seed}</span>}
+          <span className="text-sm text-gray-900 truncate">{team.display_name}</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -118,30 +227,62 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
         )}
       </div>
 
+      {isAdmin && groups.length > 0 && (
+        <p className="text-xs text-gray-500 mb-3">
+          Drag teams between groups, or back to the unassigned pool, to rearrange the bracket.
+        </p>
+      )}
+
       {/* Unassigned teams */}
-      {unassigned.length > 0 && (
-        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      {(unassigned.length > 0 || (dragging && dragging.sourceGroupId !== null)) && (
+        <div
+          onDragOver={handleDragOver('unassigned')}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDropOnUnassigned}
+          className={`mb-4 rounded-lg p-4 transition-colors ${
+            isHover('unassigned')
+              ? 'bg-yellow-100 border-2 border-yellow-400 border-dashed'
+              : 'bg-yellow-50 border border-yellow-200'
+          }`}
+        >
           <h4 className="text-sm font-semibold text-yellow-800 mb-2">
             Unassigned Teams ({unassigned.length})
           </h4>
-          <div className="flex flex-wrap gap-2">
-            {unassigned.map((team) => (
-              <div key={team.registration_id} className="inline-flex items-center bg-white border border-yellow-300 rounded-md px-3 py-1.5 text-sm">
-                {team.seed && <span className="text-xs text-gray-400 mr-1.5">#{team.seed}</span>}
-                <span className="text-gray-900">{team.display_name}</span>
-                {isAdmin && groups.length > 0 && (
-                  <select
-                    defaultValue=""
-                    onChange={(e) => e.target.value && handleMoveTeam(team.registration_id, Number(e.target.value))}
-                    className="ml-2 border-0 bg-transparent text-xs text-brand-primary cursor-pointer"
+          {unassigned.length === 0 ? (
+            <p className="text-xs text-yellow-700 italic">Drop here to remove from a group</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {unassigned.map((team) => {
+                const isDraggingThis = dragging?.registrationId === team.registration_id;
+                return (
+                  <div
+                    key={team.registration_id}
+                    draggable={isAdmin}
+                    onDragStart={handleDragStart(team.registration_id, null)}
+                    onDragEnd={() => { setDragging(null); setHoverTarget(null); }}
+                    className={`inline-flex items-center bg-white border border-yellow-300 rounded-md px-3 py-1.5 text-sm select-none ${
+                      isAdmin ? 'cursor-grab active:cursor-grabbing' : ''
+                    } ${isDraggingThis ? 'opacity-40' : ''}`}
+                    title={isAdmin ? 'Drag to a group' : undefined}
                   >
-                    <option value="">Move to...</option>
-                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                )}
-              </div>
-            ))}
-          </div>
+                    {isAdmin && <span className="text-gray-400 text-xs mr-1.5" aria-hidden>⋮⋮</span>}
+                    {team.seed && <span className="text-xs text-gray-400 mr-1.5">#{team.seed}</span>}
+                    <span className="text-gray-900">{team.display_name}</span>
+                    {isAdmin && groups.length > 0 && (
+                      <select
+                        defaultValue=""
+                        onChange={(e) => e.target.value && handleMoveTeamViaSelect(team.registration_id, Number(e.target.value))}
+                        className="ml-2 border-0 bg-transparent text-xs text-brand-primary cursor-pointer"
+                      >
+                        <option value="">Move to...</option>
+                        {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -153,18 +294,27 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {groups.map((group) => (
-            <div key={group.id} className="bg-white border border-gray-200 rounded-lg p-4">
+            <div
+              key={group.id}
+              onDragOver={handleDragOver(group.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={() => handleDropOnGroup(group.id)}
+              className={`bg-white border rounded-lg p-4 transition-colors ${
+                isHover(group.id) ? 'border-brand-primary border-2 bg-brand-primary/5' : 'border-gray-200'
+              }`}
+            >
               <h4 className="font-semibold text-gray-900 mb-3">{group.name}</h4>
               {(!group.teams || group.teams.length === 0) ? (
-                <p className="text-sm text-gray-400 italic">No teams assigned</p>
+                <p className="text-sm text-gray-400 italic">
+                  {dragging ? 'Drop here' : 'No teams assigned'}
+                </p>
               ) : (
                 <div className="space-y-1.5">
                   {group.teams.map((team, idx) => (
-                    <div key={team.registration_id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-400 w-5">{idx + 1}.</span>
-                        {team.seed && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">#{team.seed}</span>}
-                        <span className="text-sm text-gray-900">{team.display_name}</span>
+                    <div key={team.registration_id} className="flex items-center">
+                      <span className="text-xs text-gray-400 w-6 flex-shrink-0">{idx + 1}.</span>
+                      <div className="flex-1">
+                        {teamChip(team, group.id, 'bg-gray-50 hover:bg-gray-100')}
                       </div>
                     </div>
                   ))}

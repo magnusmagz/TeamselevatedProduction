@@ -418,12 +418,20 @@ const TournamentDetail: React.FC = () => {
 
       {activeTab === 'groups' && tournament.divisions && tournament.divisions.length > 0 && (
         <div className="space-y-6">
-          {tournament.divisions.map((div) => (
-            <div key={div.id}>
-              <h3 className="text-md font-semibold text-gray-700 mb-2">{div.name}</h3>
-              <GroupManager divisionId={div.id} isAdmin={isAdmin} />
-            </div>
-          ))}
+          {[...tournament.divisions]
+            .sort((a, b) => {
+              // Numeric age sort so U6 < U8 < U10 < U12 (string sort puts U10 < U6).
+              const ageA = parseInt((a.age_group || '').replace(/[^0-9]/g, ''), 10);
+              const ageB = parseInt((b.age_group || '').replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(ageA) && !isNaN(ageB) && ageA !== ageB) return ageA - ageB;
+              return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+            })
+            .map((div) => (
+              <div key={div.id}>
+                <h3 className="text-md font-semibold text-gray-700 mb-2">{div.name}</h3>
+                <GroupManager divisionId={div.id} isAdmin={isAdmin} />
+              </div>
+            ))}
         </div>
       )}
 
