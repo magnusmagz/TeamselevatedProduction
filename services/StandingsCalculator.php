@@ -36,7 +36,8 @@ class StandingsCalculator {
         // Get division config
         $configStmt = $this->db->prepare("
             SELECT td.points_for_win, td.points_for_draw, td.points_for_loss,
-                   td.goal_differential_cap, td.tiebreaker_rules, td.teams_advancing_per_group
+                   td.goal_differential_cap, td.tiebreaker_rules, td.teams_advancing_per_group,
+                   td.scoring_system
             FROM tournament_groups tg
             JOIN tournament_divisions td ON td.id = tg.division_id
             WHERE tg.id = ?
@@ -49,6 +50,7 @@ class StandingsCalculator {
         $ptsWin = (int)$config['points_for_win'];
         $ptsDraw = (int)$config['points_for_draw'];
         $ptsLoss = (int)$config['points_for_loss'];
+        $scoringSystem = $config['scoring_system'] ?? 'standard';
         $cap = $config['goal_differential_cap'] ? (int)$config['goal_differential_cap'] : null;
         $tiebreakerRules = is_string($config['tiebreaker_rules'])
             ? json_decode($config['tiebreaker_rules'], true)
@@ -106,6 +108,7 @@ class StandingsCalculator {
             $standings[$awayId]['goals_for'] += $cappedAs;
             $standings[$awayId]['goals_against'] += $cappedHs;
 
+            // Win/draw/loss base points
             if ($hs > $as) {
                 $standings[$homeId]['won']++;
                 $standings[$homeId]['points'] += $ptsWin;
@@ -121,6 +124,20 @@ class StandingsCalculator {
                 $standings[$homeId]['points'] += $ptsDraw;
                 $standings[$awayId]['drawn']++;
                 $standings[$awayId]['points'] += $ptsDraw;
+            }
+
+            // 10-point cup-tournament bonuses: +1 per goal scored capped at
+            // 3 (rewards effort without inflating blowouts), +1 for a clean
+            // sheet (any result — a 0-0 tie gets it). Bonuses use the
+            // *uncapped* match score so a goal-diff cap doesn't suppress
+            // bonus points already earned. Max per game = 6+3+1 = 10.
+            if ($scoringSystem === 'ten_point') {
+                $homeGoalBonus = min($hs, 3);
+                $awayGoalBonus = min($as, 3);
+                $homeShutout   = ($as === 0) ? 1 : 0;
+                $awayShutout   = ($hs === 0) ? 1 : 0;
+                $standings[$homeId]['points'] += $homeGoalBonus + $homeShutout;
+                $standings[$awayId]['points'] += $awayGoalBonus + $awayShutout;
             }
         }
 
@@ -232,6 +249,16 @@ class StandingsCalculator {
                         break;
                     case 'head_to_head':
                         $cmp = $this->compareHeadToHead($a['registration_id'], $b['registration_id'], $groupId);
+                        break;
+                    case 'coin_flip':
+                    case 'penalty_shootout':
+                        // Director-resolved tiebreakers: the engine cannot
+                        // know the outcome, so the comparator returns 0 and
+                        // the chain falls through to the next rule (or the
+                        // final original-index sort if exhausted). The
+                        // director records the result by adjusting seeding
+                        // manually. No-op here is intentional.
+                        $cmp = 0;
                         break;
                 }
                 if ($cmp !== 0) return $cmp;

@@ -593,6 +593,17 @@ try {
             $orderStmt->execute([(int)$tournamentId]);
             $nextOrder = (int)$orderStmt->fetch(PDO::FETCH_ASSOC)['next_order'];
 
+            $scoringSystem = ($data['scoring_system'] ?? 'standard') === 'ten_point' ? 'ten_point' : 'standard';
+            // 10-point system has fixed point values; lock them so the
+            // standings calculator can rely on a consistent base.
+            if ($scoringSystem === 'ten_point') {
+                $pfw = 6; $pfd = 3; $pfl = 0;
+            } else {
+                $pfw = (int)($data['points_for_win'] ?? 3);
+                $pfd = (int)($data['points_for_draw'] ?? 1);
+                $pfl = (int)($data['points_for_loss'] ?? 0);
+            }
+
             $stmt = $db->prepare("
                 INSERT INTO tournament_divisions (
                     tournament_id, name, age_group, gender, format,
@@ -601,8 +612,9 @@ try {
                     teams_per_group, teams_advancing_per_group,
                     goal_differential_cap, tiebreaker_rules,
                     points_for_win, points_for_draw, points_for_loss,
-                    max_players_on_field, sport_rule_notes, overtime_rules, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
+                    max_players_on_field, sport_rule_notes, overtime_rules,
+                    scoring_system, sort_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -620,12 +632,13 @@ try {
                 (int)($data['teams_advancing_per_group'] ?? 2),
                 $data['goal_differential_cap'] ?? null,
                 json_encode($tiebreakerRules),
-                (int)($data['points_for_win'] ?? 3),
-                (int)($data['points_for_draw'] ?? 1),
-                (int)($data['points_for_loss'] ?? 0),
+                $pfw,
+                $pfd,
+                $pfl,
                 $maxOnField,
                 $ruleNotes ? json_encode($ruleNotes) : null,
                 isset($data['overtime_rules']) ? json_encode($data['overtime_rules']) : null,
+                $scoringSystem,
                 $nextOrder,
             ]);
 
@@ -665,13 +678,21 @@ try {
 
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // If scoring_system flips to ten_point, force the canonical 6/3/0
+            // base values so the calculator's branch can rely on them.
+            if (array_key_exists('scoring_system', $data) && $data['scoring_system'] === 'ten_point') {
+                $data['points_for_win']  = 6;
+                $data['points_for_draw'] = 3;
+                $data['points_for_loss'] = 0;
+            }
+
             $fields = [
                 'name', 'age_group', 'gender', 'format',
                 'game_duration_minutes', 'half_duration_minutes',
                 'max_roster_size', 'min_roster_size', 'max_teams',
                 'teams_per_group', 'teams_advancing_per_group',
                 'goal_differential_cap', 'points_for_win', 'points_for_draw', 'points_for_loss',
-                'max_players_on_field', 'sort_order',
+                'max_players_on_field', 'scoring_system', 'sort_order',
             ];
 
             $setClauses = [];

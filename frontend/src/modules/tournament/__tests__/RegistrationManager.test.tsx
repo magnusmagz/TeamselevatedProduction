@@ -10,7 +10,7 @@ const mockDivisions = [
   { id: 1, name: 'U12 Boys', age_group: 'U12', gender: 'boys' as const, format: 'group_knockout' as const,
     game_duration_minutes: 60, half_duration_minutes: 30, max_roster_size: 18, min_roster_size: 11,
     max_teams: 16, teams_per_group: 4, teams_advancing_per_group: 2, goal_differential_cap: null,
-    tiebreaker_rules: ['points'], points_for_win: 3, points_for_draw: 1, points_for_loss: 0,
+    tiebreaker_rules: ['points'], points_for_win: 3, points_for_draw: 1, points_for_loss: 0, scoring_system: 'standard' as const,
     max_players_on_field: 9, sport_rule_notes: null, overtime_rules: null, sort_order: 0,
     tournament_id: 1, created_at: '', updated_at: '' },
 ];

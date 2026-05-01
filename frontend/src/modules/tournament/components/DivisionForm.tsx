@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TournamentDivision, SportPreset, DivisionFormat, Gender } from '../types';
+import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem } from '../types';
 import { getSportPresets } from '../api/tournamentApi';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -20,7 +20,7 @@ const FORMATS: { value: DivisionFormat; label: string }[] = [
   { value: 'double_elimination', label: 'Double Elimination' },
 ];
 
-const DEFAULT_TIEBREAKERS = ['points', 'head_to_head', 'goal_difference', 'goals_for', 'goals_against', 'wins', 'coin_flip'];
+const DEFAULT_TIEBREAKERS = ['points', 'head_to_head', 'goal_difference', 'goals_for', 'goals_against', 'wins', 'penalty_shootout', 'coin_flip'];
 const TIEBREAKER_LABELS: Record<string, string> = {
   points: 'Points',
   head_to_head: 'Head-to-Head',
@@ -28,6 +28,7 @@ const TIEBREAKER_LABELS: Record<string, string> = {
   goals_for: 'Goals For',
   goals_against: 'Goals Against (fewest)',
   wins: 'Most Wins',
+  penalty_shootout: 'Penalty Shootout',
   coin_flip: 'Coin Flip',
 };
 
@@ -51,6 +52,7 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
   const [teamsPerGroup, setTeamsPerGroup] = useState(division?.teams_per_group || 4);
   const [teamsAdvancing, setTeamsAdvancing] = useState(division?.teams_advancing_per_group || 2);
   const [goalDiffCap, setGoalDiffCap] = useState<number | ''>(division?.goal_differential_cap || '');
+  const [scoringSystem, setScoringSystem] = useState<ScoringSystem>(division?.scoring_system || 'standard');
   const [pointsWin, setPointsWin] = useState(division?.points_for_win || 3);
   const [pointsDraw, setPointsDraw] = useState(division?.points_for_draw || 1);
   const [pointsLoss, setPointsLoss] = useState(division?.points_for_loss || 0);
@@ -107,6 +109,8 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
     setSaving(true);
     setError('');
 
+    // Backend re-locks point values when scoring_system === 'ten_point';
+    // sending the user's last typed standard values is harmless either way.
     const body = {
       name: name.trim(),
       age_group: ageGroup,
@@ -120,9 +124,10 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
       teams_per_group: teamsPerGroup,
       teams_advancing_per_group: teamsAdvancing,
       goal_differential_cap: goalDiffCap || null,
-      points_for_win: pointsWin,
-      points_for_draw: pointsDraw,
-      points_for_loss: pointsLoss,
+      scoring_system: scoringSystem,
+      points_for_win: scoringSystem === 'ten_point' ? 6 : pointsWin,
+      points_for_draw: scoringSystem === 'ten_point' ? 3 : pointsDraw,
+      points_for_loss: scoringSystem === 'ten_point' ? 0 : pointsLoss,
       max_players_on_field: maxOnField || null,
       sport_rule_notes: ruleNotes.length > 0 ? ruleNotes : null,
       tiebreaker_rules: tiebreakers,
@@ -312,18 +317,54 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
       {/* Points System */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
         <h4 className="text-sm font-semibold text-gray-900">Points System</h4>
+
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Scoring system</label>
+          <select
+            value={scoringSystem}
+            onChange={(e) => setScoringSystem(e.target.value as ScoringSystem)}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+          >
+            <option value="standard">Standard (3 win / 1 draw / 0 loss)</option>
+            <option value="ten_point">10-Point Cup System (6/3/0 + goal &amp; shutout bonuses)</option>
+          </select>
+          {scoringSystem === 'ten_point' && (
+            <p className="text-xs text-gray-500 mt-2">
+              <strong>10-point system:</strong> 6 for a win, 3 for a tie, 0 for a loss, +1 per goal scored (capped at 3 per game), +1 for a shutout (any result, including 0-0). Maximum 10 points per game.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Win</label>
-            <input type="number" value={pointsWin} onChange={(e) => setPointsWin(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <input
+              type="number"
+              value={scoringSystem === 'ten_point' ? 6 : pointsWin}
+              onChange={(e) => setPointsWin(Number(e.target.value))}
+              disabled={scoringSystem === 'ten_point'}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Draw</label>
-            <input type="number" value={pointsDraw} onChange={(e) => setPointsDraw(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <input
+              type="number"
+              value={scoringSystem === 'ten_point' ? 3 : pointsDraw}
+              onChange={(e) => setPointsDraw(Number(e.target.value))}
+              disabled={scoringSystem === 'ten_point'}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Loss</label>
-            <input type="number" value={pointsLoss} onChange={(e) => setPointsLoss(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            <input
+              type="number"
+              value={scoringSystem === 'ten_point' ? 0 : pointsLoss}
+              onChange={(e) => setPointsLoss(Number(e.target.value))}
+              disabled={scoringSystem === 'ten_point'}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+            />
           </div>
         </div>
       </div>

@@ -74,6 +74,8 @@ export interface Tournament {
   divisions?: TournamentDivision[];
 }
 
+export type ScoringSystem = 'standard' | 'ten_point';
+
 export interface TournamentDivision {
   id: number;
   tournament_id: number;
@@ -93,6 +95,7 @@ export interface TournamentDivision {
   points_for_win: number;
   points_for_draw: number;
   points_for_loss: number;
+  scoring_system: ScoringSystem;
   max_players_on_field: number | null;
   sport_rule_notes: string[] | null;
   overtime_rules: object | null;
