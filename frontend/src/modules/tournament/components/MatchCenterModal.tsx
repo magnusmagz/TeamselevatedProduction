@@ -22,6 +22,17 @@ interface MatchEvent {
   free_text_player?: string;
 }
 
+interface RosterPlayer {
+  athlete_id: number;
+  first_name: string;
+  last_name: string;
+  jersey_number: number | null;
+  primary_position: string | null;
+}
+
+type CardType = 'yellow_card' | 'red_card' | 'second_yellow';
+type CardSide = 'home' | 'away';
+
 type Tab = 'score' | 'report' | 'notes';
 
 /**
@@ -55,6 +66,19 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>('');
+
+  // ---------- Card-add picker state ----------
+  // null when closed; when open, holds the card type + which team's roster
+  // to show. Roster is fetched lazily per side and cached so toggling
+  // between yellow/red on the same side reuses the data.
+  const [pickerCard, setPickerCard] = useState<{ type: CardType; side: CardSide } | null>(null);
+  const [rosterCache, setRosterCache] = useState<Record<CardSide, RosterPlayer[] | undefined>>({ home: undefined, away: undefined });
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [pickerAthleteId, setPickerAthleteId] = useState<number | ''>('');
+  const [pickerFreeText, setPickerFreeText] = useState('');
+  const [pickerMinute, setPickerMinute] = useState('');
+  const [pickerNotes, setPickerNotes] = useState('');
+  const [pickerSaving, setPickerSaving] = useState(false);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -141,26 +165,81 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
     }
   };
 
-  const handleAddCard = async (type: 'yellow_card' | 'red_card', side: 'home' | 'away') => {
-    const playerName = window.prompt(`Player name (${side === 'home' ? match.home_team_name : match.away_team_name}):`);
-    if (!playerName) return;
-    const minuteRaw = window.prompt('Minute (1-90+, optional):', '');
+  const openCardPicker = async (type: CardType, side: CardSide) => {
     const registrationId = side === 'home' ? match.home_registration_id : match.away_registration_id;
-    if (!registrationId) { setError('Cannot add a card: this match has no team slotted on that side'); return; }
+    if (!registrationId) {
+      setError('Cannot add a card: this match has no team slotted on that side');
+      return;
+    }
+    setError('');
+    setPickerCard({ type, side });
+    setPickerAthleteId('');
+    setPickerFreeText('');
+    setPickerMinute('');
+    setPickerNotes('');
 
+    if (rosterCache[side]) return; // already cached
+    setRosterLoading(true);
     try {
+      const res = await fetch(
+        `${API_URL}/api/tournament-gateway.php?action=tournament-team-roster&registration_id=${registrationId}`,
+        { headers }
+      );
+      const data = await res.json();
+      setRosterCache((prev) => ({ ...prev, [side]: data.players || [] }));
+    } catch {
+      setRosterCache((prev) => ({ ...prev, [side]: [] }));
+    } finally {
+      setRosterLoading(false);
+    }
+  };
+
+  const closeCardPicker = () => {
+    setPickerCard(null);
+  };
+
+  const submitCardPicker = async () => {
+    if (!pickerCard) return;
+    const registrationId = pickerCard.side === 'home' ? match.home_registration_id : match.away_registration_id;
+    if (!registrationId) return;
+
+    // Either an athlete must be picked or a free-text fallback supplied —
+    // otherwise the disciplinary tracker has nothing to attach the card to.
+    if (!pickerAthleteId && !pickerFreeText.trim()) {
+      setError('Pick a player from the roster or enter a name');
+      return;
+    }
+
+    setPickerSaving(true);
+    setError('');
+    try {
+      const body: any = {
+        event_type: pickerCard.type,
+        registration_id: registrationId,
+        minute: pickerMinute ? parseInt(pickerMinute, 10) : null,
+      };
+      if (pickerAthleteId) {
+        body.athlete_id = pickerAthleteId;
+        // Snapshot the player's display name into details so the event
+        // log reads naturally even if the athlete record changes later.
+        const roster = rosterCache[pickerCard.side] || [];
+        const player = roster.find((p) => p.athlete_id === pickerAthleteId);
+        if (player) body.player_name = `${player.first_name} ${player.last_name}`.trim();
+      } else {
+        body.player_name = pickerFreeText.trim();
+      }
+      if (pickerNotes.trim()) body.notes = pickerNotes.trim();
+
       const res = await fetch(`${API_URL}/api/tournament-gateway.php?action=match-event-add&match_id=${match.id}`, {
-        method: 'POST', headers, body: JSON.stringify({
-          event_type: type,
-          registration_id: registrationId,
-          minute: minuteRaw ? parseInt(minuteRaw, 10) : null,
-          player_name: playerName,
-        }),
+        method: 'POST', headers, body: JSON.stringify(body),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Add card failed'); }
+      closeCardPicker();
       fetchEvents();
     } catch (e: any) {
       setError(e.message || 'Add card failed');
+    } finally {
+      setPickerSaving(false);
     }
   };
 
@@ -308,11 +387,11 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                 </div>
                 <div className="flex gap-1 mt-2">
                   {match.home_registration_id && (
-                    <button onClick={() => handleAddCard('yellow_card', 'home')}
+                    <button onClick={() => openCardPicker('yellow_card', 'home')}
                       className="text-xs px-2 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">+ Home</button>
                   )}
                   {match.away_registration_id && (
-                    <button onClick={() => handleAddCard('yellow_card', 'away')}
+                    <button onClick={() => openCardPicker('yellow_card', 'away')}
                       className="text-xs px-2 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">+ Away</button>
                   )}
                 </div>
@@ -339,11 +418,11 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                 </div>
                 <div className="flex gap-1 mt-2">
                   {match.home_registration_id && (
-                    <button onClick={() => handleAddCard('red_card', 'home')}
+                    <button onClick={() => openCardPicker('red_card', 'home')}
                       className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded">+ Home</button>
                   )}
                   {match.away_registration_id && (
-                    <button onClick={() => handleAddCard('red_card', 'away')}
+                    <button onClick={() => openCardPicker('red_card', 'away')}
                       className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded">+ Away</button>
                   )}
                 </div>
@@ -411,6 +490,121 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
           </div>
         )}
       </div>
+
+      {pickerCard && (() => {
+        const teamName = pickerCard.side === 'home'
+          ? (match.home_team_name || 'Home')
+          : (match.away_team_name || 'Away');
+        const cardLabel = pickerCard.type === 'red_card'
+          ? 'Red card'
+          : pickerCard.type === 'second_yellow' ? 'Second yellow' : 'Yellow card';
+        const roster = rosterCache[pickerCard.side] || [];
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+              <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900">{cardLabel} — {teamName}</h4>
+                <button onClick={closeCardPicker} className="text-gray-400 hover:text-gray-600">✕</button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Player</label>
+                  {rosterLoading ? (
+                    <p className="text-sm text-gray-500">Loading roster…</p>
+                  ) : roster.length === 0 ? (
+                    <>
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-2">
+                        No rostered players found for this team. Enter the player name manually below.
+                      </p>
+                      <input
+                        type="text"
+                        value={pickerFreeText}
+                        onChange={(e) => setPickerFreeText(e.target.value)}
+                        placeholder="Player name"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <select
+                        value={pickerAthleteId}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '__manual__') {
+                            setPickerAthleteId('');
+                            // fall through to free-text input
+                          } else {
+                            setPickerAthleteId(v ? Number(v) : '');
+                            setPickerFreeText('');
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      >
+                        <option value="">Select a player…</option>
+                        {roster.map((p) => (
+                          <option key={p.athlete_id} value={p.athlete_id}>
+                            {p.jersey_number !== null ? `#${p.jersey_number} ` : ''}
+                            {p.first_name} {p.last_name}
+                            {p.primary_position ? ` · ${p.primary_position}` : ''}
+                          </option>
+                        ))}
+                        <option value="__manual__">— Other / not on roster —</option>
+                      </select>
+                      {!pickerAthleteId && (
+                        <input
+                          type="text"
+                          value={pickerFreeText}
+                          onChange={(e) => setPickerFreeText(e.target.value)}
+                          placeholder="Player name (manual entry)"
+                          className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Minute</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="130"
+                      value={pickerMinute}
+                      onChange={(e) => setPickerMinute(e.target.value)}
+                      placeholder="e.g. 64"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason / notes</label>
+                  <input
+                    type="text"
+                    value={pickerNotes}
+                    onChange={(e) => setPickerNotes(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+
+                {error && <div className="text-sm text-red-600">{error}</div>}
+              </div>
+              <div className="px-5 py-3 border-t border-gray-200 flex justify-end space-x-2">
+                <button onClick={closeCardPicker}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={submitCardPicker} disabled={pickerSaving}
+                  className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
+                  {pickerSaving ? 'Saving…' : 'Add card'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

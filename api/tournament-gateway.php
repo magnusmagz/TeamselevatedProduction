@@ -1827,6 +1827,44 @@ try {
         // MATCH EVENTS — yellow/red cards, goals, etc.
         // ============================================
 
+        case 'tournament-team-roster':
+            // GET ?action=tournament-team-roster&registration_id={id}
+            // Returns the rostered players for the team that owns this
+            // tournament registration. Used by Match Center to back the
+            // card-add player picker so refs no longer free-text names
+            // (which broke the disciplinary tracker because "M. Smith",
+            // "Smith", "Mike Smith" wouldn't aggregate).
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $registrationId = $_GET['registration_id'] ?? null;
+            if (!$registrationId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'registration_id is required']);
+                exit();
+            }
+
+            $stmt = $db->prepare("
+                SELECT a.id            AS athlete_id,
+                       a.first_name,
+                       a.last_name,
+                       tm.jersey_number,
+                       tm.primary_position
+                FROM tournament_registrations tr
+                JOIN team_members tm ON tm.team_id = tr.team_id
+                JOIN athletes a       ON a.id = tm.athlete_id
+                WHERE tr.id = ?
+                  AND tm.role = 'player'
+                  AND tm.athlete_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN tm.jersey_number IS NULL THEN 1 ELSE 0 END,
+                    tm.jersey_number,
+                    a.last_name,
+                    a.first_name
+            ");
+            $stmt->execute([(int)$registrationId]);
+            echo json_encode(['players' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+            break;
+
         case 'match-events-list':
             // GET ?action=match-events-list&match_id={id}
             if ($method !== 'GET') { methodNotAllowed(); }
