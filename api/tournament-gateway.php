@@ -1469,6 +1469,76 @@ try {
             echo json_encode(['matches' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
             break;
 
+        case 'match-create':
+            // POST ?action=match-create&division_id={id}
+            // Manual match creation. Used by the Schedule tab when a director
+            // needs a one-off match outside the auto-generator (showcase
+            // games, friendlies, knockout slots scheduled by hand).
+            if ($method !== 'POST') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $divisionId = $_GET['division_id'] ?? null;
+            if (!$divisionId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'division_id is required']);
+                exit();
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true) ?: [];
+
+            // Verify access: division must belong to a tournament in an
+            // accessible club.
+            $divCheck = $db->prepare("SELECT t.club_id, td.tournament_id FROM tournament_divisions td JOIN tournaments t ON t.id = td.tournament_id WHERE td.id = ?");
+            $divCheck->execute([(int)$divisionId]);
+            $divRow = $divCheck->fetch(PDO::FETCH_ASSOC);
+            if (!$divRow) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Division not found']);
+                exit();
+            }
+            $accessibleClubs = $auth->getAccessibleClubIds();
+            if ($accessibleClubs !== null && !in_array((int)$divRow['club_id'], $accessibleClubs)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied']);
+                exit();
+            }
+
+            // Auto-assign match_number per the (division_id, match_number)
+            // unique constraint added in migration 021.
+            $nextStmt = $db->prepare("SELECT COALESCE(MAX(match_number), 0) + 1 AS n FROM tournament_matches WHERE division_id = ?");
+            $nextStmt->execute([(int)$divisionId]);
+            $nextNumber = (int)($nextStmt->fetch(PDO::FETCH_ASSOC)['n'] ?? 1);
+
+            $insertStmt = $db->prepare("
+                INSERT INTO tournament_matches (
+                    division_id, group_id, round, match_number,
+                    home_registration_id, away_registration_id,
+                    home_placeholder, away_placeholder,
+                    field_id, scheduled_time, scheduled_end_time,
+                    status, notes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, CURRENT_TIMESTAMP)
+                RETURNING id
+            ");
+            $insertStmt->execute([
+                (int)$divisionId,
+                nullIfEmpty($data['group_id'] ?? null),
+                $data['round'] ?? 'Group Stage',
+                $nextNumber,
+                nullIfEmpty($data['home_registration_id'] ?? null),
+                nullIfEmpty($data['away_registration_id'] ?? null),
+                nullIfEmpty($data['home_placeholder'] ?? null),
+                nullIfEmpty($data['away_placeholder'] ?? null),
+                nullIfEmpty($data['field_id'] ?? null),
+                nullIfEmpty($data['scheduled_time'] ?? null),
+                nullIfEmpty($data['scheduled_end_time'] ?? null),
+                $data['notes'] ?? null,
+            ]);
+            $row = $insertStmt->fetch(PDO::FETCH_ASSOC);
+
+            http_response_code(201);
+            echo json_encode(['id' => (int)$row['id'], 'match_number' => $nextNumber]);
+            break;
+
         case 'match-update':
             // PUT ?action=match-update&id={matchId}
             if ($method !== 'PUT') { methodNotAllowed(); }

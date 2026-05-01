@@ -438,7 +438,12 @@ const TournamentDetail: React.FC = () => {
       {activeTab === 'schedule' && tournament.divisions && (
         <div className="space-y-8">
           {tournament.divisions.map((div) => (
-            <ScheduleManager key={div.id} division={div} isAdmin={isAdmin} />
+            <ScheduleManager
+              key={div.id}
+              division={div}
+              tournament={tournament}
+              isAdmin={isAdmin}
+            />
           ))}
         </div>
       )}

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TournamentMatch, TournamentDivision } from '../types';
+import { TournamentMatch, TournamentDivision, Tournament } from '../types';
 import MatchCenterModal from './MatchCenterModal';
+import MatchCreateModal from './MatchCreateModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 interface Props {
   division: TournamentDivision;
+  tournament: Tournament;
   isAdmin: boolean;
 }
 
@@ -14,11 +16,12 @@ function formatTime(dateStr: string | null): string {
   return new Date(dateStr).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
+const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -26,7 +29,7 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
   const fetchMatches = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/tournament-gateway.php?action=matches-list&division_id=${division.id}&round=Group Stage`, { headers });
+      const res = await fetch(`${API_URL}/api/tournament-gateway.php?action=matches-list&division_id=${division.id}`, { headers });
       const data = await res.json();
       setMatches(data.matches || []);
     } catch (err) { console.error(err); }
@@ -54,9 +57,11 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
     finally { setGenerating(false); }
   };
 
-  // Group matches by group_name
+  // Bucket by group_name when available (group-stage match), otherwise by
+  // round (Quarterfinal / Semifinal / etc.) so manually-added knockout
+  // matches don't all land in a single "Ungrouped" pile.
   const grouped = matches.reduce<Record<string, TournamentMatch[]>>((acc, m) => {
-    const key = m.group_name || 'Ungrouped';
+    const key = m.group_name || m.round || 'Other';
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
     return acc;
@@ -67,10 +72,16 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
       <div className="flex justify-between items-center mb-4">
         <h4 className="font-semibold text-gray-900">{division.name} — Schedule</h4>
         {isAdmin && (
-          <button onClick={handleGenerate} disabled={generating}
-            className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-            {generating ? 'Generating...' : 'Generate Schedule'}
-          </button>
+          <div className="flex space-x-2">
+            <button onClick={() => setShowCreate(true)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+              + Add Match
+            </button>
+            <button onClick={handleGenerate} disabled={generating}
+              className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
+              {generating ? 'Generating...' : 'Generate Schedule'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -136,6 +147,15 @@ const ScheduleManager: React.FC<Props> = ({ division, isAdmin }) => {
           isKnockout={false}
           onClose={() => setOpenMatch(null)}
           onSaved={() => { setOpenMatch(null); fetchMatches(); }}
+        />
+      )}
+
+      {showCreate && (
+        <MatchCreateModal
+          tournament={tournament}
+          division={division}
+          onClose={() => setShowCreate(false)}
+          onCreated={fetchMatches}
         />
       )}
     </div>

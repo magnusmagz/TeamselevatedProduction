@@ -62,6 +62,17 @@ class BracketGenerator {
 
         try {
 
+        // Serialize concurrent bracket generations on the same division.
+        // Without this lock, two requests fired in parallel (React strict-mode
+        // double-render in dev, fast double-click, retry storms) both read
+        // MAX=N, compute the same match_numbers N+1..N+M, and the second
+        // commit blows up on the (division_id, match_number) unique
+        // constraint. Locking the division row makes the second caller wait
+        // until the first commits, after which the second's MAX read sees
+        // the new rows and computes a non-overlapping range.
+        $this->db->prepare("SELECT id FROM tournament_divisions WHERE id = ? FOR UPDATE")
+            ->execute([$divisionId]);
+
         // Delete existing scheduled knockout matches
         $this->db->prepare("
             DELETE FROM tournament_matches
@@ -75,6 +86,19 @@ class BracketGenerator {
 
         // Build bracket structure
         $matches = $this->buildBracketStructure($numTeams, $includeThirdPlace, $divisionId, $matchNumber, $format);
+
+        // Defensive sanity check: any duplicate match_numbers in the
+        // computed structure would deadlock the insert loop on the unique
+        // constraint regardless of locking. Catch a builder regression
+        // before it touches the database.
+        $seenNumbers = [];
+        foreach ($matches as $m) {
+            $n = (int)$m['match_number'];
+            if (isset($seenNumbers[$n])) {
+                throw new \Exception("Internal error: bracket builder produced duplicate match_number $n");
+            }
+            $seenNumbers[$n] = true;
+        }
 
         // Assign times and fields
         $time = $startTime ? strtotime($startTime) : null;
