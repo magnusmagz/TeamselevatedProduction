@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentMatch, TournamentDivision, Tournament } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 import MatchCreateModal from './MatchCreateModal';
+import ScheduleGenerateModal, { GenerationSummary } from './ScheduleGenerateModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -19,9 +20,10 @@ function formatTime(dateStr: string | null): string {
 const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [lastSummary, setLastSummary] = useState<GenerationSummary | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -38,23 +40,12 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
 
-  const handleGenerate = async () => {
-    if (!window.confirm('Generate round-robin schedule? This will replace any existing unplayed group stage matches.')) return;
-    setGenerating(true);
-    try {
-      const res = await fetch(`${API_URL}/api/tournament-gateway.php?action=generate-group-schedule&division_id=${division.id}`, {
-        method: 'POST', headers,
-        body: JSON.stringify({
-          start_time: new Date().toISOString().slice(0, 16).replace('T', ' ') + ':00',
-          game_interval_minutes: division.game_duration_minutes + 20,
-          min_rest_minutes: 120,
-          field_ids: [],
-        }),
-      });
-      if (!res.ok) { const err = await res.json(); alert(err.error); return; }
-      fetchMatches();
-    } catch (err) { alert('Failed to generate schedule'); }
-    finally { setGenerating(false); }
+  // Modal handles params + collision-aware generation. Kept the
+  // state shape (generating + lastSummary) so existing UI bits read
+  // naturally; modal calls back with the summary on success.
+  const handleGenerated = (summary: GenerationSummary) => {
+    setLastSummary(summary);
+    fetchMatches();
   };
 
   // Bucket by group_name when available (group-stage match), otherwise by
@@ -77,13 +68,28 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
               className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
               + Add Match
             </button>
-            <button onClick={handleGenerate} disabled={generating}
-              className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-              {generating ? 'Generating...' : 'Generate Schedule'}
+            <button onClick={() => setShowGenerate(true)}
+              className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover">
+              Generate Schedule…
             </button>
           </div>
         )}
       </div>
+
+      {lastSummary && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-md p-3 flex items-start justify-between">
+          <div className="text-sm text-green-900">
+            <strong>{lastSummary.matches_created} matches scheduled</strong>
+            {lastSummary.field_ids_used.length > 0 && (
+              <> across {lastSummary.field_ids_used.length} field{lastSummary.field_ids_used.length === 1 ? '' : 's'}</>
+            )}
+            {lastSummary.first_kickoff && lastSummary.last_kickoff && (
+              <> · {formatTime(lastSummary.first_kickoff)} – {formatTime(lastSummary.last_kickoff)}</>
+            )}
+          </div>
+          <button onClick={() => setLastSummary(null)} className="text-green-700 hover:text-green-900 text-xs">Dismiss</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-6 text-gray-500">Loading schedule...</div>
@@ -156,6 +162,15 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
           division={division}
           onClose={() => setShowCreate(false)}
           onCreated={fetchMatches}
+        />
+      )}
+
+      {showGenerate && (
+        <ScheduleGenerateModal
+          tournament={tournament}
+          division={division}
+          onClose={() => setShowGenerate(false)}
+          onGenerated={handleGenerated}
         />
       )}
     </div>

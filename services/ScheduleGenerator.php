@@ -137,12 +137,24 @@ class ScheduleGenerator {
             }
         }
 
+        // Cross-division collision data: other divisions in the same
+        // tournament may already have matches scheduled on these same
+        // fields. Without this, two divisions can both land on the same
+        // field at the same time. We exclude the division we're
+        // (re)generating since its own matches were just deleted above.
+        $occupiedByField = $this->loadOccupiedSlots(
+            (int)$division['tournament_id'],
+            $divisionId,
+            $fieldIds
+        );
+
         // Assign times and fields (respects daily window + tournament end date)
         $gameDurationMinutes = (int)$division['game_duration_minutes'];
         $scheduled = $this->assignTimesAndFields(
             $allMatches, $fieldIds, $startTime,
             $intervalMinutes, $minRestMinutes,
-            $dailyStart, $dailyEnd, $tournamentEndDate, $gameDurationMinutes
+            $dailyStart, $dailyEnd, $tournamentEndDate, $gameDurationMinutes,
+            $occupiedByField
         );
 
         // Insert into database
@@ -241,7 +253,8 @@ class ScheduleGenerator {
         ?string $dailyStart = null,
         ?string $dailyEnd = null,
         ?string $tournamentEndDate = null,
-        int $gameDurationMinutes = 0
+        int $gameDurationMinutes = 0,
+        array $occupiedByField = []
     ): array {
         if (empty($matches)) return [];
 
@@ -257,6 +270,7 @@ class ScheduleGenerator {
 
         // Hard cap so we don't infinite-loop in pathological cases.
         $endCap = $tournamentEndDate ? strtotime($tournamentEndDate . ' 23:59:59') : null;
+        $intervalSec = $intervalMinutes * 60;
 
         $scheduled = [];
         foreach ($matches as $match) {
@@ -273,23 +287,27 @@ class ScheduleGenerator {
             }
 
             // Pick the field that frees up earliest after $earliestTeamTime,
-            // then roll the chosen time into the daily window.
+            // then roll the chosen time into the daily window AND skip past
+            // any cross-division occupied slots on that field.
             $bestField = null;
             $bestTime  = PHP_INT_MAX;
 
             foreach ($fieldIds as $fid) {
-                $fieldTime = max($fieldNextFree[$fid], $earliestTeamTime, $anchorTs);
-                $fieldTime = $this->rollIntoDailyWindow(
-                    $fieldTime, $dailyStart, $dailyEnd, $gameDurationMinutes
+                $candidate = max($fieldNextFree[$fid], $earliestTeamTime, $anchorTs);
+                $candidate = $this->resolveCandidateTime(
+                    $candidate, $intervalSec,
+                    $occupiedByField[$fid] ?? [],
+                    $dailyStart, $dailyEnd, $gameDurationMinutes,
+                    $endCap
                 );
-                if ($fieldTime < $bestTime) {
-                    $bestTime  = $fieldTime;
+                if ($candidate !== null && $candidate < $bestTime) {
+                    $bestTime  = $candidate;
                     $bestField = $fid;
                 }
             }
 
             // Tournament end-date guard
-            if ($endCap !== null && $bestTime > $endCap) {
+            if ($bestField === null || ($endCap !== null && $bestTime > $endCap)) {
                 throw new \Exception(
                     'Schedule would extend past tournament end date. ' .
                     'Reduce match count, extend the tournament, or widen the daily window.'
@@ -301,12 +319,115 @@ class ScheduleGenerator {
 
             $teamLastGame[$homeId]    = $bestTime;
             $teamLastGame[$awayId]    = $bestTime;
-            $fieldNextFree[$bestField] = $bestTime + ($intervalMinutes * 60);
+            $fieldNextFree[$bestField] = $bestTime + $intervalSec;
 
             $scheduled[] = $match;
         }
 
         return $scheduled;
+    }
+
+    /**
+     * Find the earliest time at or after $candidate where a match of
+     * length $intervalSec can fit on a field, respecting both:
+     *   - cross-division occupied intervals (other divisions' bookings
+     *     on this same field)
+     *   - the daily window (matches that wouldn't end before dailyEnd
+     *     roll to the next day)
+     * Returns null if no valid slot can be found before $endCap.
+     *
+     * Iterates because either constraint can push the candidate into a
+     * region where the other applies — e.g., skipping an occupied slot
+     * may land past dailyEnd, the daily-window roll may put us back
+     * inside another occupied slot. Loop bails after a generous bound
+     * to keep pathological inputs from hanging.
+     */
+    private function resolveCandidateTime(
+        int $candidate,
+        int $intervalSec,
+        array $occupied,
+        ?string $dailyStart,
+        ?string $dailyEnd,
+        int $gameDurationMinutes,
+        ?int $endCap
+    ): ?int {
+        for ($i = 0; $i < 64; $i++) {
+            // First, push out of the daily window if needed.
+            $rolled = $this->rollIntoDailyWindow(
+                $candidate, $dailyStart, $dailyEnd, $gameDurationMinutes
+            );
+            // Then, push past any occupied interval that overlaps.
+            $skipped = $this->skipOccupied($rolled, $intervalSec, $occupied);
+            if ($skipped === $rolled) {
+                return $rolled;
+            }
+            $candidate = $skipped;
+            if ($endCap !== null && $candidate > $endCap) return null;
+        }
+        return null;
+    }
+
+    /**
+     * If the proposed [start, start+intervalSec) overlaps any occupied
+     * interval, return the end of the colliding interval (so the caller
+     * tries again from there). Otherwise return $start unchanged.
+     *
+     * Treats `start_ts >= occupied.end` and `start_ts + intervalSec
+     * <= occupied.start` as non-overlapping — i.e., touching is OK.
+     */
+    private function skipOccupied(int $startTs, int $intervalSec, array $occupied): int {
+        $endTs = $startTs + $intervalSec;
+        foreach ($occupied as [$oStart, $oEnd]) {
+            if ($endTs > $oStart && $startTs < $oEnd) {
+                return $oEnd;
+            }
+        }
+        return $startTs;
+    }
+
+    /**
+     * Load existing match bookings on the given fields from OTHER
+     * divisions of the given tournament. Returns a map keyed by
+     * field_id with sorted [start_ts, end_ts] tuples.
+     *
+     * Excludes cancelled matches (their slots are free) and matches
+     * with no scheduled_time. Falls back to scheduled_time + the match
+     * duration when scheduled_end_time is missing (legacy rows).
+     */
+    private function loadOccupiedSlots(int $tournamentId, int $excludeDivisionId, array $fieldIds): array {
+        if (empty($fieldIds)) return [];
+        $placeholders = implode(',', array_fill(0, count($fieldIds), '?'));
+        $sql = "
+            SELECT m.field_id,
+                   m.scheduled_time,
+                   COALESCE(m.scheduled_end_time,
+                            m.scheduled_time + INTERVAL '1 minute' * d.game_duration_minutes) AS end_ts
+            FROM tournament_matches m
+            JOIN tournament_divisions d ON d.id = m.division_id
+            WHERE d.tournament_id = ?
+              AND m.division_id != ?
+              AND m.status != 'cancelled'
+              AND m.field_id IN ($placeholders)
+              AND m.scheduled_time IS NOT NULL
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_merge([$tournamentId, $excludeDivisionId], $fieldIds));
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $byField = [];
+        foreach ($rows as $r) {
+            $fid = (int)$r['field_id'];
+            $byField[$fid][] = [
+                strtotime($r['scheduled_time']),
+                strtotime($r['end_ts']),
+            ];
+        }
+        // Sort each field's intervals so skipOccupied's linear scan is
+        // deterministic, even if it doesn't strictly need sorted input.
+        foreach ($byField as $fid => $intervals) {
+            usort($byField[$fid], function ($a, $b) { return $a[0] - $b[0]; });
+        }
+        return $byField;
     }
 
     /**
