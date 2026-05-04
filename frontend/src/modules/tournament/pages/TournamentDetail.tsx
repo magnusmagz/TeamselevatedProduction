@@ -11,6 +11,7 @@ import ScheduleManager from '../components/ScheduleManager';
 import StandingsTable from '../components/StandingsTable';
 import BracketView from '../components/BracketView';
 import DisciplinaryView from '../components/DisciplinaryView';
+import GameDayBoard from '../components/GameDayBoard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -136,8 +137,13 @@ const TournamentDetail: React.FC = () => {
     (d) => d.format !== 'round_robin'
   );
 
+  // Game Day shows up once the tournament is in flight or in a delay.
+  // No reason to clutter the tab strip during draft/registration.
+  const showGameDay = tournament.status === 'in_progress' || tournament.status === 'weather_delay';
+
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    ...(showGameDay ? [{ key: 'game-day', label: 'Game Day' }] : []),
     { key: 'divisions', label: 'Divisions' },
     { key: 'registrations', label: 'Registrations' },
     { key: 'groups', label: 'Groups' },
@@ -397,6 +403,20 @@ const TournamentDetail: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'game-day' && showGameDay && (
+        <GameDayBoard
+          tournament={tournament}
+          isAdmin={isAdmin}
+          onTournamentUpdated={() => {
+            if (id) {
+              getTournament(Number(id))
+                .then(setTournament)
+                .catch(() => {});
+            }
+          }}
+        />
       )}
 
       {activeTab === 'divisions' && (

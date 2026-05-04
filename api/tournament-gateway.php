@@ -1965,6 +1965,137 @@ try {
             echo json_encode(['success' => true, 'deleted' => $stmt->rowCount()]);
             break;
 
+        case 'tournament-game-day':
+            // GET ?action=tournament-game-day&tournament_id={id}&date={YYYY-MM-DD}
+            // Director's command-center view. Returns three lanes:
+            //   - live:     status='in_progress', OR scheduled with NOW inside
+            //               the [scheduled_time, scheduled_end_time] window
+            //   - upcoming: status='scheduled' starting after NOW, within the
+            //               next 4 hours (or rest of day if shorter)
+            //   - recent:   status='completed' with scored_at within last 2h
+            //               (falls back to scheduled_end_time when scored_at
+            //               isn't set, e.g. legacy rows)
+            // Date param defaults to today; pass a YYYY-MM-DD to backstage-view
+            // a different tournament day.
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $tournamentId = $_GET['tournament_id'] ?? null;
+            if (!$tournamentId) { http_response_code(400); echo json_encode(['error' => 'tournament_id is required']); exit(); }
+            verifyTournamentAccess($db, $auth, (int)$tournamentId);
+
+            $date = !empty($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+            // Validate date shape so a malformed param doesn't get baked into
+            // the SQL parameters.
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'date must be YYYY-MM-DD']);
+                exit();
+            }
+
+            // Pull the tournament status alongside the matches so the front
+            // end can render the weather-delay pill in one round trip.
+            $tStmt = $db->prepare("SELECT status, name FROM tournaments WHERE id = ?");
+            $tStmt->execute([(int)$tournamentId]);
+            $t = $tStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$t) { http_response_code(404); echo json_encode(['error' => 'Tournament not found']); exit(); }
+
+            // Match window: include matches whose scheduled_time is on the
+            // chosen day, OR (for "recent" lookback) ended within the last
+            // 2h regardless of scheduled day. Keep the SQL simple: pull all
+            // matches for the chosen day, derive lanes in PHP.
+            $stmt = $db->prepare("
+                SELECT m.id, m.match_number, m.round, m.status,
+                       m.scheduled_time, m.scheduled_end_time, m.scored_at,
+                       m.home_score, m.away_score,
+                       m.home_penalty_score, m.away_penalty_score,
+                       m.home_registration_id, m.away_registration_id,
+                       m.home_placeholder, m.away_placeholder,
+                       m.notes,
+                       f.id   AS field_id,
+                       f.name AS field_name,
+                       d.id   AS division_id,
+                       d.name AS division_name,
+                       g.id   AS group_id,
+                       g.name AS group_name,
+                       COALESCE(NULLIF(rh.team_name_override, ''), th.name, m.home_placeholder, 'TBD') AS home_team_name,
+                       COALESCE(NULLIF(ra.team_name_override, ''), ta.name, m.away_placeholder, 'TBD') AS away_team_name
+                FROM tournament_matches m
+                JOIN tournament_divisions d ON m.division_id = d.id
+                LEFT JOIN fields f ON m.field_id = f.id
+                LEFT JOIN tournament_groups g ON m.group_id = g.id
+                LEFT JOIN tournament_registrations rh ON m.home_registration_id = rh.id
+                LEFT JOIN teams th ON rh.team_id = th.id
+                LEFT JOIN tournament_registrations ra ON m.away_registration_id = ra.id
+                LEFT JOIN teams ta ON ra.team_id = ta.id
+                WHERE d.tournament_id = ?
+                  AND (
+                        DATE(m.scheduled_time) = ?
+                     OR (m.status = 'completed' AND m.scored_at >= NOW() - INTERVAL '2 hours')
+                  )
+                ORDER BY m.scheduled_time NULLS LAST, m.match_number
+            ");
+            $stmt->execute([(int)$tournamentId, $date]);
+            $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $now      = time();
+            $upcoming = [];
+            $live     = [];
+            $recent   = [];
+            // Upcoming horizon: next 4 hours from now. Trims to end-of-day
+            // so a director on Saturday morning isn't shown Sunday matches.
+            $endOfDay = strtotime($date . ' 23:59:59');
+            $upcomingHorizon = min($now + 4 * 3600, $endOfDay);
+            $recentHorizon   = $now - 2 * 3600;
+
+            foreach ($matches as $m) {
+                $startTs = $m['scheduled_time']     ? strtotime($m['scheduled_time'])     : null;
+                $endTs   = $m['scheduled_end_time'] ? strtotime($m['scheduled_end_time']) : null;
+                $scoredTs = $m['scored_at']         ? strtotime($m['scored_at'])          : null;
+
+                $status = $m['status'];
+                $isLive = $status === 'in_progress'
+                    || ($status === 'scheduled' && $startTs !== null && $endTs !== null
+                        && $startTs <= $now && $now <= $endTs);
+                $isUpcoming = $status === 'scheduled'
+                    && $startTs !== null && $startTs > $now && $startTs <= $upcomingHorizon;
+                $isRecent = $status === 'completed'
+                    && (($scoredTs !== null && $scoredTs >= $recentHorizon)
+                        || ($scoredTs === null && $endTs !== null && $endTs >= $recentHorizon));
+
+                if ($isLive)        $live[]     = $m;
+                elseif ($isUpcoming) $upcoming[] = $m;
+                elseif ($isRecent)   $recent[]   = $m;
+            }
+
+            // Stable, deterministic ordering inside each lane.
+            usort($live, function ($a, $b) {
+                $av = $a['scheduled_time'] ? strtotime($a['scheduled_time']) : 0;
+                $bv = $b['scheduled_time'] ? strtotime($b['scheduled_time']) : 0;
+                return $av - $bv;
+            });
+            usort($upcoming, function ($a, $b) {
+                return strtotime($a['scheduled_time']) - strtotime($b['scheduled_time']);
+            });
+            usort($recent, function ($a, $b) {
+                $av = $a['scored_at'] ? strtotime($a['scored_at']) : strtotime($a['scheduled_end_time'] ?? 'now');
+                $bv = $b['scored_at'] ? strtotime($b['scored_at']) : strtotime($b['scheduled_end_time'] ?? 'now');
+                return $bv - $av; // most-recently scored first
+            });
+
+            echo json_encode([
+                'tournament' => [
+                    'id'     => (int)$tournamentId,
+                    'name'   => $t['name'],
+                    'status' => $t['status'],
+                ],
+                'date'     => $date,
+                'now'      => date('c', $now),
+                'live'     => $live,
+                'upcoming' => $upcoming,
+                'recent'   => $recent,
+            ]);
+            break;
+
         case 'tournament-disciplinary-list':
             // GET ?action=tournament-disciplinary-list&tournament_id={id}
             // Returns all yellow/red/second-yellow events across the tournament
