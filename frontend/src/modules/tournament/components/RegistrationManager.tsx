@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentRegistration, TournamentDivision, RegistrationStatus, PaymentStatus } from '../types';
 import RegistrationForm from './RegistrationForm';
+import RegistrationRosterModal from './RegistrationRosterModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -34,6 +35,7 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [divisionFilter, setDivisionFilter] = useState<string>('');
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [rosterRegistration, setRosterRegistration] = useState<TournamentRegistration | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -234,6 +236,15 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
                           Mark Paid
                         </button>
                       )}
+                      {(reg.status === 'accepted' || reg.status === 'waitlisted') && (
+                        <button
+                          onClick={() => setRosterRegistration(reg)}
+                          className="text-xs text-gray-700 hover:underline"
+                          title="Manage tournament roster for this team"
+                        >
+                          Roster
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -241,6 +252,13 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
             </tbody>
           </table>
         </div>
+      )}
+
+      {rosterRegistration && (
+        <RegistrationRosterModal
+          registration={rosterRegistration}
+          onClose={() => setRosterRegistration(null)}
+        />
       )}
     </div>
   );

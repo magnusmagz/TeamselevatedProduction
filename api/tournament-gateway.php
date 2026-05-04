@@ -1829,11 +1829,11 @@ try {
 
         case 'tournament-team-roster':
             // GET ?action=tournament-team-roster&registration_id={id}
-            // Returns the rostered players for the team that owns this
-            // tournament registration. Used by Match Center to back the
-            // card-add player picker so refs no longer free-text names
-            // (which broke the disciplinary tracker because "M. Smith",
-            // "Smith", "Mike Smith" wouldn't aggregate).
+            // Returns this registration's tournament-specific roster (from
+            // tournament_registration_players). Used by Match Center's card
+            // picker. Falls back to the team's regular team_members when
+            // the tournament roster is empty so cards still work for teams
+            // a director hasn't curated yet.
             if ($method !== 'GET') { methodNotAllowed(); }
 
             $registrationId = $_GET['registration_id'] ?? null;
@@ -1843,6 +1843,43 @@ try {
                 exit();
             }
 
+            $tStmt = $db->prepare("
+                SELECT trp.id              AS roster_player_id,
+                       trp.athlete_id,
+                       trp.jersey_number,
+                       trp.position        AS primary_position,
+                       trp.is_guest,
+                       COALESCE(NULLIF(trp.player_name, ''), a.first_name || ' ' || a.last_name) AS display_name,
+                       a.first_name,
+                       a.last_name
+                FROM tournament_registration_players trp
+                LEFT JOIN athletes a ON a.id = trp.athlete_id
+                WHERE trp.registration_id = ?
+                ORDER BY
+                    CASE WHEN trp.jersey_number IS NULL THEN 1 ELSE 0 END,
+                    trp.jersey_number,
+                    display_name
+            ");
+            $tStmt->execute([(int)$registrationId]);
+            $tournamentRoster = $tStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($tournamentRoster)) {
+                // Normalize for the picker: it expects athlete_id +
+                // first_name + last_name + jersey_number + primary_position.
+                // Guest rows (athlete_id NULL) get the display_name split
+                // into first/last fallback so the picker label still reads.
+                foreach ($tournamentRoster as &$row) {
+                    if (empty($row['first_name']) && !empty($row['display_name'])) {
+                        $parts = explode(' ', trim($row['display_name']), 2);
+                        $row['first_name'] = $parts[0] ?? '';
+                        $row['last_name']  = $parts[1] ?? '';
+                    }
+                }
+                echo json_encode(['players' => $tournamentRoster, 'source' => 'tournament']);
+                break;
+            }
+
+            // Fallback: derive from the regular team roster
             $stmt = $db->prepare("
                 SELECT a.id            AS athlete_id,
                        a.first_name,
@@ -1862,7 +1899,194 @@ try {
                     a.first_name
             ");
             $stmt->execute([(int)$registrationId]);
+            echo json_encode(['players' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'source' => 'team']);
+            break;
+
+        case 'tournament-roster-list':
+            // GET ?action=tournament-roster-list&registration_id={id}
+            // Like tournament-team-roster but ALWAYS returns the tournament
+            // roster (no team-roster fallback). Powers the roster
+            // management UI which needs to know if the tournament roster
+            // is genuinely empty so it can show the "Import from team"
+            // button.
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $registrationId = $_GET['registration_id'] ?? null;
+            if (!$registrationId) { http_response_code(400); echo json_encode(['error' => 'registration_id is required']); exit(); }
+
+            $stmt = $db->prepare("
+                SELECT trp.id, trp.registration_id, trp.athlete_id, trp.player_name,
+                       trp.jersey_number, trp.position, trp.is_guest, trp.notes,
+                       trp.created_at, trp.updated_at,
+                       a.first_name, a.last_name
+                FROM tournament_registration_players trp
+                LEFT JOIN athletes a ON a.id = trp.athlete_id
+                WHERE trp.registration_id = ?
+                ORDER BY
+                    CASE WHEN trp.jersey_number IS NULL THEN 1 ELSE 0 END,
+                    trp.jersey_number,
+                    COALESCE(a.last_name, trp.player_name),
+                    a.first_name
+            ");
+            $stmt->execute([(int)$registrationId]);
             echo json_encode(['players' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+            break;
+
+        case 'tournament-roster-import':
+            // POST ?action=tournament-roster-import&registration_id={id}
+            // Idempotently copy the team's regular roster into the
+            // tournament roster. Uses ON CONFLICT (the partial unique
+            // index on athlete_id) to skip players already present, so
+            // re-importing after a manual add is safe.
+            if ($method !== 'POST') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $registrationId = $_GET['registration_id'] ?? null;
+            if (!$registrationId) { http_response_code(400); echo json_encode(['error' => 'registration_id is required']); exit(); }
+
+            $insertStmt = $db->prepare("
+                INSERT INTO tournament_registration_players
+                    (registration_id, athlete_id, jersey_number, position, is_guest, created_by)
+                SELECT ?, tm.athlete_id, tm.jersey_number, tm.primary_position, false, ?
+                FROM tournament_registrations tr
+                JOIN team_members tm ON tm.team_id = tr.team_id
+                WHERE tr.id = ?
+                  AND tm.role = 'player'
+                  AND tm.athlete_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM tournament_registration_players existing
+                      WHERE existing.registration_id = ? AND existing.athlete_id = tm.athlete_id
+                  )
+                RETURNING id
+            ");
+            $insertStmt->execute([
+                (int)$registrationId,
+                $userId,
+                (int)$registrationId,
+                (int)$registrationId,
+            ]);
+            $created = $insertStmt->rowCount();
+            echo json_encode(['imported' => $created]);
+            break;
+
+        case 'tournament-roster-add':
+            // POST ?action=tournament-roster-add&registration_id={id}
+            // Body: { athlete_id?, player_name?, jersey_number?, position?, is_guest? }
+            // Either athlete_id OR player_name must be provided.
+            if ($method !== 'POST') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $registrationId = $_GET['registration_id'] ?? null;
+            if (!$registrationId) { http_response_code(400); echo json_encode(['error' => 'registration_id is required']); exit(); }
+
+            $data = json_decode(file_get_contents('php://input'), true) ?: [];
+            $athleteId  = !empty($data['athlete_id']) ? (int)$data['athlete_id'] : null;
+            $playerName = trim($data['player_name'] ?? '');
+            if (!$athleteId && $playerName === '') {
+                http_response_code(400);
+                echo json_encode(['error' => 'athlete_id or player_name is required']);
+                exit();
+            }
+
+            try {
+                $stmt = $db->prepare("
+                    INSERT INTO tournament_registration_players
+                        (registration_id, athlete_id, player_name, jersey_number, position, is_guest, notes, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                ");
+                $stmt->execute([
+                    (int)$registrationId,
+                    $athleteId,
+                    $playerName !== '' ? $playerName : null,
+                    nullIfEmpty($data['jersey_number'] ?? null),
+                    nullIfEmpty($data['position'] ?? null),
+                    !empty($data['is_guest']),
+                    nullIfEmpty($data['notes'] ?? null),
+                    $userId,
+                ]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                http_response_code(201);
+                echo json_encode(['id' => (int)$row['id']]);
+            } catch (\PDOException $e) {
+                if ($e->getCode() === '23505') {
+                    http_response_code(409);
+                    echo json_encode(['error' => 'This player is already on the roster']);
+                } else {
+                    throw $e;
+                }
+            }
+            break;
+
+        case 'tournament-roster-update':
+            // PUT ?action=tournament-roster-update&id={rosterPlayerId}
+            // Body: { jersey_number?, position?, player_name?, notes? }
+            if ($method !== 'PUT') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $rosterPlayerId = $_GET['id'] ?? null;
+            if (!$rosterPlayerId) { http_response_code(400); echo json_encode(['error' => 'id is required']); exit(); }
+
+            $data = json_decode(file_get_contents('php://input'), true) ?: [];
+            $sets = [];
+            $params = [];
+            foreach (['jersey_number', 'position', 'player_name', 'notes'] as $f) {
+                if (array_key_exists($f, $data)) {
+                    $sets[] = "$f = ?";
+                    $params[] = in_array($f, ['jersey_number'], true) ? nullIfEmpty($data[$f]) : (trim((string)$data[$f]) === '' ? null : $data[$f]);
+                }
+            }
+            if (empty($sets)) { http_response_code(400); echo json_encode(['error' => 'No fields to update']); exit(); }
+            $sets[] = 'updated_at = CURRENT_TIMESTAMP';
+            $params[] = (int)$rosterPlayerId;
+            $db->prepare('UPDATE tournament_registration_players SET ' . implode(', ', $sets) . ' WHERE id = ?')
+               ->execute($params);
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'tournament-roster-remove':
+            // DELETE ?action=tournament-roster-remove&id={rosterPlayerId}
+            if ($method !== 'DELETE') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $rosterPlayerId = $_GET['id'] ?? null;
+            if (!$rosterPlayerId) { http_response_code(400); echo json_encode(['error' => 'id is required']); exit(); }
+
+            $db->prepare('DELETE FROM tournament_registration_players WHERE id = ?')
+               ->execute([(int)$rosterPlayerId]);
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'tournament-roster-team-candidates':
+            // GET ?action=tournament-roster-team-candidates&registration_id={id}
+            // Returns the team's regular roster minus athletes already on
+            // the tournament roster — i.e., the dropdown options for
+            // "Add player from team".
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $registrationId = $_GET['registration_id'] ?? null;
+            if (!$registrationId) { http_response_code(400); echo json_encode(['error' => 'registration_id is required']); exit(); }
+
+            $stmt = $db->prepare("
+                SELECT a.id AS athlete_id, a.first_name, a.last_name,
+                       tm.jersey_number, tm.primary_position
+                FROM tournament_registrations tr
+                JOIN team_members tm ON tm.team_id = tr.team_id
+                JOIN athletes a       ON a.id = tm.athlete_id
+                WHERE tr.id = ?
+                  AND tm.role = 'player'
+                  AND tm.athlete_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM tournament_registration_players trp
+                      WHERE trp.registration_id = ? AND trp.athlete_id = a.id
+                  )
+                ORDER BY
+                    CASE WHEN tm.jersey_number IS NULL THEN 1 ELSE 0 END,
+                    tm.jersey_number,
+                    a.last_name, a.first_name
+            ");
+            $stmt->execute([(int)$registrationId, (int)$registrationId]);
+            echo json_encode(['candidates' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
             break;
 
         case 'match-events-list':
