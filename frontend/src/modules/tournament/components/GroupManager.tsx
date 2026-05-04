@@ -147,7 +147,10 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
   };
 
   const handleDragOver = (target: number | 'unassigned') => (e: React.DragEvent) => {
-    if (!dragging) return;
+    // Always preventDefault so the browser accepts the drop. Gating on
+    // `dragging` here was the original bug: the closure captured the
+    // pre-dragstart state, so the first dragover after a drag started
+    // would skip preventDefault and the browser would refuse the drop.
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (hoverTarget !== target) setHoverTarget(target);
@@ -189,7 +192,7 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
         draggable={isAdmin}
         onDragStart={handleDragStart(team.registration_id, sourceGroupId)}
         onDragEnd={() => { setDragging(null); setHoverTarget(null); }}
-        className={`flex items-center justify-between rounded px-3 py-2 select-none ${
+        className={`flex items-center justify-between rounded px-3 py-2 ${
           isAdmin ? 'cursor-grab active:cursor-grabbing' : ''
         } ${isDraggingThis ? 'opacity-40' : ''} ${extraClasses}`}
         title={isAdmin ? 'Drag to another group' : undefined}
@@ -236,6 +239,7 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
       {/* Unassigned teams */}
       {(unassigned.length > 0 || (dragging && dragging.sourceGroupId !== null)) && (
         <div
+          onDragEnter={(e) => e.preventDefault()}
           onDragOver={handleDragOver('unassigned')}
           onDragLeave={handleDragLeave}
           onDrop={handleDropOnUnassigned}
@@ -296,6 +300,7 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
           {groups.map((group) => (
             <div
               key={group.id}
+              onDragEnter={(e) => e.preventDefault()}
               onDragOver={handleDragOver(group.id)}
               onDragLeave={handleDragLeave}
               onDrop={() => handleDropOnGroup(group.id)}
