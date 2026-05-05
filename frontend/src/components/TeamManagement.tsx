@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import TeamList from './TeamList';
 import TeamFormWithTabs from './TeamFormWithTabs';
 import AthleteManagement from './AthleteManagement';
@@ -21,6 +22,14 @@ interface Team {
 const TeamManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Club admins (and super admins) get the create/delete affordances.
+  // Coaches see the same TeamList UI but read-only on those actions —
+  // the backend rejects edits anyway, but hiding the buttons keeps the
+  // experience clean.
+  const canManageTeams =
+    user?.system_role === 'super_admin' ||
+    user?.activeRole?.role === 'club_admin';
   const [teams, setTeams] = useState<Team[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [showAthleteManagement, setShowAthleteManagement] = useState(false);
@@ -178,12 +187,14 @@ const TeamManagement: React.FC = () => {
               {teams.length} team{teams.length !== 1 ? 's' : ''} found
             </span>
           </div>
-          <button
-            onClick={handleCreateTeam}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-          >
-            + Create Team
-          </button>
+          {canManageTeams && (
+            <button
+              onClick={handleCreateTeam}
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+            >
+              + Create Team
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
@@ -251,6 +262,7 @@ const TeamManagement: React.FC = () => {
           teams={teams}
           onEdit={handleEditTeam}
           onDelete={handleDeleteTeam}
+          canDelete={canManageTeams}
         />
       )}
 

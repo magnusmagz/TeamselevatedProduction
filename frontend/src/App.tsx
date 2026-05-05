@@ -22,7 +22,6 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ConsentConfirm from './pages/ConsentConfirm';
 import TeamManagement from './components/TeamManagement';
-import CoachDashboard from './components/CoachDashboard';
 import AthleteProfileEnhanced from './components/AthleteProfileEnhanced';
 import AthleteManagement from './components/AthleteManagement';
 import CoachManagement from './components/CoachManagement';
@@ -707,13 +706,12 @@ function AppContent() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <ParentRedirect>
-                {isAdmin ? (
-                  <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <TeamManagement />
-                  </main>
-                ) : (
-                  <CoachDashboard />
-                )}
+                {/* Unified team management for all club roles. Coaches see
+                    only their teams (server-scoped); club admins see all
+                    club teams. Hide create/delete buttons for non-admins. */}
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <TeamManagement />
+                </main>
               </ParentRedirect>
             </ProtectedRoute>
           } />
@@ -784,11 +782,9 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/roster" element={
-            isAdmin ?
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <TeamManagement />
-            </main> :
-            <CoachDashboard />
+            </main>
           } />
 
           {/* Tournament routes */}

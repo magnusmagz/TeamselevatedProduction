@@ -19,9 +19,12 @@ interface TeamListProps {
   teams: Team[];
   onEdit: (team: Team) => void;
   onDelete: (teamId: number) => void;
+  // Hide the archive/delete button when the viewer can't perform that
+  // action — keeps the coach experience clean (backend rejects anyway).
+  canDelete?: boolean;
 }
 
-const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
+const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete, canDelete = true }) => {
   const [showScheduler, setShowScheduler] = useState(false);
   const [showSmartScheduler, setShowSmartScheduler] = useState(false);
   const [selectedTeamForSchedule, setSelectedTeamForSchedule] = useState<Team | null>(null);
@@ -137,12 +140,14 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete }) => {
                   className="text-blue-600 hover:underline mr-3 uppercase text-xs font-bold">
                   Smart
                 </button>
-                <button
-                  onClick={() => onDelete(team.id)}
-                  className="text-brand-primary hover:underline uppercase text-xs"
-                >
-                  Archive
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => onDelete(team.id)}
+                    className="text-brand-primary hover:underline uppercase text-xs"
+                  >
+                    Archive
+                  </button>
+                )}
               </td>
             </tr>
           ))}

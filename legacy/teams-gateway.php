@@ -189,6 +189,34 @@ try {
                     $params = array_merge($params, $clubScope['params']);
                 }
 
+                // Coach scope-down: when the viewer is NOT a club admin (and
+                // not a super admin), restrict the visible teams to ones
+                // they coach — either listed as primary_coach_id, or as a
+                // team_member with an assistant_coach / team_manager role.
+                // This is what powers the unified TeamManagement UI for
+                // coaches (same screen as admins, just their teams).
+                $isClubAdminHere = $activeClubId
+                    ? $auth->hasRole('club_admin', (int)$activeClubId, 'club')
+                    : false;
+                $isSuperAdmin = method_exists($auth, 'isSuperAdmin')
+                    ? $auth->isSuperAdmin()
+                    : ($auth->hasRole('super_admin') ?? false);
+
+                if (!$isClubAdminHere && !$isSuperAdmin) {
+                    $userId = $auth->getUserId();
+                    $query .= " AND (
+                        t.primary_coach_id = ?
+                        OR EXISTS (
+                            SELECT 1 FROM team_members tm2
+                            WHERE tm2.team_id = t.id
+                              AND tm2.user_id = ?
+                              AND tm2.role IN ('assistant_coach', 'team_manager', 'coach')
+                        )
+                    )";
+                    $params[] = $userId;
+                    $params[] = $userId;
+                }
+
                 $query .= " GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                                      t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
                                      t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, t.home_field_id,
