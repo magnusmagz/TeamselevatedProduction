@@ -26,8 +26,6 @@ import CoachDashboard from './components/CoachDashboard';
 import AthleteProfileEnhanced from './components/AthleteProfileEnhanced';
 import AthleteManagement from './components/AthleteManagement';
 import CoachManagement from './components/CoachManagement';
-// import SeasonsPage from './components/SeasonsPage';  // Replaced with unified ProgramManagement
-import UnifiedProgramManagement from './components/ProgramManagement';
 import VenueManagement from './components/VenueManagement';
 import SponsorsManagement from './components/SponsorsManagement';
 import ClubProfilePage from './pages/ClubProfilePage';
@@ -757,11 +755,6 @@ function AppContent() {
             <ProtectedRoute>
               <Invitations />
             </ProtectedRoute>
-          } />
-          <Route path="/seasons" element={
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <UnifiedProgramManagement />
-            </main>
           } />
           <Route path="/venues" element={
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
