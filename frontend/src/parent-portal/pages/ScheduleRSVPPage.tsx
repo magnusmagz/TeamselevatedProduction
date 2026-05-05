@@ -76,7 +76,10 @@ export const ScheduleRSVPPage: React.FC = () => {
   }, [API_URL, id]);
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    // Parse "YYYY-MM-DD" as local time so PDT users don't see the previous day
+    // (new Date("2026-05-05") parses as UTC midnight = May 4 5pm PDT).
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

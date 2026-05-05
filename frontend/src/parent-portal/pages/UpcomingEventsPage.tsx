@@ -127,7 +127,10 @@ export const UpcomingEventsPage: React.FC = () => {
   };
 
   const formatDateHeader = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse "YYYY-MM-DD" as local time. Otherwise PDT users see "May 4" for
+    // a server date of "2026-05-05" (new Date("YYYY-MM-DD") = UTC midnight).
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
