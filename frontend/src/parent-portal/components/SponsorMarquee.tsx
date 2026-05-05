@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useOrg } from '../../contexts/OrgContext';
 
 interface Sponsor {
@@ -13,7 +14,11 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 export const SponsorMarquee: React.FC = () => {
   const { currentClubId } = useOrg();
+  const location = useLocation();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+
+  // Hide on the chat screen — the chat input needs the full bottom of the viewport
+  const onChatRoute = location.pathname.startsWith('/parent/chat');
 
   useEffect(() => {
     if (!currentClubId) return;
@@ -36,7 +41,7 @@ export const SponsorMarquee: React.FC = () => {
     };
   }, [currentClubId]);
 
-  if (sponsors.length === 0) return null;
+  if (sponsors.length === 0 || onChatRoute) return null;
 
   return (
     <div className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200">
