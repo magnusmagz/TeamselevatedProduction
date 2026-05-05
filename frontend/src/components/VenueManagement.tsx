@@ -1389,32 +1389,6 @@ const VenueForm: React.FC<{
                     placeholder="e.g. White tent behind Field 2, near restrooms"
                   />
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">On-site contact (GM / facility manager)</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
-                      value={formData.gm_contact_name || ''}
-                      onChange={(e) => setFormData({ ...formData, gm_contact_name: e.target.value })}
-                      placeholder="Name"
-                    />
-                    <input
-                      type="tel"
-                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
-                      value={formData.gm_contact_phone || ''}
-                      onChange={(e) => setFormData({ ...formData, gm_contact_phone: e.target.value })}
-                      placeholder="Phone"
-                    />
-                    <input
-                      type="email"
-                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
-                      value={formData.gm_contact_email || ''}
-                      onChange={(e) => setFormData({ ...formData, gm_contact_email: e.target.value })}
-                      placeholder="Email"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           </div>
