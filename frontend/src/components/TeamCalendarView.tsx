@@ -77,6 +77,11 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [venues, setVenues] = useState<any[]>([]);
   const [allTeams, setAllTeams] = useState<any[]>([]);
+  // Teams the current user coaches (or has any team-scoped role on). Powers
+  // the "My Teams" dropdown option and the coach default-view behavior.
+  // Empty array for users who don't coach any teams (admin-only, parents).
+  const [myTeamIds, setMyTeamIds] = useState<number[]>([]);
+  const [myTeamsDefaultApplied, setMyTeamsDefaultApplied] = useState(false);
   const [sendInvites, setSendInvites] = useState(true);
   const [sendUpdates, setSendUpdates] = useState(true);
   const [changesSummary, setChangesSummary] = useState<string>('');
@@ -91,6 +96,42 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     team_ids: teamId ? [teamId] : [],
     status: 'scheduled'
   });
+
+  // Fetch the list of teams this user coaches/manages so we can offer a
+  // "My Teams" filter option and default coaches to that view. Skipped when
+  // the calendar is locked to a specific team.
+  useEffect(() => {
+    if (teamId) return;
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    fetch(`${API_URL}/api/coach/teams`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const ids = Array.isArray(data)
+          ? data.map((t: any) => t.id).filter(Boolean)
+          : Array.isArray(data?.teams)
+            ? data.teams.map((t: any) => t.id).filter(Boolean)
+            : [];
+        setMyTeamIds(ids);
+      })
+      .catch(() => { /* non-fatal — just no My Teams option */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId]);
+
+  // Default coaches to "My Teams" once we know which teams they coach.
+  // Runs once per mount (gated by myTeamsDefaultApplied) so a coach who
+  // manually picks a different team doesn't get bounced back.
+  useEffect(() => {
+    if (teamId || myTeamsDefaultApplied) return;
+    if (myTeamIds.length === 0) return;
+    if (user?.activeRole?.role === 'coach') {
+      setSelectedTeamFilter('my_teams');
+    }
+    setMyTeamsDefaultApplied(true);
+  }, [myTeamIds, teamId, user, myTeamsDefaultApplied]);
 
   // Lock filter to teamId if provided
   useEffect(() => {
@@ -257,7 +298,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     } else if (viewMode === 'week') {
       generateWeekDays();
     }
-  }, [currentDate, practices, events, selectedTeamFilter, viewMode, allTeams]);
+  }, [currentDate, practices, events, selectedTeamFilter, viewMode, allTeams, myTeamIds]);
 
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
@@ -287,7 +328,22 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       let dayEvents = events.filter(e => e.event_date === dateStr);
 
       // Apply team filter
-      if (selectedTeamFilter !== 'all') {
+      if (selectedTeamFilter === 'my_teams') {
+        // Multi-team filter — keep events/practices for any team the user coaches.
+        const myIdSet = new Set(myTeamIds);
+        const myNameSet = new Set(
+          allTeams.filter(t => myIdSet.has(t.id)).map(t => t.name)
+        );
+        dayPractices = dayPractices.filter(p =>
+          (p.team_id != null && myIdSet.has(p.team_id)) || (p.team_name && myNameSet.has(p.team_name))
+        );
+        dayEvents = dayEvents.filter(e => {
+          if (e.teams && e.teams.length > 0) {
+            return e.teams.some(t => myIdSet.has(t.id));
+          }
+          return !!e.team_name && myNameSet.has(e.team_name);
+        });
+      } else if (selectedTeamFilter !== 'all') {
         const filterTeamId = parseInt(selectedTeamFilter);
         const filterTeam = allTeams.find(t => t.id === filterTeamId);
         const filterTeamName = filterTeam?.name;
@@ -335,7 +391,21 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       let dayPractices = practices.filter(p => p.date === dateStr);
       let dayEvents = events.filter(e => e.event_date === dateStr);
 
-      if (selectedTeamFilter !== 'all') {
+      if (selectedTeamFilter === 'my_teams') {
+        const myIdSet = new Set(myTeamIds);
+        const myNameSet = new Set(
+          allTeams.filter(t => myIdSet.has(t.id)).map(t => t.name)
+        );
+        dayPractices = dayPractices.filter(p =>
+          (p.team_id != null && myIdSet.has(p.team_id)) || (p.team_name && myNameSet.has(p.team_name))
+        );
+        dayEvents = dayEvents.filter(e => {
+          if (e.teams && e.teams.length > 0) {
+            return e.teams.some(t => myIdSet.has(t.id));
+          }
+          return !!e.team_name && myNameSet.has(e.team_name);
+        });
+      } else if (selectedTeamFilter !== 'all') {
         const filterTeamId = parseInt(selectedTeamFilter);
         const filterTeam = allTeams.find(t => t.id === filterTeamId);
         const filterTeamName = filterTeam?.name;
@@ -627,6 +697,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 className="bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent min-w-0 flex-1 sm:flex-none"
               >
                 <option value="all">All Teams</option>
+                {myTeamIds.length > 0 && (
+                  <option value="my_teams">My Teams</option>
+                )}
                 {allTeams.map(team => (
                   <option key={team.id} value={team.id}>{team.name}</option>
                 ))}
