@@ -17,8 +17,17 @@ export const SponsorMarquee: React.FC = () => {
   const location = useLocation();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
 
-  // Hide on the chat screen — the chat input needs the full bottom of the viewport
-  const onChatRoute = location.pathname.startsWith('/parent/chat');
+  // Hide on screens that have their own fixed-bottom action button (chat input,
+  // Save RSVP, Make Payment) so we don't cover them.
+  const ROUTES_WITH_FIXED_BOTTOM_ACTION = [
+    '/parent/chat',
+    '/parent/schedule/rsvp',
+    '/parent/payments/pay',
+    '/parent/payments/checkout',
+  ];
+  const onActionRoute = ROUTES_WITH_FIXED_BOTTOM_ACTION.some((p) =>
+    location.pathname.startsWith(p)
+  );
 
   useEffect(() => {
     if (!currentClubId) return;
@@ -41,7 +50,7 @@ export const SponsorMarquee: React.FC = () => {
     };
   }, [currentClubId]);
 
-  if (sponsors.length === 0 || onChatRoute) return null;
+  if (sponsors.length === 0 || onActionRoute) return null;
 
   return (
     <div className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200">
