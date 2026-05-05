@@ -7,6 +7,19 @@ import TryoutCreationWizard from '../components/TryoutCreationWizard';
 import TryoutManagement from '../components/TryoutManagement';
 import { useAuth } from '../../../hooks/useAuth';
 
+type ProgramTab = 'all' | ProgramType;
+
+const TAB_STORAGE_KEY = 'programs-active-tab';
+const TABS: { value: ProgramTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'league', label: 'League' },
+  { value: 'camp', label: 'Camp' },
+  { value: 'clinic', label: 'Clinic' },
+  { value: 'tryout', label: 'Tryout' },
+  { value: 'tournament', label: 'Tournament' },
+  { value: 'drop_in', label: 'Drop-In' },
+];
+
 const ProgramManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const { user } = useAuth();
@@ -20,15 +33,39 @@ const ProgramManagement: React.FC = () => {
   const [editingTryout, setEditingTryout] = useState<Program | null>(null);
   const [manageTryoutProgram, setManageTryoutProgram] = useState<Program | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<ProgramTab>(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(TAB_STORAGE_KEY) : null;
+    return (stored as ProgramTab) || 'all';
+  });
+
+  const handleTabChange = (tab: ProgramTab) => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, tab);
+    } catch {
+      // ignore storage failures (private browsing, quota)
+    }
+  };
+
+  const tabCounts = useMemo(() => {
+    const statusFiltered = statusFilter === 'all'
+      ? programs
+      : programs.filter((p) => p.status === statusFilter);
+    return TABS.reduce<Record<ProgramTab, number>>((acc, { value }) => {
+      acc[value] = value === 'all'
+        ? statusFiltered.length
+        : statusFiltered.filter((p) => p.type === value).length;
+      return acc;
+    }, {} as Record<ProgramTab, number>);
+  }, [programs, statusFilter]);
 
   const filteredPrograms = useMemo(() => {
     return programs.filter((program) => {
       if (statusFilter !== 'all' && program.status !== statusFilter) return false;
-      if (typeFilter !== 'all' && program.type !== typeFilter) return false;
+      if (activeTab !== 'all' && program.type !== activeTab) return false;
       return true;
     });
-  }, [programs, statusFilter, typeFilter]);
+  }, [programs, statusFilter, activeTab]);
 
   useEffect(() => {
     fetchPrograms();
@@ -113,7 +150,7 @@ const ProgramManagement: React.FC = () => {
         </div>
 
         {/* Action Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div className="flex gap-3">
             <select
               value={statusFilter}
@@ -125,18 +162,6 @@ const ProgramManagement: React.FC = () => {
               <option value="draft">Draft</option>
               <option value="closed">Closed</option>
               <option value="cancelled">Cancelled</option>
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary flex-1 sm:flex-none"
-            >
-              <option value="all">All Types</option>
-              <option value="camp">Camp</option>
-              <option value="clinic">Clinic</option>
-              <option value="tryout">Tryout</option>
-              <option value="league">League</option>
-              <option value="tournament">Tournament</option>
             </select>
           </div>
           <div className="flex gap-3">
@@ -153,6 +178,33 @@ const ProgramManagement: React.FC = () => {
               + Tryout
             </button>
           </div>
+        </div>
+
+        {/* Type Tabs */}
+        <div className="border-b border-brand-secondary mb-6 flex flex-wrap gap-1 overflow-x-auto" role="tablist" aria-label="Program type">
+          {TABS.map(({ value, label }) => {
+            const isActive = activeTab === value;
+            return (
+              <button
+                key={value}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleTabChange(value)}
+                className={`px-4 py-2 -mb-px border-b-2 text-sm font-semibold uppercase tracking-wide transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-gray-500 hover:text-brand-primary hover:border-brand-secondary'
+                }`}
+              >
+                {label}
+                <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                  isActive ? 'bg-brand-primary text-white' : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {tabCounts[value]}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Programs List */}
