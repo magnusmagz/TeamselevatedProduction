@@ -18,6 +18,17 @@ interface AthleteDetails {
   teams?: Array<{ id: number; name: string }>;
 }
 
+interface Coach {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  profile_image_url?: string;
+  coaching_background?: string;
+  role: 'head_coach' | 'assistant_coach' | 'team_manager';
+  team_name?: string;
+}
+
 interface Registration {
   id: number;
   program_id: number;
@@ -58,6 +69,9 @@ export const AthleteDetailPage: React.FC = () => {
   const [registrationsLoading, setRegistrationsLoading] = useState(true);
   const [athleteEvents, setAthleteEvents] = useState<AthleteEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [coachesLoading, setCoachesLoading] = useState(true);
+  const [expandedCoachId, setExpandedCoachId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -139,6 +153,42 @@ export const AthleteDetailPage: React.FC = () => {
     };
     fetchEvents();
   }, [API_URL, id]);
+
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      if (!athlete?.teams || athlete.teams.length === 0) {
+        setCoachesLoading(false);
+        return;
+      }
+      setCoachesLoading(true);
+      try {
+        const token = localStorage.getItem('auth_token');
+        const responses = await Promise.all(
+          athlete.teams.map((team) =>
+            fetch(`${API_URL}/api/team-coaches.php?team_id=${team.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+              .then((r) => r.json())
+              .then((data) => (data.success ? (data.coaches as Omit<Coach, 'team_name'>[]).map((c) => ({ ...c, team_name: team.name })) : []))
+              .catch(() => [])
+          )
+        );
+        // Flatten + dedupe by user id (a coach on multiple of the athlete's teams shows once)
+        const seen = new Map<number, Coach>();
+        for (const list of responses) {
+          for (const c of list) {
+            if (!seen.has(c.id)) seen.set(c.id, c);
+          }
+        }
+        setCoaches(Array.from(seen.values()));
+      } catch (err) {
+        console.error('Error fetching coaches:', err);
+      } finally {
+        setCoachesLoading(false);
+      }
+    };
+    fetchCoaches();
+  }, [API_URL, athlete]);
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -435,6 +485,62 @@ export const AthleteDetailPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Coaches */}
+        {(coachesLoading || coaches.length > 0) && (
+          <div className="px-4 mb-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h2 className="font-semibold text-brand-primary mb-3">Coaches</h2>
+              {coachesLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary"></div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {coaches.map((coach) => {
+                    const isOpen = expandedCoachId === coach.id;
+                    const roleLabel =
+                      coach.role === 'head_coach' ? 'Head Coach' :
+                      coach.role === 'assistant_coach' ? 'Assistant Coach' :
+                      'Team Manager';
+                    return (
+                      <div key={coach.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => setExpandedCoachId(isOpen ? null : coach.id)}
+                          className="w-full px-3 py-2 flex items-center gap-3 hover:bg-gray-50 text-left"
+                        >
+                          {coach.profile_image_url ? (
+                            <img src={coach.profile_image_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-brand-primary text-white flex items-center justify-center text-sm font-medium">
+                              {getInitials(coach.first_name, coach.last_name)}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{coach.first_name} {coach.last_name}</p>
+                            <p className="text-xs text-gray-500">
+                              {roleLabel}{coach.team_name ? ` · ${coach.team_name}` : ''}
+                            </p>
+                          </div>
+                          {coach.coaching_background && (
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                        {isOpen && coach.coaching_background && (
+                          <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 text-sm text-gray-700 whitespace-pre-line">
+                            {coach.coaching_background}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Contact Info */}
         {(athlete.email || athlete.phone) && (
