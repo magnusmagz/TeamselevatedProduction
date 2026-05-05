@@ -73,13 +73,26 @@ try {
 
             // Fetch divisions
             $divStmt = $db->prepare("
-                SELECT id, name, age_group, gender, format, sport_rule_notes
+                SELECT id, name, age_group, gender, format, sport_rule_notes,
+                       game_duration_minutes, half_duration_minutes,
+                       overtime_rules, competitive_level
                 FROM tournament_divisions
                 WHERE tournament_id = ?
                 ORDER BY sort_order, age_group
             ");
             $divStmt->execute([$tournament['id']]);
             $tournament['divisions'] = $divStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Decode JSONB overtime_rules so the client gets a structured
+            // object rather than a raw JSON string.
+            foreach ($tournament['divisions'] as &$d) {
+                if (is_string($d['overtime_rules'] ?? null)) {
+                    $d['overtime_rules'] = json_decode($d['overtime_rules'], true);
+                }
+                if (is_string($d['sport_rule_notes'] ?? null)) {
+                    $d['sport_rule_notes'] = json_decode($d['sport_rule_notes'], true);
+                }
+            }
+            unset($d);
 
             // Fetch active club sponsors so the public page can render a
             // sponsor strip. Sponsors are club-scoped (cross-tournament).

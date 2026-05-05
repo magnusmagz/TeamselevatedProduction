@@ -35,7 +35,23 @@ interface PublicTournamentData {
   club_logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
-  divisions: { id: number; name: string; age_group: string; gender: string; format: string; sport_rule_notes: string[] | null }[];
+  divisions: {
+    id: number;
+    name: string;
+    age_group: string;
+    gender: string;
+    format: string;
+    sport_rule_notes: string[] | null;
+    game_duration_minutes?: number;
+    half_duration_minutes?: number;
+    overtime_rules?: {
+      mode: 'none' | 'pks_only' | 'overtime_then_pks';
+      ot_periods?: number;
+      ot_minutes_per_period?: number;
+      golden_goal?: boolean;
+    } | null;
+    competitive_level?: string | null;
+  }[];
   sponsors?: { id: number; name: string; website: string | null; logo_data: string | null }[];
 }
 
@@ -322,7 +338,7 @@ const PublicTournament: React.FC = () => {
 
         {/* Tabs */}
         <div className="flex space-x-4 border-b border-gray-200 mb-6">
-          {(['schedule', 'standings', 'bracket', ...(tournament.faq_markdown ? ['info'] : [])] as const).map((tab) => (
+          {(['schedule', 'standings', 'bracket', ...((tournament.faq_markdown || tournament.divisions.length > 0) ? ['info'] : [])] as const).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={`py-2 px-3 text-sm font-medium capitalize border-b-2 ${
@@ -498,13 +514,55 @@ const PublicTournament: React.FC = () => {
         )}
 
         {/* Info / FAQ */}
-        {activeTab === 'info' && tournament.faq_markdown && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-3xl">
-            <article className="prose prose-sm max-w-none text-gray-800">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {tournament.faq_markdown}
-              </ReactMarkdown>
-            </article>
+        {activeTab === 'info' && (
+          <div className="space-y-6 max-w-3xl">
+            {/* Format Rules — game length + overtime per division */}
+            {tournament.divisions.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Format Rules</h3>
+                <div className="space-y-4">
+                  {tournament.divisions.map((d) => {
+                    const ot = d.overtime_rules;
+                    const otText = !ot || ot.mode === 'none'
+                      ? 'No overtime — ties stand'
+                      : ot.mode === 'pks_only'
+                        ? 'Penalty shootout if tied at full time'
+                        : ot.mode === 'overtime_then_pks'
+                          ? `${ot.ot_periods ?? 2} × ${ot.ot_minutes_per_period ?? 5} min ${ot.golden_goal ? 'golden-goal ' : ''}overtime, then PKs if still tied`
+                          : '';
+                    const gameLength = d.half_duration_minutes
+                      ? `2 × ${d.half_duration_minutes} min`
+                      : (d.game_duration_minutes ? `${d.game_duration_minutes} min` : null);
+                    return (
+                      <div key={d.id} className="border-b border-gray-100 last:border-b-0 pb-3 last:pb-0">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {d.name}
+                          {d.competitive_level && (
+                            <span className="ml-2 text-xs font-normal text-gray-500 capitalize">{d.competitive_level}</span>
+                          )}
+                        </div>
+                        <dl className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                          {gameLength && (
+                            <div><dt className="inline text-gray-500">Game length:</dt> <dd className="inline font-medium text-gray-800">{gameLength}</dd></div>
+                          )}
+                          <div><dt className="inline text-gray-500">Overtime:</dt> <dd className="inline font-medium text-gray-800">{otText}</dd></div>
+                        </dl>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {tournament.faq_markdown && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <article className="prose prose-sm max-w-none text-gray-800">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {tournament.faq_markdown}
+                  </ReactMarkdown>
+                </article>
+              </div>
+            )}
           </div>
         )}
       </div>
