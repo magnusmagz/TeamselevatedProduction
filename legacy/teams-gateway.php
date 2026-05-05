@@ -25,6 +25,60 @@ try {
 // Require authentication for all endpoints
 $auth = AuthMiddleware::requireAuth();
 
+/**
+ * If the caller submitted a base64-encoded logo on the BrandingTab, write it
+ * to disk under uploads/team-logos/ and return the public URL. Returns null
+ * when there's nothing to do (no logo_data or it's already a URL). Existing
+ * logo_url values pass through unchanged.
+ *
+ * Accepts either:
+ *   - $data['logo_url']  — already-uploaded URL (passes through)
+ *   - $data['logo_data'] — base64 string (with or without data:image/* prefix)
+ *                          plus optional $data['logo_filename']
+ */
+function resolveTeamLogoUrl(array $data): ?string {
+    // Pre-uploaded URL takes precedence — passes through unchanged.
+    if (!empty($data['logo_url']) && is_string($data['logo_url'])) {
+        return $data['logo_url'];
+    }
+
+    $base64 = $data['logo_data'] ?? null;
+    if (!$base64 || !is_string($base64)) return null;
+
+    // Strip the data: prefix if present, e.g. "data:image/png;base64,iVBOR..."
+    $mime = 'image/png';
+    if (preg_match('/^data:(image\/[a-zA-Z+\-]+);base64,(.+)$/s', $base64, $m)) {
+        $mime = $m[1];
+        $base64 = $m[2];
+    }
+    $bytes = base64_decode($base64, true);
+    if ($bytes === false || strlen($bytes) === 0) return null;
+
+    $extByMime = [
+        'image/png'     => 'png',
+        'image/jpeg'    => 'jpg',
+        'image/jpg'     => 'jpg',
+        'image/webp'    => 'webp',
+        'image/svg+xml' => 'svg',
+        'image/gif'     => 'gif',
+    ];
+    $ext = $extByMime[$mime] ?? 'png';
+
+    // Storage path: same uploads/ directory used by api/upload.php so the
+    // public URL pattern matches what the rest of the platform serves.
+    $uploadDir = __DIR__ . '/../uploads/team-logos/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    $filename = uniqid('team_logo_' . time() . '_') . '.' . $ext;
+    $filepath = $uploadDir . $filename;
+    if (file_put_contents($filepath, $bytes) === false) return null;
+
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    return $scheme . '://' . $host . '/uploads/team-logos/' . $filename;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 $team_id = $_GET['id'] ?? null;
@@ -56,6 +110,7 @@ try {
                     GROUP BY t.id, t.name, t.program_id, t.season_id, t.primary_coach_id, t.division,
                              t.skill_level, t.age_group, t.gender, t.max_players, t.team_color,
                              t.logo_url, t.status, t.created_at, t.updated_at, t.club_id, t.home_field_id,
+                             t.primary_color, t.secondary_color, t.accent_color,
                              s.name, u.first_name, u.last_name, f.name
                 ");
                 $stmt->execute([$team_id]);
@@ -171,11 +226,23 @@ try {
             // program_id is optional, defaults to null
             $program_id = $data['program_id'] ?? null;
 
+            // Branding: BrandingTab submits primary_color + logo_data (base64).
+            // team_color is mirrored from primary_color so legacy readers keep
+            // working. Logo is written to uploads/team-logos/ when base64 was
+            // sent; pre-uploaded URLs pass through.
+            $logoUrl = resolveTeamLogoUrl($data);
+            $primaryColor   = $data['primary_color']   ?? $data['team_color'] ?? '#3b82f6';
+            $secondaryColor = $data['secondary_color'] ?? null;
+            $accentColor    = $data['accent_color']    ?? null;
+
             $stmt = $connection->prepare("
                 INSERT INTO teams (name, program_id, season_id, primary_coach_id, age_group, division,
                                  max_players, team_color, logo_url, skill_level, gender, status,
-                                 club_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 club_id,
+                                 primary_color, secondary_color, accent_color,
+                                 social_facebook, social_instagram, social_twitter,
+                                 social_tiktok, social_youtube, social_linkedin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -186,12 +253,21 @@ try {
                 $data['age_group'] ?? null,
                 $data['division'] ?? null,
                 $data['max_players'] ?? 20,
-                $data['team_color'] ?? '#3b82f6',
-                $data['logo_url'] ?? null,
+                $primaryColor,
+                $logoUrl,
                 $data['skill_level'] ?? 'Beginner',
                 $data['gender'] ?? 'Mixed',
                 $data['status'] ?? 'forming',
-                $clubId
+                $clubId,
+                $primaryColor,
+                $secondaryColor,
+                $accentColor,
+                $data['social_facebook']  ?? null,
+                $data['social_instagram'] ?? null,
+                $data['social_twitter']   ?? null,
+                $data['social_tiktok']    ?? null,
+                $data['social_youtube']   ?? null,
+                $data['social_linkedin']  ?? null,
             ]);
 
             echo json_encode([
@@ -226,11 +302,32 @@ try {
 
             $data = json_decode(file_get_contents("php://input"), true);
 
+            // Branding: BrandingTab submits primary_color + logo_data (base64).
+            // team_color mirrors primary_color for backward-compat readers.
+            // Logo: if logo_data was sent, write it and use the new URL.
+            // Otherwise pass through whatever logo_url was sent. If neither
+            // was sent, we *preserve* the existing logo_url instead of
+            // wiping it (the previous version of this handler did, which is
+            // why the Branding tab destroyed the logo on every save of the
+            // Info tab).
+            $logoUrl = resolveTeamLogoUrl($data);
+            if ($logoUrl === null && !array_key_exists('logo_url', $data) && !array_key_exists('logo_data', $data)) {
+                // Nothing logo-related submitted — preserve existing.
+                $existing = $connection->prepare("SELECT logo_url FROM teams WHERE id = ?");
+                $existing->execute([$team_id]);
+                $existingRow = $existing->fetch(PDO::FETCH_ASSOC);
+                $logoUrl = $existingRow ? $existingRow['logo_url'] : null;
+            }
+            $primaryColor   = $data['primary_color']   ?? $data['team_color'] ?? '#3b82f6';
+            $secondaryColor = $data['secondary_color'] ?? null;
+            $accentColor    = $data['accent_color']    ?? null;
+
             $stmt = $connection->prepare("
                 UPDATE teams
                 SET name = ?, age_group = ?, division = ?, season_id = ?, primary_coach_id = ?,
                     max_players = ?, team_color = ?, logo_url = ?, skill_level = ?, gender = ?, status = ?,
                     home_field_id = ?,
+                    primary_color = ?, secondary_color = ?, accent_color = ?,
                     social_facebook = ?, social_instagram = ?, social_twitter = ?,
                     social_tiktok = ?, social_youtube = ?, social_linkedin = ?
                 WHERE id = ?
@@ -243,12 +340,15 @@ try {
                 isset($data['season_id']) && $data['season_id'] ? $data['season_id'] : null,
                 isset($data['primary_coach_id']) && $data['primary_coach_id'] ? $data['primary_coach_id'] : null,
                 $data['max_players'] ?? 20,
-                $data['team_color'] ?? '#3b82f6',
-                $data['logo_url'] ?? null,
+                $primaryColor,
+                $logoUrl,
                 $data['skill_level'] ?? 'Beginner',
                 $data['gender'] ?? 'Mixed',
                 $data['status'] ?? 'forming',
                 isset($data['home_field_id']) && $data['home_field_id'] ? $data['home_field_id'] : null,
+                $primaryColor,
+                $secondaryColor,
+                $accentColor,
                 $data['social_facebook'] ?? null,
                 $data['social_instagram'] ?? null,
                 $data['social_twitter'] ?? null,
