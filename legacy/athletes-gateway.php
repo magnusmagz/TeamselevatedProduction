@@ -46,8 +46,8 @@ try {
                                g.email,
                                g.mobile_phone,
                                g.work_phone,
-                               ag.relationship,
-                               ag.is_primary,
+                               ag.relationship AS relationship_type,
+                               ag.is_primary AS is_primary_contact,
                                ag.can_pickup,
                                ag.emergency_contact
                         FROM athlete_guardians ag

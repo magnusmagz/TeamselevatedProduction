@@ -160,28 +160,59 @@ try {
             $updateFields = [];
             $updateValues = [];
 
+            // [inputField => [dbColumn, isBoolean]]
             $fieldMapping = [
-                'relationship_type' => 'relationship',
-                'is_primary_contact' => 'is_primary',
-                'can_pickup' => 'can_pickup',
-                'emergency_contact' => 'emergency_contact'
+                'relationship_type'  => ['relationship',       false],
+                'is_primary_contact' => ['is_primary',         true],
+                'can_pickup'         => ['can_pickup',         true],
+                'emergency_contact'  => ['emergency_contact',  true],
             ];
 
-            foreach ($fieldMapping as $inputField => $dbField) {
-                if (isset($input[$inputField])) {
-                    $updateFields[] = "$dbField = ?";
-                    $updateValues[] = $input[$inputField];
+            foreach ($fieldMapping as $inputField => [$dbField, $isBoolean]) {
+                if (array_key_exists($inputField, $input)) {
+                    if ($isBoolean) {
+                        $value = $input[$inputField];
+                        $coerced = (!empty($value) && $value !== 'false') ? 'true' : 'false';
+                        $updateFields[] = "$dbField = ?::boolean";
+                        $updateValues[] = $coerced;
+                    } else {
+                        $updateFields[] = "$dbField = ?";
+                        $updateValues[] = $input[$inputField];
+                    }
                 }
             }
 
+            $promotingToPrimary = array_key_exists('is_primary_contact', $input)
+                && !empty($input['is_primary_contact'])
+                && $input['is_primary_contact'] !== 'false';
+
             if (!empty($updateFields)) {
-                $updateValues[] = $relationshipId;
-                $stmt = $pdo->prepare("
-                    UPDATE athlete_guardians
-                    SET " . implode(', ', $updateFields) . "
-                    WHERE id = ?
-                ");
-                $stmt->execute($updateValues);
+                $pdo->beginTransaction();
+                try {
+                    if ($promotingToPrimary) {
+                        // Demote any other primary guardian on this athlete so only one stays primary
+                        $demoteStmt = $pdo->prepare("
+                            UPDATE athlete_guardians
+                            SET is_primary = false
+                            WHERE athlete_id = (SELECT athlete_id FROM athlete_guardians WHERE id = ?)
+                              AND id != ?
+                              AND is_primary = true
+                        ");
+                        $demoteStmt->execute([$relationshipId, $relationshipId]);
+                    }
+
+                    $updateValues[] = $relationshipId;
+                    $stmt = $pdo->prepare("
+                        UPDATE athlete_guardians
+                        SET " . implode(', ', $updateFields) . "
+                        WHERE id = ?
+                    ");
+                    $stmt->execute($updateValues);
+                    $pdo->commit();
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw $e;
+                }
             }
 
             echo json_encode(['success' => true, 'message' => 'Guardian relationship updated successfully']);
