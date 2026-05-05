@@ -102,6 +102,22 @@ export interface Tournament {
 
 export type ScoringSystem = 'standard' | 'ten_point';
 
+export type OvertimeMode = 'none' | 'pks_only' | 'overtime_then_pks';
+
+export interface OvertimeRules {
+  mode: OvertimeMode;
+  // Used when mode === 'overtime_then_pks'
+  ot_periods?: number;
+  ot_minutes_per_period?: number;
+  golden_goal?: boolean;
+}
+
+export const OVERTIME_MODE_LABELS: Record<OvertimeMode, string> = {
+  none: 'No overtime — ties stand',
+  pks_only: 'Penalty shootout if tied at full time',
+  overtime_then_pks: 'Overtime, then PKs if still tied',
+};
+
 export interface TournamentDivision {
   id: number;
   tournament_id: number;
@@ -125,7 +141,7 @@ export interface TournamentDivision {
   competitive_level: CompetitiveLevel | null;
   max_players_on_field: number | null;
   sport_rule_notes: string[] | null;
-  overtime_rules: object | null;
+  overtime_rules: OvertimeRules | null;
   sort_order: number;
   created_at: string;
   updated_at: string;

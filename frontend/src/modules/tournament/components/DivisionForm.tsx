@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem, CompetitiveLevel, COMPETITIVE_LEVEL_LABELS } from '../types';
+import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem, CompetitiveLevel, COMPETITIVE_LEVEL_LABELS, OvertimeMode, OvertimeRules, OVERTIME_MODE_LABELS } from '../types';
 import { getSportPresets } from '../api/tournamentApi';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -60,6 +60,10 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
   const [maxOnField, setMaxOnField] = useState<number | ''>(division?.max_players_on_field || '');
   const [ruleNotes, setRuleNotes] = useState<string[]>(division?.sport_rule_notes || []);
   const [tiebreakers, setTiebreakers] = useState<string[]>(division?.tiebreaker_rules || DEFAULT_TIEBREAKERS);
+  const [otMode, setOtMode] = useState<OvertimeMode>(division?.overtime_rules?.mode || 'none');
+  const [otPeriods, setOtPeriods] = useState<number>(division?.overtime_rules?.ot_periods ?? 2);
+  const [otMinutes, setOtMinutes] = useState<number>(division?.overtime_rules?.ot_minutes_per_period ?? 5);
+  const [otGoldenGoal, setOtGoldenGoal] = useState<boolean>(!!division?.overtime_rules?.golden_goal);
 
   // Load presets
   useEffect(() => {
@@ -133,6 +137,16 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
       max_players_on_field: maxOnField || null,
       sport_rule_notes: ruleNotes.length > 0 ? ruleNotes : null,
       tiebreaker_rules: tiebreakers,
+      overtime_rules: ((): OvertimeRules | null => {
+        if (otMode === 'none') return { mode: 'none' };
+        if (otMode === 'pks_only') return { mode: 'pks_only' };
+        return {
+          mode: 'overtime_then_pks',
+          ot_periods: otPeriods,
+          ot_minutes_per_period: otMinutes,
+          golden_goal: otGoldenGoal,
+        };
+      })(),
     };
 
     const token = localStorage.getItem('auth_token');
@@ -406,6 +420,63 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
           ))}
         </div>
       </div>
+
+      {/* Overtime / tiebreaker resolution */}
+      {format !== 'round_robin' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-gray-900">Overtime Rules</h4>
+          <p className="text-xs text-gray-500">
+            How knockout matches resolve when tied at full time. Round-robin is unaffected (ties stand and go to standings tiebreakers).
+          </p>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Mode</label>
+            <select
+              value={otMode}
+              onChange={(e) => setOtMode(e.target.value as OvertimeMode)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              {(Object.keys(OVERTIME_MODE_LABELS) as OvertimeMode[]).map((m) => (
+                <option key={m} value={m}>{OVERTIME_MODE_LABELS[m]}</option>
+              ))}
+            </select>
+          </div>
+
+          {otMode === 'overtime_then_pks' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">OT periods</label>
+                  <input
+                    type="number" min={1} max={4}
+                    value={otPeriods}
+                    onChange={(e) => setOtPeriods(parseInt(e.target.value, 10) || 2)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Minutes per period</label>
+                  <input
+                    type="number" min={1} max={30}
+                    value={otMinutes}
+                    onChange={(e) => setOtMinutes(parseInt(e.target.value, 10) || 5)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={otGoldenGoal}
+                  onChange={(e) => setOtGoldenGoal(e.target.checked)}
+                  className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                />
+                Golden goal — first to score wins
+              </label>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end space-x-3">
