@@ -171,9 +171,29 @@ function handleSendCalendarInvite($conn, $input) {
 // Route handler
 try {
     if ($method === 'GET' && $action === 'upcoming') {
-        // Get upcoming events, optionally filtered by athlete's teams
+        // Get upcoming events. For parents/players, scope to teams their own athletes
+        // are on (no athlete_id = "all my athletes"). Admins/coaches see all events.
+        $auth = AuthMiddleware::requireAuth();
+        $requestingUserId = $auth->getUserId();
         $athlete_id = $_GET['athlete_id'] ?? null;
         $limit = $_GET['limit'] ?? 50;
+
+        $isPrivileged = $auth->isSuperAdmin() || $auth->hasRole('club_admin');
+        if (!$isPrivileged) {
+            // Coach of any team in any club they have access to → privileged
+            $coachCheck = $conn->prepare("
+                SELECT 1 FROM teams t
+                LEFT JOIN team_members tm
+                  ON tm.team_id = t.id
+                 AND tm.user_id = ?
+                 AND tm.role IN ('assistant_coach','team_manager')
+                 AND tm.status = 'active'
+                WHERE (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+                LIMIT 1
+            ");
+            $coachCheck->execute([$requestingUserId, $requestingUserId]);
+            $isPrivileged = (bool) $coachCheck->fetchColumn();
+        }
 
         $params = [];
 
@@ -196,8 +216,8 @@ try {
                 LIMIT :lim
             ";
             $params['athlete_id'] = $athlete_id;
-        } else {
-            // Get all upcoming events (for parents with multiple athletes, get all their teams)
+        } elseif ($isPrivileged) {
+            // Admin / coach: see all upcoming events
             $query = "
                 SELECT DISTINCT
                     ce.id, ce.name AS title, ce.type, ce.event_date AS date,
@@ -212,6 +232,29 @@ try {
                 ORDER BY ce.event_date ASC, ce.start_time ASC
                 LIMIT :lim
             ";
+        } else {
+            // Parent / player: scope to teams the requesting user's athletes are on.
+            $query = "
+                SELECT DISTINCT
+                    ce.id, ce.name AS title, ce.type, ce.event_date AS date,
+                    ce.start_time, ce.end_time, ce.location, ce.description,
+                    ce.status,
+                    t.id AS team_id, t.name AS team_name
+                FROM calendar_events ce
+                JOIN calendar_event_teams cet ON ce.id = cet.event_id
+                JOIN teams t ON cet.team_id = t.id
+                JOIN team_members tm ON tm.team_id = t.id AND tm.athlete_id IS NOT NULL
+                JOIN athletes a ON a.id = tm.athlete_id
+                JOIN athlete_guardians ag ON ag.athlete_id = a.id
+                JOIN guardians g ON g.id = ag.guardian_id
+                JOIN users u ON u.email = g.email
+                WHERE u.id = :requesting_user_id
+                  AND ce.event_date >= CURRENT_DATE
+                  AND (ce.status IS NULL OR ce.status != 'cancelled')
+                ORDER BY ce.event_date ASC, ce.start_time ASC
+                LIMIT :lim
+            ";
+            $params['requesting_user_id'] = $requestingUserId;
         }
         $params['lim'] = (int) $limit;
 
