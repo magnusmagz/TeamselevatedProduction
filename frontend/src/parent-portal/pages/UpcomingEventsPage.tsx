@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
@@ -31,16 +31,25 @@ export const UpcomingEventsPage: React.FC = () => {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  // Pre-select athlete from ?athlete=N URL param when arriving from athlete-detail
+  // Pre-select athlete from ?athlete=N URL param when arriving from athlete-detail.
+  // Apply once per URL value (not on every render) so the dropdown stays free to
+  // change after the initial pre-select — otherwise switching to Madison snaps back
+  // to the URL-param athlete.
+  const appliedUrlAthleteRef = useRef<string | null>(null);
   useEffect(() => {
     const athleteParam = searchParams.get('athlete');
-    if (!athleteParam) return;
-    const id = Number(athleteParam);
-    if (!Number.isFinite(id)) return;
-    if (athletes.some((a) => a.id === id) && selectedAthleteId !== id) {
-      selectAthlete(id);
+    if (!athleteParam) {
+      appliedUrlAthleteRef.current = null;
+      return;
     }
-  }, [searchParams, athletes, selectedAthleteId, selectAthlete]);
+    if (athleteParam === appliedUrlAthleteRef.current) return;
+    if (athletes.length === 0) return;
+    const id = Number(athleteParam);
+    if (Number.isFinite(id) && athletes.some((a) => a.id === id)) {
+      selectAthlete(id);
+      appliedUrlAthleteRef.current = athleteParam;
+    }
+  }, [searchParams, athletes, selectAthlete]);
 
   useEffect(() => {
     const fetchEvents = async () => {
