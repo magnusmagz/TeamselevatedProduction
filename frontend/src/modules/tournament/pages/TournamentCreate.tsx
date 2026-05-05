@@ -46,6 +46,7 @@ const EMPTY_FORM: TournamentFormData = {
   governing_body: '',
   sanction_number: '',
   state_association: '',
+  host_name: '',
 };
 
 const TournamentCreate: React.FC = () => {
@@ -98,6 +99,7 @@ const TournamentCreate: React.FC = () => {
             governing_body: (t.governing_body as GoverningBody) || '',
             sanction_number: t.sanction_number || '',
             state_association: t.state_association || '',
+            host_name: t.host_name || '',
           });
           setEntryFeeDisplay(t.entry_fee_cents ? (t.entry_fee_cents / 100).toFixed(2) : '');
         })
@@ -127,6 +129,7 @@ const TournamentCreate: React.FC = () => {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = 'Tournament name is required';
+    if (!form.host_name.trim()) errs.host_name = 'Host is required';
     if (!form.start_date) errs.start_date = 'Start date is required';
     if (!form.end_date) errs.end_date = 'End date is required';
     if (form.start_date && form.end_date && form.start_date > form.end_date) {
@@ -193,17 +196,33 @@ const TournamentCreate: React.FC = () => {
         <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name *</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className={`w-full border rounded-md px-3 py-2 text-sm ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-              placeholder="Spring Classic 2026"
-            />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name *</label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                className={`w-full border rounded-md px-3 py-2 text-sm ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="Spring Classic 2026"
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Host *</label>
+              <input
+                type="text"
+                name="host_name"
+                value={form.host_name}
+                onChange={handleChange}
+                className={`w-full border rounded-md px-3 py-2 text-sm ${errors.host_name ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="e.g. Phoenix Rising Soccer Club"
+              />
+              {errors.host_name
+                ? <p className="text-red-500 text-xs mt-1">{errors.host_name}</p>
+                : <p className="text-xs text-gray-400 mt-1">Shown on the public page as "Hosted by"</p>}
+            </div>
           </div>
 
           <div>

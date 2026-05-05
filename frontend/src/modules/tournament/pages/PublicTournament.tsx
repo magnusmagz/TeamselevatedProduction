@@ -31,6 +31,7 @@ interface PublicTournamentData {
   governing_body: string | null;
   sanction_number: string | null;
   state_association: string | null;
+  host_name: string | null;
   club_name: string;
   club_logo_url: string | null;
   primary_color: string | null;
@@ -200,7 +201,9 @@ const PublicTournament: React.FC = () => {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: brandColor }}>
-                {tournament.club_name}
+                {tournament.host_name
+                  ? <>Hosted by · {tournament.host_name}</>
+                  : tournament.club_name}
               </p>
               <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 mt-1 leading-tight">
                 {tournament.name}
