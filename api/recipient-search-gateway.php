@@ -789,24 +789,52 @@ function handleChatSearch($connection, $auth, $userId) {
 
         if (!empty($parentTeamIds)) {
             $teamPlaceholders = implode(',', array_fill(0, count($parentTeamIds), '?'));
-            // Coaches of those teams: primary_coach_id + assistant_coach/team_manager rows
+            // Parents can chat with: coaches of their athletes' teams (primary +
+            // assistant) AND other parents who have an athlete on those same teams.
+            // Coach role takes precedence if a person is both.
             $sql = "
-                SELECT DISTINCT u.id AS user_id, u.first_name, u.last_name, u.email,
-                                'coach' AS role,
-                                STRING_AGG(DISTINCT t.name, ', ') AS team_names
-                FROM teams t
-                LEFT JOIN team_members tm
-                  ON tm.team_id = t.id
-                 AND tm.role IN ('assistant_coach','team_manager')
-                 AND tm.status = 'active'
-                JOIN users u ON u.id = COALESCE(tm.user_id, t.primary_coach_id)
-                WHERE t.id IN ($teamPlaceholders)
-                  AND u.id != ?
-                  AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
-                GROUP BY u.id, u.first_name, u.last_name, u.email
-                ORDER BY u.last_name, u.first_name
+                WITH coaches AS (
+                    SELECT u.id AS user_id, u.first_name, u.last_name, u.email,
+                           'coach' AS role,
+                           STRING_AGG(DISTINCT t.name, ', ') AS team_names
+                    FROM teams t
+                    LEFT JOIN team_members tm
+                      ON tm.team_id = t.id
+                     AND tm.role IN ('assistant_coach','team_manager')
+                     AND tm.status = 'active'
+                    JOIN users u ON u.id = COALESCE(tm.user_id, t.primary_coach_id)
+                    WHERE t.id IN ($teamPlaceholders)
+                      AND u.id != ?
+                      AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+                    GROUP BY u.id, u.first_name, u.last_name, u.email
+                ),
+                parents AS (
+                    SELECT u.id AS user_id, u.first_name, u.last_name, u.email,
+                           'parent' AS role,
+                           STRING_AGG(DISTINCT t.name, ', ') AS team_names
+                    FROM teams t
+                    JOIN team_members tm2 ON tm2.team_id = t.id
+                                          AND tm2.athlete_id IS NOT NULL
+                                          AND tm2.status = 'active'
+                    JOIN athlete_guardians ag ON ag.athlete_id = tm2.athlete_id
+                    JOIN guardians g ON g.id = ag.guardian_id
+                    JOIN users u ON u.email = g.email
+                    WHERE t.id IN ($teamPlaceholders)
+                      AND u.id != ?
+                      AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+                    GROUP BY u.id, u.first_name, u.last_name, u.email
+                )
+                SELECT user_id, first_name, last_name, email, role, team_names FROM coaches
+                UNION ALL
+                SELECT user_id, first_name, last_name, email, role, team_names
+                FROM parents
+                WHERE user_id NOT IN (SELECT user_id FROM coaches)
+                ORDER BY last_name, first_name
             ";
-            $params = array_merge($parentTeamIds, [$userId, $like, $like, $like]);
+            $params = array_merge(
+                $parentTeamIds, [$userId, $like, $like, $like],
+                $parentTeamIds, [$userId, $like, $like, $like]
+            );
             $stmt = $connection->prepare($sql);
             $stmt->execute($params);
             $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
