@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useChatContext } from '../contexts/ChatContext';
 
 interface NavItem {
   path: string;
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
 
 export const BottomNavigation: React.FC = () => {
   const location = useLocation();
+  const { totalUnreadCount } = useChatContext();
 
   const isActive = (path: string) => {
     if (path === '/parent') {
@@ -71,22 +73,30 @@ export const BottomNavigation: React.FC = () => {
       style={{ paddingBottom: 'var(--safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex justify-around items-stretch h-16">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={`flex flex-col items-center justify-center w-full min-h-[48px] py-1 px-2 touch-manipulation ${
-              isActive(item.path)
-                ? 'text-brand-primary'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <span className={isActive(item.path) ? 'text-brand-primary' : ''}>
-              {item.icon}
-            </span>
-            <span className="text-xs mt-0.5 font-medium">{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const showChatBadge = item.path === '/parent/chat' && totalUnreadCount > 0;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center w-full min-h-[48px] py-1 px-2 touch-manipulation ${
+                isActive(item.path)
+                  ? 'text-brand-primary'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className={`relative ${isActive(item.path) ? 'text-brand-primary' : ''}`}>
+                {item.icon}
+                {showChatBadge && (
+                  <span className="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                  </span>
+                )}
+              </span>
+              <span className="text-xs mt-0.5 font-medium">{item.label}</span>
+            </NavLink>
+          );
+        })}
       </div>
     </nav>
   );

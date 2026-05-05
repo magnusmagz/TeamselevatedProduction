@@ -614,26 +614,30 @@ io.on('connection', (socket) => {
     const convType = participantIds.length === 1 ? 'direct' : (type || 'group');
 
     try {
-      // For DMs, check if one already exists between these two users
-      if (convType === 'direct') {
-        const existingDM = await pool.query(`
-          SELECT c.id FROM conversations c
-          JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = $1 AND cp1.left_at IS NULL
-          JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = $2 AND cp2.left_at IS NULL
-          WHERE c.type = 'direct'
-          LIMIT 1
-        `, [userInfo.userId, participantIds[0]]);
+      // Check if a conversation with the exact same participant set already exists
+      // (covers both DMs and groups). If so, reuse it instead of creating a duplicate.
+      const allParticipantIds = Array.from(new Set([userInfo.userId, ...participantIds])).sort((a, b) => a - b);
+      const existingConv = await pool.query(`
+        SELECT c.id FROM conversations c
+        WHERE c.type = $1
+          AND (
+            SELECT ARRAY(
+              SELECT user_id FROM conversation_participants
+              WHERE conversation_id = c.id AND left_at IS NULL
+              ORDER BY user_id
+            )
+          ) = $2::int[]
+        LIMIT 1
+      `, [convType, allParticipantIds]);
 
-        if (existingDM.rows.length > 0) {
-          // Return existing conversation
-          const convId = existingDM.rows[0].id;
-          const conversations = await getUserConversations(
-            userInfo.userId, userInfo.role, userInfo.payload
-          );
-          const existing = conversations.find(c => c.id === convId);
-          socket.emit('conversationCreated', existing || { id: convId });
-          return;
-        }
+      if (existingConv.rows.length > 0) {
+        const convId = existingConv.rows[0].id;
+        const conversations = await getUserConversations(
+          userInfo.userId, userInfo.role, userInfo.payload
+        );
+        const existing = conversations.find(c => c.id === convId);
+        socket.emit('conversationCreated', existing || { id: convId });
+        return;
       }
 
       // Create the conversation
