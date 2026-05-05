@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -222,6 +223,9 @@ try {
 
     } elseif ($method === 'GET' && $action === 'get') {
         // Get single event with RSVP status for parent's athletes
+        $auth = AuthMiddleware::requireAuth();
+        $requestingUserId = $auth->getUserId();
+
         $event_id = $_GET['id'] ?? null;
         if (!$event_id) {
             http_response_code(400);
@@ -267,8 +271,28 @@ try {
         $athletes_rsvp = [];
 
         if (!empty($teamIds)) {
-            $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
-            $stmt = $conn->prepare("
+            // Privileged viewers (super admin, club admin, or coach of any of these teams)
+            // see RSVPs for ALL athletes on the team. Everyone else is scoped to athletes
+            // they're linked to as guardian via athlete_guardians.
+            $isPrivileged = $auth->isSuperAdmin() || $auth->hasRole('club_admin');
+            if (!$isPrivileged) {
+                $coachStmt = $conn->prepare("
+                    SELECT 1
+                    FROM teams t
+                    LEFT JOIN team_members tm
+                      ON tm.team_id = t.id
+                     AND tm.user_id = ?
+                     AND tm.role IN ('assistant_coach', 'team_manager')
+                    WHERE t.id IN (" . implode(',', array_fill(0, count($teamIds), '?')) . ")
+                      AND (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+                    LIMIT 1
+                ");
+                $coachStmt->execute(array_merge([$requestingUserId], $teamIds, [$requestingUserId]));
+                $isPrivileged = (bool) $coachStmt->fetchColumn();
+            }
+
+            $teamPlaceholders = implode(',', array_fill(0, count($teamIds), '?'));
+            $sql = "
                 SELECT DISTINCT
                     a.id AS athlete_id,
                     a.first_name || ' ' || a.last_name AS athlete_name,
@@ -279,10 +303,25 @@ try {
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN users u ON g.email = u.email
                 LEFT JOIN calendar_event_attendees cea ON cea.event_id = ? AND cea.user_id = u.id
-                WHERE tm.team_id IN ($placeholders)
+                WHERE tm.team_id IN ($teamPlaceholders)
                   AND tm.athlete_id IS NOT NULL
-            ");
+            ";
             $executeParams = array_merge([$event_id], $teamIds);
+
+            if (!$isPrivileged) {
+                // Restrict to athletes the requesting user is linked to as guardian
+                $sql .= "
+                  AND a.id IN (
+                      SELECT ag2.athlete_id
+                      FROM athlete_guardians ag2
+                      JOIN guardians g2 ON ag2.guardian_id = g2.id
+                      JOIN users u2 ON g2.email = u2.email
+                      WHERE u2.id = ?
+                  )";
+                $executeParams[] = $requestingUserId;
+            }
+
+            $stmt = $conn->prepare($sql);
             $stmt->execute($executeParams);
             $athletes_rsvp = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
