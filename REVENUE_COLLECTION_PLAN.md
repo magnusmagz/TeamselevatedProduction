@@ -1291,6 +1291,28 @@ Assumptions:
 
 ---
 
+## Known Gaps
+
+### Per-guardian invoicing for separated / divorced households
+
+**Gap:** Today the system generates one invoice per athlete addressed to the primary guardian. Payment reminders and dunning emails go to the primary guardian only (`AND ag.is_primary = true` filter in `api/payment-reminders.php` and `api/payment-failures.php`). Non-primary guardians — common in 50%+ of households due to separation/divorce — are excluded from billing communications and have no record of their own.
+
+**Why this matters:** Both legal guardians often share financial responsibility and have a right to see what they owe and when. The current model forces both parents to coordinate through whichever one is marked primary, which breaks down in divorced households where parents may not be on speaking terms.
+
+**Why a quick "CC the other guardian" stopgap was rejected:** Sending the same primary-addressed invoice to both parents implies "you both owe this" jointly, which is confusing and legally muddled. A real fix is per-guardian invoice records.
+
+**Scope of the proper fix (not yet built):**
+- Schema: add `guardian_id` (or equivalent recipient identifier) to `invoices`. Decide whether to store one invoice per guardian or one parent invoice with multiple per-guardian recipient rows.
+- Generation: on registration approval, fan out invoice records per linked guardian instead of picking primary.
+- Display: each guardian's portal shows their own invoice; "Billed to" matches that guardian.
+- Payments: decide split-the-bill vs each-guardian-pays-the-full-amount-and-first-paid-clears semantics. Probably needs a product call.
+- Reminders/dunning: query for unpaid invoices per guardian, not per athlete.
+- Receipts: per-guardian receipts after payment.
+
+**Workaround until then:** keep a single primary guardian per athlete (the recently-fixed promote/demote flow ensures only one). Communicate to clubs that both parents should ideally have the same email or coordinate offline. Both parents can independently see schedules and chat regardless of primary status — only the financial paths are gated.
+
+---
+
 ## Training & Documentation
 
 ### Admin Training Required
