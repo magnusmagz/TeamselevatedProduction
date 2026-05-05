@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
@@ -30,6 +30,20 @@ export const UpcomingEventsPage: React.FC = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  // Map team_id → first names of the parent's athletes on that team. Used to label
+  // each event tile in the "All Athletes" list view so parents can tell which kid
+  // each event applies to when multiple of their athletes are on different teams.
+  const teamIdToAthleteFirstNames = useMemo(() => {
+    const map: Record<number, string[]> = {};
+    athletes.forEach((a) => {
+      (a.teams || []).forEach((t) => {
+        if (!map[t.id]) map[t.id] = [];
+        if (!map[t.id].includes(a.first_name)) map[t.id].push(a.first_name);
+      });
+    });
+    return map;
+  }, [athletes]);
 
   // Pre-select athlete from ?athlete=N URL param when arriving from athlete-detail.
   // Apply once per URL value (not on every render) so the dropdown stays free to
@@ -265,6 +279,11 @@ export const UpcomingEventsPage: React.FC = () => {
                           <p className="font-medium text-gray-900">{event.title}</p>
                           {event.team_name && (
                             <p className="text-sm text-brand-primary">{event.team_name}</p>
+                          )}
+                          {selectedAthleteId === null && event.team_id && teamIdToAthleteFirstNames[event.team_id]?.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              For {teamIdToAthleteFirstNames[event.team_id].join(' & ')}
+                            </p>
                           )}
                           {event.location && (
                             <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
