@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { BottomNavigation } from './components/BottomNavigation';
 import { InstallPrompt } from './components/InstallPrompt';
+import { SponsorMarquee } from './components/SponsorMarquee';
 
 interface ParentPortalLayoutProps {
   children?: React.ReactNode;
@@ -27,6 +28,9 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
           {children || <Outlet />}
         </div>
       </main>
+
+      {/* Sponsor marquee — sits above bottom nav, hidden when no sponsors configured */}
+      <SponsorMarquee />
 
       {/* Bottom navigation */}
       <BottomNavigation />
