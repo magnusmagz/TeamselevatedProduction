@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
 import { AthleteSelector } from '../components/AthleteSelector';
@@ -21,10 +21,26 @@ interface Event {
 export const UpcomingEventsPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { athletes, selectedAthleteId, selectAthlete } = useParentAthletes();
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  // Pre-select athlete from ?athlete=N URL param when arriving from athlete-detail
+  useEffect(() => {
+    const athleteParam = searchParams.get('athlete');
+    if (!athleteParam) return;
+    const id = Number(athleteParam);
+    if (!Number.isFinite(id)) return;
+    if (athletes.some((a) => a.id === id) && selectedAthleteId !== id) {
+      selectAthlete(id);
+    }
+  }, [searchParams, athletes, selectedAthleteId, selectAthlete]);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -288,16 +304,123 @@ export const UpcomingEventsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Calendar View - Simple Month View */}
+        {/* Calendar View - Month grid */}
         {!loading && !error && viewMode === 'calendar' && (
-          <div className="px-4 py-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-center text-gray-500 py-8">
-                Calendar view coming soon. Use list view to see all events.
-              </p>
-            </div>
-          </div>
+          <CalendarMonthGrid
+            month={calendarMonth}
+            events={events}
+            onPrev={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+            onNext={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+            onToday={() => {
+              const d = new Date();
+              setCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+            }}
+          />
         )}
+      </div>
+    </div>
+  );
+};
+
+interface CalendarMonthGridProps {
+  month: Date;
+  events: Event[];
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}
+
+const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({ month, events, onPrev, onNext, onToday }) => {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const monthLabel = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Build a 6-week (42 cell) grid starting from the Sunday on or before day 1 of the month
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  const gridStart = new Date(year, monthIndex, 1 - firstOfMonth.getDay());
+  const days: Date[] = [];
+  for (let i = 0; i < 42; i++) {
+    days.push(new Date(year, monthIndex, gridStart.getDate() + i));
+  }
+
+  const eventsByDay = events.reduce<Record<string, Event[]>>((acc, e) => {
+    (acc[e.date] = acc[e.date] || []).push(e);
+    return acc;
+  }, {});
+
+  const todayKey = new Date().toISOString().split('T')[0];
+  const dayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  return (
+    <div className="px-4 py-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={onPrev}
+            aria-label="Previous month"
+            className="p-2 hover:bg-gray-100 rounded"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-brand-primary">{monthLabel}</h3>
+            <button
+              onClick={onToday}
+              className="text-xs text-brand-accent hover:underline"
+            >
+              Today
+            </button>
+          </div>
+          <button
+            onClick={onNext}
+            aria-label="Next month"
+            className="p-2 hover:bg-gray-100 rounded"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-px bg-gray-200 rounded overflow-hidden">
+          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
+            <div key={d} className="bg-gray-50 text-xs font-semibold text-gray-500 text-center py-1">{d}</div>
+          ))}
+          {days.map((d, idx) => {
+            const key = dayKey(d);
+            const inMonth = d.getMonth() === monthIndex;
+            const isToday = key === todayKey;
+            const dayEvents = eventsByDay[key] || [];
+            return (
+              <div
+                key={idx}
+                className={`bg-white min-h-[64px] p-1 ${inMonth ? '' : 'opacity-40'}`}
+              >
+                <div className={`text-xs text-right pr-0.5 ${isToday ? 'font-bold text-brand-primary' : 'text-gray-500'}`}>
+                  {d.getDate()}
+                </div>
+                <div className="flex flex-col gap-0.5 mt-0.5">
+                  {dayEvents.slice(0, 3).map((evt) => (
+                    <Link
+                      key={evt.id}
+                      to={`/parent/schedule/rsvp/${evt.id}`}
+                      className="block truncate text-[10px] leading-tight px-1 py-0.5 rounded bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20"
+                      title={evt.title}
+                    >
+                      {evt.title}
+                    </Link>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <span className="text-[10px] text-gray-400 px-1">+{dayEvents.length - 3} more</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
