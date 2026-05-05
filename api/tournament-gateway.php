@@ -248,8 +248,9 @@ try {
                     insurance_certificate_url, insurance_certificate_filename,
                     insurance_expiry_date, insurance_policy_number, insurance_provider,
                     governing_body, sanction_number, state_association,
+                    host_name,
                     created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -286,6 +287,7 @@ try {
                 nullIfEmpty($data['governing_body'] ?? null),
                 nullIfEmpty($data['sanction_number'] ?? null),
                 nullIfEmpty($data['state_association'] ?? null),
+                nullIfEmpty($data['host_name'] ?? null),
                 $userId,
             ]);
 
@@ -357,6 +359,7 @@ try {
                 'insurance_certificate_url', 'insurance_certificate_filename',
                 'insurance_expiry_date', 'insurance_policy_number', 'insurance_provider',
                 'governing_body', 'sanction_number', 'state_association',
+                'host_name',
             ];
 
             // Fields stored as DATE / TIMESTAMP / TIME / nullable INT — empty
@@ -369,6 +372,7 @@ try {
                 'venue_id', 'season_id', 'max_teams_per_division', 'entry_fee_cents',
                 'insurance_expiry_date',
                 'governing_body', 'sanction_number', 'state_association',
+                'host_name',
             ];
 
             $setClauses = [];

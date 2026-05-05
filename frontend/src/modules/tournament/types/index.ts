@@ -89,6 +89,7 @@ export interface Tournament {
   governing_body: GoverningBody | null;
   sanction_number: string | null;
   state_association: string | null;
+  host_name: string | null;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -258,6 +259,7 @@ export interface TournamentFormData {
   governing_body: GoverningBody | '';
   sanction_number: string;
   state_association: string;
+  host_name: string;
 }
 
 export interface VenueSummary {
