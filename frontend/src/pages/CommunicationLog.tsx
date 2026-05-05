@@ -134,7 +134,11 @@ export const CommunicationLog: React.FC = () => {
 
   const fetchEntries = useCallback(
     (pageNum: number, append: boolean = false) => {
-      if (!clubProfileId) return;
+      if (!clubProfileId) {
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
       const token = localStorage.getItem('auth_token');
 
       if (!append) setLoading(true);

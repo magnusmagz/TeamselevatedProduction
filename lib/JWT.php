@@ -60,6 +60,7 @@ class JWT {
 
         // Build roles array
         $roles = [];
+        $clubsWithRole = [];
         foreach ($clubRoles as $cr) {
             $roles[] = [
                 'role' => $cr['role'],
@@ -67,6 +68,41 @@ class JWT {
                 'scope_id' => (int)$cr['club_id'],
                 'scope_name' => $cr['club_name']
             ];
+            $clubsWithRole[(int)$cr['club_id']] = true;
+        }
+
+        // Derive 'coach' role from team-level coaching: anyone who is a team's
+        // primary_coach_id, or has an active team_members row with role
+        // assistant_coach/team_manager, gets a club-scoped 'coach' role for that
+        // team's club. Skip clubs where the user already has any role from
+        // user_club_access (admin/parent/etc takes precedence).
+        $stmt = $connection->prepare("
+            SELECT DISTINCT t.club_id, c.name AS club_name
+            FROM teams t
+            JOIN club_profile c ON c.id = t.club_id
+            LEFT JOIN team_members tm
+                ON tm.team_id = t.id
+                AND tm.user_id = ?
+                AND tm.role IN ('assistant_coach', 'team_manager')
+                AND tm.status = 'active'
+            WHERE t.deleted_at IS NULL
+              AND (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+        ");
+        $stmt->execute([$userId, $userId]);
+        $coachClubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($coachClubs as $cc) {
+            $clubId = (int)$cc['club_id'];
+            if (isset($clubsWithRole[$clubId])) {
+                continue;
+            }
+            $roles[] = [
+                'role' => 'coach',
+                'scope_type' => 'club',
+                'scope_id' => $clubId,
+                'scope_name' => $cc['club_name']
+            ];
+            $clubsWithRole[$clubId] = true;
         }
 
         // Determine active context
