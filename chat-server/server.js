@@ -93,7 +93,7 @@ function getUserRole(payload) {
  * Check if the role can initiate new DM/group conversations
  */
 function canInitiateConversation(role) {
-  return ['super_admin', 'owner', 'club_admin', 'admin', 'coach'].includes(role);
+  return ['super_admin', 'owner', 'club_admin', 'admin', 'coach', 'parent'].includes(role);
 }
 
 /**
