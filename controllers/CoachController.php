@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../models/Coach.php';
 
 class CoachController {
@@ -12,7 +13,8 @@ class CoachController {
     }
 
     public function myTeams() {
-        $coachId = $_SESSION['user_id'] ?? 2;
+        $auth = AuthMiddleware::requireAuth();
+        $coachId = $auth->getUserId();
         $teams = $this->coachModel->getCoachTeams($coachId);
         echo json_encode($teams);
     }
@@ -219,7 +221,8 @@ class CoachController {
     }
 
     private function authorizeCoachAccess($teamId) {
-        $coachId = $_SESSION['user_id'] ?? 2;
+        $auth = AuthMiddleware::requireAuth();
+        $coachId = $auth->getUserId();
         return $this->coachModel->isCoachForTeam($coachId, $teamId);
     }
 

@@ -30,9 +30,12 @@ const CoachDashboard: React.FC = () => {
 
   const fetchCoachTeams = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/coach/teams`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/coach/teams`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await response.json();
-      setTeams(data);
+      setTeams(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching coach teams:', error);
     } finally {

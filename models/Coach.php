@@ -15,8 +15,12 @@ class Coach {
                  WHERE tm.team_id = t.id AND tm.role = 'player'
                  AND tm.leave_date IS NULL AND tm.team_priority = 'guest') as guest_count,
                 CASE WHEN t.primary_coach_id = :coach_id THEN 'Head Coach' ELSE 'Assistant Coach' END as coach_role,
-                (SELECT MIN(start_datetime) FROM events e
-                 WHERE e.team_id = t.id AND e.start_datetime > NOW() AND e.cancelled = 0) as next_event
+                (SELECT MIN(ce.event_date::timestamp + COALESCE(ce.start_time, '00:00:00'::time))
+                 FROM calendar_events ce
+                 JOIN calendar_event_teams cet ON cet.event_id = ce.id
+                 WHERE cet.team_id = t.id
+                   AND ce.event_date >= CURRENT_DATE
+                   AND (ce.status IS NULL OR ce.status != 'cancelled')) as next_event
                 FROM teams t
                 LEFT JOIN seasons s ON t.season_id = s.id
                 LEFT JOIN fields f ON t.home_field_id = f.id
