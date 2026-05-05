@@ -292,36 +292,52 @@ try {
             }
 
             $teamPlaceholders = implode(',', array_fill(0, count($teamIds), '?'));
-            $sql = "
-                SELECT DISTINCT
-                    a.id AS athlete_id,
-                    a.first_name || ' ' || a.last_name AS athlete_name,
-                    cea.rsvp_status AS status
-                FROM team_members tm
-                JOIN athletes a ON tm.athlete_id = a.id
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id
-                LEFT JOIN guardians g ON ag.guardian_id = g.id
-                LEFT JOIN users u ON g.email = u.email
-                LEFT JOIN calendar_event_attendees cea
-                    ON cea.event_id = ?
-                    AND cea.user_id = u.id
-                    AND cea.athlete_id = a.id
-                WHERE tm.team_id IN ($teamPlaceholders)
-                  AND tm.athlete_id IS NOT NULL
-            ";
-            $executeParams = array_merge([$event_id], $teamIds);
-
-            if (!$isPrivileged) {
-                // Restrict to athletes the requesting user is linked to as guardian
-                $sql .= "
-                  AND a.id IN (
-                      SELECT ag2.athlete_id
-                      FROM athlete_guardians ag2
-                      JOIN guardians g2 ON ag2.guardian_id = g2.id
-                      JOIN users u2 ON g2.email = u2.email
-                      WHERE u2.id = ?
-                  )";
-                $executeParams[] = $requestingUserId;
+            // For non-privileged viewers, scope the cea match to the requesting user's
+            // own RSVP rows. For admins/coaches, return any RSVP attached to the athlete
+            // (the most recent one, in case multiple guardians have RSVPed).
+            if ($isPrivileged) {
+                $sql = "
+                    SELECT
+                        a.id AS athlete_id,
+                        a.first_name || ' ' || a.last_name AS athlete_name,
+                        (
+                            SELECT cea.rsvp_status
+                            FROM calendar_event_attendees cea
+                            WHERE cea.event_id = ?
+                              AND cea.athlete_id = a.id
+                            ORDER BY cea.responded_at DESC NULLS LAST
+                            LIMIT 1
+                        ) AS status
+                    FROM team_members tm
+                    JOIN athletes a ON tm.athlete_id = a.id
+                    WHERE tm.team_id IN ($teamPlaceholders)
+                      AND tm.athlete_id IS NOT NULL
+                    GROUP BY a.id, a.first_name, a.last_name
+                ";
+                $executeParams = array_merge([$event_id], $teamIds);
+            } else {
+                $sql = "
+                    SELECT DISTINCT
+                        a.id AS athlete_id,
+                        a.first_name || ' ' || a.last_name AS athlete_name,
+                        cea.rsvp_status AS status
+                    FROM team_members tm
+                    JOIN athletes a ON tm.athlete_id = a.id
+                    LEFT JOIN calendar_event_attendees cea
+                        ON cea.event_id = ?
+                        AND cea.user_id = ?
+                        AND cea.athlete_id = a.id
+                    WHERE tm.team_id IN ($teamPlaceholders)
+                      AND tm.athlete_id IS NOT NULL
+                      AND a.id IN (
+                          SELECT ag2.athlete_id
+                          FROM athlete_guardians ag2
+                          JOIN guardians g2 ON ag2.guardian_id = g2.id
+                          JOIN users u2 ON g2.email = u2.email
+                          WHERE u2.id = ?
+                      )
+                ";
+                $executeParams = array_merge([$event_id, $requestingUserId], $teamIds, [$requestingUserId]);
             }
 
             $stmt = $conn->prepare($sql);
@@ -341,7 +357,10 @@ try {
         echo json_encode(['success' => true, 'event' => $event]);
 
     } elseif ($method === 'POST' && $action === 'rsvp') {
-        // Save RSVP for an athlete (via their guardian's user record)
+        // Save RSVP for an athlete under the authenticated user's record.
+        $auth = AuthMiddleware::requireAuth();
+        $userId = $auth->getUserId();
+
         $input = json_decode(file_get_contents('php://input'), true);
         $event_id = $input['event_id'] ?? null;
         $athlete_id = $input['athlete_id'] ?? null;
@@ -353,6 +372,28 @@ try {
             exit;
         }
 
+        // Verify the requesting user is a guardian of this athlete (or admin/coach).
+        // For this version, parents/players must be linked via athlete_guardians;
+        // privileged roles are handled by the broader admin RSVP path elsewhere.
+        $stmt = $conn->prepare("
+            SELECT u.email
+            FROM users u
+            WHERE u.id = :uid
+              AND EXISTS (
+                  SELECT 1
+                  FROM guardians g
+                  JOIN athlete_guardians ag ON ag.guardian_id = g.id
+                  WHERE g.email = u.email AND ag.athlete_id = :aid
+              )
+        ");
+        $stmt->execute(['uid' => $userId, 'aid' => $athlete_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized to RSVP for this athlete']);
+            exit;
+        }
+
         // Map frontend status to calendar attendee status
         $statusMap = [
             'attending' => 'accepted',
@@ -361,27 +402,8 @@ try {
         ];
         $dbStatus = $statusMap[$status] ?? $status;
 
-        // Find the guardian's user_id for this athlete
-        $stmt = $conn->prepare("
-            SELECT u.id AS user_id, u.email
-            FROM athletes a
-            JOIN athlete_guardians ag ON a.id = ag.athlete_id
-            JOIN guardians g ON ag.guardian_id = g.id
-            JOIN users u ON g.email = u.email
-            WHERE a.id = :athlete_id
-            LIMIT 1
-        ");
-        $stmt->execute(['athlete_id' => $athlete_id]);
-        $guardian = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$guardian) {
-            http_response_code(400);
-            echo json_encode(['error' => 'No linked guardian user found for this athlete']);
-            exit;
-        }
-
-        // Upsert RSVP — keyed on (event_id, user_id, athlete_id) so a guardian
-        // with multiple athletes on the same event has independent RSVPs per athlete.
+        // Upsert RSVP — keyed on (event_id, user_id, athlete_id) so each guardian
+        // tracks their own RSVP for each of their athletes.
         $stmt = $conn->prepare("
             INSERT INTO calendar_event_attendees (event_id, user_id, athlete_id, email, rsvp_status, responded_at, created_at)
             VALUES (:event_id, :user_id, :athlete_id, :email, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -390,9 +412,9 @@ try {
         ");
         $stmt->execute([
             'event_id' => $event_id,
-            'user_id' => $guardian['user_id'],
+            'user_id' => $userId,
             'athlete_id' => $athlete_id,
-            'email' => $guardian['email'],
+            'email' => $row['email'],
             'status' => $dbStatus
         ]);
 
