@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useOrg } from '../../contexts/OrgContext';
 import { useChat } from './useChat';
 import ConversationList from './ConversationList';
 import NewConversationDialog from './NewConversationDialog';
@@ -11,12 +10,6 @@ type View = 'list' | 'chat' | 'new';
 
 export default function ChatWidget() {
   const { user } = useAuth();
-  const { activeContext, isClubAdmin } = useOrg();
-
-  const hasChatAccess = isClubAdmin ||
-    activeContext?.role === 'coach' ||
-    activeContext?.role === 'club_admin' ||
-    activeContext?.role === 'parent';
 
   const {
     conversations,
@@ -67,7 +60,7 @@ export default function ChatWidget() {
     role: msg.role,
   }));
 
-  if (!user || !hasChatAccess) return null;
+  if (!user) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:top-0 max-sm:pointer-events-none">
