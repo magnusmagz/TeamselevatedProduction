@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { BottomNavigation } from './components/BottomNavigation';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SponsorMarquee } from './components/SponsorMarquee';
+import { ChatProvider } from './contexts/ChatContext';
 
 interface ParentPortalLayoutProps {
   children?: React.ReactNode;
@@ -10,6 +11,7 @@ interface ParentPortalLayoutProps {
 
 export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children }) => {
   return (
+    <ChatProvider>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Install prompt banner - shown at top when applicable */}
       <InstallPrompt />
@@ -35,6 +37,7 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
       {/* Bottom navigation */}
       <BottomNavigation />
     </div>
+    </ChatProvider>
   );
 };
 

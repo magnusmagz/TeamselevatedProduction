@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChat } from '../../components/chat/useChat';
+import { useChatContext } from '../contexts/ChatContext';
 import ConversationList from '../../components/chat/ConversationList';
 import { ParentHeader } from '../components/ParentHeader';
 
@@ -16,7 +16,7 @@ export const TeamChatPage: React.FC = () => {
     selectConversation,
     sendMessage,
     handleTyping,
-  } = useChat();
+  } = useChatContext();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
