@@ -35,6 +35,17 @@ interface Registration {
   invoice_status?: string;
 }
 
+interface AthleteEvent {
+  id: number;
+  title: string;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  location?: string;
+  type: string;
+  team_name?: string;
+}
+
 export const AthleteDetailPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
@@ -45,6 +56,8 @@ export const AthleteDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [registrationsLoading, setRegistrationsLoading] = useState(true);
+  const [athleteEvents, setAthleteEvents] = useState<AthleteEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -102,6 +115,29 @@ export const AthleteDetailPage: React.FC = () => {
     };
 
     fetchRegistrations();
+  }, [API_URL, id]);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!id) return;
+      setEventsLoading(true);
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(
+          `${API_URL}/api/calendar-events-gateway.php?action=upcoming&athlete_id=${id}&limit=5`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await response.json();
+        if (data.success && Array.isArray(data.events)) {
+          setAthleteEvents(data.events);
+        }
+      } catch (err) {
+        console.error('Error fetching athlete events:', err);
+      } finally {
+        setEventsLoading(false);
+      }
+    };
+    fetchEvents();
   }, [API_URL, id]);
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -267,7 +303,7 @@ export const AthleteDetailPage: React.FC = () => {
           </Link>
 
           <Link
-            to={`/parent/schedule`}
+            to={`/parent/schedule?athlete=${athlete.id}`}
             className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50"
           >
             <div className="w-10 h-10 rounded-full bg-brand-secondary flex items-center justify-center">
@@ -277,6 +313,59 @@ export const AthleteDetailPage: React.FC = () => {
             </div>
             <span className="font-medium text-gray-900">Schedule</span>
           </Link>
+        </div>
+
+        {/* Upcoming Schedule for this athlete */}
+        <div className="px-4 mb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-brand-primary">Upcoming Schedule</h2>
+              <Link to={`/parent/schedule?athlete=${athlete.id}`} className="text-xs text-brand-accent hover:underline">
+                See all
+              </Link>
+            </div>
+            {eventsLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary"></div>
+              </div>
+            ) : athleteEvents.length === 0 ? (
+              <p className="text-sm text-gray-500 py-2">No upcoming events.</p>
+            ) : (
+              <div className="space-y-2">
+                {athleteEvents.map((evt) => {
+                  const dateLabel = new Date(evt.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  });
+                  const timeLabel = evt.start_time
+                    ? new Date(`2000-01-01T${evt.start_time}`).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })
+                    : '';
+                  return (
+                    <Link
+                      key={evt.id}
+                      to={`/parent/schedule/rsvp/${evt.id}`}
+                      className="flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{evt.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
+                          {evt.team_name ? ` · ${evt.team_name}` : ''}
+                        </p>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Registrations */}
