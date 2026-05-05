@@ -16,7 +16,7 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
 
       {/* Main content area with safe area insets */}
       <main
-        className="flex-1 pb-20"
+        className="flex-1 pb-32"
         style={{
           paddingTop: 'var(--safe-area-inset-top, 0px)',
           paddingLeft: 'var(--safe-area-inset-left, 0px)',

@@ -42,7 +42,7 @@ export const SponsorMarquee: React.FC = () => {
   const reel = [...sponsors, ...sponsors];
 
   return (
-    <div className="bg-white border-t border-gray-200 overflow-hidden">
+    <div className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 overflow-hidden">
       <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 text-center">
         Our Sponsors
       </div>
