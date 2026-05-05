@@ -403,16 +403,37 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({ month, events, on
                   {d.getDate()}
                 </div>
                 <div className="flex flex-col gap-0.5 mt-0.5">
-                  {dayEvents.slice(0, 3).map((evt) => (
-                    <Link
-                      key={evt.id}
-                      to={`/parent/schedule/rsvp/${evt.id}`}
-                      className="block truncate text-[10px] leading-tight px-1 py-0.5 rounded bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20"
-                      title={evt.title}
-                    >
-                      {evt.title}
-                    </Link>
-                  ))}
+                  {dayEvents.slice(0, 3).map((evt) => {
+                    // RSVP indicator: dot color encodes the response.
+                    // Green = attending, red = not attending, amber = maybe,
+                    // no dot = not yet responded. Tooltip surfaces the
+                    // status verbatim for screen readers / hover.
+                    const rsvp = evt.rsvp_status;
+                    const dotClass =
+                      rsvp === 'attending' ? 'bg-green-500'
+                      : rsvp === 'not_attending' ? 'bg-red-500'
+                      : rsvp === 'maybe' ? 'bg-amber-500'
+                      : null;
+                    const tooltip = rsvp
+                      ? `${evt.title} — ${rsvp.replace('_', ' ')}`
+                      : evt.title;
+                    return (
+                      <Link
+                        key={evt.id}
+                        to={`/parent/schedule/rsvp/${evt.id}`}
+                        className="flex items-center gap-1 truncate text-[10px] leading-tight px-1 py-0.5 rounded bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20"
+                        title={tooltip}
+                      >
+                        {dotClass && (
+                          <span
+                            className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${dotClass}`}
+                            aria-hidden
+                          />
+                        )}
+                        <span className="truncate">{evt.title}</span>
+                      </Link>
+                    );
+                  })}
                   {dayEvents.length > 3 && (
                     <span className="text-[10px] text-gray-400 px-1">+{dayEvents.length - 3} more</span>
                   )}
@@ -420,6 +441,15 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({ month, events, on
               </div>
             );
           })}
+        </div>
+
+        {/* RSVP legend — surfaces what the dots on each event chip mean */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500">
+          <span className="font-medium uppercase tracking-wide text-gray-400">RSVP</span>
+          <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Attending</span>
+          <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Maybe</span>
+          <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Not attending</span>
+          <span className="text-gray-400">No dot = not yet responded</span>
         </div>
       </div>
     </div>
