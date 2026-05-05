@@ -82,6 +82,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const [changesSummary, setChangesSummary] = useState<string>('');
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [attendanceEventId, setAttendanceEventId] = useState<number | null>(null);
+  const [rsvpSummary, setRsvpSummary] = useState<{ total: number; responded: number } | null>(null);
+  const [sendingReminders, setSendingReminders] = useState(false);
   const [eventFormData, setEventFormData] = useState<Event>({
     name: '',
     type: 'event',
@@ -96,6 +98,77 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       setSelectedTeamFilter(String(teamId));
     }
   }, [teamId]);
+
+  // Load RSVP summary when opening an existing event
+  useEffect(() => {
+    if (!selectedEvent?.id || !showEventForm) {
+      setRsvpSummary(null);
+      return;
+    }
+    const RSVP_TRACKED_TYPES = ['practice', 'game', 'tournament', 'meeting', 'event'];
+    if (!RSVP_TRACKED_TYPES.includes(selectedEvent.type)) {
+      setRsvpSummary(null);
+      return;
+    }
+    const token = localStorage.getItem('auth_token');
+    fetch(`${API_URL}/api/calendar-events-gateway.php?action=get&id=${selectedEvent.id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.event?.athletes_rsvp)) {
+          const total = data.event.athletes_rsvp.length;
+          const responded = data.event.athletes_rsvp.filter(
+            (a: { status: string | null }) =>
+              a.status && a.status !== 'pending'
+          ).length;
+          setRsvpSummary({ total, responded });
+        } else {
+          setRsvpSummary(null);
+        }
+      })
+      .catch(() => setRsvpSummary(null));
+  }, [API_URL, selectedEvent, showEventForm]);
+
+  const handleSendReminders = async () => {
+    if (!selectedEvent?.id || !rsvpSummary) return;
+    const missing = rsvpSummary.total - rsvpSummary.responded;
+    if (missing <= 0) return;
+    if (!window.confirm(`Send RSVP reminder email to ${missing} non-respondent${missing === 1 ? '' : 's'}?`)) {
+      return;
+    }
+    setSendingReminders(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(
+        `${API_URL}/api/calendar-events-gateway.php?action=send-rsvp-reminders`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ event_id: selectedEvent.id }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const sent = data.reminders_sent ?? 0;
+        const skipped = data.skipped ?? 0;
+        alert(
+          sent === 0
+            ? data.message || 'No reminders sent.'
+            : `Sent ${sent} reminder${sent === 1 ? '' : 's'}.${skipped > 0 ? ` Skipped ${skipped} (suppressed or invalid).` : ''}`
+        );
+      } else {
+        alert(`Failed to send reminders: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Failed to send reminders');
+    } finally {
+      setSendingReminders(false);
+    }
+  };
 
   // Detect changes when editing an event
   useEffect(() => {
@@ -1122,6 +1195,35 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                       >
                         Take Attendance
                       </button>
+                      {rsvpSummary && (() => {
+                        const missing = rsvpSummary.total - rsvpSummary.responded;
+                        const allResponded = missing <= 0 || rsvpSummary.total === 0;
+                        return (
+                          <button
+                            type="button"
+                            onClick={handleSendReminders}
+                            disabled={allResponded || sendingReminders}
+                            className={`px-4 py-2 border rounded-md font-semibold uppercase ${
+                              allResponded
+                                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                            } ${sendingReminders ? 'opacity-60 cursor-wait' : ''}`}
+                            title={
+                              rsvpSummary.total === 0
+                                ? 'No athletes on this event'
+                                : allResponded
+                                ? 'All athletes have responded'
+                                : `${missing} of ${rsvpSummary.total} have not RSVPed`
+                            }
+                          >
+                            {sendingReminders
+                              ? 'Sending…'
+                              : allResponded
+                              ? `RSVP: ${rsvpSummary.responded}/${rsvpSummary.total} ✓`
+                              : `Remind ${missing} (${rsvpSummary.responded}/${rsvpSummary.total} responded)`}
+                          </button>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

@@ -402,6 +402,196 @@ try {
         $input = json_decode(file_get_contents('php://input'), true);
         $response = handleSendCalendarInvite($conn, $input);
         echo json_encode($response);
+
+    } elseif ($method === 'POST' && $action === 'send-rsvp-reminders') {
+        $auth = AuthMiddleware::requireAuth();
+        $input = json_decode(file_get_contents('php://input'), true);
+        $event_id = $input['event_id'] ?? null;
+
+        if (!$event_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'event_id is required']);
+            exit;
+        }
+
+        // Load event + linked teams (need club_id for permission + email scoping)
+        $stmt = $conn->prepare("
+            SELECT
+                ce.id, ce.name, ce.event_date, ce.start_time, ce.end_time, ce.location,
+                ce.type, t.id AS team_id, t.club_id, t.primary_coach_id
+            FROM calendar_events ce
+            JOIN calendar_event_teams cet ON ce.id = cet.event_id
+            JOIN teams t ON cet.team_id = t.id
+            WHERE ce.id = ?
+        ");
+        $stmt->execute([$event_id]);
+        $teamRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($teamRows)) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Event not found or has no teams']);
+            exit;
+        }
+
+        $event = $teamRows[0];
+        $teamIds = array_unique(array_column($teamRows, 'team_id'));
+        $clubId = $event['club_id'];
+
+        // Permission check: super admin, club admin of this club, or coach/manager of one of the teams
+        $userId = $auth->getUserId();
+        $isPrivileged = $auth->isSuperAdmin() || $auth->hasRole('club_admin', $clubId, 'club');
+
+        if (!$isPrivileged) {
+            $teamPlaceholders = implode(',', array_fill(0, count($teamIds), '?'));
+            $coachStmt = $conn->prepare("
+                SELECT 1
+                FROM teams t
+                LEFT JOIN team_members tm
+                  ON tm.team_id = t.id
+                 AND tm.user_id = ?
+                 AND tm.role IN ('assistant_coach', 'team_manager')
+                WHERE t.id IN ($teamPlaceholders)
+                  AND (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+                LIMIT 1
+            ");
+            $coachStmt->execute(array_merge([$userId], $teamIds, [$userId]));
+            $isPrivileged = (bool) $coachStmt->fetchColumn();
+        }
+
+        if (!$isPrivileged) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized to send reminders for this event']);
+            exit;
+        }
+
+        // Find non-respondents: athletes on these teams whose linked guardian-user
+        // has NOT submitted an actual RSVP (accepted/declined/tentative) for this athlete.
+        // A row in calendar_event_attendees with status 'pending' or NULL counts as not responded.
+        $teamPlaceholders = implode(',', array_fill(0, count($teamIds), '?'));
+        $sql = "
+            SELECT DISTINCT
+                a.id AS athlete_id,
+                a.first_name AS athlete_first_name,
+                a.last_name AS athlete_last_name,
+                u.id AS user_id,
+                u.first_name AS guardian_first_name,
+                u.last_name AS guardian_last_name,
+                u.email AS guardian_email
+            FROM team_members tm
+            JOIN athletes a ON a.id = tm.athlete_id
+            JOIN athlete_guardians ag ON ag.athlete_id = a.id
+            JOIN guardians g ON g.id = ag.guardian_id
+            JOIN users u ON u.email = g.email
+            LEFT JOIN calendar_event_attendees cea
+                ON cea.event_id = ?
+                AND cea.user_id = u.id
+                AND cea.athlete_id = a.id
+            WHERE tm.team_id IN ($teamPlaceholders)
+              AND tm.athlete_id IS NOT NULL
+              AND u.email IS NOT NULL
+              AND u.email <> ''
+              AND (cea.id IS NULL OR cea.rsvp_status IS NULL OR cea.rsvp_status = 'pending')
+        ";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute(array_merge([$event_id], $teamIds));
+        $nonRespondents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($nonRespondents)) {
+            echo json_encode([
+                'success' => true,
+                'reminders_sent' => 0,
+                'message' => 'All athletes have already responded'
+            ]);
+            exit;
+        }
+
+        // Build email per (guardian, athlete) pair
+        require_once __DIR__ . '/../services/EmailSendService.php';
+        require_once __DIR__ . '/../config/env.php';
+        $emailService = new EmailSendService($conn);
+        $appUrl = Env::get('APP_URL', 'https://teamselevated.netlify.app');
+
+        $rsvpUrl = rtrim($appUrl, '/') . '/parent/schedule/rsvp/' . (int) $event_id;
+        $eventDateLabel = date('l, F j, Y', strtotime($event['event_date']));
+        $eventTimeLabel = $event['start_time']
+            ? date('g:i A', strtotime($event['start_time']))
+            : '';
+        $locationLabel = $event['location'] ? ' at ' . htmlspecialchars($event['location']) : '';
+
+        $recipients = [];
+        foreach ($nonRespondents as $row) {
+            $recipients[] = [
+                'email' => $row['guardian_email'],
+                'name' => trim($row['guardian_first_name'] . ' ' . $row['guardian_last_name']),
+                'type' => 'guardian',
+                'id' => (int) $row['user_id'],
+                'athlete_id' => (int) $row['athlete_id'],
+                // merge fields for per-recipient personalization
+                '_athlete_first_name' => $row['athlete_first_name'],
+                '_guardian_first_name' => $row['guardian_first_name'],
+            ];
+        }
+
+        // Use a single subject/body; merge {{guardian_first_name}} and {{athlete_first_name}}
+        // if MergeFieldService picks them up. EmailSendService doesn't support per-recipient
+        // body templating today, so we send a generic body that references "your athlete".
+        $subject = 'RSVP Reminder: ' . $event['name'] . ' on ' . $eventDateLabel;
+
+        $eventTimeBlock = $eventTimeLabel
+            ? '<p style="margin: 4px 0;"><strong>Time:</strong> ' . htmlspecialchars($eventTimeLabel) . '</p>'
+            : '';
+        $locationBlock = $event['location']
+            ? '<p style="margin: 4px 0;"><strong>Location:</strong> ' . htmlspecialchars($event['location']) . '</p>'
+            : '';
+
+        $htmlBody = '
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1f2937;">
+                <h2 style="color: #1f2937; margin-top: 0;">RSVP Reminder</h2>
+                <p>Hi,</p>
+                <p>This is a reminder that we have not yet received an RSVP for one of your athletes for the event below.</p>
+                <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                    <p style="margin: 4px 0;"><strong>Event:</strong> ' . htmlspecialchars($event['name']) . '</p>
+                    <p style="margin: 4px 0;"><strong>Date:</strong> ' . htmlspecialchars($eventDateLabel) . '</p>
+                    ' . $eventTimeBlock . $locationBlock . '
+                </div>
+                <p style="margin: 24px 0;">
+                    <a href="' . htmlspecialchars($rsvpUrl) . '"
+                       style="display: inline-block; background: #1f2937; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+                        RSVP Now
+                    </a>
+                </p>
+                <p style="color: #6b7280; font-size: 14px;">
+                    Or paste this link into your browser: ' . htmlspecialchars($rsvpUrl) . '
+                </p>
+            </div>
+        ';
+
+        $textBody = "RSVP Reminder\n\n"
+            . "We have not yet received an RSVP for one of your athletes for the event below.\n\n"
+            . "Event: {$event['name']}\n"
+            . "Date: {$eventDateLabel}\n"
+            . ($eventTimeLabel ? "Time: {$eventTimeLabel}\n" : '')
+            . ($event['location'] ? "Location: {$event['location']}\n" : '')
+            . "\nRSVP here: {$rsvpUrl}\n";
+
+        $result = $emailService->queueEmail([
+            'user_id'         => $userId,
+            'club_profile_id' => $clubId,
+            'recipients'      => $recipients,
+            'subject'         => $subject,
+            'html_body'       => $htmlBody,
+            'body'            => $textBody,
+            'event_id'        => (int) $event_id,
+        ]);
+
+        echo json_encode([
+            'success' => true,
+            'reminders_sent' => $result['queued'] ?? 0,
+            'skipped' => $result['skipped'] ?? 0,
+            'skipped_details' => $result['skipped_details'] ?? [],
+            'non_respondents_total' => count($nonRespondents),
+        ]);
+
     } else {
         http_response_code(404);
         echo json_encode(['error' => 'Endpoint not found']);
