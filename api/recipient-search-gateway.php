@@ -76,6 +76,15 @@ try {
             handleChatResolveTeams($connection, $auth, $userId);
             break;
 
+        case 'chat-resolve-role':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+                exit();
+            }
+            handleChatResolveRole($connection, $auth, $userId);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid or missing action parameter. Valid actions: search, groups, resolve-group']);
@@ -890,10 +899,34 @@ function handleChatSearch($connection, $auth, $userId) {
     }
     unset($t);
 
+    // Admin-only: system role groups (All Coaches / All Parents / All Players)
+    $roleGroups = [];
+    if ($isAdmin) {
+        $stmt = $connection->prepare("
+            SELECT uca.role, COUNT(DISTINCT uca.user_id) AS count
+            FROM user_club_access uca
+            WHERE uca.club_profile_id = ?
+              AND uca.role IN ('coach', 'parent', 'player')
+              AND uca.user_id != ?
+            GROUP BY uca.role
+        ");
+        $stmt->execute([$clubProfileId, $userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $labels = ['coach' => 'All Coaches', 'parent' => 'All Parents', 'player' => 'All Players'];
+        foreach ($rows as $r) {
+            $roleGroups[] = [
+                'role' => $r['role'],
+                'label' => $labels[$r['role']] ?? ucfirst($r['role']),
+                'count' => (int)$r['count'],
+            ];
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'people' => $people,
         'team_groups' => $teamGroups,
+        'role_groups' => $roleGroups,
     ]);
 }
 
@@ -971,6 +1004,53 @@ function handleChatResolveTeams($connection, $auth, $userId) {
     $params = array_merge($teamIds, $teamIds, $teamIds, [$userId]);
     $stmt = $connection->prepare($sql);
     $stmt->execute($params);
+    $userIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    echo json_encode([
+        'success' => true,
+        'user_ids' => $userIds,
+    ]);
+}
+
+// ============================================
+// Action: chat-resolve-role
+// Admin-only. Given a system role, returns user_ids of all users with that role
+// in the club (excluding the requester).
+// ============================================
+function handleChatResolveRole($connection, $auth, $userId) {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $clubProfileId = $data['club_profile_id'] ?? null;
+    $role = $data['role'] ?? null;
+
+    if (!$clubProfileId || !$role) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'club_profile_id and role are required']);
+        exit();
+    }
+    if (!in_array($role, ['coach', 'parent', 'player'], true)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'role must be coach, parent, or player']);
+        exit();
+    }
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied to this club']);
+        exit();
+    }
+    if (!isClubAdmin($auth, $clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Admin access required']);
+        exit();
+    }
+
+    $stmt = $connection->prepare("
+        SELECT DISTINCT uca.user_id
+        FROM user_club_access uca
+        WHERE uca.club_profile_id = ?
+          AND uca.role = ?
+          AND uca.user_id != ?
+    ");
+    $stmt->execute([$clubProfileId, $role, $userId]);
     $userIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
     echo json_encode([

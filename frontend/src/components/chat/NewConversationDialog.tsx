@@ -26,6 +26,17 @@ interface SelectedTeam {
   age_group: string | null;
 }
 
+interface RoleGroup {
+  role: 'coach' | 'parent' | 'player';
+  label: string;
+  count: number;
+}
+
+interface SelectedRole {
+  role: 'coach' | 'parent' | 'player';
+  label: string;
+}
+
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 export default function NewConversationDialog({ onClose, onCreate }: Props) {
@@ -34,11 +45,13 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState<Person[]>([]);
   const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
+  const [roleGroups, setRoleGroups] = useState<RoleGroup[]>([]);
   const [searching, setSearching] = useState(false);
   const [showBrowse, setShowBrowse] = useState(false);
 
   const [selectedPeople, setSelectedPeople] = useState<Person[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<SelectedTeam[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<SelectedRole[]>([]);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef<string | null>(localStorage.getItem('auth_token'));
@@ -60,9 +73,11 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
         if (data.success) {
           setPeople(data.people || []);
           setTeamGroups(data.team_groups || []);
+          setRoleGroups(data.role_groups || []);
         } else {
           setPeople([]);
           setTeamGroups([]);
+          setRoleGroups([]);
         }
       } catch (err) {
         console.error('Chat search failed:', err);
@@ -105,18 +120,30 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
   const removeTeamChip = (id: number) =>
     setSelectedTeams((prev) => prev.filter((t) => t.id !== id));
 
+  const toggleRole = (rg: RoleGroup) => {
+    setSelectedRoles((prev) =>
+      prev.some((x) => x.role === rg.role)
+        ? prev.filter((x) => x.role !== rg.role)
+        : [...prev, { role: rg.role, label: rg.label }]
+    );
+  };
+
+  const removeRoleChip = (role: SelectedRole['role']) =>
+    setSelectedRoles((prev) => prev.filter((r) => r.role !== role));
+
   const handleStartChat = async () => {
     if (!currentClubId) return;
     const ids = new Set<number>(selectedPeople.map((p) => p.user_id));
+    const headers = {
+      Authorization: `Bearer ${tokenRef.current ?? ''}`,
+      'Content-Type': 'application/json',
+    };
 
     if (selectedTeams.length > 0) {
       try {
         const res = await fetch(`${API_URL}/api/recipient-search?action=chat-resolve-teams`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${tokenRef.current ?? ''}`,
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             club_profile_id: currentClubId,
             team_ids: selectedTeams.map((t) => t.id),
@@ -128,6 +155,25 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
         }
       } catch (err) {
         console.error('Failed to resolve team participants:', err);
+      }
+    }
+
+    for (const sr of selectedRoles) {
+      try {
+        const res = await fetch(`${API_URL}/api/recipient-search?action=chat-resolve-role`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            club_profile_id: currentClubId,
+            role: sr.role,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.user_ids)) {
+          for (const uid of data.user_ids) ids.add(uid);
+        }
+      } catch (err) {
+        console.error('Failed to resolve role group:', err);
       }
     }
 
@@ -143,9 +189,10 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
   }, {});
   const ageKeys = Object.keys(teamsByAge).sort();
 
-  const totalSelected = selectedPeople.length + selectedTeams.length;
+  const totalSelected = selectedPeople.length + selectedTeams.length + selectedRoles.length;
   const isPersonSelected = (uid: number) => selectedPeople.some((p) => p.user_id === uid);
   const isTeamSelected = (id: number) => selectedTeams.some((t) => t.id === id);
+  const isRoleSelected = (role: SelectedRole['role']) => selectedRoles.some((r) => r.role === role);
 
   return (
     <div className="flex flex-col h-full">
@@ -172,6 +219,12 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
             <span key={`t-${t.id}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-brand-accent/10 text-brand-accent text-xs">
               {t.age_group ? `${t.age_group} · ${t.name}` : t.name}
               <button onClick={() => removeTeamChip(t.id)} aria-label={`Remove ${t.name}`} className="ml-1 hover:text-brand-accent/70">×</button>
+            </span>
+          ))}
+          {selectedRoles.map((r) => (
+            <span key={`r-${r.role}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs">
+              {r.label}
+              <button onClick={() => removeRoleChip(r.role)} aria-label={`Remove ${r.label}`} className="ml-1 hover:text-purple-900">×</button>
             </span>
           ))}
         </div>
@@ -237,9 +290,36 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary" />
               </div>
             )}
-            {!searching && people.length === 0 && teamGroups.length === 0 && (
+            {!searching && people.length === 0 && teamGroups.length === 0 && roleGroups.length === 0 && (
               <div className="text-center text-gray-400 text-sm py-8">
                 {query.trim() ? 'No matches.' : 'Start typing to search people, or browse teams.'}
+              </div>
+            )}
+
+            {roleGroups.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">Everyone in role</div>
+                {roleGroups.map((rg) => (
+                  <button
+                    key={`rg-${rg.role}`}
+                    onClick={() => toggleRole(rg)}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isRoleSelected(rg.role) ? 'bg-purple-600 border-purple-600' : 'border-gray-300'
+                    }`}>
+                      {isRoleSelected(rg.role) && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-800 truncate block">{rg.label}</span>
+                      <span className="text-xs text-gray-400">{rg.count} {rg.count === 1 ? 'person' : 'people'}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
 
