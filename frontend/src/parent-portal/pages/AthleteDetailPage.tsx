@@ -383,7 +383,9 @@ export const AthleteDetailPage: React.FC = () => {
             ) : (
               <div className="space-y-2">
                 {athleteEvents.map((evt) => {
-                  const dateLabel = new Date(evt.date).toLocaleDateString('en-US', {
+                  // Parse "YYYY-MM-DD" as local time so PDT users don't see the day before.
+                  const [_y, _m, _d] = evt.date.split('-').map(Number);
+                  const dateLabel = new Date(_y, _m - 1, _d).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',
