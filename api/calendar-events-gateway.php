@@ -97,7 +97,7 @@ function handleSendCalendarInvite($conn, $input) {
             $stmt = $conn->prepare('
                 INSERT INTO calendar_event_attendees (event_id, user_id, email, rsvp_token, created_at)
                 VALUES (:event_id, :user_id, :email, :rsvp_token, CURRENT_TIMESTAMP)
-                ON CONFLICT (event_id, user_id)
+                ON CONFLICT (event_id, user_id) WHERE athlete_id IS NULL
                 DO UPDATE SET rsvp_token = :rsvp_token
                 RETURNING rsvp_token
             ');
@@ -302,7 +302,10 @@ try {
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN users u ON g.email = u.email
-                LEFT JOIN calendar_event_attendees cea ON cea.event_id = ? AND cea.user_id = u.id
+                LEFT JOIN calendar_event_attendees cea
+                    ON cea.event_id = ?
+                    AND cea.user_id = u.id
+                    AND cea.athlete_id = a.id
                 WHERE tm.team_id IN ($teamPlaceholders)
                   AND tm.athlete_id IS NOT NULL
             ";
@@ -377,16 +380,18 @@ try {
             exit;
         }
 
-        // Upsert RSVP
+        // Upsert RSVP — keyed on (event_id, user_id, athlete_id) so a guardian
+        // with multiple athletes on the same event has independent RSVPs per athlete.
         $stmt = $conn->prepare("
-            INSERT INTO calendar_event_attendees (event_id, user_id, email, rsvp_status, responded_at, created_at)
-            VALUES (:event_id, :user_id, :email, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ON CONFLICT (event_id, user_id)
+            INSERT INTO calendar_event_attendees (event_id, user_id, athlete_id, email, rsvp_status, responded_at, created_at)
+            VALUES (:event_id, :user_id, :athlete_id, :email, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (event_id, user_id, athlete_id) WHERE athlete_id IS NOT NULL
             DO UPDATE SET rsvp_status = :status, responded_at = CURRENT_TIMESTAMP
         ");
         $stmt->execute([
             'event_id' => $event_id,
             'user_id' => $guardian['user_id'],
+            'athlete_id' => $athlete_id,
             'email' => $guardian['email'],
             'status' => $dbStatus
         ]);
