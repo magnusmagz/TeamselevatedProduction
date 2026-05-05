@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChatContext } from '../contexts/ChatContext';
 import ConversationList from '../../components/chat/ConversationList';
+import NewConversationDialog from '../../components/chat/NewConversationDialog';
 import { ParentHeader } from '../components/ParentHeader';
 
 export const TeamChatPage: React.FC = () => {
@@ -13,8 +14,10 @@ export const TeamChatPage: React.FC = () => {
     typingUsers,
     isConnected,
     loading,
+    canCreate,
     selectConversation,
     sendMessage,
+    createConversation,
     handleTyping,
   } = useChatContext();
 
@@ -22,7 +25,13 @@ export const TeamChatPage: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [messageText, setMessageText] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
+  const [showNewConversation, setShowNewConversation] = React.useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCreateConversation = (participantIds: number[]) => {
+    createConversation(participantIds);
+    setShowNewConversation(false);
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -113,10 +122,29 @@ export const TeamChatPage: React.FC = () => {
             </svg>
             <h3 className="mt-2 text-lg font-medium text-brand-primary">No Messages</h3>
             <p className="mt-1 text-sm text-gray-500">
-              You'll see messages here when a coach starts a conversation.
+              {canCreate ? "Start a conversation with one of your athletes' coaches." : "You'll see messages here when a coach starts a conversation."}
             </p>
+            {canCreate && (
+              <button
+                onClick={() => setShowNewConversation(true)}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-full text-sm font-medium hover:bg-brand-primary/90"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Message
+              </button>
+            )}
           </div>
         </div>
+        {showNewConversation && (
+          <div className="fixed inset-0 bg-white z-50">
+            <NewConversationDialog
+              onClose={() => setShowNewConversation(false)}
+              onCreate={handleCreateConversation}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -261,6 +289,28 @@ export const TeamChatPage: React.FC = () => {
           loading={loading}
         />
       </div>
+
+      {canCreate && (
+        <button
+          onClick={() => setShowNewConversation(true)}
+          aria-label="New message"
+          className="fixed right-4 z-40 w-14 h-14 bg-brand-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-brand-primary/90"
+          style={{ bottom: 'calc(5rem + var(--safe-area-inset-bottom, 0px))' }}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
+
+      {showNewConversation && (
+        <div className="fixed inset-0 bg-white z-50">
+          <NewConversationDialog
+            onClose={() => setShowNewConversation(false)}
+            onCreate={handleCreateConversation}
+          />
+        </div>
+      )}
     </div>
   );
 };
