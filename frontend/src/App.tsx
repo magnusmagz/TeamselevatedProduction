@@ -344,7 +344,8 @@ function AppContent() {
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
     { to: '/club-documents', label: 'Documents' },
-    { to: '/imports', label: 'Import' },
+    // Bulk import lives under Club Settings → Imports now (was a top-level
+    // nav item). Route /imports still resolves for any saved bookmarks.
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
@@ -352,7 +353,6 @@ function AppContent() {
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
-    { to: '/imports', label: 'Import' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
 
