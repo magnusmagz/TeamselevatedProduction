@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem } from '../types';
+import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem, CompetitiveLevel, COMPETITIVE_LEVEL_LABELS } from '../types';
 import { getSportPresets } from '../api/tournamentApi';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -53,6 +53,7 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
   const [teamsAdvancing, setTeamsAdvancing] = useState(division?.teams_advancing_per_group || 2);
   const [goalDiffCap, setGoalDiffCap] = useState<number | ''>(division?.goal_differential_cap || '');
   const [scoringSystem, setScoringSystem] = useState<ScoringSystem>(division?.scoring_system || 'standard');
+  const [competitiveLevel, setCompetitiveLevel] = useState<CompetitiveLevel | ''>(division?.competitive_level || '');
   const [pointsWin, setPointsWin] = useState(division?.points_for_win || 3);
   const [pointsDraw, setPointsDraw] = useState(division?.points_for_draw || 1);
   const [pointsLoss, setPointsLoss] = useState(division?.points_for_loss || 0);
@@ -125,6 +126,7 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
       teams_advancing_per_group: teamsAdvancing,
       goal_differential_cap: goalDiffCap || null,
       scoring_system: scoringSystem,
+      competitive_level: competitiveLevel || null,
       points_for_win: scoringSystem === 'ten_point' ? 6 : pointsWin,
       points_for_draw: scoringSystem === 'ten_point' ? 3 : pointsDraw,
       points_for_loss: scoringSystem === 'ten_point' ? 0 : pointsLoss,
@@ -217,6 +219,22 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               placeholder="U12 Boys Gold"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Competitive level</label>
+            <select
+              value={competitiveLevel}
+              onChange={(e) => setCompetitiveLevel(e.target.value as CompetitiveLevel | '')}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">— Not specified —</option>
+              {(Object.keys(COMPETITIVE_LEVEL_LABELS) as CompetitiveLevel[]).map((lvl) => (
+                <option key={lvl} value={lvl}>{COMPETITIVE_LEVEL_LABELS[lvl]}</option>
+              ))}
+            </select>
           </div>
         </div>
 

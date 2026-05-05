@@ -247,8 +247,9 @@ try {
                     public_url_slug, season_id, faq_markdown,
                     insurance_certificate_url, insurance_certificate_filename,
                     insurance_expiry_date, insurance_policy_number, insurance_provider,
+                    governing_body, sanction_number, state_association,
                     created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -282,6 +283,9 @@ try {
                 nullIfEmpty($data['insurance_expiry_date'] ?? null),
                 $data['insurance_policy_number'] ?? null,
                 $data['insurance_provider'] ?? null,
+                nullIfEmpty($data['governing_body'] ?? null),
+                nullIfEmpty($data['sanction_number'] ?? null),
+                nullIfEmpty($data['state_association'] ?? null),
                 $userId,
             ]);
 
@@ -352,6 +356,7 @@ try {
                 'public_url_slug', 'season_id', 'faq_markdown',
                 'insurance_certificate_url', 'insurance_certificate_filename',
                 'insurance_expiry_date', 'insurance_policy_number', 'insurance_provider',
+                'governing_body', 'sanction_number', 'state_association',
             ];
 
             // Fields stored as DATE / TIMESTAMP / TIME / nullable INT — empty
@@ -363,6 +368,7 @@ try {
                 'daily_start_time', 'daily_end_time',
                 'venue_id', 'season_id', 'max_teams_per_division', 'entry_fee_cents',
                 'insurance_expiry_date',
+                'governing_body', 'sanction_number', 'state_association',
             ];
 
             $setClauses = [];
@@ -613,8 +619,8 @@ try {
                     goal_differential_cap, tiebreaker_rules,
                     points_for_win, points_for_draw, points_for_loss,
                     max_players_on_field, sport_rule_notes, overtime_rules,
-                    scoring_system, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
+                    scoring_system, competitive_level, sort_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -639,6 +645,7 @@ try {
                 $ruleNotes ? json_encode($ruleNotes) : null,
                 isset($data['overtime_rules']) ? json_encode($data['overtime_rules']) : null,
                 $scoringSystem,
+                nullIfEmpty($data['competitive_level'] ?? null),
                 $nextOrder,
             ]);
 
@@ -692,7 +699,7 @@ try {
                 'max_roster_size', 'min_roster_size', 'max_teams',
                 'teams_per_group', 'teams_advancing_per_group',
                 'goal_differential_cap', 'points_for_win', 'points_for_draw', 'points_for_loss',
-                'max_players_on_field', 'scoring_system', 'sort_order',
+                'max_players_on_field', 'scoring_system', 'competitive_level', 'sort_order',
             ];
 
             $setClauses = [];
@@ -1973,6 +1980,11 @@ try {
             // POST ?action=tournament-roster-add&registration_id={id}
             // Body: { athlete_id?, player_name?, jersey_number?, position?, is_guest? }
             // Either athlete_id OR player_name must be provided.
+            //
+            // Age eligibility is a SOFT warning, not a block — director may
+            // intentionally roster a guest or play-up player. Response
+            // includes an `eligibility_warning` field when applicable so
+            // the UI can flag it.
             if ($method !== 'POST') { methodNotAllowed(); }
             requireAdmin($isAdmin);
 
@@ -1986,6 +1998,38 @@ try {
                 http_response_code(400);
                 echo json_encode(['error' => 'athlete_id or player_name is required']);
                 exit();
+            }
+
+            // Age eligibility check (only meaningful when we have an athlete
+            // record with a DOB).
+            $eligibilityWarning = null;
+            if ($athleteId) {
+                $ctxStmt = $db->prepare("
+                    SELECT a.date_of_birth,
+                           td.age_group,
+                           t.start_date,
+                           t.governing_body
+                    FROM tournament_registrations tr
+                    JOIN tournament_divisions td ON td.id = tr.division_id
+                    JOIN tournaments t           ON t.id  = tr.tournament_id
+                    JOIN athletes a              ON a.id  = ?
+                    WHERE tr.id = ?
+                ");
+                $ctxStmt->execute([$athleteId, (int)$registrationId]);
+                $ctx = $ctxStmt->fetch(PDO::FETCH_ASSOC);
+                if ($ctx) {
+                    require_once __DIR__ . '/../services/AgeEligibilityService.php';
+                    $svc = new AgeEligibilityService();
+                    $check = $svc->check(
+                        $ctx['age_group'] ?? null,
+                        $ctx['date_of_birth'] ?? null,
+                        $ctx['start_date'] ?? null,
+                        $ctx['governing_body'] ?? null
+                    );
+                    if (!$check['eligible']) {
+                        $eligibilityWarning = $check['reason'];
+                    }
+                }
             }
 
             try {
@@ -2007,7 +2051,10 @@ try {
                 ]);
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
                 http_response_code(201);
-                echo json_encode(['id' => (int)$row['id']]);
+                echo json_encode([
+                    'id' => (int)$row['id'],
+                    'eligibility_warning' => $eligibilityWarning,
+                ]);
             } catch (\PDOException $e) {
                 if ($e->getCode() === '23505') {
                     http_response_code(409);

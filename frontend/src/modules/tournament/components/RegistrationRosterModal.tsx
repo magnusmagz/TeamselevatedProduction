@@ -37,6 +37,7 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [eligibilityWarning, setEligibilityWarning] = useState<string | null>(null);
 
   // Add-form state
   const [addMode, setAddMode] = useState<'team' | 'guest'>('team');
@@ -115,6 +116,15 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
         method: 'POST', headers, body: JSON.stringify(body),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed to add player'); }
+      const result = await res.json();
+      if (result.eligibility_warning) {
+        // Soft warning — player WAS added; flag it so the director can
+        // double-check or remove. Direction matches the rest of the
+        // modal (no hard blocks, just visibility).
+        setEligibilityWarning(result.eligibility_warning);
+      } else {
+        setEligibilityWarning(null);
+      }
       // Reset add form
       setPickAthleteId('');
       setGuestName('');
@@ -177,6 +187,17 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
         <div className="p-5 space-y-5">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-700 text-sm">{error}</div>
+          )}
+
+          {eligibilityWarning && (
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-start gap-2">
+              <span className="text-amber-600 text-lg leading-none">⚠️</span>
+              <div className="flex-1 text-sm text-amber-900">
+                <strong>Age eligibility warning:</strong> {eligibilityWarning}.
+                Player was added — review or remove if this isn't an intentional play-up / guest registration.
+              </div>
+              <button onClick={() => setEligibilityWarning(null)} className="text-amber-700 hover:text-amber-900 text-xs">Dismiss</button>
+            </div>
           )}
 
           {/* Current roster */}

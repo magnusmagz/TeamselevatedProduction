@@ -28,6 +28,9 @@ interface PublicTournamentData {
   contact_phone: string | null;
   rules_document_url: string | null;
   faq_markdown: string | null;
+  governing_body: string | null;
+  sanction_number: string | null;
+  state_association: string | null;
   club_name: string;
   club_logo_url: string | null;
   primary_color: string | null;
@@ -243,6 +246,28 @@ const PublicTournament: React.FC = () => {
                 )}
                 <span className="capitalize text-gray-500">{tournament.sport}</span>
               </div>
+
+              {/* Sanctioning badge — visible compliance signal for cup orgs */}
+              {tournament.governing_body && tournament.governing_body !== 'unaffiliated' && (
+                <div className="mt-3">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-gray-700">
+                    🛡️
+                    <span>
+                      Sanctioned by <strong className="text-gray-900">{({
+                        usys: 'USYS',
+                        us_club: 'US Club Soccer',
+                        ayso: 'AYSO',
+                        aau: 'AAU',
+                        state: tournament.state_association || 'state association',
+                      } as Record<string, string>)[tournament.governing_body] || tournament.governing_body}</strong>
+                      {tournament.sanction_number && <> · #{tournament.sanction_number}</>}
+                      {tournament.state_association && tournament.governing_body !== 'state' && (
+                        <span className="text-gray-500"> · {tournament.state_association}</span>
+                      )}
+                    </span>
+                  </span>
+                </div>
+              )}
 
               {/* Contact + rules + live row */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">

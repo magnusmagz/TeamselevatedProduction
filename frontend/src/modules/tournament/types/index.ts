@@ -21,6 +21,28 @@ export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'waived';
 export type MatchStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'forfeit_home' | 'forfeit_away';
 export type Gender = 'boys' | 'girls' | 'coed';
 
+export type GoverningBody = 'usys' | 'us_club' | 'ayso' | 'aau' | 'state' | 'unaffiliated';
+
+export const GOVERNING_BODY_LABELS: Record<GoverningBody, string> = {
+  usys: 'USYS (US Youth Soccer)',
+  us_club: 'US Club Soccer',
+  ayso: 'AYSO',
+  aau: 'AAU',
+  state: 'State Association',
+  unaffiliated: 'Unaffiliated',
+};
+
+export type CompetitiveLevel = 'premier' | 'gold' | 'silver' | 'bronze' | 'recreational' | 'open';
+
+export const COMPETITIVE_LEVEL_LABELS: Record<CompetitiveLevel, string> = {
+  premier: 'Premier',
+  gold: 'Gold',
+  silver: 'Silver',
+  bronze: 'Bronze',
+  recreational: 'Recreational',
+  open: 'Open',
+};
+
 export interface Tournament {
   id: number;
   club_id: number;
@@ -64,6 +86,9 @@ export interface Tournament {
   insurance_expiry_date: string | null;       // ISO date 'YYYY-MM-DD'
   insurance_policy_number: string | null;
   insurance_provider: string | null;
+  governing_body: GoverningBody | null;
+  sanction_number: string | null;
+  state_association: string | null;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -96,6 +121,7 @@ export interface TournamentDivision {
   points_for_draw: number;
   points_for_loss: number;
   scoring_system: ScoringSystem;
+  competitive_level: CompetitiveLevel | null;
   max_players_on_field: number | null;
   sport_rule_notes: string[] | null;
   overtime_rules: object | null;
@@ -229,6 +255,9 @@ export interface TournamentFormData {
   insurance_expiry_date: string;
   insurance_policy_number: string;
   insurance_provider: string;
+  governing_body: GoverningBody | '';
+  sanction_number: string;
+  state_association: string;
 }
 
 export interface VenueSummary {

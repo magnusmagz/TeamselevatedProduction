@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { TournamentFormData } from '../types';
+import { TournamentFormData, GOVERNING_BODY_LABELS, GoverningBody } from '../types';
 import { createTournament, getTournament, updateTournament } from '../api/tournamentApi';
 import VenuePicker from '../components/VenuePicker';
 import MarkdownEditor from '../components/MarkdownEditor';
@@ -43,6 +43,9 @@ const EMPTY_FORM: TournamentFormData = {
   insurance_expiry_date: '',
   insurance_policy_number: '',
   insurance_provider: '',
+  governing_body: '',
+  sanction_number: '',
+  state_association: '',
 };
 
 const TournamentCreate: React.FC = () => {
@@ -92,6 +95,9 @@ const TournamentCreate: React.FC = () => {
             insurance_expiry_date: t.insurance_expiry_date || '',
             insurance_policy_number: t.insurance_policy_number || '',
             insurance_provider: t.insurance_provider || '',
+            governing_body: (t.governing_body as GoverningBody) || '',
+            sanction_number: t.sanction_number || '',
+            state_association: t.state_association || '',
           });
           setEntryFeeDisplay(t.entry_fee_cents ? (t.entry_fee_cents / 100).toFixed(2) : '');
         })
@@ -390,6 +396,54 @@ const TournamentCreate: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
               <input type="tel" name="contact_phone" value={form.contact_phone} onChange={handleChange} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+            </div>
+          </div>
+        </section>
+
+        {/* Sanctioning & Affiliation */}
+        <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Sanctioning &amp; Affiliation</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            Cup orgs look for these on the public page as a trust signal. Also used by the age-eligibility checker when adding players to a tournament roster.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Governing body</label>
+            <select
+              name="governing_body"
+              value={form.governing_body}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">— Not specified —</option>
+              {(Object.keys(GOVERNING_BODY_LABELS) as GoverningBody[]).map((b) => (
+                <option key={b} value={b}>{GOVERNING_BODY_LABELS[b]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sanction number</label>
+              <input
+                type="text"
+                name="sanction_number"
+                value={form.sanction_number}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                placeholder="e.g. USYS-2026-44210"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State association (optional)</label>
+              <input
+                type="text"
+                name="state_association"
+                value={form.state_association}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                placeholder="e.g. Cal North, NTSSA"
+              />
             </div>
           </div>
         </section>

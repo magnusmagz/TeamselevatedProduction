@@ -46,6 +46,7 @@ try {
                        t.location_zip, t.location_coordinates, t.status,
                        t.contact_name, t.contact_email, t.contact_phone,
                        t.rules_document_url, t.faq_markdown,
+                       t.governing_body, t.sanction_number, t.state_association,
                        t.venue_id,
                        v.name    AS venue_name,
                        v.address AS venue_address,
