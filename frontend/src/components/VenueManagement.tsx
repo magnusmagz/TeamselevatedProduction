@@ -1296,6 +1296,127 @@ const VenueForm: React.FC<{
                 <p className="text-gray-500 text-center py-4">No fields added yet</p>
               )}
             </div>
+
+            {/* Microsite & Safety — public-facing extras + on-site medical.
+                These render on the public tournament microsite so visiting
+                teams and parents can see gate codes, parking guidance, and
+                who to find on-site for medical issues. */}
+            <div>
+              <h4 className="text-brand-primary font-semibold mb-4 uppercase">Microsite &amp; Safety</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">Gate code</label>
+                  <input
+                    type="text"
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                    value={formData.gate_code || ''}
+                    onChange={(e) => setFormData({ ...formData, gate_code: e.target.value })}
+                    placeholder="e.g. 1234#"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">GPS — lat / lng</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number" step="any"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.latitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder="33.4484"
+                    />
+                    <input
+                      type="number" step="any"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.longitude ?? ''}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder="-112.0740"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">Parking notes (public)</label>
+                  <textarea
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                    value={formData.parking_notes || ''}
+                    onChange={(e) => setFormData({ ...formData, parking_notes: e.target.value })}
+                    placeholder="e.g. Main lot fills by 9am — overflow at the high school across the street"
+                    rows={2}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">Public notes</label>
+                  <textarea
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Anything visiting teams should know — entrance, drop-off zone, building locations..."
+                    rows={2}
+                  />
+                </div>
+                <div className="col-span-2 pt-2 border-t border-brand-secondary/30">
+                  <p className="text-xs text-brand-primary uppercase font-medium mb-2">Medical coordinator (on-site point of contact)</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.medical_coordinator_name || ''}
+                      onChange={(e) => setFormData({ ...formData, medical_coordinator_name: e.target.value })}
+                      placeholder="Name"
+                    />
+                    <input
+                      type="tel"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.medical_coordinator_phone || ''}
+                      onChange={(e) => setFormData({ ...formData, medical_coordinator_phone: e.target.value })}
+                      placeholder="Phone"
+                    />
+                    <input
+                      type="email"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.medical_coordinator_email || ''}
+                      onChange={(e) => setFormData({ ...formData, medical_coordinator_email: e.target.value })}
+                      placeholder="Email"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">Medical station notes</label>
+                  <input
+                    type="text"
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                    value={formData.medical_station_notes || ''}
+                    onChange={(e) => setFormData({ ...formData, medical_station_notes: e.target.value })}
+                    placeholder="e.g. White tent behind Field 2, near restrooms"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">On-site contact (GM / facility manager)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.gm_contact_name || ''}
+                      onChange={(e) => setFormData({ ...formData, gm_contact_name: e.target.value })}
+                      placeholder="Name"
+                    />
+                    <input
+                      type="tel"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.gm_contact_phone || ''}
+                      onChange={(e) => setFormData({ ...formData, gm_contact_phone: e.target.value })}
+                      placeholder="Phone"
+                    />
+                    <input
+                      type="email"
+                      className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary w-full"
+                      value={formData.gm_contact_email || ''}
+                      onChange={(e) => setFormData({ ...formData, gm_contact_email: e.target.value })}
+                      placeholder="Email"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">
