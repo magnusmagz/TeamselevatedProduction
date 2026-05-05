@@ -53,6 +53,14 @@ interface Venue {
   entry_cost_amount?: number;
   payment_methods?: string;
   venue_photos?: any[];
+  notes?: string;
+  gate_code?: string;
+  latitude?: number;
+  longitude?: number;
+  medical_coordinator_name?: string;
+  medical_coordinator_phone?: string;
+  medical_coordinator_email?: string;
+  medical_station_notes?: string;
 }
 
 interface VenueManagementProps {
@@ -88,6 +96,14 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     entry_cost_amount: undefined as number | undefined,
     payment_methods: '',
     venue_photos: [] as any[],
+    notes: '',
+    gate_code: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
+    medical_coordinator_name: '',
+    medical_coordinator_phone: '',
+    medical_coordinator_email: '',
+    medical_station_notes: '',
   };
 
   const [formData, setFormData] = useState<Venue>({
@@ -324,6 +340,14 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         entry_cost_amount: formData.entry_cost_amount || null,
         payment_methods: formData.payment_methods || null,
         venue_photos: formData.venue_photos || [],
+        notes: formData.notes || null,
+        gate_code: formData.gate_code || null,
+        latitude: formData.latitude ?? null,
+        longitude: formData.longitude ?? null,
+        medical_coordinator_name: formData.medical_coordinator_name || null,
+        medical_coordinator_phone: formData.medical_coordinator_phone || null,
+        medical_coordinator_email: formData.medical_coordinator_email || null,
+        medical_station_notes: formData.medical_station_notes || null,
       };
 
       const response = await fetch(url, {
@@ -681,6 +705,88 @@ const VenueFacilityDetailsSection: React.FC<{
                   onChange={(e) => setFormData({ ...formData, parking_notes: e.target.value })}
                   placeholder="Parking notes (e.g., overflow lot on weekends)..."
                   rows={2}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Microsite & Safety — public-facing extras and on-site medical */}
+          <div>
+            <label className={labelClass}>Microsite & Safety</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Gate code</label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={formData.gate_code || ''}
+                  onChange={(e) => setFormData({ ...formData, gate_code: e.target.value })}
+                  placeholder="e.g. 1234#"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">GPS — latitude / longitude</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number" step="any"
+                    className={inputClass}
+                    value={formData.latitude ?? ''}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="33.4484"
+                  />
+                  <input
+                    type="number" step="any"
+                    className={inputClass}
+                    value={formData.longitude ?? ''}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="-112.0740"
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">Public notes — shown on tournament microsite</label>
+                <textarea
+                  className={inputClass}
+                  value={formData.notes || ''}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Anything visiting teams should know — entrance, building locations, drop-off zone..."
+                  rows={2}
+                />
+              </div>
+              <div className="col-span-2 pt-2 border-t border-brand-secondary/30">
+                <p className="text-xs text-gray-500 mb-2">Medical coordinator (on-site point of contact)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={formData.medical_coordinator_name || ''}
+                    onChange={(e) => setFormData({ ...formData, medical_coordinator_name: e.target.value })}
+                    placeholder="Name"
+                  />
+                  <input
+                    type="tel"
+                    className={inputClass}
+                    value={formData.medical_coordinator_phone || ''}
+                    onChange={(e) => setFormData({ ...formData, medical_coordinator_phone: e.target.value })}
+                    placeholder="Phone"
+                  />
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={formData.medical_coordinator_email || ''}
+                    onChange={(e) => setFormData({ ...formData, medical_coordinator_email: e.target.value })}
+                    placeholder="Email"
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">Medical station notes</label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={formData.medical_station_notes || ''}
+                  onChange={(e) => setFormData({ ...formData, medical_station_notes: e.target.value })}
+                  placeholder="e.g. White tent behind Field 2, near restrooms"
                 />
               </div>
             </div>

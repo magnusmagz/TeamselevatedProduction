@@ -81,15 +81,26 @@ try {
             $connection->beginTransaction();
 
             try {
-                // Insert venue
+                // Insert venue. Includes contact roles + microsite-facing
+                // extras (notes, gate code, GPS, medical coordinator, public
+                // notes) — the frontend was already submitting most of these
+                // and the legacy gateway was silently dropping them.
                 $stmt = $connection->prepare("
                     INSERT INTO venues (name, address, city, state, zip_code, map_url, website,
                         venue_type, parking_type, parking_paid, parking_notes,
                         has_lights, lights_notes, is_accessible, accessibility_notes,
                         has_bathrooms, bathroom_count, has_concessions, concessions_notes,
                         seating_type, seating_capacity, entry_cost, entry_cost_amount,
-                        payment_methods, venue_photos)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        payment_methods, venue_photos,
+                        maintenance_contact_name, maintenance_contact_phone, maintenance_contact_email,
+                        emergency_contact_name, emergency_contact_phone, emergency_contact_email,
+                        billing_contact_name, billing_contact_phone, billing_contact_email,
+                        gm_contact_name, gm_contact_phone, gm_contact_email,
+                        notes, gate_code, latitude, longitude,
+                        medical_coordinator_name, medical_coordinator_phone, medical_coordinator_email,
+                        medical_station_notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $data['name'],
@@ -116,7 +127,27 @@ try {
                     $data['entry_cost'] ?? null,
                     $data['entry_cost_amount'] ?? null,
                     $data['payment_methods'] ?? null,
-                    json_encode($data['venue_photos'] ?? [])
+                    json_encode($data['venue_photos'] ?? []),
+                    $data['maintenance_contact_name']  ?? null,
+                    $data['maintenance_contact_phone'] ?? null,
+                    $data['maintenance_contact_email'] ?? null,
+                    $data['emergency_contact_name']    ?? null,
+                    $data['emergency_contact_phone']   ?? null,
+                    $data['emergency_contact_email']   ?? null,
+                    $data['billing_contact_name']      ?? null,
+                    $data['billing_contact_phone']     ?? null,
+                    $data['billing_contact_email']     ?? null,
+                    $data['gm_contact_name']           ?? null,
+                    $data['gm_contact_phone']          ?? null,
+                    $data['gm_contact_email']          ?? null,
+                    $data['notes']      ?? null,
+                    $data['gate_code']  ?? null,
+                    !empty($data['latitude'])  ? $data['latitude']  : null,
+                    !empty($data['longitude']) ? $data['longitude'] : null,
+                    $data['medical_coordinator_name']  ?? null,
+                    $data['medical_coordinator_phone'] ?? null,
+                    $data['medical_coordinator_email'] ?? null,
+                    $data['medical_station_notes']     ?? null,
                 ]);
 
                 $venue_id = $connection->lastInsertId();
@@ -167,7 +198,8 @@ try {
             $connection->beginTransaction();
 
             try {
-                // Update venue
+                // Update venue. Mirrors the POST column set so contacts +
+                // microsite-facing extras can be edited after creation.
                 $stmt = $connection->prepare("
                     UPDATE venues
                     SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?,
@@ -175,7 +207,14 @@ try {
                         has_lights = ?, lights_notes = ?, is_accessible = ?, accessibility_notes = ?,
                         has_bathrooms = ?, bathroom_count = ?, has_concessions = ?, concessions_notes = ?,
                         seating_type = ?, seating_capacity = ?, entry_cost = ?, entry_cost_amount = ?,
-                        payment_methods = ?, venue_photos = ?
+                        payment_methods = ?, venue_photos = ?,
+                        maintenance_contact_name = ?, maintenance_contact_phone = ?, maintenance_contact_email = ?,
+                        emergency_contact_name = ?, emergency_contact_phone = ?, emergency_contact_email = ?,
+                        billing_contact_name = ?, billing_contact_phone = ?, billing_contact_email = ?,
+                        gm_contact_name = ?, gm_contact_phone = ?, gm_contact_email = ?,
+                        notes = ?, gate_code = ?, latitude = ?, longitude = ?,
+                        medical_coordinator_name = ?, medical_coordinator_phone = ?, medical_coordinator_email = ?,
+                        medical_station_notes = ?
                     WHERE id = ?
                 ");
                 $stmt->execute([
@@ -204,6 +243,26 @@ try {
                     $data['entry_cost_amount'] ?? null,
                     $data['payment_methods'] ?? null,
                     json_encode($data['venue_photos'] ?? []),
+                    $data['maintenance_contact_name']  ?? null,
+                    $data['maintenance_contact_phone'] ?? null,
+                    $data['maintenance_contact_email'] ?? null,
+                    $data['emergency_contact_name']    ?? null,
+                    $data['emergency_contact_phone']   ?? null,
+                    $data['emergency_contact_email']   ?? null,
+                    $data['billing_contact_name']      ?? null,
+                    $data['billing_contact_phone']     ?? null,
+                    $data['billing_contact_email']     ?? null,
+                    $data['gm_contact_name']           ?? null,
+                    $data['gm_contact_phone']          ?? null,
+                    $data['gm_contact_email']          ?? null,
+                    $data['notes']      ?? null,
+                    $data['gate_code']  ?? null,
+                    !empty($data['latitude'])  ? $data['latitude']  : null,
+                    !empty($data['longitude']) ? $data['longitude'] : null,
+                    $data['medical_coordinator_name']  ?? null,
+                    $data['medical_coordinator_phone'] ?? null,
+                    $data['medical_coordinator_email'] ?? null,
+                    $data['medical_station_notes']     ?? null,
                     $venue_id
                 ]);
 

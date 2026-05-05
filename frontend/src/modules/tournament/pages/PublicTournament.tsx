@@ -32,6 +32,20 @@ interface PublicTournamentData {
   sanction_number: string | null;
   state_association: string | null;
   host_name: string | null;
+  // Venue microsite extras (joined from venues, see tournament-by-slug)
+  venue_map_url?: string | null;
+  venue_notes?: string | null;
+  venue_parking_notes?: string | null;
+  venue_gate_code?: string | null;
+  venue_latitude?: number | string | null;
+  venue_longitude?: number | string | null;
+  venue_contact_name?: string | null;
+  venue_contact_phone?: string | null;
+  venue_contact_email?: string | null;
+  medical_coordinator_name?: string | null;
+  medical_coordinator_phone?: string | null;
+  medical_coordinator_email?: string | null;
+  medical_station_notes?: string | null;
   club_name: string;
   club_logo_url: string | null;
   primary_color: string | null;
@@ -110,7 +124,13 @@ function formatTiebreakerChain(rules?: string[] | null): string {
  * Works on desktop (opens maps.google.com) and mobile (iOS/Android route to
  * the OS's default maps app via Google's universal handler).
  */
-function getDirectionsUrl(parts: { name?: string | null; address?: string | null; city?: string | null; state?: string | null; zip?: string | null }): string | null {
+function getDirectionsUrl(parts: { name?: string | null; address?: string | null; city?: string | null; state?: string | null; zip?: string | null; lat?: number | string | null; lng?: number | string | null }): string | null {
+  // GPS coordinates beat address strings — Google interprets lat,lng as a
+  // pin instead of fuzzy-matching "Soccer Park, City" which can route to the
+  // wrong venue.
+  if (parts.lat != null && parts.lng != null && parts.lat !== '' && parts.lng !== '') {
+    return `https://www.google.com/maps/dir/?api=1&destination=${parts.lat},${parts.lng}`;
+  }
   const segments = [parts.name, parts.address, parts.city, parts.state, parts.zip].filter(Boolean);
   if (segments.length === 0) return null;
   const destination = segments.join(', ');
@@ -201,6 +221,8 @@ const PublicTournament: React.FC = () => {
   const directionsUrl = getDirectionsUrl({
     name: venueName,
     address: tournament.venue_address || tournament.location_address,
+    lat: tournament.venue_latitude,
+    lng: tournament.venue_longitude,
     city: venueCity,
     state: venueState,
     zip: tournament.venue_zip,
@@ -519,6 +541,83 @@ const PublicTournament: React.FC = () => {
         {/* Info / FAQ */}
         {activeTab === 'info' && (
           <div className="space-y-6 max-w-3xl">
+            {/* Venue & Parking — public-facing venue extras */}
+            {(tournament.venue_parking_notes || tournament.venue_gate_code || tournament.venue_notes
+              || tournament.venue_contact_name || tournament.venue_map_url) && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Venue & Parking</h3>
+                <dl className="space-y-3 text-sm text-gray-700">
+                  {tournament.venue_gate_code && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">Gate code</dt>
+                      <dd className="font-mono font-medium text-gray-900 mt-0.5">{tournament.venue_gate_code}</dd>
+                    </div>
+                  )}
+                  {tournament.venue_parking_notes && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">Parking</dt>
+                      <dd className="mt-0.5 whitespace-pre-line">{tournament.venue_parking_notes}</dd>
+                    </div>
+                  )}
+                  {tournament.venue_notes && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">Notes</dt>
+                      <dd className="mt-0.5 whitespace-pre-line">{tournament.venue_notes}</dd>
+                    </div>
+                  )}
+                  {tournament.venue_contact_name && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">On-site contact</dt>
+                      <dd className="mt-0.5">
+                        {tournament.venue_contact_name}
+                        {tournament.venue_contact_phone && (
+                          <> · <a href={`tel:${tournament.venue_contact_phone}`} className="hover:underline" style={{ color: brandColor }}>{tournament.venue_contact_phone}</a></>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                {tournament.venue_map_url && (
+                  <div className="mt-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Field layout</p>
+                    <img
+                      src={tournament.venue_map_url}
+                      alt={`${venueName || 'Venue'} field layout`}
+                      className="max-w-full h-auto rounded border border-gray-200"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Medical / Emergency — on-site safety info */}
+            {(tournament.medical_coordinator_name || tournament.medical_station_notes) && (
+              <div className="bg-white rounded-lg border border-red-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  <span className="text-red-600">⚕</span> On-site Medical
+                </h3>
+                <dl className="space-y-3 text-sm text-gray-700">
+                  {tournament.medical_coordinator_name && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">Medical coordinator</dt>
+                      <dd className="mt-0.5">
+                        <strong className="text-gray-900">{tournament.medical_coordinator_name}</strong>
+                        {tournament.medical_coordinator_phone && (
+                          <> · <a href={`tel:${tournament.medical_coordinator_phone}`} className="hover:underline" style={{ color: brandColor }}>{tournament.medical_coordinator_phone}</a></>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                  {tournament.medical_station_notes && (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-500">First-aid station</dt>
+                      <dd className="mt-0.5 whitespace-pre-line">{tournament.medical_station_notes}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )}
+
             {/* Format Rules — game length + overtime per division */}
             {tournament.divisions.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
