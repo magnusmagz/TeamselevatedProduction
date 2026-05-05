@@ -138,7 +138,7 @@ export const TeamChatPage: React.FC = () => {
           </div>
         </div>
         {showNewConversation && (
-          <div className="fixed inset-0 bg-white z-50">
+          <div className="fixed inset-0 bg-white z-[60]">
             <NewConversationDialog
               onClose={() => setShowNewConversation(false)}
               onCreate={handleCreateConversation}
