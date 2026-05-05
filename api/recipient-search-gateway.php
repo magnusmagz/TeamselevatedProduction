@@ -817,7 +817,7 @@ function handleChatSearch($connection, $auth, $userId) {
         $teamFilterParams = [];
         if ($isCoach) {
             $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
-            // Coach scope: people on their teams (parents via guardian chain) + all coaches/admins in club
+            // Coach scope: people on their teams (parents via guardian chain) + all coaches + all club admins
             $teamFilter = "
                 AND (
                     EXISTS (
@@ -835,9 +835,14 @@ function handleChatSearch($connection, $auth, $userId) {
                         JOIN teams t3 ON t3.id = tm3.team_id AND t3.club_id = ?
                         WHERE tm3.user_id = u.id AND tm3.role IN ('assistant_coach','team_manager') AND tm3.status = 'active'
                     )
+                    OR EXISTS (
+                        SELECT 1 FROM user_club_access uca_admin
+                        WHERE uca_admin.user_id = u.id AND uca_admin.club_profile_id = ?
+                          AND uca_admin.role IN ('club_admin', 'super_admin')
+                    )
                 )
             ";
-            $teamFilterParams = array_merge($coachTeamIds, [$clubProfileId, $clubProfileId]);
+            $teamFilterParams = array_merge($coachTeamIds, [$clubProfileId, $clubProfileId, $clubProfileId]);
         }
 
         $sql = "
