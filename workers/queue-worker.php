@@ -16,6 +16,7 @@ require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/ImportJobProcessor.php';
+require_once __DIR__ . '/../services/CalendarSyncService.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -24,8 +25,9 @@ $db = Database::getInstance()->getConnection();
 $emailService = new EmailSendService($db);
 $smsService = new SmsSendService($db);
 $importProcessor = ImportJobProcessor::buildDefault($db);
+$calendarSyncService = new CalendarSyncService($db);
 
-$queues = ['email_queue', 'sms_queue', 'import_queue'];
+$queues = ['email_queue', 'sms_queue', 'import_queue', 'calendar_sync_queue'];
 
 // Graceful shutdown via signals (SIGTERM from Heroku dyno manager)
 $running = true;
@@ -70,6 +72,8 @@ while ($running) {
             $smsService->processJob($payload);
         } elseif ($fromQueue === 'import_queue') {
             $importProcessor->processJob($payload);
+        } elseif ($fromQueue === 'calendar_sync_queue') {
+            $calendarSyncService->syncSubscription($payload['subscription_id']);
         } else {
             echo "[Worker] Unknown queue: {$fromQueue}, skipping\n";
             continue;

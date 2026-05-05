@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AttendanceModal from './AttendanceModal';
+import CalendarSubscriptionManager from './CalendarSubscriptionManager';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Practice {
   id: number;
@@ -30,6 +32,7 @@ interface Event {
   location?: string;
   description?: string;
   status: 'scheduled' | 'cancelled' | 'postponed' | 'completed';
+  subscription_id?: number | null;
 }
 
 interface CalendarDay {
@@ -61,6 +64,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   title = "Club Calendar"
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const { user } = useAuth();
+  const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [practices, setPractices] = useState<Practice[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -453,14 +458,24 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             {teamId && teamName ? `View ${teamName} practices and events` : 'View all club practices and events'}
           </p>
         </div>
-        {showAddEvent && !readOnly && (
-          <button
-            onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-          >
-            + Add Event
-          </button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          {!readOnly && (
+            <button
+              onClick={() => setShowSubscriptionManager(true)}
+              className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
+            >
+              Subscriptions
+            </button>
+          )}
+          {showAddEvent && !readOnly && (
+            <button
+              onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+            >
+              + Add Event
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Controls */}
@@ -580,7 +595,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     {day.events.slice(0, 2).map((event, eIndex) => (
                       <div
                         key={`e-${eIndex}`}
-                        className="text-xs p-1 border bg-brand-secondary border-brand-secondary text-brand-primary"
+                        className={`text-xs p-1 border bg-brand-secondary border-brand-secondary text-brand-primary ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
                         title={event.name}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -642,13 +657,16 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         {day.events.map((event, eIndex) => (
                           <div
                             key={`e-${eIndex}`}
-                            className="p-2 border bg-brand-secondary border-brand-secondary text-brand-primary cursor-pointer hover:bg-brand-secondary-hover"
+                            className={`p-2 border bg-brand-secondary border-brand-secondary text-brand-primary cursor-pointer hover:bg-brand-secondary-hover ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
                             onClick={() => handleEventClick(event)}
                           >
                             <div className="font-bold text-sm">
                               {event.start_time && event.end_time ? `${event.start_time} - ${event.end_time}` : 'All Day'}
                             </div>
-                            <div className="font-medium">{event.name}</div>
+                            <div className="font-medium">
+                              {event.name}
+                              {event.subscription_id && <span className="ml-1 text-xs text-teal-600 font-normal">(imported)</span>}
+                            </div>
                             {event.venue_name && <div className="text-xs opacity-75">{event.venue_name}</div>}
                           </div>
                         ))}
@@ -1138,6 +1156,16 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       )}
 
       {/* Attendance Modal */}
+      {showSubscriptionManager && user?.activeRole?.scope_id && (
+        <CalendarSubscriptionManager
+          clubId={user.activeRole.scope_id}
+          teamId={teamId}
+          teams={allTeams.map(t => ({ id: t.id, name: t.name }))}
+          onClose={() => setShowSubscriptionManager(false)}
+          onSync={() => fetchEvents()}
+        />
+      )}
+
       {showAttendanceModal && attendanceEventId && selectedEvent && (
         <AttendanceModal
           eventId={attendanceEventId}
