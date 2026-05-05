@@ -38,56 +38,35 @@ export const SponsorMarquee: React.FC = () => {
 
   if (sponsors.length === 0) return null;
 
-  // Duplicate the list so the marquee loops seamlessly
-  const reel = [...sponsors, ...sponsors];
-
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 overflow-hidden">
-      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 text-center">
+    <div className="fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200">
+      <div className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 text-center">
         Our Sponsors
       </div>
-      <div className="relative overflow-hidden">
-        <div
-          className="flex items-center gap-8 py-2 whitespace-nowrap will-change-transform"
-          style={{
-            animation: `sponsor-marquee ${Math.max(20, sponsors.length * 6)}s linear infinite`,
-          }}
-        >
-          {reel.map((s, i) => {
-            const content = (
-              <div className="flex items-center gap-2 px-2">
-                {s.logo_data ? (
-                  <img
-                    src={s.logo_data}
-                    alt={s.name}
-                    className="h-8 w-auto object-contain"
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-700">{s.name}</span>
-                )}
-              </div>
-            );
-            return s.website ? (
-              <a
-                key={`${s.id}-${i}`}
-                href={s.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                {content}
-              </a>
-            ) : (
-              <div key={`${s.id}-${i}`}>{content}</div>
-            );
-          })}
-        </div>
-        <style>{`
-          @keyframes sponsor-marquee {
-            from { transform: translateX(0); }
-            to { transform: translateX(-50%); }
-          }
-        `}</style>
+      <div className="flex items-center justify-around flex-wrap gap-x-4 gap-y-1 px-3 py-2">
+        {sponsors.map((s) => {
+          const content = s.logo_data ? (
+            <img src={s.logo_data} alt={s.name} className="h-7 w-auto object-contain" />
+          ) : (
+            <span className="text-sm font-medium text-gray-700">{s.name}</span>
+          );
+          return s.website ? (
+            <a
+              key={s.id}
+              href={s.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center hover:opacity-80 transition-opacity"
+              title={s.name}
+            >
+              {content}
+            </a>
+          ) : (
+            <div key={s.id} className="flex items-center" title={s.name}>
+              {content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
