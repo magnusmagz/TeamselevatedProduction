@@ -615,11 +615,17 @@ io.on('connection', (socket) => {
 
     try {
       // Check if a conversation with the exact same participant set already exists
-      // (covers both DMs and groups). If so, reuse it instead of creating a duplicate.
+      // (covers both DMs and groups). Narrow to conversations the REQUESTER is already
+      // in — dedupe is only meaningful for chats they participate in, and this avoids
+      // a tablescan over every conversation in the system.
       const allParticipantIds = Array.from(new Set([userInfo.userId, ...participantIds])).sort((a, b) => a - b);
       const existingConv = await pool.query(`
         SELECT c.id FROM conversations c
         WHERE c.type = $1
+          AND c.id IN (
+            SELECT conversation_id FROM conversation_participants
+            WHERE user_id = $3 AND left_at IS NULL
+          )
           AND (
             SELECT ARRAY(
               SELECT user_id FROM conversation_participants
@@ -628,7 +634,7 @@ io.on('connection', (socket) => {
             )
           ) = $2::int[]
         LIMIT 1
-      `, [convType, allParticipantIds]);
+      `, [convType, allParticipantIds, userInfo.userId]);
 
       if (existingConv.rows.length > 0) {
         const convId = existingConv.rows[0].id;
@@ -656,15 +662,26 @@ io.on('connection', (socket) => {
         VALUES ($1, $2, 'creator', $3)
       `, [conversationId, userInfo.userId, creatorName]);
 
-      // Add other participants
-      for (const pid of participantIds) {
-        const pUser = await pool.query(`SELECT first_name, last_name, email FROM users WHERE id = $1`, [pid]);
-        const pName = pUser.rows[0] ? `${pUser.rows[0].first_name} ${pUser.rows[0].last_name}`.trim() || pUser.rows[0].email : 'Unknown';
+      // Batch-fetch participant names + batch-insert in a single round-trip each.
+      // Previously this loop did 2 queries per participant — for a 100-person group
+      // that was 200+ DB round-trips and made create feel unresponsive.
+      if (participantIds.length > 0) {
+        const namesRes = await pool.query(
+          `SELECT id, first_name, last_name, email FROM users WHERE id = ANY($1::int[])`,
+          [participantIds]
+        );
+        const nameById = new Map();
+        for (const r of namesRes.rows) {
+          nameById.set(r.id, `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.email || 'Unknown');
+        }
+        const orderedIds = participantIds.map(Number);
+        const orderedNames = orderedIds.map(id => nameById.get(id) || 'Unknown');
         await pool.query(`
           INSERT INTO conversation_participants (conversation_id, user_id, role, display_name)
-          VALUES ($1, $2, 'member', $3)
+          SELECT $1, uid, 'member', dn
+          FROM UNNEST($2::int[], $3::text[]) AS t(uid, dn)
           ON CONFLICT (conversation_id, user_id) DO NOTHING
-        `, [conversationId, pid, pName]);
+        `, [conversationId, orderedIds, orderedNames]);
       }
 
       // Get the full conversation object
