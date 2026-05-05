@@ -42,6 +42,7 @@ export function useChat(): UseChatReturn {
   const canCreate = chatUser?.canCreate || isClubAdmin ||
     activeContext?.role === 'coach' ||
     activeContext?.role === 'club_admin' ||
+    activeContext?.role === 'parent' ||
     (activeContext?.role as string) === 'owner';
 
   const totalUnreadCount = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
@@ -71,8 +72,15 @@ export function useChat(): UseChatReturn {
       setLoading(false);
     };
 
+    const sortByLastMessage = (list: Conversation[]) =>
+      [...list].sort((a, b) => {
+        const aTime = a.lastMessage?.timestamp || '';
+        const bTime = b.lastMessage?.timestamp || '';
+        return bTime.localeCompare(aTime);
+      });
+
     const handleConversationsList = (convs: Conversation[]) => {
-      setConversations(convs);
+      setConversations(sortByLastMessage(convs));
       setLoading(false);
     };
 
@@ -91,8 +99,8 @@ export function useChat(): UseChatReturn {
         });
       }
 
-      // Update conversation list preview and unread
-      setConversations(prev => prev.map(c => {
+      // Update conversation list preview and unread, then re-sort by last activity
+      setConversations(prev => sortByLastMessage(prev.map(c => {
         if (c.id === msg.conversationId) {
           return {
             ...c,
@@ -107,27 +115,16 @@ export function useChat(): UseChatReturn {
           };
         }
         return c;
-      }));
+      })));
     };
 
     const handleConversationUpdated = (data: {
       conversationId: number;
       lastMessage: { text: string; timestamp: string; senderName: string };
     }) => {
-      setConversations(prev => {
-        const updated = prev.map(c => {
-          if (c.id === data.conversationId) {
-            return { ...c, lastMessage: data.lastMessage };
-          }
-          return c;
-        });
-        // Sort by last message time
-        return updated.sort((a, b) => {
-          const aTime = a.lastMessage?.timestamp || '';
-          const bTime = b.lastMessage?.timestamp || '';
-          return bTime.localeCompare(aTime);
-        });
-      });
+      setConversations(prev => sortByLastMessage(prev.map(c =>
+        c.id === data.conversationId ? { ...c, lastMessage: data.lastMessage } : c
+      )));
     };
 
     const handleConversationCreated = (conv: Conversation) => {

@@ -58,6 +58,33 @@ try {
             handleResolveGroup($connection, $auth, $userId);
             break;
 
+        case 'chat-search':
+            if ($method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+                exit();
+            }
+            handleChatSearch($connection, $auth, $userId);
+            break;
+
+        case 'chat-resolve-teams':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+                exit();
+            }
+            handleChatResolveTeams($connection, $auth, $userId);
+            break;
+
+        case 'chat-resolve-role':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+                exit();
+            }
+            handleChatResolveRole($connection, $auth, $userId);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid or missing action parameter. Valid actions: search, groups, resolve-group']);
@@ -710,5 +737,324 @@ function handleResolveGroup($connection, $auth, $userId) {
         'total' => count($recipients),
         'suppressed_count' => $suppressedCount,
         'missing_contact_count' => $missingContactCount
+    ]);
+}
+
+// ============================================
+// Action: chat-search
+// Returns people (with users.id) and team groups the requester can chat with.
+// Scope:
+//   super_admin / club_admin → all club members + all club teams as groups
+//   coach                    → members of teams they coach + other coaches/admins; their teams as groups
+//   parent                   → coaches of teams their athletes are on; no team groups
+// ============================================
+function handleChatSearch($connection, $auth, $userId) {
+    $clubProfileId = $_GET['club_profile_id'] ?? null;
+    $q = trim($_GET['q'] ?? '');
+
+    if (!$clubProfileId) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'club_profile_id is required']);
+        exit();
+    }
+
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied to this club']);
+        exit();
+    }
+
+    $isAdmin = isClubAdmin($auth, $clubProfileId);
+    $coachTeamIds = $isAdmin ? [] : getCoachTeamIds($connection, $userId, $clubProfileId);
+    $isCoach = !$isAdmin && !empty($coachTeamIds);
+    $isParent = !$isAdmin && !$isCoach;
+
+    $like = '%' . $q . '%';
+    $people = [];
+    $teamGroups = [];
+
+    if ($isParent) {
+        // Find teams the requester's athletes are on
+        $stmt = $connection->prepare("
+            SELECT DISTINCT tm.team_id
+            FROM users u
+            JOIN guardians g ON g.email = u.email
+            JOIN athlete_guardians ag ON ag.guardian_id = g.id
+            JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
+            JOIN teams t ON t.id = tm.team_id AND t.club_id = ? AND t.deleted_at IS NULL
+            WHERE u.id = ?
+        ");
+        $stmt->execute([$clubProfileId, $userId]);
+        $parentTeamIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        if (!empty($parentTeamIds)) {
+            $teamPlaceholders = implode(',', array_fill(0, count($parentTeamIds), '?'));
+            // Coaches of those teams: primary_coach_id + assistant_coach/team_manager rows
+            $sql = "
+                SELECT DISTINCT u.id AS user_id, u.first_name, u.last_name, u.email,
+                                'coach' AS role,
+                                STRING_AGG(DISTINCT t.name, ', ') AS team_names
+                FROM teams t
+                LEFT JOIN team_members tm
+                  ON tm.team_id = t.id
+                 AND tm.role IN ('assistant_coach','team_manager')
+                 AND tm.status = 'active'
+                JOIN users u ON u.id = COALESCE(tm.user_id, t.primary_coach_id)
+                WHERE t.id IN ($teamPlaceholders)
+                  AND u.id != ?
+                  AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+                GROUP BY u.id, u.first_name, u.last_name, u.email
+                ORDER BY u.last_name, u.first_name
+            ";
+            $params = array_merge($parentTeamIds, [$userId, $like, $like, $like]);
+            $stmt = $connection->prepare($sql);
+            $stmt->execute($params);
+            $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } else {
+        // Admin or coach: search across people they can see
+        $teamFilter = '';
+        $teamFilterParams = [];
+        if ($isCoach) {
+            $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
+            // Coach scope: people on their teams (parents via guardian chain) + all coaches/admins in club
+            $teamFilter = "
+                AND (
+                    EXISTS (
+                        SELECT 1 FROM guardians g2
+                        JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
+                        JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($teamPlaceholders)
+                        WHERE g2.email = u.email
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM teams t2
+                        WHERE t2.club_id = ? AND t2.primary_coach_id = u.id
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM team_members tm3
+                        JOIN teams t3 ON t3.id = tm3.team_id AND t3.club_id = ?
+                        WHERE tm3.user_id = u.id AND tm3.role IN ('assistant_coach','team_manager') AND tm3.status = 'active'
+                    )
+                )
+            ";
+            $teamFilterParams = array_merge($coachTeamIds, [$clubProfileId, $clubProfileId]);
+        }
+
+        $sql = "
+            SELECT DISTINCT u.id AS user_id, u.first_name, u.last_name, u.email,
+                            CASE
+                                WHEN EXISTS (SELECT 1 FROM teams tt WHERE tt.primary_coach_id = u.id AND tt.club_id = ?) THEN 'coach'
+                                WHEN EXISTS (SELECT 1 FROM team_members tmm JOIN teams ttt ON ttt.id = tmm.team_id WHERE tmm.user_id = u.id AND tmm.role IN ('assistant_coach','team_manager') AND ttt.club_id = ?) THEN 'coach'
+                                ELSE 'parent'
+                            END AS role
+            FROM users u
+            WHERE u.id != ?
+              AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+              AND EXISTS (
+                  SELECT 1 FROM user_club_access uca
+                  WHERE uca.user_id = u.id AND uca.club_profile_id = ?
+              )
+              $teamFilter
+            ORDER BY u.last_name, u.first_name
+            LIMIT 50
+        ";
+        $params = array_merge(
+            [$clubProfileId, $clubProfileId, $userId, $like, $like, $like, $clubProfileId],
+            $teamFilterParams
+        );
+        $stmt = $connection->prepare($sql);
+        $stmt->execute($params);
+        $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Team groups (admins see all club teams; coaches see only theirs)
+        if ($isAdmin) {
+            $stmt = $connection->prepare("
+                SELECT t.id, t.name, t.age_group
+                FROM teams t
+                WHERE t.club_id = ? AND t.deleted_at IS NULL
+                ORDER BY t.age_group, t.name
+            ");
+            $stmt->execute([$clubProfileId]);
+            $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif ($isCoach) {
+            $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
+            $stmt = $connection->prepare("
+                SELECT t.id, t.name, t.age_group
+                FROM teams t
+                WHERE t.id IN ($teamPlaceholders) AND t.deleted_at IS NULL
+                ORDER BY t.age_group, t.name
+            ");
+            $stmt->execute($coachTeamIds);
+            $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
+
+    foreach ($people as &$p) {
+        $p['user_id'] = (int)$p['user_id'];
+        $p['display_name'] = trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? ''));
+    }
+    unset($p);
+    foreach ($teamGroups as &$t) {
+        $t['id'] = (int)$t['id'];
+    }
+    unset($t);
+
+    // Admin-only: system role groups (All Coaches / All Parents / All Players)
+    $roleGroups = [];
+    if ($isAdmin) {
+        $stmt = $connection->prepare("
+            SELECT uca.role, COUNT(DISTINCT uca.user_id) AS count
+            FROM user_club_access uca
+            WHERE uca.club_profile_id = ?
+              AND uca.role IN ('coach', 'parent', 'player')
+              AND uca.user_id != ?
+            GROUP BY uca.role
+        ");
+        $stmt->execute([$clubProfileId, $userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $labels = ['coach' => 'All Coaches', 'parent' => 'All Parents', 'player' => 'All Players'];
+        foreach ($rows as $r) {
+            $roleGroups[] = [
+                'role' => $r['role'],
+                'label' => $labels[$r['role']] ?? ucfirst($r['role']),
+                'count' => (int)$r['count'],
+            ];
+        }
+    }
+
+    echo json_encode([
+        'success' => true,
+        'people' => $people,
+        'team_groups' => $teamGroups,
+        'role_groups' => $roleGroups,
+    ]);
+}
+
+// ============================================
+// Action: chat-resolve-teams
+// Given team_ids, return the deduped users.id list of coaches + guardian-users on those teams.
+// Validates team access (admin: all, coach: only their teams, parent: only their athletes' teams).
+// ============================================
+function handleChatResolveTeams($connection, $auth, $userId) {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $clubProfileId = $data['club_profile_id'] ?? null;
+    $teamIds = $data['team_ids'] ?? [];
+
+    if (!$clubProfileId) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'club_profile_id is required']);
+        exit();
+    }
+    if (empty($teamIds) || !is_array($teamIds)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'team_ids is required']);
+        exit();
+    }
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied to this club']);
+        exit();
+    }
+
+    $isAdmin = isClubAdmin($auth, $clubProfileId);
+    if (!$isAdmin) {
+        $coachTeamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
+        $allowedIds = $coachTeamIds;
+        if (empty($allowedIds)) {
+            // Parent: their athletes' teams
+            $stmt = $connection->prepare("
+                SELECT DISTINCT tm.team_id
+                FROM users u
+                JOIN guardians g ON g.email = u.email
+                JOIN athlete_guardians ag ON ag.guardian_id = g.id
+                JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
+                JOIN teams t ON t.id = tm.team_id AND t.club_id = ?
+                WHERE u.id = ?
+            ");
+            $stmt->execute([$clubProfileId, $userId]);
+            $allowedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        $allowedSet = array_flip(array_map('intval', $allowedIds));
+        foreach ($teamIds as $tid) {
+            if (!isset($allowedSet[(int)$tid])) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied to one or more teams']);
+                exit();
+            }
+        }
+    }
+
+    $teamPlaceholders = implode(',', array_fill(0, count($teamIds), '?'));
+    // Coaches + assistant_coach/team_manager users + guardian users on those teams
+    $sql = "
+        SELECT DISTINCT u.id AS user_id
+        FROM (
+            SELECT t.primary_coach_id AS user_id FROM teams t WHERE t.id IN ($teamPlaceholders) AND t.primary_coach_id IS NOT NULL
+            UNION
+            SELECT tm.user_id FROM team_members tm WHERE tm.team_id IN ($teamPlaceholders) AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active' AND tm.user_id IS NOT NULL
+            UNION
+            SELECT u2.id FROM users u2
+              JOIN guardians g ON g.email = u2.email
+              JOIN athlete_guardians ag ON ag.guardian_id = g.id
+              JOIN team_members tm2 ON tm2.athlete_id = ag.athlete_id AND tm2.team_id IN ($teamPlaceholders) AND tm2.status = 'active'
+        ) src
+        JOIN users u ON u.id = src.user_id
+        WHERE u.id != ?
+    ";
+    $params = array_merge($teamIds, $teamIds, $teamIds, [$userId]);
+    $stmt = $connection->prepare($sql);
+    $stmt->execute($params);
+    $userIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    echo json_encode([
+        'success' => true,
+        'user_ids' => $userIds,
+    ]);
+}
+
+// ============================================
+// Action: chat-resolve-role
+// Admin-only. Given a system role, returns user_ids of all users with that role
+// in the club (excluding the requester).
+// ============================================
+function handleChatResolveRole($connection, $auth, $userId) {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $clubProfileId = $data['club_profile_id'] ?? null;
+    $role = $data['role'] ?? null;
+
+    if (!$clubProfileId || !$role) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'club_profile_id and role are required']);
+        exit();
+    }
+    if (!in_array($role, ['coach', 'parent', 'player'], true)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'role must be coach, parent, or player']);
+        exit();
+    }
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Access denied to this club']);
+        exit();
+    }
+    if (!isClubAdmin($auth, $clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Admin access required']);
+        exit();
+    }
+
+    $stmt = $connection->prepare("
+        SELECT DISTINCT uca.user_id
+        FROM user_club_access uca
+        WHERE uca.club_profile_id = ?
+          AND uca.role = ?
+          AND uca.user_id != ?
+    ");
+    $stmt->execute([$clubProfileId, $role, $userId]);
+    $userIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    echo json_encode([
+        'success' => true,
+        'user_ids' => $userIds,
     ]);
 }
