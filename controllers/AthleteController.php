@@ -383,8 +383,26 @@ class AthleteController {
 
     public function updateGuardianRelationship($athleteId, $guardianId) {
         $data = json_decode(file_get_contents('php://input'), true);
+        $isPrimary = $data['is_primary_contact'] ?? false;
 
         try {
+            $this->db->beginTransaction();
+
+            if ($isPrimary) {
+                // Demote any other primary guardian on this athlete so only one stays primary
+                $demote = $this->db->prepare("
+                    UPDATE athlete_guardians
+                    SET is_primary = false
+                    WHERE athlete_id = :athlete_id
+                      AND guardian_id != :guardian_id
+                      AND is_primary = true
+                ");
+                $demote->execute([
+                    ':athlete_id' => $athleteId,
+                    ':guardian_id' => $guardianId,
+                ]);
+            }
+
             $sql = "UPDATE athlete_guardians
                     SET relationship = :relationship,
                         is_primary = :is_primary,
@@ -396,9 +414,11 @@ class AthleteController {
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
                 ':relationship' => $data['relationship_type'] ?? 'Guardian',
-                ':is_primary' => $data['is_primary_contact'] ?? false,
+                ':is_primary' => $isPrimary,
                 ':can_pickup' => $data['can_pickup'] ?? true,
             ]);
+
+            $this->db->commit();
 
             if ($result) {
                 echo json_encode(['message' => 'Guardian relationship updated successfully']);
@@ -407,6 +427,9 @@ class AthleteController {
                 echo json_encode(['error' => 'Failed to update guardian relationship']);
             }
         } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             http_response_code(500);
             echo json_encode(['error' => 'Failed to update guardian relationship']);
         }
