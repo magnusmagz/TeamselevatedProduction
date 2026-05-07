@@ -127,7 +127,10 @@ export const UpcomingEventsPage: React.FC = () => {
   };
 
   const formatDateHeader = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse "YYYY-MM-DD" as local time. Otherwise PDT users see "May 4" for
+    // a server date of "2026-05-05" (new Date("YYYY-MM-DD") = UTC midnight).
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -363,12 +366,14 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({ month, events, on
   const monthIndex = month.getMonth();
   const monthLabel = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Build a 6-week (42 cell) grid starting from the Sunday on or before day 1 of the month
+  // Build a 6-week (42 cell) grid starting from the Sunday on or before day 1 of the month.
+  // Use gridStart's own year/month for each cell so out-of-range days resolve correctly when
+  // the grid spans into the previous or next month (and across year boundaries).
   const firstOfMonth = new Date(year, monthIndex, 1);
   const gridStart = new Date(year, monthIndex, 1 - firstOfMonth.getDay());
   const days: Date[] = [];
   for (let i = 0; i < 42; i++) {
-    days.push(new Date(year, monthIndex, gridStart.getDate() + i));
+    days.push(new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
   }
 
   const eventsByDay = events.reduce<Record<string, Event[]>>((acc, e) => {

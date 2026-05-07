@@ -142,6 +142,8 @@ export interface TournamentDivision {
   max_players_on_field: number | null;
   sport_rule_notes: string[] | null;
   overtime_rules: OvertimeRules | null;
+  max_guest_players: number | null;
+  guest_must_be_same_club: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -157,6 +159,8 @@ export interface TournamentGroup {
   sort_order: number;
   teams: TournamentRegistration[];
 }
+
+export type WaitlistOfferState = 'none' | 'offered' | 'declined' | 'expired';
 
 export interface TournamentRegistration {
   id: number;
@@ -177,6 +181,13 @@ export interface TournamentRegistration {
   group_name?: string | null;
   division_name?: string;
   notes: string | null;
+  // Waitlist cascade state — surfaced for rows with status='waitlisted' so
+  // the manager can show "Offered (expires in 36h)" / "Declined" badges
+  // and a Promote action.
+  waitlist_position?: number | null;
+  waitlist_offered_at?: string | null;
+  waitlist_offer_expires_at?: string | null;
+  waitlist_offer_state?: WaitlistOfferState;
   created_at: string;
   updated_at: string;
 }
