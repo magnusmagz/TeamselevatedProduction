@@ -623,9 +623,8 @@ try {
                     goal_differential_cap, tiebreaker_rules,
                     points_for_win, points_for_draw, points_for_loss,
                     max_players_on_field, sport_rule_notes, overtime_rules,
-                    scoring_system, competitive_level, sort_order,
-                    max_guest_players, guest_must_be_same_club
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?)
+                    scoring_system, competitive_level, sort_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -652,8 +651,6 @@ try {
                 $scoringSystem,
                 nullIfEmpty($data['competitive_level'] ?? null),
                 $nextOrder,
-                isset($data['max_guest_players']) && $data['max_guest_players'] !== '' ? (int)$data['max_guest_players'] : null,
-                !empty($data['guest_must_be_same_club']),
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -707,7 +704,6 @@ try {
                 'teams_per_group', 'teams_advancing_per_group',
                 'goal_differential_cap', 'points_for_win', 'points_for_draw', 'points_for_loss',
                 'max_players_on_field', 'scoring_system', 'competitive_level', 'sort_order',
-                'max_guest_players', 'guest_must_be_same_club',
             ];
 
             $setClauses = [];
@@ -808,6 +804,90 @@ try {
         // ============================================
         // REGISTRATIONS
         // ============================================
+
+        case 'tournament-promote-pre-open-waitlist':
+            // POST ?action=tournament-promote-pre-open-waitlist&tournament_id={id}
+            // Promotes pre-open waitlist rows to status='pending' once the
+            // tournament's registration_open_date has passed. Idempotent.
+            if ($method !== 'POST') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $tournamentId = $_GET['tournament_id'] ?? null;
+            if (!$tournamentId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'tournament_id is required']);
+                exit();
+            }
+            verifyTournamentAccess($db, $auth, (int)$tournamentId);
+
+            // Refuse if registration hasn't opened yet — the whole point is to
+            // wait for the open date before promoting.
+            $tStmt = $db->prepare("SELECT registration_open_date FROM tournaments WHERE id = ?");
+            $tStmt->execute([(int)$tournamentId]);
+            $tRow = $tStmt->fetch(PDO::FETCH_ASSOC);
+            if (empty($tRow['registration_open_date']) || strtotime($tRow['registration_open_date']) > time()) {
+                http_response_code(400);
+                echo json_encode([
+                    'error' => 'Registration has not opened yet for this tournament.',
+                    'registration_open_date' => $tRow['registration_open_date'] ?? null,
+                ]);
+                exit();
+            }
+
+            // Find pre-open waitlist rows. Promote each to status='pending'
+            // and queue notification emails. Mark waitlist_pre_open=false so
+            // a re-run is a no-op.
+            $promoteStmt = $db->prepare("
+                SELECT tr.id, tr.team_id, t.name AS team_name, u.email AS contact_email,
+                       u.first_name, u.last_name
+                FROM tournament_registrations tr
+                LEFT JOIN teams t ON t.id = tr.team_id
+                LEFT JOIN users u ON u.id = tr.registered_by
+                WHERE tr.tournament_id = ? AND tr.waitlist_pre_open = true
+            ");
+            $promoteStmt->execute([(int)$tournamentId]);
+            $rows = $promoteStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $promoted = 0;
+            $emailsQueued = 0;
+            if (!empty($rows)) {
+                $upd = $db->prepare("
+                    UPDATE tournament_registrations
+                    SET status = 'pending', waitlist_pre_open = false, updated_at = CURRENT_TIMESTAMP
+                    WHERE tournament_id = ? AND waitlist_pre_open = true
+                ");
+                $upd->execute([(int)$tournamentId]);
+                $promoted = $upd->rowCount();
+
+                // Queue notification emails via the existing Redis email queue
+                // when available; otherwise log and proceed (promotion still happens).
+                try {
+                    require_once __DIR__ . '/../lib/RedisQueue.php';
+                    $tNameStmt = $db->prepare("SELECT name FROM tournaments WHERE id = ?");
+                    $tNameStmt->execute([(int)$tournamentId]);
+                    $tournamentName = $tNameStmt->fetchColumn() ?: 'the tournament';
+
+                    $queue = new RedisQueue();
+                    foreach ($rows as $r) {
+                        if (empty($r['contact_email'])) continue;
+                        $queue->push('email_queue', [
+                            'to' => $r['contact_email'],
+                            'subject' => "Registration is now open for {$tournamentName}",
+                            'body_html' => "<p>Hi " . htmlspecialchars(trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''))) . ",</p><p>Registration is now officially open for <strong>" . htmlspecialchars($tournamentName) . "</strong>. Your team <strong>" . htmlspecialchars($r['team_name'] ?? 'your team') . "</strong> has been moved off the waitlist into the regular registration queue.</p><p>Log in to confirm your roster and complete payment.</p>",
+                            'body_text' => "Registration is now open for {$tournamentName}. Your team has been moved off the waitlist.",
+                        ]);
+                        $emailsQueued++;
+                    }
+                } catch (\Throwable $e) {
+                    error_log('Pre-open waitlist email queue failed: ' . $e->getMessage());
+                }
+            }
+
+            echo json_encode([
+                'promoted' => $promoted,
+                'emails_queued' => $emailsQueued,
+            ]);
+            break;
 
         case 'registrations-list':
             // GET ?action=registrations-list&tournament_id={id}&division_id={id}&status={status}
@@ -927,13 +1007,26 @@ try {
                 exit();
             }
 
-            // Check division max_teams
+            // Check division max_teams + tournament registration_open_date.
+            // Pre-open waitlist: if the form is submitted BEFORE the tournament's
+            // registration_open_date, park the row as status='waitlisted' with
+            // waitlist_pre_open=true. Auto-promotes to 'pending' when open date hits.
             $divCheck = $db->prepare("SELECT max_teams FROM tournament_divisions WHERE id = ?");
             $divCheck->execute([(int)$data['division_id']]);
             $divData = $divCheck->fetch(PDO::FETCH_ASSOC);
 
+            $tournDateStmt = $db->prepare("SELECT registration_open_date FROM tournaments WHERE id = ?");
+            $tournDateStmt->execute([(int)$data['tournament_id']]);
+            $tournDates = $tournDateStmt->fetch(PDO::FETCH_ASSOC);
+            $isPreOpen = !empty($tournDates['registration_open_date'])
+                && strtotime($tournDates['registration_open_date']) > time();
+
             $status = 'pending';
-            if ($divData && $divData['max_teams']) {
+            $waitlistPreOpen = false;
+            if ($isPreOpen) {
+                $status = 'waitlisted';
+                $waitlistPreOpen = true;
+            } elseif ($divData && $divData['max_teams']) {
                 $acceptedCount = $db->prepare("SELECT COUNT(*) AS cnt FROM tournament_registrations WHERE division_id = ? AND status = 'accepted'");
                 $acceptedCount->execute([(int)$data['division_id']]);
                 $cnt = (int)$acceptedCount->fetch(PDO::FETCH_ASSOC)['cnt'];
@@ -951,8 +1044,9 @@ try {
                 INSERT INTO tournament_registrations (
                     tournament_id, division_id, team_id,
                     team_name_override, club_name_override,
-                    registered_by, status, payment_amount_cents, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    registered_by, status, payment_amount_cents, notes,
+                    waitlist_pre_open
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -965,25 +1059,33 @@ try {
                 $status,
                 $fee,
                 $data['notes'] ?? null,
+                $waitlistPreOpen,
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // If we auto-waitlisted, give the row its FIFO queue position
-            // so the cascade can promote in created order later.
-            if ($status === 'waitlisted') {
+            // Post-fill waitlist (division is full) gets a FIFO queue position
+            // so the cascade can promote in order. Pre-open waitlist rows
+            // skip this — they're not in the cascade pool, they're parked
+            // until registration_open_date.
+            if ($status === 'waitlisted' && !$waitlistPreOpen) {
                 require_once __DIR__ . '/../services/WaitlistService.php';
                 $waitlist = new WaitlistService($db);
                 $waitlist->assignNextPosition((int)$result['id'], (int)$data['division_id']);
             }
 
             http_response_code(201);
+            $message = 'Registration submitted successfully';
+            if ($waitlistPreOpen) {
+                $message = "You're on the waitlist. We'll email you when registration officially opens.";
+            } elseif ($status === 'waitlisted') {
+                $message = 'Team registered (waitlisted — division is full)';
+            }
             echo json_encode([
                 'id' => (int)$result['id'],
                 'status' => $status,
-                'message' => $status === 'waitlisted'
-                    ? 'Team registered (waitlisted — division is full)'
-                    : 'Registration submitted successfully',
+                'waitlist_pre_open' => $waitlistPreOpen,
+                'message' => $message,
             ]);
             break;
 
@@ -2113,82 +2215,31 @@ try {
                 exit();
             }
 
-            // Pull division + registering-team context up front. Used by both
-            // age-eligibility (soft warning) and guest policy (hard block).
-            $regCtxStmt = $db->prepare("
-                SELECT td.age_group,
-                       td.max_guest_players,
-                       td.guest_must_be_same_club,
-                       t.start_date,
-                       t.governing_body,
-                       reg_team.club_id AS registering_club_id
-                FROM tournament_registrations tr
-                JOIN tournament_divisions td ON td.id = tr.division_id
-                JOIN tournaments t           ON t.id  = tr.tournament_id
-                JOIN teams reg_team          ON reg_team.id = tr.team_id
-                WHERE tr.id = ?
-            ");
-            $regCtxStmt->execute([(int)$registrationId]);
-            $regCtx = $regCtxStmt->fetch(PDO::FETCH_ASSOC);
-
-            // Guest-specific policy enforcement (hard block, unlike the age warning
-            // below which is intentionally soft to allow play-ups).
-            $isGuest = !empty($data['is_guest']);
-            if ($isGuest && $regCtx) {
-                // 1. Max guest count per registration.
-                if ($regCtx['max_guest_players'] !== null) {
-                    $cntStmt = $db->prepare("
-                        SELECT COUNT(*) FROM tournament_registration_players
-                        WHERE registration_id = ? AND is_guest = true
-                    ");
-                    $cntStmt->execute([(int)$registrationId]);
-                    $currentGuestCount = (int)$cntStmt->fetchColumn();
-                    if ($currentGuestCount >= (int)$regCtx['max_guest_players']) {
-                        http_response_code(400);
-                        echo json_encode([
-                            'error' => "Division allows up to {$regCtx['max_guest_players']} guest players. This roster already has {$currentGuestCount}.",
-                            'policy' => 'max_guest_players',
-                        ]);
-                        exit();
-                    }
-                }
-                // 2. Same-club requirement (only checkable when athlete_id is given —
-                // a free-text guest name has no club to verify against).
-                if (!empty($regCtx['guest_must_be_same_club']) && $athleteId) {
-                    $clubStmt = $db->prepare("
-                        SELECT 1 FROM team_members tm
-                        JOIN teams t ON t.id = tm.team_id
-                        WHERE tm.athlete_id = ? AND tm.status = 'active' AND t.club_id = ?
-                        LIMIT 1
-                    ");
-                    $clubStmt->execute([$athleteId, (int)$regCtx['registering_club_id']]);
-                    if (!$clubStmt->fetchColumn()) {
-                        http_response_code(400);
-                        echo json_encode([
-                            'error' => "This division requires guest players to be from the same club as the registering team.",
-                            'policy' => 'guest_must_be_same_club',
-                        ]);
-                        exit();
-                    }
-                }
-            }
-
-            // Age eligibility check (soft warning — director may intentionally
-            // roster a play-up player). Only meaningful when we have an athlete
-            // record with a DOB.
+            // Age eligibility check (only meaningful when we have an athlete
+            // record with a DOB).
             $eligibilityWarning = null;
-            if ($athleteId && $regCtx) {
-                $dobStmt = $db->prepare("SELECT date_of_birth FROM athletes WHERE id = ?");
-                $dobStmt->execute([$athleteId]);
-                $dob = $dobStmt->fetchColumn();
-                if ($dob) {
+            if ($athleteId) {
+                $ctxStmt = $db->prepare("
+                    SELECT a.date_of_birth,
+                           td.age_group,
+                           t.start_date,
+                           t.governing_body
+                    FROM tournament_registrations tr
+                    JOIN tournament_divisions td ON td.id = tr.division_id
+                    JOIN tournaments t           ON t.id  = tr.tournament_id
+                    JOIN athletes a              ON a.id  = ?
+                    WHERE tr.id = ?
+                ");
+                $ctxStmt->execute([$athleteId, (int)$registrationId]);
+                $ctx = $ctxStmt->fetch(PDO::FETCH_ASSOC);
+                if ($ctx) {
                     require_once __DIR__ . '/../services/AgeEligibilityService.php';
                     $svc = new AgeEligibilityService();
                     $check = $svc->check(
-                        $regCtx['age_group'] ?? null,
-                        $dob,
-                        $regCtx['start_date'] ?? null,
-                        $regCtx['governing_body'] ?? null
+                        $ctx['age_group'] ?? null,
+                        $ctx['date_of_birth'] ?? null,
+                        $ctx['start_date'] ?? null,
+                        $ctx['governing_body'] ?? null
                     );
                     if (!$check['eligible']) {
                         $eligibilityWarning = $check['reason'];

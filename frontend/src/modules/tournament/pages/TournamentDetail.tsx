@@ -433,6 +433,7 @@ const TournamentDetail: React.FC = () => {
           divisions={tournament.divisions || []}
           isAdmin={isAdmin}
           clubId={tournament.club_id}
+          registrationOpenDate={tournament.registration_open_date || null}
         />
       )}
 
