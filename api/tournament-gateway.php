@@ -1059,7 +1059,9 @@ try {
                 $status,
                 $fee,
                 $data['notes'] ?? null,
-                $waitlistPreOpen,
+                // PDO converts PHP false to '' which Postgres rejects for boolean —
+                // bind explicitly as 'true'/'false' strings.
+                $waitlistPreOpen ? 'true' : 'false',
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
