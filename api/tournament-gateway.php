@@ -623,8 +623,9 @@ try {
                     goal_differential_cap, tiebreaker_rules,
                     points_for_win, points_for_draw, points_for_loss,
                     max_players_on_field, sport_rule_notes, overtime_rules,
-                    scoring_system, competitive_level, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)
+                    scoring_system, competitive_level, sort_order,
+                    max_guest_players, guest_must_be_same_club
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?)
                 RETURNING id
             ");
             $stmt->execute([
@@ -651,6 +652,8 @@ try {
                 $scoringSystem,
                 nullIfEmpty($data['competitive_level'] ?? null),
                 $nextOrder,
+                isset($data['max_guest_players']) && $data['max_guest_players'] !== '' ? (int)$data['max_guest_players'] : null,
+                !empty($data['guest_must_be_same_club']),
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -704,6 +707,7 @@ try {
                 'teams_per_group', 'teams_advancing_per_group',
                 'goal_differential_cap', 'points_for_win', 'points_for_draw', 'points_for_loss',
                 'max_players_on_field', 'scoring_system', 'competitive_level', 'sort_order',
+                'max_guest_players', 'guest_must_be_same_club',
             ];
 
             $setClauses = [];
@@ -2004,31 +2008,82 @@ try {
                 exit();
             }
 
-            // Age eligibility check (only meaningful when we have an athlete
-            // record with a DOB).
+            // Pull division + registering-team context up front. Used by both
+            // age-eligibility (soft warning) and guest policy (hard block).
+            $regCtxStmt = $db->prepare("
+                SELECT td.age_group,
+                       td.max_guest_players,
+                       td.guest_must_be_same_club,
+                       t.start_date,
+                       t.governing_body,
+                       reg_team.club_id AS registering_club_id
+                FROM tournament_registrations tr
+                JOIN tournament_divisions td ON td.id = tr.division_id
+                JOIN tournaments t           ON t.id  = tr.tournament_id
+                JOIN teams reg_team          ON reg_team.id = tr.team_id
+                WHERE tr.id = ?
+            ");
+            $regCtxStmt->execute([(int)$registrationId]);
+            $regCtx = $regCtxStmt->fetch(PDO::FETCH_ASSOC);
+
+            // Guest-specific policy enforcement (hard block, unlike the age warning
+            // below which is intentionally soft to allow play-ups).
+            $isGuest = !empty($data['is_guest']);
+            if ($isGuest && $regCtx) {
+                // 1. Max guest count per registration.
+                if ($regCtx['max_guest_players'] !== null) {
+                    $cntStmt = $db->prepare("
+                        SELECT COUNT(*) FROM tournament_registration_players
+                        WHERE registration_id = ? AND is_guest = true
+                    ");
+                    $cntStmt->execute([(int)$registrationId]);
+                    $currentGuestCount = (int)$cntStmt->fetchColumn();
+                    if ($currentGuestCount >= (int)$regCtx['max_guest_players']) {
+                        http_response_code(400);
+                        echo json_encode([
+                            'error' => "Division allows up to {$regCtx['max_guest_players']} guest players. This roster already has {$currentGuestCount}.",
+                            'policy' => 'max_guest_players',
+                        ]);
+                        exit();
+                    }
+                }
+                // 2. Same-club requirement (only checkable when athlete_id is given —
+                // a free-text guest name has no club to verify against).
+                if (!empty($regCtx['guest_must_be_same_club']) && $athleteId) {
+                    $clubStmt = $db->prepare("
+                        SELECT 1 FROM team_members tm
+                        JOIN teams t ON t.id = tm.team_id
+                        WHERE tm.athlete_id = ? AND tm.status = 'active' AND t.club_id = ?
+                        LIMIT 1
+                    ");
+                    $clubStmt->execute([$athleteId, (int)$regCtx['registering_club_id']]);
+                    if (!$clubStmt->fetchColumn()) {
+                        http_response_code(400);
+                        echo json_encode([
+                            'error' => "This division requires guest players to be from the same club as the registering team.",
+                            'policy' => 'guest_must_be_same_club',
+                        ]);
+                        exit();
+                    }
+                }
+            }
+
+            // Age eligibility check (soft warning — director may intentionally
+            // roster a play-up player). Only meaningful when we have an athlete
+            // record with a DOB.
             $eligibilityWarning = null;
-            if ($athleteId) {
-                $ctxStmt = $db->prepare("
-                    SELECT a.date_of_birth,
-                           td.age_group,
-                           t.start_date,
-                           t.governing_body
-                    FROM tournament_registrations tr
-                    JOIN tournament_divisions td ON td.id = tr.division_id
-                    JOIN tournaments t           ON t.id  = tr.tournament_id
-                    JOIN athletes a              ON a.id  = ?
-                    WHERE tr.id = ?
-                ");
-                $ctxStmt->execute([$athleteId, (int)$registrationId]);
-                $ctx = $ctxStmt->fetch(PDO::FETCH_ASSOC);
-                if ($ctx) {
+            if ($athleteId && $regCtx) {
+                $dobStmt = $db->prepare("SELECT date_of_birth FROM athletes WHERE id = ?");
+                $dobStmt->execute([$athleteId]);
+                $dob = $dobStmt->fetchColumn();
+                if ($dob) {
                     require_once __DIR__ . '/../services/AgeEligibilityService.php';
                     $svc = new AgeEligibilityService();
                     $check = $svc->check(
-                        $ctx['age_group'] ?? null,
-                        $ctx['date_of_birth'] ?? null,
-                        $ctx['start_date'] ?? null,
-                        $ctx['governing_body'] ?? null
+                        $regCtx['age_group'] ?? null,
+                        $dob,
+                        $regCtx['start_date'] ?? null,
+                        $regCtx['governing_body'] ?? null
                     );
                     if (!$check['eligible']) {
                         $eligibilityWarning = $check['reason'];

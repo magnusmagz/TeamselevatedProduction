@@ -64,6 +64,12 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
   const [otPeriods, setOtPeriods] = useState<number>(division?.overtime_rules?.ot_periods ?? 2);
   const [otMinutes, setOtMinutes] = useState<number>(division?.overtime_rules?.ot_minutes_per_period ?? 5);
   const [otGoldenGoal, setOtGoldenGoal] = useState<boolean>(!!division?.overtime_rules?.golden_goal);
+  const [maxGuestPlayers, setMaxGuestPlayers] = useState<number | ''>(
+    division?.max_guest_players ?? ''
+  );
+  const [guestMustBeSameClub, setGuestMustBeSameClub] = useState<boolean>(
+    !!division?.guest_must_be_same_club
+  );
 
   // Load presets
   useEffect(() => {
@@ -147,6 +153,8 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
           golden_goal: otGoldenGoal,
         };
       })(),
+      max_guest_players: maxGuestPlayers === '' ? null : Number(maxGuestPlayers),
+      guest_must_be_same_club: guestMustBeSameClub,
     };
 
     const token = localStorage.getItem('auth_token');
@@ -477,6 +485,39 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
           )}
         </div>
       )}
+
+      {/* Guest Player Policy */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <h4 className="text-sm font-semibold text-gray-900">Guest Player Policy</h4>
+        <p className="text-xs text-gray-500">
+          Optional limits on guest players added to a roster. Existing rules
+          (age eligibility, sanctioning, competitive level, roster size) apply
+          to all players including guests; these two are guest-specific.
+        </p>
+
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Max guest players per team</label>
+          <input
+            type="number"
+            min={0}
+            value={maxGuestPlayers}
+            onChange={(e) => setMaxGuestPlayers(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10) || 0))}
+            placeholder="No limit"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+          />
+          <p className="text-xs text-gray-400 mt-1">Leave blank for no cap.</p>
+        </div>
+
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={guestMustBeSameClub}
+            onChange={(e) => setGuestMustBeSameClub(e.target.checked)}
+            className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+          />
+          Guest players must be from the same club as the registering team
+        </label>
+      </div>
 
       {/* Actions */}
       <div className="flex justify-end space-x-3">
