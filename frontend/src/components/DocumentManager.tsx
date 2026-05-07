@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 
-interface DocumentType {
-  type_id: number;
-  type_code: string;
-  display_name: string;
-  description: string;
+interface Document {
+  id: number;
+  title: string;
+  description?: string | null;
+  file_path?: string | null;
+  link_url?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  slot?: string | null;
   is_required: boolean;
-  document_id?: number;
-  document_name?: string;
-  file_path?: string;
-  upload_date?: string;
-  expires_date?: string;
-  is_verified?: boolean;
-  notes?: string;
-  status: 'missing' | 'expired' | 'expiring_soon' | 'pending_verification' | 'valid';
+  expires_at?: string | null;
+  notes?: string | null;
+  uploaded_by_name?: string;
+  created_at: string;
 }
 
 interface DocumentManagerProps {
@@ -22,335 +21,139 @@ interface DocumentManagerProps {
   athleteName?: string;
 }
 
+function deriveStatus(expiresAt?: string | null): 'valid' | 'expiring_soon' | 'expired' {
+  if (!expiresAt) return 'valid';
+  const now = Date.now();
+  const exp = new Date(expiresAt).getTime();
+  if (exp < now) return 'expired';
+  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring_soon';
+  return 'valid';
+}
+
 const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteName }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const [documents, setDocuments] = useState<DocumentType[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedType, setSelectedType] = useState<number | null>(null);
-  const [expiresDate, setExpiresDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [athleteId]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(
+        `${API_URL}/api/documents-gateway.php?action=for-athlete&athlete_id=${athleteId}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
       const data = await response.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.documents)) {
         setDocuments(data.documents);
+      } else {
+        setDocuments([]);
+        if (!data.success) setError(data.error || 'Failed to load documents');
       }
-    } catch (error) {
-      console.error('Failed to fetch documents:', error);
+    } catch {
+      setError('Failed to load documents');
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, athleteId]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
-
-  const handleUpload = async (typeId: number) => {
-    if (!selectedFile) {
-      alert('Please select a file');
-      return;
-    }
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('document', selectedFile);
-    formData.append('document_type_id', typeId.toString());
-    if (expiresDate) {
-      formData.append('expires_date', expiresDate);
-    }
-    if (notes) {
-      formData.append('notes', notes);
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/athletes/${athleteId}/documents`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Document uploaded successfully');
-        fetchDocuments();
-        setSelectedFile(null);
-        setSelectedType(null);
-        setExpiresDate('');
-        setNotes('');
-      } else {
-        alert(data.error || 'Upload failed');
-      }
-    } catch (error) {
-      alert('Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDelete = async (documentId: number) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/documents/${documentId}`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Document deleted');
-        fetchDocuments();
-      }
-    } catch (error) {
-      alert('Delete failed');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'valid': return 'bg-green-100 text-green-800';
-      case 'expired': return 'bg-red-100 text-red-800';
-      case 'expiring_soon': return 'bg-yellow-100 text-yellow-800';
-      case 'pending_verification': return 'bg-blue-100 text-blue-800';
-      case 'missing': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'valid': return '✓ Valid';
-      case 'expired': return '⚠ Expired';
-      case 'expiring_soon': return '⏰ Expiring Soon';
-      case 'pending_verification': return '🔍 Pending Review';
-      case 'missing': return '❌ Missing';
-      default: return status;
-    }
-  };
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   if (loading) {
-    return <div className="p-5">Loading documents...</div>;
+    return <div className="text-center text-brand-primary py-8">Loading documents...</div>;
   }
 
-  // Separate required and optional documents
-  const requiredDocs = documents.filter(d => d.is_required);
-  const optionalDocs = documents.filter(d => !d.is_required);
-
-  // Calculate compliance
-  const requiredComplete = requiredDocs.filter(d => d.status === 'valid').length;
-  const compliancePercent = Math.round((requiredComplete / requiredDocs.length) * 100);
+  if (error) {
+    return <div className="text-center text-red-600 py-8">{error}</div>;
+  }
 
   return (
-    <div className="p-5">
-      <div className="mb-5">
-        <h2 className="text-2xl font-bold mb-2">Document Center</h2>
-        {athleteName && <p className="text-gray-600">Managing documents for {athleteName}</p>}
+    <div className="bg-white border border-brand-secondary rounded-md p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-brand-primary uppercase">
+          Documents{athleteName ? ` for ${athleteName}` : ''}
+        </h3>
+        <span className="text-xs text-gray-500">
+          {documents.length} document{documents.length === 1 ? '' : 's'}
+        </span>
       </div>
 
-      {/* Compliance Status */}
-      <div className="mb-5 p-4 border border-brand-secondary rounded-md bg-gray-50">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-bold">Compliance Status</span>
-          <span className={`text-lg font-bold ${compliancePercent === 100 ? 'text-green-600' : 'text-yellow-600'}`}>
-            {compliancePercent}% Complete
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-4">
-          <div
-            className={`h-4 rounded-full ${compliancePercent === 100 ? 'bg-green-600' : 'bg-yellow-600'}`}
-            style={{ width: `${compliancePercent}%` }}
-          />
-        </div>
-        <p className="text-sm mt-2">
-          {requiredComplete} of {requiredDocs.length} required documents valid
+      {documents.length === 0 ? (
+        <p className="text-sm text-gray-500 italic py-6 text-center">
+          No documents assigned to this athlete yet. Documents are managed from the Document Center.
         </p>
-      </div>
-
-      {/* Upload Section */}
-      <div className="mb-5 p-4 border border-gray-300">
-        <h3 className="font-bold mb-3 text-brand-primary">Upload New Document</h3>
-        <div className="space-y-3">
-          <input
-            type="file"
-            onChange={handleFileChange}
-            accept=".pdf,.jpg,.jpeg,.png,.gif"
-            className="block w-full text-sm"
-          />
-          {selectedFile && (
-            <div>
-              <p className="text-sm text-gray-600">Selected: {selectedFile.name}</p>
-              <input
-                type="date"
-                placeholder="Expiration date (if applicable)"
-                value={expiresDate}
-                onChange={(e) => setExpiresDate(e.target.value)}
-                className="mt-2 p-2 border border-gray-300"
-              />
-              <textarea
-                placeholder="Notes (optional)"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="mt-2 w-full p-2 border border-gray-300"
-                rows={2}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Required Documents */}
-      <div className="mb-5">
-        <h3 className="font-bold mb-3 text-lg">Required Documents</h3>
-        <div className="space-y-2">
-          {requiredDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-300 p-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-brand-primary">{doc.display_name}</h4>
-                    <span className={`px-2 py-1 text-xs rounded ${getStatusColor(doc.status)}`}>
-                      {getStatusText(doc.status)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">{doc.description}</p>
-                  {doc.document_id && (
-                    <div className="mt-2 text-sm">
-                      <p>📄 {doc.document_name}</p>
-                      <p className="text-gray-500">
-                        Uploaded: {new Date(doc.upload_date!).toLocaleDateString()}
-                        {doc.expires_date && (
-                          <span> | Expires: {new Date(doc.expires_date).toLocaleDateString()}</span>
-                        )}
-                      </p>
-                      {doc.notes && <p className="text-gray-600 italic">Note: {doc.notes}</p>}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {selectedFile && selectedType === doc.type_id ? (
-                    <>
-                      <button
-                        onClick={() => handleUpload(doc.type_id)}
-                        disabled={uploading}
-                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
-                      >
-                        {uploading ? 'Uploading...' : 'Confirm'}
-                      </button>
-                      <button
-                        onClick={() => setSelectedType(null)}
-                        className="px-3 py-1 bg-gray-600 text-white text-sm hover:bg-gray-700"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setSelectedType(doc.type_id)}
-                        disabled={!selectedFile}
-                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
-                      >
-                        {doc.document_id ? 'Replace' : 'Upload'}
-                      </button>
-                      {doc.document_id && (
-                        <button
-                          onClick={() => handleDelete(doc.document_id!)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
+      ) : (
+        <div className="divide-y divide-brand-secondary">
+          {documents.map((doc) => {
+            const status = deriveStatus(doc.expires_at);
+            const href = doc.file_path || doc.link_url || '#';
+            return (
+              <a
+                key={doc.id}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block py-3 hover:bg-gray-50 -mx-4 px-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-brand-primary truncate">{doc.title}</p>
+                      {doc.is_required && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-100 text-amber-700">
+                          Required
+                        </span>
                       )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Optional Documents */}
-      <div>
-        <h3 className="font-bold mb-3 text-lg">Optional Documents</h3>
-        <div className="space-y-2">
-          {optionalDocs.map((doc) => (
-            <div key={doc.type_id} className="border border-gray-200 p-3 bg-gray-50">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium text-brand-primary">{doc.display_name}</h4>
-                    {doc.document_id && (
-                      <span className={`px-2 py-1 text-xs rounded ${getStatusColor(doc.status)}`}>
-                        {getStatusText(doc.status)}
-                      </span>
+                      {status === 'expired' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-red-100 text-red-700">
+                          Expired
+                        </span>
+                      )}
+                      {status === 'expiring_soon' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-yellow-100 text-yellow-800">
+                          Expiring soon
+                        </span>
+                      )}
+                    </div>
+                    {doc.slot && (
+                      <p className="text-xs text-gray-500 mt-0.5 capitalize">
+                        {doc.slot.replace(/_/g, ' ')}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      <span>Added {new Date(doc.created_at).toLocaleDateString()}</span>
+                      {doc.uploaded_by_name && <span>by {doc.uploaded_by_name}</span>}
+                      {doc.expires_at && (
+                        <span>Expires {new Date(doc.expires_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    {doc.notes && (
+                      <p className="text-xs text-gray-600 italic mt-1">{doc.notes}</p>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{doc.description}</p>
-                  {doc.document_id && (
-                    <div className="mt-2 text-sm">
-                      <p>📄 {doc.document_name}</p>
-                      <p className="text-gray-500">
-                        Uploaded: {new Date(doc.upload_date!).toLocaleDateString()}
-                        {doc.expires_date && (
-                          <span> | Expires: {new Date(doc.expires_date).toLocaleDateString()}</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
+                  <svg
+                    className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
                 </div>
-                <div className="flex gap-2">
-                  {selectedFile && selectedType === doc.type_id ? (
-                    <>
-                      <button
-                        onClick={() => handleUpload(doc.type_id)}
-                        disabled={uploading}
-                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
-                      >
-                        {uploading ? 'Uploading...' : 'Confirm'}
-                      </button>
-                      <button
-                        onClick={() => setSelectedType(null)}
-                        className="px-3 py-1 bg-gray-600 text-white text-sm hover:bg-gray-700"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setSelectedType(doc.type_id)}
-                        disabled={!selectedFile}
-                        className="px-3 py-1 bg-brand-primary text-white text-sm hover:bg-brand-primary-hover disabled:bg-gray-400"
-                      >
-                        {doc.document_id ? 'Replace' : 'Upload'}
-                      </button>
-                      {doc.document_id && (
-                        <button
-                          onClick={() => handleDelete(doc.document_id!)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+              </a>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 };

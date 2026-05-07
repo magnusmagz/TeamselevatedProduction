@@ -6,14 +6,27 @@ import { AthleteSelector } from '../components/AthleteSelector';
 
 interface Document {
   id: number;
-  name: string;
-  type: string;
-  file_url: string;
-  file_size?: number;
-  uploaded_at: string;
-  expires_at?: string;
-  status: 'valid' | 'expired' | 'expiring_soon';
-  category?: string;
+  title: string;
+  description?: string | null;
+  file_path?: string | null;
+  link_url?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  slot?: string | null;
+  is_required: boolean;
+  expires_at?: string | null;
+  notes?: string | null;
+  uploaded_by_name?: string;
+  created_at: string;
+}
+
+function deriveStatus(expiresAt?: string | null): 'valid' | 'expiring_soon' | 'expired' {
+  if (!expiresAt) return 'valid';
+  const now = Date.now();
+  const exp = new Date(expiresAt).getTime();
+  if (exp < now) return 'expired';
+  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring_soon';
+  return 'valid';
 }
 
 export const DocumentsPage: React.FC = () => {
@@ -43,7 +56,7 @@ export const DocumentsPage: React.FC = () => {
       try {
         const token = localStorage.getItem('auth_token');
         const response = await fetch(
-          `${API_URL}/api/documents.php?action=list&athlete_id=${activeAthleteId}`,
+          `${API_URL}/api/documents-gateway.php?action=for-athlete&athlete_id=${activeAthleteId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -68,12 +81,13 @@ export const DocumentsPage: React.FC = () => {
   };
 
   const filteredDocuments = documents.filter((doc) => {
-    if (filter === 'expiring') return doc.status === 'expiring_soon';
-    if (filter === 'expired') return doc.status === 'expired';
+    const status = deriveStatus(doc.expires_at);
+    if (filter === 'expiring') return status === 'expiring_soon';
+    if (filter === 'expired') return status === 'expired';
     return true;
   });
 
-  const getStatusBadge = (status: Document['status']) => {
+  const getStatusBadge = (status: 'valid' | 'expiring_soon' | 'expired') => {
     const styles = {
       valid: 'bg-green-100 text-green-800',
       expiring_soon: 'bg-yellow-100 text-yellow-800',
@@ -217,39 +231,44 @@ export const DocumentsPage: React.FC = () => {
         {/* Documents List */}
         {!loading && !error && filteredDocuments.length > 0 && (
           <div className="px-4 py-4 space-y-3">
-            {filteredDocuments.map((doc) => (
+            {filteredDocuments.map((doc) => {
+              const status = deriveStatus(doc.expires_at);
+              const href = doc.file_path || doc.link_url || '#';
+              return (
               <a
                 key={doc.id}
-                href={doc.file_url}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">{getDocumentIcon(doc.type)}</div>
+                  <div className="flex-shrink-0">{getDocumentIcon(doc.mime_type || '')}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-gray-900 truncate">{doc.name}</p>
-                      {getStatusBadge(doc.status)}
+                      <p className="font-medium text-gray-900 truncate">{doc.title}</p>
+                      {getStatusBadge(status)}
                     </div>
-                    {doc.category && (
-                      <p className="text-sm text-brand-primary mt-0.5">{doc.category}</p>
+                    {doc.slot && (
+                      <p className="text-sm text-brand-primary mt-0.5">{doc.slot.replace(/_/g, ' ')}</p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                      <span>Uploaded {formatDate(doc.uploaded_at)}</span>
-                      {doc.file_size && <span>{formatFileSize(doc.file_size)}</span>}
+                      <span>Uploaded {formatDate(doc.created_at)}</span>
+                      {doc.is_required && (
+                        <span className="text-amber-700 font-medium">Required</span>
+                      )}
                     </div>
                     {doc.expires_at && (
                       <p
                         className={`text-xs mt-1 ${
-                          doc.status === 'expired'
+                          status === 'expired'
                             ? 'text-red-600'
-                            : doc.status === 'expiring_soon'
+                            : status === 'expiring_soon'
                             ? 'text-yellow-600'
                             : 'text-gray-500'
                         }`}
                       >
-                        {doc.status === 'expired' ? 'Expired' : 'Expires'}{' '}
+                        {status === 'expired' ? 'Expired' : 'Expires'}{' '}
                         {formatDate(doc.expires_at)}
                       </p>
                     )}
@@ -269,7 +288,8 @@ export const DocumentsPage: React.FC = () => {
                   </svg>
                 </div>
               </a>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
