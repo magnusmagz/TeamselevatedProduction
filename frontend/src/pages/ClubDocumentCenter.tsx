@@ -4,20 +4,40 @@ import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
+interface DocumentAssignment {
+  id: number;
+  document_id: number;
+  target_type: 'club' | 'team' | 'athlete' | 'user';
+  target_id: number;
+  target_name: string | null;
+  assigned_at: string;
+}
+
 interface ClubDocument {
   id: number;
   club_profile_id: number;
-  name: string;
-  url: string | null;
-  slot: string | null;
+  title: string;
+  description: string | null;
+  file_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
   link_url: string | null;
-  file_type: string | null;
+  slot: string | null;
   notes: string | null;
-  created_by: number;
-  creator_name?: string;
+  is_required: boolean;
+  expires_at: string | null;
+  uploaded_by: number | null;
+  uploaded_by_name?: string;
   created_at: string;
   updated_at: string | null;
+  assignments?: DocumentAssignment[];
 }
+
+interface AssignableTeam { id: number; name: string }
+interface AssignableAthlete { id: number; first_name: string; last_name: string }
+interface AssignableUser { id: number; first_name: string; last_name: string; role_label?: string }
+
+type AssignmentTarget = { target_type: 'club' | 'team' | 'athlete' | 'user'; target_id: number };
 
 interface Slot {
   key: string;
@@ -55,9 +75,20 @@ const ClubDocumentCenter: React.FC = () => {
   const [modalTab, setModalTab] = useState<'upload' | 'link'>('link');
   const [modalLinkUrl, setModalLinkUrl] = useState('');
   const [modalFileUrl, setModalFileUrl] = useState('');
+  const [modalFileName, setModalFileName] = useState<string | null>(null);
+  const [modalMimeType, setModalMimeType] = useState<string | null>(null);
   const [modalNotes, setModalNotes] = useState('');
+  const [modalIsRequired, setModalIsRequired] = useState(false);
+  const [modalExpiresAt, setModalExpiresAt] = useState('');
+  const [modalAssignments, setModalAssignments] = useState<AssignmentTarget[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Assignment picker data
+  const [availableTeams, setAvailableTeams] = useState<AssignableTeam[]>([]);
+  const [availableAthletes, setAvailableAthletes] = useState<AssignableAthlete[]>([]);
+  const [availableCoaches, setAvailableCoaches] = useState<AssignableUser[]>([]);
+  const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
 
   const token = localStorage.getItem('auth_token');
 
@@ -67,7 +98,7 @@ const ClubDocumentCenter: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `${API_URL}/api/club-document-center.php?club_profile_id=${clubId}`,
+        `${API_URL}/api/documents-gateway.php?club_profile_id=${clubId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await response.json();
@@ -84,6 +115,25 @@ const ClubDocumentCenter: React.FC = () => {
     }
   }, [clubId, token]);
 
+  // Load teams/athletes/coaches for the assignment picker (lazy on first modal open)
+  const loadAssignablePeople = useCallback(async () => {
+    if (!clubId) return;
+    try {
+      const [teamsRes, athletesRes, coachesRes] = await Promise.all([
+        fetch(`${API_URL}/api/teams.php?club_profile_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+        fetch(`${API_URL}/legacy/athletes-gateway.php?club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+        fetch(`${API_URL}/legacy/coaches-gateway.php?action=list&club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      ]);
+      if (teamsRes?.teams) setAvailableTeams(teamsRes.teams);
+      if (athletesRes?.athletes) setAvailableAthletes(athletesRes.athletes);
+      else if (Array.isArray(athletesRes)) setAvailableAthletes(athletesRes);
+      if (coachesRes?.coaches) setAvailableCoaches(coachesRes.coaches);
+      else if (Array.isArray(coachesRes)) setAvailableCoaches(coachesRes);
+    } catch {
+      // Picker can still work with whatever lists are available
+    }
+  }, [clubId, token]);
+
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
@@ -96,7 +146,13 @@ const ClubDocumentCenter: React.FC = () => {
     setModalTab('link');
     setModalLinkUrl('');
     setModalFileUrl('');
+    setModalFileName(null);
+    setModalMimeType(null);
     setModalNotes('');
+    setModalIsRequired(false);
+    setModalExpiresAt('');
+    setModalAssignments([]);
+    setShowAssignmentPicker(false);
   };
 
   const openAddModal = (slotKey?: string) => {
@@ -106,6 +162,9 @@ const ClubDocumentCenter: React.FC = () => {
       const slotDef = DEFAULT_SLOTS.find((s) => s.key === slotKey);
       if (slotDef) setModalName(slotDef.label);
     }
+    // Default new docs to club-wide assignment so they're at least visible
+    if (clubId) setModalAssignments([{ target_type: 'club', target_id: clubId }]);
+    loadAssignablePeople();
     setShowModal(true);
   };
 
@@ -113,15 +172,23 @@ const ClubDocumentCenter: React.FC = () => {
     resetModal();
     setEditingDoc(doc);
     setModalSlot(doc.slot || '');
-    setModalName(doc.name);
+    setModalName(doc.title);
     setModalNotes(doc.notes || '');
-    if (doc.url) {
+    setModalIsRequired(!!doc.is_required);
+    setModalExpiresAt(doc.expires_at ? doc.expires_at.slice(0, 10) : '');
+    if (doc.file_path) {
       setModalTab('upload');
-      setModalFileUrl(doc.url);
+      setModalFileUrl(doc.file_path);
+      setModalFileName(doc.file_name);
+      setModalMimeType(doc.mime_type);
     } else {
       setModalTab('link');
       setModalLinkUrl(doc.link_url || '');
     }
+    if (doc.assignments) {
+      setModalAssignments(doc.assignments.map(a => ({ target_type: a.target_type, target_id: a.target_id })));
+    }
+    loadAssignablePeople();
     setShowModal(true);
   };
 
@@ -143,6 +210,8 @@ const ClubDocumentCenter: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setModalFileUrl(data.url);
+        setModalFileName(file.name);
+        setModalMimeType(file.type || null);
         if (!modalName) {
           setModalName(file.name.replace(/\.[^/.]+$/, ''));
         }
@@ -162,53 +231,77 @@ const ClubDocumentCenter: React.FC = () => {
       return;
     }
 
-    const resolvedUrl = modalTab === 'upload' ? modalFileUrl : null;
+    const resolvedFilePath = modalTab === 'upload' ? modalFileUrl : null;
     const resolvedLinkUrl = modalTab === 'link' ? modalLinkUrl : null;
 
-    if (!resolvedUrl && !resolvedLinkUrl) {
+    if (!resolvedFilePath && !resolvedLinkUrl) {
       alert('Please upload a file or paste a link');
       return;
     }
 
     setSaving(true);
     try {
+      const slotForApi = modalSlot && modalSlot !== '__custom__' ? modalSlot : null;
+      const expiresForApi = modalExpiresAt ? modalExpiresAt : null;
+
       if (editingDoc) {
-        // Update
-        const response = await fetch(`${API_URL}/api/club-document-center.php`, {
+        // Update metadata
+        const updateRes = await fetch(`${API_URL}/api/documents-gateway.php?id=${editingDoc.id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            id: editingDoc.id,
-            name: modalName.trim(),
-            url: resolvedUrl,
+            title: modalName.trim(),
+            file_path: resolvedFilePath,
+            file_name: modalFileName,
+            mime_type: modalMimeType,
             link_url: resolvedLinkUrl,
             notes: modalNotes.trim() || null,
-            slot: modalSlot || null,
+            slot: slotForApi,
+            is_required: modalIsRequired,
+            expires_at: expiresForApi,
           }),
         });
-        const data = await response.json();
-        if (!data.success) {
-          alert(data.error || 'Failed to update document');
+        const updateData = await updateRes.json();
+        if (!updateData.success) {
+          alert(updateData.error || 'Failed to update document');
           return;
         }
+
+        // Sync assignments: remove ones no longer present, add new ones
+        const before = (editingDoc.assignments || []).map(a => `${a.target_type}:${a.target_id}`);
+        const after = modalAssignments.map(a => `${a.target_type}:${a.target_id}`);
+        const toRemove = (editingDoc.assignments || []).filter(a => !after.includes(`${a.target_type}:${a.target_id}`));
+        const toAdd = modalAssignments.filter(a => !before.includes(`${a.target_type}:${a.target_id}`));
+        for (const r of toRemove) {
+          await fetch(`${API_URL}/api/documents-gateway.php?action=unassign&document_id=${editingDoc.id}&target_type=${r.target_type}&target_id=${r.target_id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+        if (toAdd.length > 0) {
+          await fetch(`${API_URL}/api/documents-gateway.php?action=assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ document_id: editingDoc.id, targets: toAdd }),
+          });
+        }
       } else {
-        // Create
-        const response = await fetch(`${API_URL}/api/club-document-center.php`, {
+        // Create with initial assignments
+        const response = await fetch(`${API_URL}/api/documents-gateway.php`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             club_profile_id: clubId,
-            slot: modalSlot || null,
-            name: modalName.trim(),
-            url: resolvedUrl,
+            title: modalName.trim(),
+            file_path: resolvedFilePath,
+            file_name: modalFileName,
+            mime_type: modalMimeType,
             link_url: resolvedLinkUrl,
+            slot: slotForApi,
             notes: modalNotes.trim() || null,
+            is_required: modalIsRequired,
+            expires_at: expiresForApi,
+            assignments: modalAssignments,
           }),
         });
         const data = await response.json();
@@ -232,7 +325,7 @@ const ClubDocumentCenter: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/club-document-center.php?id=${docId}`,
+        `${API_URL}/api/documents-gateway.php?id=${docId}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` },
@@ -250,7 +343,35 @@ const ClubDocumentCenter: React.FC = () => {
   };
 
   const getDocLink = (doc: ClubDocument): string => {
-    return doc.url || doc.link_url || '#';
+    return doc.file_path || doc.link_url || '#';
+  };
+
+  const summarizeAssignments = (doc: ClubDocument): string => {
+    const a = doc.assignments || [];
+    if (a.length === 0) return 'Unassigned';
+    const counts: Record<string, number> = {};
+    for (const x of a) counts[x.target_type] = (counts[x.target_type] || 0) + 1;
+    if (counts.club && a.length === counts.club) return 'Club-wide';
+    const parts: string[] = [];
+    if (counts.club) parts.push('Club-wide');
+    if (counts.team) parts.push(`${counts.team} team${counts.team > 1 ? 's' : ''}`);
+    if (counts.athlete) parts.push(`${counts.athlete} athlete${counts.athlete > 1 ? 's' : ''}`);
+    if (counts.user) parts.push(`${counts.user} ${counts.user > 1 ? 'people' : 'person'}`);
+    return parts.join(' · ');
+  };
+
+  const toggleAssignment = (target: AssignmentTarget) => {
+    const key = `${target.target_type}:${target.target_id}`;
+    const exists = modalAssignments.some(a => `${a.target_type}:${a.target_id}` === key);
+    if (exists) {
+      setModalAssignments(prev => prev.filter(a => `${a.target_type}:${a.target_id}` !== key));
+    } else {
+      setModalAssignments(prev => [...prev, target]);
+    }
+  };
+
+  const isAssigned = (type: AssignmentTarget['target_type'], id: number): boolean => {
+    return modalAssignments.some(a => a.target_type === type && a.target_id === id);
   };
 
   if (!clubId) {
@@ -362,8 +483,16 @@ const ClubDocumentCenter: React.FC = () => {
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
-                        {doc.name}
+                        {doc.title}
                       </a>
+                      <div className="flex items-center gap-1 mr-2">
+                        {doc.is_required && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-100 text-amber-700">Req'd</span>
+                        )}
+                        <span className="px-1.5 py-0.5 text-[10px] uppercase rounded bg-gray-100 text-gray-600" title={`Assigned to: ${summarizeAssignments(doc)}`}>
+                          {summarizeAssignments(doc)}
+                        </span>
+                      </div>
                       <div className="flex items-center space-x-1 flex-shrink-0">
                         <button
                           onClick={() => openEditModal(doc)}
@@ -474,7 +603,7 @@ const ClubDocumentCenter: React.FC = () => {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <span className="truncate">{doc.name}</span>
+                    <span className="truncate">{doc.title}</span>
                     <svg
                       className="w-3.5 h-3.5 ml-1 flex-shrink-0"
                       fill="none"
@@ -494,7 +623,16 @@ const ClubDocumentCenter: React.FC = () => {
                       Added{' '}
                       {new Date(doc.created_at).toLocaleDateString()}
                     </span>
-                    {doc.creator_name && <span>by {doc.creator_name}</span>}
+                    {doc.uploaded_by_name && <span>by {doc.uploaded_by_name}</span>}
+                    <span className="px-1.5 py-0.5 text-[10px] uppercase rounded bg-gray-100 text-gray-600">{summarizeAssignments(doc)}</span>
+                    {doc.is_required && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-100 text-amber-700">Required</span>
+                    )}
+                    {doc.expires_at && (
+                      <span className="px-1.5 py-0.5 text-[10px] uppercase rounded bg-blue-100 text-blue-700" title={`Expires ${new Date(doc.expires_at).toLocaleDateString()}`}>
+                        Expires {new Date(doc.expires_at).toLocaleDateString()}
+                      </span>
+                    )}
                     {doc.notes && (
                       <span className="italic truncate max-w-xs">
                         {doc.notes}
@@ -668,6 +806,144 @@ const ClubDocumentCenter: React.FC = () => {
                   className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   placeholder="Any additional notes..."
                 />
+              </div>
+
+              {/* Required + Expires */}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={modalIsRequired}
+                    onChange={(e) => setModalIsRequired(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-brand-primary uppercase">Required</span>
+                </label>
+                <div>
+                  <label className="block text-xs font-medium text-brand-primary uppercase mb-1">Expires (optional)</label>
+                  <input
+                    type="date"
+                    value={modalExpiresAt}
+                    onChange={(e) => setModalExpiresAt(e.target.value)}
+                    className="w-full bg-white text-sm text-brand-primary border border-brand-secondary rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-accent"
+                  />
+                </div>
+              </div>
+
+              {/* Assignment Picker */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-brand-primary text-sm font-medium uppercase">
+                    Assigned To ({modalAssignments.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAssignmentPicker(!showAssignmentPicker)}
+                    className="text-xs text-brand-primary hover:underline font-semibold uppercase"
+                  >
+                    {showAssignmentPicker ? 'Hide' : 'Edit assignments'}
+                  </button>
+                </div>
+
+                {/* Current chips */}
+                {modalAssignments.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Not assigned to anyone — only club admins will see this doc.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {modalAssignments.map((a) => {
+                      let label = '';
+                      if (a.target_type === 'club') label = 'Club-wide';
+                      else if (a.target_type === 'team') label = `Team: ${availableTeams.find(t => t.id === a.target_id)?.name || a.target_id}`;
+                      else if (a.target_type === 'athlete') {
+                        const ath = availableAthletes.find(x => x.id === a.target_id);
+                        label = `Athlete: ${ath ? `${ath.first_name} ${ath.last_name}` : a.target_id}`;
+                      } else if (a.target_type === 'user') {
+                        const u = availableCoaches.find(x => x.id === a.target_id);
+                        label = `Coach: ${u ? `${u.first_name} ${u.last_name}` : a.target_id}`;
+                      }
+                      return (
+                        <span key={`${a.target_type}-${a.target_id}`} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800">
+                          {label}
+                          <button
+                            type="button"
+                            onClick={() => toggleAssignment(a)}
+                            className="hover:text-red-600"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {showAssignmentPicker && (
+                  <div className="mt-3 border border-brand-secondary rounded-md p-3 max-h-72 overflow-y-auto bg-gray-50 space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!clubId && isAssigned('club', clubId)}
+                        onChange={() => clubId && toggleAssignment({ target_type: 'club', target_id: clubId })}
+                      />
+                      <span className="font-semibold uppercase text-xs">Club-wide</span>
+                    </label>
+
+                    {availableTeams.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-xs font-semibold uppercase text-brand-primary">Teams ({availableTeams.length})</summary>
+                        <div className="mt-2 grid grid-cols-2 gap-1">
+                          {availableTeams.map(t => (
+                            <label key={t.id} className="flex items-center gap-1 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={isAssigned('team', t.id)}
+                                onChange={() => toggleAssignment({ target_type: 'team', target_id: t.id })}
+                              />
+                              <span className="truncate">{t.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {availableCoaches.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-xs font-semibold uppercase text-brand-primary">Coaches / Volunteers ({availableCoaches.length})</summary>
+                        <div className="mt-2 grid grid-cols-2 gap-1">
+                          {availableCoaches.map(u => (
+                            <label key={u.id} className="flex items-center gap-1 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={isAssigned('user', u.id)}
+                                onChange={() => toggleAssignment({ target_type: 'user', target_id: u.id })}
+                              />
+                              <span className="truncate">{u.first_name} {u.last_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {availableAthletes.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-xs font-semibold uppercase text-brand-primary">Athletes ({availableAthletes.length})</summary>
+                        <div className="mt-2 grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+                          {availableAthletes.map(a => (
+                            <label key={a.id} className="flex items-center gap-1 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={isAssigned('athlete', a.id)}
+                                onChange={() => toggleAssignment({ target_type: 'athlete', target_id: a.id })}
+                              />
+                              <span className="truncate">{a.first_name} {a.last_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
