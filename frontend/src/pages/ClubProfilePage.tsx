@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
-import ClubDocuments from '../components/ClubDocuments';
 import ImportTilesGrid from '../components/ImportTilesGrid';
 import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
@@ -457,7 +456,17 @@ const ClubProfilePage: React.FC = () => {
             )}
 
             {activeTab === 'documents' && (
-              <ClubDocuments />
+              <div className="text-center py-12 border border-brand-secondary rounded-md bg-white">
+                <p className="text-gray-600 mb-4">
+                  Documents are now managed in the Document Center.
+                </p>
+                <Link
+                  to="/club-documents"
+                  className="inline-block bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+                >
+                  Open Document Center →
+                </Link>
+              </div>
             )}
 
             {activeTab === 'users' && (
