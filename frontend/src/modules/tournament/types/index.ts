@@ -142,6 +142,8 @@ export interface TournamentDivision {
   max_players_on_field: number | null;
   sport_rule_notes: string[] | null;
   overtime_rules: OvertimeRules | null;
+  max_guest_players: number | null;
+  guest_must_be_same_club: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
