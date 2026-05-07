@@ -1089,8 +1089,37 @@ try {
             ]);
             break;
 
+        case 'registration-decline-preview':
+            // GET ?action=registration-decline-preview&id={regId}
+            // Returns the rendered decline email + sibling divisions so an
+            // admin can review/edit before clicking Decline.
+            if ($method !== 'GET') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $regId = (int) ($_GET['id'] ?? 0);
+            if ($regId <= 0) {
+                http_response_code(400);
+                echo json_encode(['error' => 'id is required']);
+                exit();
+            }
+
+            $preview = renderTournamentDeclinePreview($db, $regId);
+            if (!$preview) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Registration not found or template missing']);
+                exit();
+            }
+            echo json_encode(array_merge(['success' => true], $preview));
+            break;
+
         case 'registration-update-status':
             // PUT ?action=registration-update-status&id={regId}
+            //
+            // Standard status-change endpoint. Optional fields for the decline
+            // case so admins can edit the email before sending:
+            //   email_override: { subject, html_body, body, skip }
+            //   offered_division_id: number — appends "we'd love to offer
+            //     your team a place in [div name]" to the email body
             if ($method !== 'PUT') { methodNotAllowed(); }
             requireAdmin($isAdmin);
 
@@ -1103,6 +1132,8 @@ try {
 
             $data = json_decode(file_get_contents('php://input'), true);
             $newStatus = $data['status'] ?? null;
+            $emailOverride = $data['email_override'] ?? null;
+            $offeredDivisionId = isset($data['offered_division_id']) ? (int) $data['offered_division_id'] : null;
 
             $validStatuses = ['pending', 'accepted', 'rejected', 'waitlisted'];
             if (!$newStatus || !in_array($newStatus, $validStatuses)) {
@@ -1156,7 +1187,25 @@ try {
                 if ($newStatus === 'accepted') {
                     $tournamentNotifications->notifyRegistrationAccepted((int)$regId, $userId);
                 } elseif ($newStatus === 'rejected') {
-                    $tournamentNotifications->notifyRegistrationDeclined((int)$regId, $userId);
+                    // Three paths for the decline email:
+                    //   1. email_override.skip=true  → no email at all (silent decline)
+                    //   2. email_override present    → queue the admin's edited
+                    //                                  email (and append offered-
+                    //                                  division paragraph if set)
+                    //   3. otherwise                 → default templated email
+                    if ($emailOverride && !empty($emailOverride['skip'])) {
+                        // silent decline — do nothing
+                    } elseif ($emailOverride) {
+                        sendTournamentDeclineOverride(
+                            $db,
+                            (int)$regId,
+                            $emailOverride,
+                            $offeredDivisionId,
+                            $userId
+                        );
+                    } else {
+                        $tournamentNotifications->notifyRegistrationDeclined((int)$regId, $userId);
+                    }
                 } elseif ($newStatus === 'waitlisted') {
                     $tournamentNotifications->notifyRegistrationWaitlisted((int)$regId, $userId);
                 }
@@ -2912,4 +2961,209 @@ function verifyTournamentAccess($db, $auth, int $tournamentId) {
     }
 
     return $tournament;
+}
+
+
+/**
+ * Render the registration_declined email for an admin to preview/edit before
+ * actually clicking Decline. Returns null if the registration or template
+ * can't be found. Mirrors TournamentNotificationService's template lookup
+ * (club override → platform default) and merge-field rendering, but stops
+ * short of queuing.
+ *
+ * Also returns sibling divisions in the same tournament so the admin UI can
+ * offer "would you like to redirect this team to another division" without
+ * a separate round trip.
+ */
+function renderTournamentDeclinePreview(PDO $db, int $regId): ?array {
+    $ctxStmt = $db->prepare("
+        SELECT
+            r.id              AS registration_id,
+            r.tournament_id   AS tournament_id,
+            r.division_id     AS division_id,
+            r.team_id         AS team_id,
+            t.club_id         AS club_profile_id,
+            t.name            AS tournament_name,
+            d.name            AS division_name,
+            COALESCE(r.team_name_override, tm.name) AS team_name
+        FROM tournament_registrations r
+        JOIN tournaments t ON r.tournament_id = t.id
+        JOIN tournament_divisions d ON r.division_id = d.id
+        LEFT JOIN teams tm ON r.team_id = tm.id
+        WHERE r.id = ?
+    ");
+    $ctxStmt->execute([$regId]);
+    $ctx = $ctxStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$ctx) return null;
+
+    require_once __DIR__ . '/../services/MergeFieldService.php';
+    require_once __DIR__ . '/../services/RecipientService.php';
+    $mergeFields = new MergeFieldService($db);
+    $recipientService = new RecipientService($db);
+
+    // Template lookup matches TournamentNotificationService::loadTemplate
+    $kind = 'tournament.registration_declined';
+    $clubId = (int) $ctx['club_profile_id'];
+
+    $tplStmt = $db->prepare("
+        SELECT id, subject, html_output, body_text
+        FROM email_templates
+        WHERE tournament_event_kind = ?
+            AND club_profile_id = ?
+            AND is_active = true
+        ORDER BY id DESC
+        LIMIT 1
+    ");
+    $tplStmt->execute([$kind, $clubId]);
+    $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$tpl) {
+        $tplStmt = $db->prepare("
+            SELECT id, subject, html_output, body_text
+            FROM email_templates
+            WHERE tournament_event_kind = ?
+                AND club_profile_id IS NULL
+                AND scope = 'platform'
+                AND is_active = true
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+        $tplStmt->execute([$kind]);
+        $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    $subject = '';
+    $htmlBody = '';
+    $body = '';
+    $templateId = null;
+
+    if ($tpl) {
+        $mergeCtx = [
+            'tournament_id'   => $ctx['tournament_id'],
+            'division_id'     => $ctx['division_id'],
+            'registration_id' => $ctx['registration_id'],
+            'team_id'         => $ctx['team_id'],
+            'club_profile_id' => $clubId,
+        ];
+        $subject  = $mergeFields->resolveVariables($tpl['subject'] ?? '', $mergeCtx);
+        $htmlBody = $mergeFields->resolveVariables($tpl['html_output'] ?? '', $mergeCtx);
+        $body     = $mergeFields->resolveVariables($tpl['body_text'] ?? strip_tags($htmlBody), $mergeCtx);
+        $templateId = (int) $tpl['id'];
+    } else {
+        // Fallback: plain text the admin can edit if no template exists yet.
+        $subject = "Update on your registration for {$ctx['tournament_name']}";
+        $body = "Hi,\n\nThank you for registering {$ctx['team_name']} for {$ctx['tournament_name']} ({$ctx['division_name']}). Unfortunately we're unable to confirm your spot at this time.\n\nIf you have questions please reply to this email.\n\nThanks,\nThe tournament team";
+        $htmlBody = '<p>' . nl2br(htmlspecialchars($body)) . '</p>';
+    }
+
+    $recipients = $recipientService->getRegistrationSubmitter($regId);
+
+    // Sibling divisions for "offer another division" — same tournament,
+    // not the current division, status = active. Frontend filters by
+    // capacity if needed.
+    $sibStmt = $db->prepare("
+        SELECT id, name, max_teams,
+               (SELECT COUNT(*) FROM tournament_registrations r2
+                WHERE r2.division_id = d.id AND r2.status = 'accepted') AS accepted_count
+        FROM tournament_divisions d
+        WHERE d.tournament_id = ? AND d.id <> ?
+        ORDER BY name
+    ");
+    $sibStmt->execute([(int)$ctx['tournament_id'], (int)$ctx['division_id']]);
+    $siblings = $sibStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'subject'       => $subject,
+        'html_body'     => $htmlBody,
+        'body'          => $body,
+        'recipients'    => $recipients,
+        'template_id'   => $templateId,
+        'sibling_divisions' => $siblings,
+        'context'       => [
+            'tournament_name' => $ctx['tournament_name'],
+            'division_name'   => $ctx['division_name'],
+            'team_name'       => $ctx['team_name'],
+        ],
+    ];
+}
+
+/**
+ * Queue an admin-edited decline email instead of the default templated one.
+ * If $offeredDivisionId is set, append a one-paragraph offer to the body so
+ * the recipient sees the alternative division.
+ *
+ * Failures are logged and swallowed — the registration status update has
+ * already happened by the time we get here, so a comms error must not
+ * abort the parent request.
+ */
+function sendTournamentDeclineOverride(
+    PDO $db,
+    int $regId,
+    array $override,
+    ?int $offeredDivisionId,
+    int $actorUserId
+): void {
+    try {
+        require_once __DIR__ . '/../services/EmailSendService.php';
+        require_once __DIR__ . '/../services/RecipientService.php';
+
+        // Re-load registration so we know the club for scoping (and for the
+        // offered-division paragraph).
+        $stmt = $db->prepare("
+            SELECT r.id, t.club_id AS club_profile_id, t.name AS tournament_name
+            FROM tournament_registrations r
+            JOIN tournaments t ON t.id = r.tournament_id
+            WHERE r.id = ?
+        ");
+        $stmt->execute([$regId]);
+        $ctx = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$ctx) return;
+
+        $clubId = (int) $ctx['club_profile_id'];
+        $subject = trim((string) ($override['subject'] ?? ''));
+        $htmlBody = (string) ($override['html_body'] ?? '');
+        $body = (string) ($override['body'] ?? '');
+
+        if ($subject === '' || ($htmlBody === '' && $body === '')) {
+            error_log("sendTournamentDeclineOverride [$regId]: empty subject or body, skipping");
+            return;
+        }
+
+        // Optional offered-division append
+        if ($offeredDivisionId) {
+            $divStmt = $db->prepare("SELECT name FROM tournament_divisions WHERE id = ? AND tournament_id = (SELECT tournament_id FROM tournament_registrations WHERE id = ?)");
+            $divStmt->execute([$offeredDivisionId, $regId]);
+            $offeredName = $divStmt->fetchColumn();
+            if ($offeredName) {
+                $offerLine = "We'd love to offer your team a spot in {$offeredName} instead — reply to this email if you'd like to take it.";
+                $htmlBody = ($htmlBody ?: '') . "\n<p><strong>" . htmlspecialchars($offerLine) . "</strong></p>";
+                $body = ($body ?: '') . "\n\n{$offerLine}";
+            }
+        }
+
+        if ($htmlBody === '') {
+            $htmlBody = '<p>' . nl2br(htmlspecialchars($body)) . '</p>';
+        }
+        if ($body === '') {
+            $body = strip_tags($htmlBody);
+        }
+
+        $recipients = (new RecipientService($db))->getRegistrationSubmitter($regId);
+        if (empty($recipients)) {
+            error_log("sendTournamentDeclineOverride [$regId]: no submitter recipient");
+            return;
+        }
+
+        $emailService = new EmailSendService($db);
+        $emailService->queueEmail([
+            'user_id'         => $actorUserId,
+            'club_profile_id' => $clubId,
+            'recipients'      => $recipients,
+            'subject'         => $subject,
+            'html_body'       => $htmlBody,
+            'body'            => $body,
+        ]);
+    } catch (Throwable $e) {
+        error_log("sendTournamentDeclineOverride [$regId] failed: " . $e->getMessage());
+    }
 }
