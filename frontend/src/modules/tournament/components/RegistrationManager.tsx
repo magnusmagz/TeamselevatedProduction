@@ -38,6 +38,18 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [rosterRegistration, setRosterRegistration] = useState<TournamentRegistration | null>(null);
 
+  // Decline modal state — when set, opens the editable email modal instead
+  // of immediately moving the registration to rejected.
+  const [decliningReg, setDecliningReg] = useState<TournamentRegistration | null>(null);
+  const [declinePreviewLoading, setDeclinePreviewLoading] = useState(false);
+  const [declineSubject, setDeclineSubject] = useState('');
+  const [declineBody, setDeclineBody] = useState('');
+  const [declineSkipEmail, setDeclineSkipEmail] = useState(false);
+  const [declineOfferedDivisionId, setDeclineOfferedDivisionId] = useState<number | ''>('');
+  const [declineSiblingDivisions, setDeclineSiblingDivisions] = useState<Array<{ id: number; name: string; max_teams: number | null; accepted_count: number }>>([]);
+  const [declineRecipients, setDeclineRecipients] = useState<Array<{ email: string; name: string }>>([]);
+  const [declineSending, setDeclineSending] = useState(false);
+
   const token = localStorage.getItem('auth_token');
   const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
@@ -78,6 +90,76 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
       alert('Failed to update registration status');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const openDeclineModal = async (reg: TournamentRegistration) => {
+    setDecliningReg(reg);
+    setDeclineSubject('');
+    setDeclineBody('');
+    setDeclineSkipEmail(false);
+    setDeclineOfferedDivisionId('');
+    setDeclineSiblingDivisions([]);
+    setDeclineRecipients([]);
+    setDeclinePreviewLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/tournament-gateway.php?action=registration-decline-preview&id=${reg.id}`,
+        { headers }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setDeclineSubject(data.subject || '');
+        setDeclineBody(data.body || '');
+        setDeclineSiblingDivisions(data.sibling_divisions || []);
+        setDeclineRecipients(data.recipients || []);
+      } else {
+        // Fall through with empty fields — admin can still write a custom message.
+        console.error('decline preview failed:', data.error);
+      }
+    } catch (err) {
+      console.error('decline preview error:', err);
+    } finally {
+      setDeclinePreviewLoading(false);
+    }
+  };
+
+  const closeDeclineModal = () => {
+    setDecliningReg(null);
+  };
+
+  const submitDecline = async () => {
+    if (!decliningReg) return;
+    if (!declineSkipEmail && declineSubject.trim() === '') {
+      alert('Subject is required, or check "Don\'t send email".');
+      return;
+    }
+    setDeclineSending(true);
+    try {
+      const body: Record<string, unknown> = {
+        status: 'rejected',
+        email_override: declineSkipEmail
+          ? { skip: true }
+          : { subject: declineSubject, body: declineBody, html_body: '' },
+      };
+      if (declineOfferedDivisionId) {
+        body.offered_division_id = Number(declineOfferedDivisionId);
+      }
+      const res = await fetch(
+        `${API_URL}/api/tournament-gateway.php?action=registration-update-status&id=${decliningReg.id}`,
+        { method: 'PUT', headers, body: JSON.stringify(body) }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to decline registration');
+        return;
+      }
+      closeDeclineModal();
+      fetchRegistrations();
+    } catch (err) {
+      alert('Failed to decline registration');
+    } finally {
+      setDeclineSending(false);
     }
   };
 
@@ -249,7 +331,7 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
                             Accept
                           </button>
                           <button
-                            onClick={() => handleStatusUpdate(reg.id, 'rejected')}
+                            onClick={() => openDeclineModal(reg)}
                             disabled={updatingId === reg.id}
                             className="text-xs text-red-600 hover:underline disabled:opacity-50"
                           >
@@ -316,6 +398,131 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
           registration={rosterRegistration}
           onClose={() => setRosterRegistration(null)}
         />
+      )}
+
+      {decliningReg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Decline {decliningReg.display_name}
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Edit the email below before confirming, or check "Don't send email" for a silent decline.
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {declinePreviewLoading ? (
+                <div className="text-center text-gray-500 py-8">Loading email preview…</div>
+              ) : (
+                <>
+                  {/* Recipient list */}
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium uppercase">To:</span>{' '}
+                    {declineRecipients.length === 0
+                      ? <span className="italic text-gray-400">No valid email on file</span>
+                      : declineRecipients.map((r, i) => (
+                          <span key={i}>
+                            {r.name} &lt;{r.email}&gt;{i < declineRecipients.length - 1 ? ', ' : ''}
+                          </span>
+                        ))}
+                  </div>
+
+                  {/* Skip email */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={declineSkipEmail}
+                      onChange={(e) => setDeclineSkipEmail(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Don't send an email — silent decline
+                    </span>
+                  </label>
+
+                  {/* Subject */}
+                  <div className={declineSkipEmail ? 'opacity-50 pointer-events-none' : ''}>
+                    <label className="block text-xs font-medium text-gray-700 uppercase mb-1">Subject</label>
+                    <input
+                      type="text"
+                      value={declineSubject}
+                      onChange={(e) => setDeclineSubject(e.target.value)}
+                      disabled={declineSkipEmail}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <div className={declineSkipEmail ? 'opacity-50 pointer-events-none' : ''}>
+                    <label className="block text-xs font-medium text-gray-700 uppercase mb-1">Message</label>
+                    <textarea
+                      value={declineBody}
+                      onChange={(e) => setDeclineBody(e.target.value)}
+                      disabled={declineSkipEmail}
+                      rows={10}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand-primary font-sans"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Plain text. The email will use this as both the visible body and the basis for HTML formatting.
+                    </p>
+                  </div>
+
+                  {/* Offer another division */}
+                  {declineSiblingDivisions.length > 0 && (
+                    <div className={declineSkipEmail ? 'opacity-50 pointer-events-none' : ''}>
+                      <label className="block text-xs font-medium text-gray-700 uppercase mb-1">
+                        Offer another division (optional)
+                      </label>
+                      <select
+                        value={declineOfferedDivisionId}
+                        onChange={(e) => setDeclineOfferedDivisionId(e.target.value === '' ? '' : Number(e.target.value))}
+                        disabled={declineSkipEmail}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand-primary"
+                      >
+                        <option value="">— Don't offer another division —</option>
+                        {declineSiblingDivisions.map((d) => {
+                          const full = d.max_teams != null && d.accepted_count >= d.max_teams;
+                          return (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                              {d.max_teams != null && ` (${d.accepted_count}/${d.max_teams}${full ? ' — full' : ''})`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Adds a paragraph to the email offering the team a spot in this division.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={closeDeclineModal}
+                disabled={declineSending}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitDecline}
+                disabled={declineSending || declinePreviewLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {declineSending
+                  ? 'Declining…'
+                  : declineSkipEmail
+                  ? 'Decline silently'
+                  : 'Send Decline & Email'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
