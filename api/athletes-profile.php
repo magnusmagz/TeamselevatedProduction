@@ -113,11 +113,16 @@ try {
     $stmt->execute([$athleteId]);
     $insurance = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch documents
+    // Fetch documents directly assigned to this athlete via the unified
+    // document_assignments table. Cascading reads (team / club docs) are
+    // handled by /api/documents-gateway.php?action=for-athlete.
     $documentsQuery = "
-        SELECT * FROM documents
-        WHERE athlete_id = ?
-        ORDER BY is_required DESC, document_type, document_name
+        SELECT d.id, d.title, d.description, d.file_path, d.link_url, d.file_name,
+               d.mime_type, d.slot, d.is_required, d.expires_at, d.notes, d.created_at
+        FROM documents d
+        JOIN document_assignments da ON da.document_id = d.id
+        WHERE da.target_type = 'athlete' AND da.target_id = ?
+        ORDER BY d.is_required DESC, d.slot, d.title
     ";
     $stmt = $pdo->prepare($documentsQuery);
     $stmt->execute([$athleteId]);
