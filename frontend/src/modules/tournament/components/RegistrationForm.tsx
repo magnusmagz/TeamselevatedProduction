@@ -8,6 +8,7 @@ interface Props {
   divisions: TournamentDivision[];
   clubId: number;
   isAdmin: boolean;
+  registrationOpenDate?: string | null;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -18,7 +19,11 @@ interface ClubTeam {
   age_group: string;
 }
 
-const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, isAdmin, onSave, onCancel }) => {
+const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, isAdmin, registrationOpenDate, onSave, onCancel }) => {
+  const isPreOpen = !!(registrationOpenDate && new Date(registrationOpenDate).getTime() > Date.now());
+  const openDateLabel = registrationOpenDate
+    ? new Date(registrationOpenDate).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })
+    : '';
   const [isGuest, setIsGuest] = useState(false);
   const [divisionId, setDivisionId] = useState<number | ''>(divisions.length === 1 ? divisions[0].id : '');
   const [teamIds, setTeamIds] = useState<number[]>([]);
@@ -153,9 +158,16 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Register Team</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{isPreOpen ? 'Join the Waitlist' : 'Register Team'}</h3>
         <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
       </div>
+
+      {isPreOpen && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+          Registration opens <strong>{openDateLabel}</strong>. Submit now to join the waitlist —
+          we'll email you the moment registration goes live so you can confirm your roster and pay.
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-700 text-sm">{error}</div>
@@ -303,12 +315,14 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
         </button>
         <button type="submit" disabled={saving} className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
           {saving
-            ? 'Registering...'
-            : isGuest
-              ? 'Register Team'
-              : teamIds.length <= 1
+            ? (isPreOpen ? 'Joining...' : 'Registering...')
+            : isPreOpen
+              ? (isGuest || teamIds.length <= 1 ? 'Join the Waitlist' : `Join Waitlist (${teamIds.length} Teams)`)
+              : isGuest
                 ? 'Register Team'
-                : `Register ${teamIds.length} Teams`}
+                : teamIds.length <= 1
+                  ? 'Register Team'
+                  : `Register ${teamIds.length} Teams`}
         </button>
       </div>
     </form>

@@ -58,13 +58,16 @@ class WaitlistService {
             return null;
         }
 
-        // Find the lowest-position eligible row.
+        // Find the lowest-position eligible row. Exclude pre-open waitlist rows —
+        // those are parked until registration_open_date and aren't part of the
+        // post-fill cascade pool.
         $sel = $this->db->prepare("
             SELECT id
             FROM tournament_registrations
             WHERE division_id = ?
               AND status = 'waitlisted'
               AND waitlist_offer_state IN ('none', 'declined', 'expired')
+              AND waitlist_pre_open = false
             ORDER BY
                 CASE WHEN waitlist_position IS NULL THEN 1 ELSE 0 END,
                 waitlist_position,

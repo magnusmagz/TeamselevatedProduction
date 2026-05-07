@@ -10,6 +10,7 @@ interface Props {
   divisions: TournamentDivision[];
   isAdmin: boolean;
   clubId: number;
+  registrationOpenDate?: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -27,7 +28,7 @@ const PAYMENT_COLORS: Record<string, string> = {
   waived: 'bg-blue-50 text-blue-600',
 };
 
-const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin, clubId }) => {
+const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin, clubId, registrationOpenDate }) => {
   const [registrations, setRegistrations] = useState<TournamentRegistration[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -122,6 +123,7 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
         divisions={divisions}
         clubId={clubId}
         isAdmin={isAdmin}
+        registrationOpenDate={registrationOpenDate ?? null}
         onSave={() => { setShowForm(false); fetchRegistrations(); }}
         onCancel={() => setShowForm(false)}
       />
