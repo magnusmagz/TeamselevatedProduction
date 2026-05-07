@@ -20,6 +20,7 @@ import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import WaitlistResponse from './pages/WaitlistResponse';
 import ConsentConfirm from './pages/ConsentConfirm';
 import TeamManagement from './components/TeamManagement';
 import AthleteProfileEnhanced from './components/AthleteProfileEnhanced';
@@ -701,6 +702,7 @@ function AppContent() {
           <Route path="/consent/confirm" element={<ConsentConfirm />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
+          <Route path="/tournament-waitlist/respond" element={<WaitlistResponse />} />
 
           {/* Protected routes */}
           <Route path="/dashboard" element={

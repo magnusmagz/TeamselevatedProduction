@@ -89,6 +89,78 @@ class TournamentNotificationService {
         }
     }
 
+    /**
+     * Spot opened up — offer the next-in-line waitlisted team.
+     *
+     * Caller (WaitlistService::promoteNextWaitlist) has already marked the
+     * registration as 'offered' and generated a token. We just need to
+     * email the team registrar with the accept/decline links.
+     *
+     * Recipients: the original submitter only. CC'ing the tournament
+     * contact is intentionally *not* done — the offer is a per-team
+     * decision and the contact will see the accept/decline outcome.
+     */
+    public function notifyWaitlistOffer($registrationId, $actorUserId) {
+        $kind = 'tournament.waitlist_offer';
+        if (!$this->kindEnabled($kind)) return;
+        try {
+            require_once __DIR__ . '/WaitlistService.php';
+            $waitlist = new WaitlistService($this->db);
+            $appUrl = (defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'https://teams-elevated.netlify.app'));
+            $ctx = $waitlist->getOfferContext($registrationId, $appUrl);
+            if (!$ctx) return;
+            $recipients = $this->recipientService->getRegistrationSubmitter($registrationId);
+            $this->dispatchEmail($kind, $ctx, $recipients, $actorUserId);
+        } catch (\Throwable $e) {
+            $this->logFailure($kind, $registrationId, $e);
+        }
+    }
+
+    /**
+     * Team accepted their waitlist spot — send a confirmation. Reuses the
+     * existing registration_accepted template path conceptually but with
+     * its own template so we can frame the message as "you're in" rather
+     * than the standard registration acceptance copy.
+     */
+    public function notifyWaitlistAccepted($registrationId, $actorUserId) {
+        $kind = 'tournament.waitlist_accepted';
+        if (!$this->kindEnabled($kind)) return;
+        try {
+            require_once __DIR__ . '/WaitlistService.php';
+            $waitlist = new WaitlistService($this->db);
+            $appUrl = (defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'https://teams-elevated.netlify.app'));
+            $ctx = $waitlist->getOfferContext($registrationId, $appUrl);
+            if (!$ctx) {
+                // Token may already be cleared by the time we send the
+                // confirmation — fall back to the generic registration ctx.
+                $ctx = $this->loadRegistrationContext($registrationId);
+            }
+            if (!$ctx) return;
+            $recipients = $this->recipientService->getRegistrationSubmitter($registrationId);
+            $this->dispatchEmail($kind, $ctx, $recipients, $actorUserId);
+        } catch (\Throwable $e) {
+            $this->logFailure($kind, $registrationId, $e);
+        }
+    }
+
+    /**
+     * Courtesy "your offer expired" notice. Team stays on the waitlist —
+     * if another spot opens they'll get re-offered.
+     */
+    public function notifyWaitlistOfferExpired($registrationId) {
+        $kind = 'tournament.waitlist_offer_expired';
+        if (!$this->kindEnabled($kind)) return;
+        try {
+            $ctx = $this->loadRegistrationContext($registrationId);
+            if (!$ctx) return;
+            $recipients = $this->recipientService->getRegistrationSubmitter($registrationId);
+            // Actor is the system (cron), so pass null user_id.
+            $this->dispatchEmail($kind, $ctx, $recipients, null);
+        } catch (\Throwable $e) {
+            $this->logFailure($kind, $registrationId, $e);
+        }
+    }
+
     public function notifyPaymentReceived($registrationId, $actorUserId) {
         $kind = 'tournament.payment_received';
         if (!$this->kindEnabled($kind)) return;

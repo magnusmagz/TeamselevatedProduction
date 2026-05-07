@@ -968,6 +968,15 @@ try {
             ]);
 
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // If we auto-waitlisted, give the row its FIFO queue position
+            // so the cascade can promote in created order later.
+            if ($status === 'waitlisted') {
+                require_once __DIR__ . '/../services/WaitlistService.php';
+                $waitlist = new WaitlistService($db);
+                $waitlist->assignNextPosition((int)$result['id'], (int)$data['division_id']);
+            }
+
             http_response_code(201);
             echo json_encode([
                 'id' => (int)$result['id'],
@@ -1051,6 +1060,25 @@ try {
                 }
             }
 
+            // Waitlist queue maintenance for admin-driven status changes:
+            //   - moving INTO waitlisted → assign next FIFO position
+            //   - moving an accepted spot → rejected (or back to waitlisted)
+            //     opens a spot; cascade to next waitlisted team
+            require_once __DIR__ . '/../services/WaitlistService.php';
+            $waitlistMaint = new WaitlistService($db);
+
+            if ($newStatus === 'waitlisted' && $priorRegStatus !== 'waitlisted') {
+                $waitlistMaint->assignNextPosition((int)$regId, (int)$reg['division_id']);
+            }
+
+            $spotFreed = $priorRegStatus === 'accepted' && in_array($newStatus, ['rejected', 'waitlisted', 'pending'], true);
+            if ($spotFreed) {
+                $promotedId = $waitlistMaint->promoteNextWaitlist((int)$reg['division_id']);
+                if ($promotedId) {
+                    $tournamentNotifications->notifyWaitlistOffer($promotedId, $userId);
+                }
+            }
+
             echo json_encode(['success' => true, 'message' => "Registration status updated to $newStatus"]);
             break;
 
@@ -1114,7 +1142,7 @@ try {
             }
 
             // Coach can only withdraw their own registrations
-            $regCheck = $db->prepare("SELECT registered_by, tournament_id FROM tournament_registrations WHERE id = ?");
+            $regCheck = $db->prepare("SELECT registered_by, tournament_id, division_id, status FROM tournament_registrations WHERE id = ?");
             $regCheck->execute([(int)$regId]);
             $reg = $regCheck->fetch(PDO::FETCH_ASSOC);
             if (!$reg) {
@@ -1129,10 +1157,87 @@ try {
                 exit();
             }
 
+            $priorStatus = $reg['status'];
             $stmt = $db->prepare("UPDATE tournament_registrations SET status = 'withdrawn', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([(int)$regId]);
 
+            // Cascade: if an *accepted* spot just opened up, offer it to the
+            // next waitlisted team. Withdrawing from waitlisted/pending
+            // doesn't trigger cascade (no spot was being held).
+            if ($priorStatus === 'accepted') {
+                require_once __DIR__ . '/../services/WaitlistService.php';
+                $waitlist = new WaitlistService($db);
+                $promotedId = $waitlist->promoteNextWaitlist((int)$reg['division_id']);
+                if ($promotedId) {
+                    $tournamentNotifications->notifyWaitlistOffer($promotedId, $userId);
+                }
+            }
+
             echo json_encode(['success' => true, 'message' => 'Registration withdrawn']);
+            break;
+
+        case 'registration-waitlist-promote':
+            // PUT ?action=registration-waitlist-promote&id={regId}
+            // Director-triggered: jump a specific waitlisted row to offered.
+            // Used by the "Promote now" button on the registration manager
+            // when the director wants to re-offer a previously declined /
+            // expired row, or override the FIFO order.
+            if ($method !== 'PUT') { methodNotAllowed(); }
+            requireAdmin($isAdmin);
+
+            $regId = $_GET['id'] ?? null;
+            if (!$regId) { http_response_code(400); echo json_encode(['error' => 'id is required']); exit(); }
+
+            require_once __DIR__ . '/../services/WaitlistService.php';
+            $waitlist = new WaitlistService($db);
+            $promotedId = $waitlist->promoteSpecific((int)$regId);
+            if (!$promotedId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Registration must be waitlisted to be promoted']);
+                exit();
+            }
+            $tournamentNotifications->notifyWaitlistOffer($promotedId, $userId);
+            echo json_encode(['success' => true, 'message' => 'Offer sent']);
+            break;
+
+        case 'public-waitlist-respond':
+            // GET ?action=public-waitlist-respond&token={t}&choice={accept|decline}
+            // Public, no-auth endpoint hit when the team registrar clicks
+            // the accept/decline button in their waitlist offer email. The
+            // token is the only auth — generated fresh per offer and
+            // cleared on accept / decline / expiry to prevent replay.
+            //
+            // Response is JSON consumed by the public response page.
+            if ($method !== 'GET') { methodNotAllowed(); }
+
+            $token  = $_GET['token']  ?? '';
+            $choice = $_GET['choice'] ?? '';
+            if (!$token || !in_array($choice, ['accept', 'decline'], true)) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'Invalid request']);
+                exit();
+            }
+
+            require_once __DIR__ . '/../services/WaitlistService.php';
+            $waitlist = new WaitlistService($db);
+
+            if ($choice === 'accept') {
+                $result = $waitlist->acceptByToken($token);
+                if ($result['ok']) {
+                    $tournamentNotifications->notifyWaitlistAccepted($result['registration_id'], null);
+                }
+                echo json_encode($result);
+            } else {
+                $result = $waitlist->declineByToken($token);
+                if ($result['ok'] && empty($result['already'])) {
+                    // Cascade: offer the spot to the next team.
+                    $promotedId = $waitlist->promoteNextWaitlist($result['division_id']);
+                    if ($promotedId) {
+                        $tournamentNotifications->notifyWaitlistOffer($promotedId, null);
+                    }
+                }
+                echo json_encode($result);
+            }
             break;
 
         case 'registration-seed':

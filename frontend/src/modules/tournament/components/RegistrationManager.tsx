@@ -80,6 +80,27 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
     }
   };
 
+  const handlePromoteWaitlist = async (regId: number) => {
+    if (!window.confirm('Email this team a waitlist offer? They\'ll have 48 hours to accept or decline.')) return;
+    setUpdatingId(regId);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/tournament-gateway.php?action=registration-waitlist-promote&id=${regId}`,
+        { method: 'PUT', headers }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to send offer');
+        return;
+      }
+      fetchRegistrations();
+    } catch (err) {
+      alert('Failed to send waitlist offer');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handlePaymentUpdate = async (regId: number, paymentStatus: PaymentStatus, reference?: string) => {
     try {
       await fetch(
@@ -185,7 +206,25 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reg.status]}`}>
                       {reg.status}
+                      {reg.status === 'waitlisted' && reg.waitlist_position != null && (
+                        <span className="ml-1 text-orange-700/70 font-normal">#{reg.waitlist_position}</span>
+                      )}
                     </span>
+                    {/* Waitlist-offer state pill: shown only on waitlisted rows
+                        with an active or terminal offer state. Helps the
+                        director see "this team has an offer out, don't
+                        re-promote yet" at a glance. */}
+                    {reg.status === 'waitlisted' && reg.waitlist_offer_state && reg.waitlist_offer_state !== 'none' && (
+                      <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        reg.waitlist_offer_state === 'offered'  ? 'bg-purple-100 text-purple-700'
+                        : reg.waitlist_offer_state === 'declined' ? 'bg-gray-100 text-gray-600'
+                        : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {reg.waitlist_offer_state === 'offered' && reg.waitlist_offer_expires_at
+                          ? `offered, expires ${new Date(reg.waitlist_offer_expires_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                          : reg.waitlist_offer_state}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_COLORS[reg.payment_status]}`}>
@@ -217,13 +256,29 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
                         </>
                       )}
                       {reg.status === 'waitlisted' && (
-                        <button
-                          onClick={() => handleStatusUpdate(reg.id, 'accepted')}
-                          disabled={updatingId === reg.id}
-                          className="text-xs text-green-600 hover:underline disabled:opacity-50"
-                        >
-                          Accept
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleStatusUpdate(reg.id, 'accepted')}
+                            disabled={updatingId === reg.id}
+                            className="text-xs text-green-600 hover:underline disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                          {/* Promote = email this team an offer with a 48h
+                              acceptance window. Useful when re-offering a
+                              previously declined/expired row, or when the
+                              director wants to skip ahead in the FIFO queue. */}
+                          <button
+                            onClick={() => handlePromoteWaitlist(reg.id)}
+                            disabled={updatingId === reg.id || reg.waitlist_offer_state === 'offered'}
+                            className="text-xs text-purple-600 hover:underline disabled:opacity-50"
+                            title={reg.waitlist_offer_state === 'offered'
+                              ? 'Offer already sent — waiting for response'
+                              : 'Email this team an offer with a 48-hour acceptance window'}
+                          >
+                            Promote
+                          </button>
+                        </>
                       )}
                       {reg.payment_status === 'unpaid' && (
                         <button
