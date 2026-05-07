@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem, CompetitiveLevel, COMPETITIVE_LEVEL_LABELS, OvertimeMode, OvertimeRules, OVERTIME_MODE_LABELS } from '../types';
 import { getSportPresets } from '../api/tournamentApi';
 
@@ -12,7 +12,9 @@ interface Props {
   onCancel: () => void;
 }
 
-const AGE_GROUPS = ['U6', 'U8', 'U10', 'U12', 'U14', 'U16', 'U19'];
+// Fallback list shown only if the sport_presets API call fails entirely.
+// Authoritative list lives in the sport_presets table; see migration 035.
+const FALLBACK_AGE_GROUPS = ['U5', 'U6', 'U7', 'U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18', 'U19', 'U20', 'Adult'];
 const FORMATS: { value: DivisionFormat; label: string }[] = [
   { value: 'group_knockout', label: 'Group Stage + Knockout' },
   { value: 'round_robin', label: 'Round Robin' },
@@ -77,6 +79,22 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
       .then((data) => setPresets(data.presets || []))
       .catch(() => {});
   }, [sport]);
+
+  // U-bracket numeric ascending, then non-numeric (Adult, Senior, etc.) trailing.
+  const ageGroupOptions = useMemo(() => {
+    const fromPresets = presets.map((p) => p.age_group).filter(Boolean);
+    const list = fromPresets.length > 0 ? fromPresets : FALLBACK_AGE_GROUPS;
+    return Array.from(new Set(list)).sort((a, b) => {
+      const an = parseInt(a.replace(/[^0-9]/g, ''), 10);
+      const bn = parseInt(b.replace(/[^0-9]/g, ''), 10);
+      const aIsNum = !isNaN(an);
+      const bIsNum = !isNaN(bn);
+      if (aIsNum && bIsNum) return an - bn;
+      if (aIsNum) return -1;
+      if (bIsNum) return 1;
+      return a.localeCompare(b);
+    });
+  }, [presets]);
 
   // Auto-fill from preset when age group changes (only in create mode)
   useEffect(() => {
@@ -215,7 +233,7 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             >
               <option value="">Select...</option>
-              {AGE_GROUPS.map((ag) => (
+              {ageGroupOptions.map((ag) => (
                 <option key={ag} value={ag}>{ag}</option>
               ))}
             </select>
