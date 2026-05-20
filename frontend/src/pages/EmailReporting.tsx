@@ -138,7 +138,8 @@ const getDateRange = (preset: DatePreset): { from: string; to: string } => {
   };
 };
 
-const truncateUrl = (url: string, max: number = 50): string => {
+const truncateUrl = (url: string = '', max: number = 50): string => {
+  if (!url) return '';
   if (url.length <= max) return url;
   return url.substring(0, max) + '...';
 };
@@ -293,7 +294,15 @@ export const EmailReporting: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setLinkData(data.links || []);
+          // Gateway returns { original_url, total_clicks }; this view expects
+          // { url, clicks }. Map (and tolerate either shape) so a missing field
+          // can't crash the dashboard. See BUG-001.
+          setLinkData(
+            (data.links || []).map((l: any) => ({
+              url: l.url ?? l.original_url ?? '',
+              clicks: l.clicks ?? l.total_clicks ?? 0,
+            })),
+          );
         }
       })
       .catch(err => console.error('Error fetching links:', err))
