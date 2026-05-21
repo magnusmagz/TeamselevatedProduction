@@ -47,6 +47,7 @@ describe('MoreMenuPage', () => {
       isLoading: false,
       error: null,
       login: jest.fn(),
+      updateUser: jest.fn(),
       logout: mockLogout,
       refreshAuth: jest.fn(),
       switchContext: jest.fn(),

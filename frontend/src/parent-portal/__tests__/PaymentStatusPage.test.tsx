@@ -26,37 +26,45 @@ describe('PaymentStatusPage', () => {
     name: 'Parent User',
   };
 
+  // Shape mirrors the invoices.php?action=family API the component maps from
+  // (athlete_first/last, program_name, amount_paid, amount_remaining, is_overdue).
   const mockInvoices = [
     {
       id: 1,
       athlete_id: 1,
-      athlete_name: 'John Doe',
-      description: 'Registration Fee',
+      athlete_first: 'John',
+      athlete_last: 'Doe',
+      program_name: 'Registration Fee',
       total_amount: 500,
-      paid_amount: 200,
-      balance_due: 300,
+      amount_paid: 200,
+      amount_remaining: 300,
+      is_overdue: false,
       status: 'partial',
       due_date: '2024-02-15',
     },
     {
       id: 2,
       athlete_id: 2,
-      athlete_name: 'Jane Doe',
-      description: 'Uniform Fee',
+      athlete_first: 'Jane',
+      athlete_last: 'Doe',
+      program_name: 'Uniform Fee',
       total_amount: 100,
-      paid_amount: 100,
-      balance_due: 0,
+      amount_paid: 100,
+      amount_remaining: 0,
+      is_overdue: false,
       status: 'paid',
       due_date: '2024-01-15',
     },
     {
       id: 3,
       athlete_id: 1,
-      athlete_name: 'John Doe',
-      description: 'Tournament Fee',
+      athlete_first: 'John',
+      athlete_last: 'Doe',
+      program_name: 'Tournament Fee',
       total_amount: 200,
-      paid_amount: 0,
-      balance_due: 200,
+      amount_paid: 0,
+      amount_remaining: 200,
+      is_overdue: false,
       status: 'pending',
       due_date: '2024-03-01',
     },
@@ -71,6 +79,7 @@ describe('PaymentStatusPage', () => {
       isLoading: false,
       error: null,
       login: jest.fn(),
+      updateUser: jest.fn(),
       logout: jest.fn(),
       refreshAuth: jest.fn(),
       switchContext: jest.fn(),
@@ -124,7 +133,8 @@ describe('PaymentStatusPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Make a Payment')).toBeInTheDocument();
+      // Each outstanding invoice renders a "Pay Now" CTA when a balance is due.
+      expect(screen.getAllByText('Pay Now').length).toBeGreaterThan(0);
     });
   });
 
