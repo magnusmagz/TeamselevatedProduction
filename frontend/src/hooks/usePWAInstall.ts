@@ -13,13 +13,25 @@ interface PWAInstallState {
   isInstallable: boolean;
   isInstalled: boolean;
   isIOS: boolean;
+  isAndroid: boolean;
   promptInstall: () => Promise<void>;
+}
+
+// Standalone (already-installed) detection. Guards against test/SSR
+// environments where matchMedia is unavailable.
+function detectStandalone(): boolean {
+  const mql =
+    typeof window.matchMedia === 'function'
+      ? window.matchMedia('(display-mode: standalone)').matches
+      : false;
+  return mql || (window.navigator as any).standalone === true;
 }
 
 export function usePWAInstall(): PWAInstallState {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
     // Check if running on iOS (covers modern iOS UA strings + iPadOS desktop mode)
@@ -29,10 +41,11 @@ export function usePWAInstall(): PWAInstallState {
     ) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
+    // Check if running on Android (single source of truth for the prompt UI)
+    setIsAndroid(/android/i.test(navigator.userAgent));
+
     // Check if already installed (PWA mode)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
-    setIsInstalled(isStandalone);
+    setIsInstalled(detectStandalone());
 
     // Listen for install prompt event
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -84,6 +97,7 @@ export function usePWAInstall(): PWAInstallState {
     isInstallable: !!deferredPrompt,
     isInstalled,
     isIOS,
+    isAndroid,
     promptInstall,
   };
 }

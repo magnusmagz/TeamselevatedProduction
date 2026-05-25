@@ -359,6 +359,9 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white">
         <DemoModeBanner />
+        {/* Install prompt for the main app shell only. The parent portal renders
+            its own InstallPrompt inside ParentPortalLayout, so it is excluded
+            here via !isParentPortal to avoid a double prompt. */}
         {user && !isParentPortal && <InstallPrompt />}
         {user && !isParentPortal && (
           <nav className="bg-white border-b border-brand-secondary">
@@ -1054,12 +1057,16 @@ function AppContent() {
             <Route path="schedule/rsvp/:id" element={<ScheduleRSVPPage />} />
             <Route path="chat" element={<TeamChatPage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="announcements/:id" element={<AnnouncementsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="documents/:id" element={<DocumentsPage />} />
             <Route path="medical/:id" element={<MedicalInfoPage />} />
             <Route path="volunteer" element={<VolunteerPage />} />
             <Route path="more" element={<MoreMenuPage />} />
             <Route path="pay/:invoiceId" element={<PaymentPage />} />
+            {/* Catch-all: unknown /parent/* paths redirect to the dashboard
+                rather than white-screening or leaking. */}
+            <Route path="*" element={<Navigate to="/parent" replace />} />
           </Route>
         </Routes>
 
