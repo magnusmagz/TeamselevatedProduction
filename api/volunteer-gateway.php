@@ -7,8 +7,9 @@
  *   assign-volunteer     POST   — Assign a volunteer to a team (admin/coach)
  *   update-volunteer     PUT    — Update a volunteer record
  *   remove-volunteer     DELETE — Remove a volunteer from a team
- *   team-signups         GET    — List pending signup requests for a team
+ *   team-signups         GET    — List pending signup requests for a team (filter: status, bg_status)
  *   review-signup        PUT    — Approve or reject a signup request
+ *   review-signups-bulk  PUT    — Approve or reject many signup requests at once
  *   club-volunteers      GET    — All volunteers across a club (admin only)
  *   compliance           GET    — Compliance dashboard stats (admin only)
  *   self-signup          POST   — Submit a self-signup request (any authed user)
@@ -316,9 +317,19 @@ try {
             $stmt->execute($params);
             $signups = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Attach bg check status to each signup
+            // Attach bg check status to each signup (derived per-user, not a column on
+            // volunteer_signups, so the bg_status filter is applied here in PHP).
             foreach ($signups as &$signup) {
                 $signup['background_check_status'] = getUserBackgroundCheckStatus($db, $signup['user_id']);
+            }
+            unset($signup);
+
+            // Optional background-check filter
+            $bgFilter = $_GET['bg_status'] ?? '';
+            if ($bgFilter !== '' && $bgFilter !== 'all') {
+                $signups = array_values(array_filter($signups, function ($s) use ($bgFilter) {
+                    return ($s['background_check_status'] ?? 'none') === $bgFilter;
+                }));
             }
 
             echo json_encode(['success' => true, 'signups' => $signups]);
@@ -349,40 +360,15 @@ try {
 
             $db->beginTransaction();
             try {
-                // Update signup status
-                $stmt = $db->prepare("UPDATE volunteer_signups SET status = ?, reviewed_by = ?, reviewed_at = NOW(), notes = ? WHERE id = ?");
-                $stmt->execute([$decision, $userId, $data['notes'] ?? null, $signupId]);
-
-                if ($decision === 'approved') {
-                    // Verify bg check before creating volunteer record
-                    $bgStatus = getUserBackgroundCheckStatus($db, $signup['user_id']);
-                    if ($bgStatus !== 'cleared') {
-                        $db->rollBack();
-                        http_response_code(403);
-                        echo json_encode([
-                            'error' => 'Cannot approve: volunteer background check not cleared',
-                            'background_check_status' => $bgStatus
-                        ]);
-                        exit();
-                    }
-
-                    // Check not already a volunteer
-                    $checkStmt = $db->prepare("SELECT id FROM team_volunteers WHERE team_id = ? AND user_id = ?");
-                    $checkStmt->execute([$signup['team_id'], $signup['user_id']]);
-                    if (!$checkStmt->fetch()) {
-                        $stmt = $db->prepare("INSERT INTO team_volunteers
-                            (team_id, user_id, volunteer_role, start_date,
-                             background_check_status, background_check_date,
-                             assigned_by, status, self_signup)
-                            VALUES (?, ?, 'volunteer', ?, ?, NOW(), ?, 'active', true)");
-                        $stmt->execute([
-                            $signup['team_id'],
-                            $signup['user_id'],
-                            date('Y-m-d'),
-                            $bgStatus,
-                            $userId
-                        ]);
-                    }
+                $result = applySignupDecision($db, $signup, $decision, $userId, $data['notes'] ?? null);
+                if (!$result['ok']) {
+                    $db->rollBack();
+                    http_response_code(403);
+                    echo json_encode([
+                        'error' => 'Cannot approve: volunteer background check not cleared',
+                        'background_check_status' => $result['background_check_status']
+                    ]);
+                    exit();
                 }
 
                 $db->commit();
@@ -391,6 +377,76 @@ try {
                 $db->rollBack();
                 throw $e;
             }
+            break;
+
+        case 'review-signups-bulk':
+            // PUT ?action=review-signups-bulk
+            // Body: { decision: 'approved'|'rejected', signup_ids: [int], notes? }
+            // Applies the same decision to many pending signups. Each is scope-checked
+            // and bg-gated independently; results are reported per id so the caller can
+            // surface partial failures (e.g. some approvals blocked by missing bg check).
+            if ($method !== 'PUT') { methodNotAllowed(); }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $decision = $data['decision'] ?? '';
+            $signupIds = $data['signup_ids'] ?? [];
+
+            if (!in_array($decision, ['approved', 'rejected'])) {
+                badRequest('decision must be "approved" or "rejected"');
+            }
+            if (!is_array($signupIds) || count($signupIds) === 0) {
+                badRequest('signup_ids must be a non-empty array');
+            }
+
+            $approved = 0;
+            $rejected = 0;
+            $skipped = [];
+
+            foreach ($signupIds as $rawId) {
+                $sid = (int)$rawId;
+                if (!$sid) { continue; }
+
+                $stmt = $db->prepare("SELECT * FROM volunteer_signups WHERE id = ? AND status = 'pending'");
+                $stmt->execute([$sid]);
+                $signup = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$signup) {
+                    $skipped[] = ['signup_id' => $sid, 'reason' => 'not_found_or_not_pending'];
+                    continue;
+                }
+
+                // Scope check per signup; skip (don't abort the batch) if out of scope.
+                if (!hasTeamAccess($auth, $db, $signup['team_id'])) {
+                    $skipped[] = ['signup_id' => $sid, 'reason' => 'forbidden'];
+                    continue;
+                }
+
+                $db->beginTransaction();
+                try {
+                    $result = applySignupDecision($db, $signup, $decision, $userId, $data['notes'] ?? null);
+                    if (!$result['ok']) {
+                        $db->rollBack();
+                        $skipped[] = [
+                            'signup_id' => $sid,
+                            'reason' => 'background_check_not_cleared',
+                            'background_check_status' => $result['background_check_status']
+                        ];
+                        continue;
+                    }
+                    $db->commit();
+                    if ($decision === 'approved') { $approved++; } else { $rejected++; }
+                } catch (Exception $e) {
+                    $db->rollBack();
+                    $skipped[] = ['signup_id' => $sid, 'reason' => 'error'];
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'approved' => $approved,
+                'rejected' => $rejected,
+                'skipped' => $skipped,
+                'message' => sprintf('%d approved, %d rejected, %d skipped', $approved, $rejected, count($skipped))
+            ]);
             break;
 
         // ============================================
@@ -723,29 +779,43 @@ function forbidden() {
 }
 
 /**
- * Verify user has access to a team (admin to any, coach to own teams)
+ * Verify user has access to a team (admin to any, coach to own teams).
+ * Halts the request (403/404) when access is denied.
  */
 function requireTeamAccess($auth, $db, $teamId) {
     if ($auth->isSuperAdmin()) return;
 
-    $isAdmin = $auth->hasRole('club_admin');
-    $userId = $auth->getUserId();
-
-    // Get team's club_id
+    // Distinguish "team not found" (404) from "no access" (403).
     $stmt = $db->prepare("SELECT club_id FROM teams WHERE id = ? AND deleted_at IS NULL");
     $stmt->execute([$teamId]);
-    $team = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$team) {
+    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
         notFound('Team not found');
     }
 
+    if (!hasTeamAccess($auth, $db, $teamId)) {
+        forbidden();
+    }
+}
+
+/**
+ * Non-throwing version of the team-access check. Returns true/false.
+ * Used by bulk operations that skip (rather than abort) on a scope miss.
+ */
+function hasTeamAccess($auth, $db, $teamId) {
+    if ($auth->isSuperAdmin()) return true;
+
+    $userId = $auth->getUserId();
+
+    $stmt = $db->prepare("SELECT club_id FROM teams WHERE id = ? AND deleted_at IS NULL");
+    $stmt->execute([$teamId]);
+    $team = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$team) {
+        return false;
+    }
+
     // Admin: must belong to the team's club
-    if ($isAdmin) {
-        if (!$auth->canAccessClub($team['club_id'])) {
-            forbidden();
-        }
-        return;
+    if ($auth->hasRole('club_admin')) {
+        return $auth->canAccessClub($team['club_id']);
     }
 
     // Coach: must be assigned to this team
@@ -759,9 +829,57 @@ function requireTeamAccess($auth, $db, $teamId) {
     ");
     $stmt->execute([$teamId, $userId, $teamId, $userId]);
 
-    if (!$stmt->fetch()) {
-        forbidden();
+    return (bool)$stmt->fetch();
+}
+
+/**
+ * Apply an approve/reject decision to a single (already-loaded, pending) signup.
+ * Assumes the caller has opened a transaction AND already verified team access.
+ *
+ * Returns ['ok' => bool, 'background_check_status' => string].
+ * ok=false only when an approval is blocked because the volunteer's background
+ * check is not cleared — the caller should roll back in that case.
+ *
+ * Note: the applicant's original `notes` are only overwritten when a review note
+ * is supplied (e.g. a rejection reason); an approve with no note preserves them.
+ */
+function applySignupDecision($db, array $signup, string $decision, $reviewerId, $reviewNotes = null): array {
+    if ($reviewNotes !== null && $reviewNotes !== '') {
+        $stmt = $db->prepare("UPDATE volunteer_signups SET status = ?, reviewed_by = ?, reviewed_at = NOW(), notes = ? WHERE id = ?");
+        $stmt->execute([$decision, $reviewerId, $reviewNotes, $signup['id']]);
+    } else {
+        $stmt = $db->prepare("UPDATE volunteer_signups SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?");
+        $stmt->execute([$decision, $reviewerId, $signup['id']]);
     }
+
+    if ($decision === 'approved') {
+        $bgStatus = getUserBackgroundCheckStatus($db, $signup['user_id']);
+        if ($bgStatus !== 'cleared') {
+            return ['ok' => false, 'background_check_status' => $bgStatus];
+        }
+
+        // Create the volunteer record if not already present
+        $checkStmt = $db->prepare("SELECT id FROM team_volunteers WHERE team_id = ? AND user_id = ?");
+        $checkStmt->execute([$signup['team_id'], $signup['user_id']]);
+        if (!$checkStmt->fetch()) {
+            $stmt = $db->prepare("INSERT INTO team_volunteers
+                (team_id, user_id, volunteer_role, start_date,
+                 background_check_status, background_check_date,
+                 assigned_by, status, self_signup)
+                VALUES (?, ?, 'volunteer', ?, ?, NOW(), ?, 'active', true)");
+            $stmt->execute([
+                $signup['team_id'],
+                $signup['user_id'],
+                date('Y-m-d'),
+                $bgStatus,
+                $reviewerId
+            ]);
+        }
+
+        return ['ok' => true, 'background_check_status' => $bgStatus];
+    }
+
+    return ['ok' => true, 'background_check_status' => getUserBackgroundCheckStatus($db, $signup['user_id'])];
 }
 
 /**

@@ -25,6 +25,7 @@ interface Team {
 }
 
 type StatusFilter = 'pending' | 'approved' | 'rejected' | 'all';
+type BgFilter = 'all' | 'cleared' | 'pending' | 'expired' | 'none';
 
 const BG_CHECK_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   cleared: { bg: 'bg-green-100', text: 'text-green-800', label: 'Cleared' },
@@ -40,6 +41,7 @@ export const VolunteerSignupRequests: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [bgFilter, setBgFilter] = useState<BgFilter>('all');
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,10 @@ export const VolunteerSignupRequests: React.FC = () => {
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectNotes, setRejectNotes] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const token = localStorage.getItem('auth_token');
 
@@ -64,7 +70,11 @@ export const VolunteerSignupRequests: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        const teamList: Team[] = isClubAdmin ? (data.teams || []) : (Array.isArray(data) ? data : data.teams || []);
+        // /api/teams returns a bare array; /api/coach/teams may return either an
+        // array or { teams: [...] }. Normalize both so the admin "all teams" view
+        // actually loads (a bare array previously yielded [] for admins, which left
+        // the page stuck on its loading guard and the team filter empty).
+        const teamList: Team[] = Array.isArray(data) ? data : (data.teams || []);
         setTeams(teamList);
         // Auto-select first team if coach has exactly one
         if (!isClubAdmin && teamList.length === 1) {
@@ -90,6 +100,10 @@ export const VolunteerSignupRequests: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    // Clear any stale row selection when the result set changes.
+    setSelectedIds(new Set());
+
+    const bgParam = bgFilter !== 'all' ? `&bg_status=${bgFilter}` : '';
 
     try {
       if (isClubAdmin && !selectedTeamId) {
@@ -97,7 +111,7 @@ export const VolunteerSignupRequests: React.FC = () => {
         const allSignups: Signup[] = [];
         await Promise.all(
           teams.map(async (team) => {
-            const url = `${API_URL}/api/volunteer-gateway.php?action=team-signups&team_id=${team.id}&status=${statusFilter}`;
+            const url = `${API_URL}/api/volunteer-gateway.php?action=team-signups&team_id=${team.id}&status=${statusFilter}${bgParam}`;
             const res = await fetch(url, {
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -111,7 +125,7 @@ export const VolunteerSignupRequests: React.FC = () => {
         allSignups.sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
         setSignups(allSignups);
       } else {
-        const url = `${API_URL}/api/volunteer-gateway.php?action=team-signups&team_id=${selectedTeamId}&status=${statusFilter}`;
+        const url = `${API_URL}/api/volunteer-gateway.php?action=team-signups&team_id=${selectedTeamId}&status=${statusFilter}${bgParam}`;
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -127,7 +141,7 @@ export const VolunteerSignupRequests: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, isClubAdmin, selectedTeamId, statusFilter, teams]);
+  }, [token, isClubAdmin, selectedTeamId, statusFilter, bgFilter, teams]);
 
   useEffect(() => {
     // Wait until teams are loaded for admin "all teams" fetch
@@ -190,6 +204,69 @@ export const VolunteerSignupRequests: React.FC = () => {
       setError('Failed to reject request.');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // Only pending rows are selectable / actionable in bulk.
+  const pendingSignups = signups.filter((s) => s.status === 'pending');
+  // Approvals require a cleared background check (the backend enforces this too).
+  const selectablePending = pendingSignups;
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (prev.size === selectablePending.length && selectablePending.length > 0) {
+        return new Set();
+      }
+      return new Set(selectablePending.map((s) => s.id));
+    });
+  };
+
+  const handleBulk = async (decision: 'approved' | 'rejected') => {
+    if (!token || selectedIds.size === 0) return;
+    setBulkLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/volunteer-gateway.php?action=review-signups-bulk`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ decision, signup_ids: Array.from(selectedIds) }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        if (Array.isArray(data.skipped) && data.skipped.length > 0) {
+          const blocked = data.skipped.filter(
+            (s: any) => s.reason === 'background_check_not_cleared'
+          ).length;
+          setError(
+            blocked > 0
+              ? `${blocked} request(s) skipped: background check not cleared.`
+              : `${data.skipped.length} request(s) could not be processed.`
+          );
+        }
+        setSelectedIds(new Set());
+        fetchSignups();
+      } else {
+        setError(data.error || 'Bulk action failed.');
+      }
+    } catch {
+      setError('Bulk action failed.');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -260,6 +337,25 @@ export const VolunteerSignupRequests: React.FC = () => {
           </select>
         </div>
 
+        {/* Background-check filter */}
+        <div>
+          <label htmlFor="bg-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            Background Check
+          </label>
+          <select
+            id="bg-filter"
+            value={bgFilter}
+            onChange={(e) => setBgFilter(e.target.value as BgFilter)}
+            className="block w-full sm:w-48 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
+          >
+            <option value="all">All</option>
+            <option value="cleared">Cleared</option>
+            <option value="pending">Pending</option>
+            <option value="expired">Expired</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+
         {/* Status tabs */}
         <div className="sm:ml-auto">
           <nav className="flex space-x-1 rounded-lg bg-gray-100 p-1" aria-label="Status filter">
@@ -323,6 +419,39 @@ export const VolunteerSignupRequests: React.FC = () => {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {!loading && selectedIds.size > 0 && (
+        <div
+          data-testid="bulk-action-bar"
+          className="mb-4 flex items-center gap-3 rounded-md bg-brand-primary/5 border border-brand-primary/20 px-4 py-3"
+        >
+          <span className="text-sm font-medium text-brand-primary">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => handleBulk('approved')}
+            disabled={bulkLoading}
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-brand-primary text-white hover:opacity-90 transition-colors disabled:opacity-50"
+          >
+            {bulkLoading ? 'Processing...' : 'Approve Selected'}
+          </button>
+          <button
+            onClick={() => handleBulk('rejected')}
+            disabled={bulkLoading}
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            {bulkLoading ? 'Processing...' : 'Reject Selected'}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            disabled={bulkLoading}
+            className="ml-auto text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {!loading && signups.length > 0 && (
         <div className="bg-white shadow-sm rounded-lg border border-brand-secondary overflow-hidden">
@@ -330,6 +459,16 @@ export const VolunteerSignupRequests: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all pending requests"
+                      checked={selectablePending.length > 0 && selectedIds.size === selectablePending.length}
+                      onChange={toggleSelectAll}
+                      disabled={selectablePending.length === 0}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
                     Name
                   </th>
@@ -365,6 +504,17 @@ export const VolunteerSignupRequests: React.FC = () => {
                   return (
                     <React.Fragment key={signup.id}>
                       <tr className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {signup.status === 'pending' ? (
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${signup.first_name} ${signup.last_name}`}
+                              checked={selectedIds.has(signup.id)}
+                              onChange={() => toggleSelect(signup.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+                            />
+                          ) : null}
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-brand-primary">
                           {signup.first_name} {signup.last_name}
                         </td>
@@ -436,7 +586,7 @@ export const VolunteerSignupRequests: React.FC = () => {
                       {/* Reject reason input row */}
                       {isRejecting && (
                         <tr>
-                          <td colSpan={8} className="px-4 py-3 bg-red-50">
+                          <td colSpan={9} className="px-4 py-3 bg-red-50">
                             <div className="flex items-center gap-3">
                               <label className="text-sm text-gray-700 font-medium whitespace-nowrap">
                                 Reason (optional):
