@@ -11,6 +11,17 @@ jest.mock('react-router-dom', () => ({
   useParams: () => ({ athleteId: '1', paymentId: '101' })
 }));
 
+// Mock OrgContext so the page can read the active club id without an OrgProvider.
+jest.mock('../contexts/OrgContext', () => ({
+  useOrg: () => ({
+    currentClubId: 32,
+    activeContext: { role: 'club_admin', scope_type: 'club', scope_id: 32, scope_name: 'Test Club' },
+    availableContexts: [],
+    switchToContext: jest.fn(),
+    isClubAdmin: true,
+  }),
+}));
+
 // Mock fetch
 global.fetch = jest.fn();
 

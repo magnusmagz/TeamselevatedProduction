@@ -1,11 +1,29 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 
 class AthleteController {
-    private $db;
+    protected $db;
 
-    public function __construct() {
-        $this->db = Database::getInstance()->getConnection();
+    /**
+     * @param PDO|null $db Optional PDO. Defaults to the shared production
+     *   connection so index.php can keep calling `new AthleteController()`.
+     *   Injectable so the scope-enforcement path is unit-testable against an
+     *   in-memory SQLite fixture (see tests/php/AthleteControllerScopeTest.php).
+     */
+    public function __construct(?PDO $db = null) {
+        $this->db = $db ?? Database::getInstance()->getConnection();
+    }
+
+    /**
+     * Resolve the authenticated requester. Defaults to JWT-based auth.
+     * Extracted as a seam so tests can supply a context without a real token.
+     *
+     * @return AuthMiddleware (exits 401 on the request path if unauthenticated)
+     */
+    protected function resolveAuth() {
+        return AuthMiddleware::requireAuth();
     }
 
     public function createAthlete() {
@@ -215,6 +233,20 @@ class AthleteController {
     }
 
     public function getAthlete($id) {
+        $athleteId = (int) $id;
+
+        // P0 access control: never return an athlete (incl. medical) by id without
+        // verifying the requester may see them — club admin of the athlete's club,
+        // a coach of one of the athlete's teams, or a guardian of the athlete.
+        // Enforced BEFORE any data query, mirroring api/athletes.php /
+        // legacy/athletes-gateway.php which both already use AthleteScope.
+        $auth = $this->resolveAuth();
+        if (!\AthleteScope::userCanAccessAthlete($this->db, $auth, $athleteId)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            return;
+        }
+
         // Get athlete details
         $sql = "SELECT * FROM athletes WHERE id = :id";
         $stmt = $this->db->prepare($sql);

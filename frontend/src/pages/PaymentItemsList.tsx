@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface PaymentItem {
   id: number;
@@ -28,6 +29,8 @@ interface Program {
 export const PaymentItemsList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [items, setItems] = useState<PaymentItem[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [seasons, setSeasons] = useState<string[]>([]);
@@ -40,8 +43,9 @@ export const PaymentItemsList: React.FC = () => {
 
   // Fetch available programs and seasons
   useEffect(() => {
+    if (clubId == null) return;
     const token = localStorage.getItem('auth_token');
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`, {
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=${clubId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -57,13 +61,14 @@ export const PaymentItemsList: React.FC = () => {
         }
       })
       .catch(err => console.error('Error fetching programs:', err));
-  }, []);
+  }, [clubId]);
 
   // Fetch payment items based on filters
   useEffect(() => {
+    if (clubId == null) return;
     setLoading(true);
 
-    let url = `${process.env.REACT_APP_API_URL}/api/payment-items.php?club_id=13`;
+    let url = `${process.env.REACT_APP_API_URL}/api/payment-items.php?club_id=${clubId}`;
     if (selectedProgramId) {
       url += `&program_id=${selectedProgramId}`;
     }
@@ -91,7 +96,7 @@ export const PaymentItemsList: React.FC = () => {
         console.error('Error fetching payment items:', err);
         setLoading(false);
       });
-  }, [selectedProgramId, selectedSeason]);
+  }, [selectedProgramId, selectedSeason, clubId]);
 
   const formatPrice = (price: string) => {
     return `$${parseFloat(price).toFixed(2)}`;

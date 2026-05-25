@@ -8,6 +8,7 @@ import {
   TryoutStatus
 } from '../types';
 import EvaluationModal from './EvaluationModal';
+import { useOrg } from '../../../contexts/OrgContext';
 
 interface TryoutManagementProps {
   programId: number;
@@ -25,6 +26,8 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   onClose
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [activeTab, setActiveTab] = useState<Tab>('registrations');
   const [registrations, setRegistrations] = useState<TryoutRegistration[]>([]);
   const [rankings, setRankings] = useState<TryoutRanking[]>([]);
@@ -44,7 +47,8 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [programId, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programId, activeTab, clubId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -62,7 +66,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
         const token = localStorage.getItem('auth_token');
         const [rankRes, teamsRes] = await Promise.all([
           fetch(`${API_URL}/registration/tryouts-api.php?path=rankings&program_id=${programId}`),
-          fetch(`${API_URL}/legacy/teams-gateway.php?club_id=1`, {
+          fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId ?? ''}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ]);

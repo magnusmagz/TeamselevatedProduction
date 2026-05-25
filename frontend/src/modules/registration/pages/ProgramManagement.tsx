@@ -6,6 +6,7 @@ import RegistrationsModal from '../components/RegistrationsModal';
 import TryoutCreationWizard from '../components/TryoutCreationWizard';
 import TryoutManagement from '../components/TryoutManagement';
 import { useAuth } from '../../../hooks/useAuth';
+import { useOrg } from '../../../contexts/OrgContext';
 
 type ProgramTab = 'all' | ProgramType;
 
@@ -23,6 +24,8 @@ const TABS: { value: ProgramTab; label: string }[] = [
 const ProgramManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const { user } = useAuth();
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [programs, setPrograms] = useState<Program[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -69,12 +72,17 @@ const ProgramManagement: React.FC = () => {
 
   useEffect(() => {
     fetchPrograms();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId]);
 
   const fetchPrograms = async () => {
+    if (clubId == null) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=1`);
+      const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=${clubId}`);
       if (!response.ok) {
         console.error('Failed to fetch programs:', response.status);
         return;
@@ -487,7 +495,7 @@ const ProgramManagement: React.FC = () => {
         {/* Tryout Creation Wizard */}
         {showTryoutWizard && (
           <TryoutCreationWizard
-            clubId={1}
+            clubId={clubId ?? 0}
             onComplete={(tryoutId) => {
               setShowTryoutWizard(false);
               fetchPrograms();
@@ -499,7 +507,7 @@ const ProgramManagement: React.FC = () => {
         {/* Tryout Edit Wizard */}
         {editingTryout && (
           <TryoutCreationWizard
-            clubId={1}
+            clubId={clubId ?? 0}
             existingProgram={editingTryout}
             onComplete={() => {
               setEditingTryout(null);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface Transaction {
   id: number;
@@ -41,6 +42,8 @@ interface Program {
  * Comprehensive transaction reporting with filters and export
  */
 export const TransactionReport: React.FC = () => {
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -55,8 +58,9 @@ export const TransactionReport: React.FC = () => {
 
   // Fetch programs for filter dropdown
   useEffect(() => {
+    if (clubId == null) return;
     const token = localStorage.getItem('auth_token');
-    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=13`, {
+    fetch(`${process.env.REACT_APP_API_URL}/api/programs.php?club_id=${clubId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -66,18 +70,20 @@ export const TransactionReport: React.FC = () => {
         }
       })
       .catch(err => console.error('Error fetching programs:', err));
-  }, []);
+  }, [clubId]);
 
   // Fetch transactions
   useEffect(() => {
     fetchTransactions();
-  }, [selectedProgram, selectedStatus, dateFrom, dateTo, paymentType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProgram, selectedStatus, dateFrom, dateTo, paymentType, clubId]);
 
   const fetchTransactions = () => {
+    if (clubId == null) return;
     setLoading(true);
     const token = localStorage.getItem('auth_token');
 
-    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=13`;
+    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=${clubId}`;
     if (selectedProgram) url += `&program_id=${selectedProgram}`;
     if (selectedStatus) url += `&status=${selectedStatus}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;
@@ -126,7 +132,8 @@ export const TransactionReport: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=13&export=csv`;
+    if (clubId == null) return;
+    let url = `${process.env.REACT_APP_API_URL}/api/transaction-report.php?club_id=${clubId}&export=csv`;
     if (selectedProgram) url += `&program_id=${selectedProgram}`;
     if (selectedStatus) url += `&status=${selectedStatus}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;

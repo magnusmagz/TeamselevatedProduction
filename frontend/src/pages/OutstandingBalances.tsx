@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface Payment {
   id: number;
@@ -37,6 +38,8 @@ interface Summary {
  * Shows families with unpaid balances
  */
 export const OutstandingBalances: React.FC = () => {
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [balances, setBalances] = useState<Balance[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,13 +49,18 @@ export const OutstandingBalances: React.FC = () => {
 
   useEffect(() => {
     fetchBalances();
-  }, [sortBy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy, clubId]);
 
   const fetchBalances = async () => {
+    if (clubId == null) {
+      setLoading(false);
+      return;
+    }
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/outstanding-balances.php?club_id=13&sort_by=${sortBy}`,
+        `${process.env.REACT_APP_API_URL}/api/outstanding-balances.php?club_id=${clubId}&sort_by=${sortBy}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const data = await response.json();
