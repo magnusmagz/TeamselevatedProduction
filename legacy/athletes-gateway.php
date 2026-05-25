@@ -10,6 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 
 try {
     $db = Database::getInstance();
@@ -20,6 +22,25 @@ try {
     exit;
 }
 
+// Require a valid token for ALL methods on this admin/coach gateway. Athlete
+// records (incl. guardian PII) must never be readable or mutable without auth.
+$auth = AuthMiddleware::requireAuth();
+
+/**
+ * Does the requester have any admin/coach standing that lets them create
+ * athletes? (super_admin, any club_admin, or a coach of any team.)
+ */
+function requesterCanCreateAthletes(PDO $pdo, AuthMiddleware $auth): bool {
+    if ($auth->isSuperAdmin()) {
+        return true;
+    }
+    if (!empty(AthleteScope::clubAdminClubIds($auth))) {
+        return true;
+    }
+    $uid = (int) $auth->getUserId();
+    return $uid > 0 && !empty(AthleteScope::coachTeamIdsForUser($pdo, $uid));
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
@@ -28,6 +49,15 @@ try {
             if (isset($_GET['id'])) {
                 // Get specific athlete by ID with guardian data
                 $id = (int)$_GET['id'];
+
+                // Scope enforcement: club admin of athlete's club, a coach of
+                // one of the athlete's teams, or a guardian of the athlete.
+                if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $id)) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'Access denied']);
+                    exit;
+                }
+
                 $stmt = $pdo->prepare("
                     SELECT a.*, u.email
                     FROM athletes a
@@ -65,7 +95,13 @@ try {
                     echo json_encode(['error' => 'Athlete not found']);
                 }
             } else {
-                // Get all athletes
+                // Get all athletes — scoped to the requester. Super admin sees
+                // all; a club admin sees their club's athletes; a coach sees
+                // only athletes on teams they coach; a guardian sees only their
+                // own athletes. Searching for an out-of-scope athlete therefore
+                // returns nothing (COACH-13 / COACH-14).
+                $filter = AthleteScope::accessibleAthleteFilter($pdo, $auth, 'a.id');
+
                 $stmt = $pdo->prepare("
                     SELECT a.id, a.first_name, a.middle_initial, a.last_name, a.preferred_name,
                            a.date_of_birth, a.gender, a.school_name, a.grade_level, a.active_status,
@@ -79,9 +115,10 @@ try {
                     LEFT JOIN athlete_guardians ag ON ag.athlete_id = a.id AND ag.is_primary = true
                     LEFT JOIN guardians g ON g.id = ag.guardian_id
                     WHERE a.active_status = true
+                    {$filter['sql']}
                     ORDER BY a.last_name, a.first_name
                 ");
-                $stmt->execute();
+                $stmt->execute($filter['params']);
                 $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 echo json_encode(['success' => true, 'athletes' => $athletes]);
@@ -89,7 +126,12 @@ try {
             break;
 
         case 'POST':
-            // Create new athlete
+            // Create new athlete — admins/coaches only.
+            if (!requesterCanCreateAthletes($pdo, $auth)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
             $input = json_decode(file_get_contents('php://input'), true);
 
             $first_name = $input['first_name'] ?? null;
@@ -205,6 +247,14 @@ try {
                 throw new Exception('Athlete ID is required');
             }
 
+            // Only those who can access the athlete may edit them (club admin of
+            // the athlete's club, a coach of one of their teams, or a guardian).
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $id)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
             $pdo->beginTransaction();
 
             try {
@@ -279,6 +329,13 @@ try {
 
             if (!$id) {
                 throw new Exception('Athlete ID is required');
+            }
+
+            // Only those who can access the athlete may deactivate them.
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $id)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
             }
 
             $pdo->beginTransaction();

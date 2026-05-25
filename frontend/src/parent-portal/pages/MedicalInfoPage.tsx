@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useFinancialPermissions } from '../../contexts/FinancialPermissionsContext';
 import { ParentHeader } from '../components/ParentHeader';
 
 interface MedicalInfo {
@@ -27,6 +28,12 @@ interface MedicalInfo {
 export const MedicalInfoPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
+  const { accessibleAthleteIds, loading: permissionsLoading } = useFinancialPermissions();
+  // Defense-in-depth: medical data is highly sensitive — only fetch/show it for
+  // an athlete this parent actually has access to. Backend enforces this too.
+  const accessAllowed =
+    permissionsLoading || (!!id && accessibleAthleteIds.includes(Number(id)));
+  const accessDenied = !permissionsLoading && !accessAllowed;
   const [medical, setMedical] = useState<MedicalInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +41,11 @@ export const MedicalInfoPage: React.FC = () => {
   useEffect(() => {
     const fetchMedical = async () => {
       if (!id) return;
+      if (permissionsLoading) return;
+      if (!accessAllowed) {
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -78,7 +90,7 @@ export const MedicalInfoPage: React.FC = () => {
     };
 
     fetchMedical();
-  }, [API_URL, id]);
+  }, [API_URL, id, accessAllowed, permissionsLoading]);
 
   const InfoSection: React.FC<{
     title: string;
@@ -103,6 +115,19 @@ export const MedicalInfoPage: React.FC = () => {
       </div>
     );
   };
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <ParentHeader title="Medical Info" showBack />
+        <div className="pt-14 px-4">
+          <div className="mt-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg">
+            Access denied. You do not have permission to view this athlete's medical information.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

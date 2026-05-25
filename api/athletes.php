@@ -1,14 +1,21 @@
 <?php
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+
+// Ensure a PDO handle is available for this directly-invoked gateway.
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+    $pdo = Database::getInstance()->getConnection();
+}
 
 // GET - List all athletes or get single athlete
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -16,6 +23,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Check if specific athlete ID is requested
         if (isset($_GET['id'])) {
             $athleteId = intval($_GET['id']);
+
+            // P0 access control: never return an athlete by id without verifying
+            // the requester is allowed to see them (club admin of the athlete's
+            // club, a coach of one of the athlete's teams, or a guardian of the
+            // athlete). Enforced BEFORE any data query.
+            $auth = AuthMiddleware::requireAuth();
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $athleteId)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
 
             // Get athlete with guardian info
             $query = "

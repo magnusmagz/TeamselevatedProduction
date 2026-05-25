@@ -263,6 +263,36 @@ class AuthMiddleware {
         return $middleware;
     }
 
+    /**
+     * Build an instance from an explicit context, bypassing JWT verification.
+     *
+     * Intended for unit tests and internal callers that have already resolved
+     * the user's context by other means. Does NOT validate a token — never use
+     * this on the request path in place of validateToken()/requireAuth().
+     *
+     * @param array $context keys: user_id, system_role, org_id, org_type,
+     *                       roles (array), active_context, email
+     * @return self
+     */
+    public static function fromContext(array $context) {
+        $m = new self();
+        $m->userId = $context['user_id'] ?? null;
+        $m->systemRole = $context['system_role'] ?? 'user';
+        $m->orgId = $context['org_id'] ?? null;
+        $m->orgType = $context['org_type'] ?? null;
+        $m->roles = $context['roles'] ?? [];
+        $m->activeContext = $context['active_context'] ?? null;
+        // Synthesize a payload object so getPayload()->email works for callers
+        // that read the guardian email from the payload.
+        $m->payload = (object) [
+            'user_id' => $m->userId,
+            'email' => $context['email'] ?? null,
+            'system_role' => $m->systemRole,
+            'roles' => $m->roles,
+        ];
+        return $m;
+    }
+
     // Getters
     public function getUserId() { return $this->userId; }
     public function getSystemRole() { return $this->systemRole; }

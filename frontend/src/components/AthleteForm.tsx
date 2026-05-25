@@ -288,7 +288,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         : `${API_URL}/legacy/athletes-gateway.php`;
       const response = await fetch(url, {
         method: athlete ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        },
         body: JSON.stringify(submitData)
       });
 

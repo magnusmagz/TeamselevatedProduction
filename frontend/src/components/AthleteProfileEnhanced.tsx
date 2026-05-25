@@ -143,7 +143,9 @@ const AthleteProfileEnhanced: React.FC = () => {
 
       try {
         // Fetch athlete with guardian data
-        const athleteResponse = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athleteId}`);
+        const athleteResponse = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athleteId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
         const athleteData = await athleteResponse.json();
 
         if (athleteData.id) {

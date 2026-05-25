@@ -111,7 +111,9 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
   }, [athlete.id, athlete.jersey_number, athlete.primary_position]);
 
   useEffect(() => {
-    fetch(`${apiUrl}/legacy/athletes-gateway.php?id=${athlete.id}`)
+    fetch(`${apiUrl}/legacy/athletes-gateway.php?id=${athlete.id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+    })
       .then(r => r.json())
       .then(data => {
         const g = data.athlete?.guardians?.[0] || data.guardians?.[0];
@@ -341,7 +343,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchAllAthletes = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const data = await response.json();
       const athletes = data.athletes || [];
       setAllAthletes(athletes);
