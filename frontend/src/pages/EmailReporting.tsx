@@ -53,6 +53,10 @@ interface LinkAnalytics {
 
 interface RecentSend {
   id: number;
+  // 'broadcast' rows are keyed by broadcast_campaign_id, 'individual' rows by
+  // communication_log.id. The per-email report must be fetched with the
+  // matching type, or a broadcast id gets misread as a log id (CA-60).
+  type: 'broadcast' | 'individual';
   channel: 'email' | 'sms';
   subject: string | null;
   body_preview: string;
@@ -309,7 +313,11 @@ export const EmailReporting: React.FC = () => {
       .finally(() => setLoadingLinks(false));
   }, [buildParams]);
 
-  // Fetch recent sends
+  // Fetch recent sends. The gateway returns rows shaped as
+  // { id, type, total_recipients, sender, open_rate, click_rate, delivered,
+  //   bounced, failed, ... } plus pagination under `pagination`. Normalize to
+  // the flat RecentSend/RecentSendsResponse shape this view renders, deriving a
+  // single status from the aggregate counts so the status badge shows.
   useEffect(() => {
     setLoadingSends(true);
     const params = buildParams();
@@ -317,15 +325,44 @@ export const EmailReporting: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setRecentSends(data);
+          const pagination = data.pagination || {};
+          const sends: RecentSend[] = (data.sends || []).map((s: any) => {
+            const recipients = s.total_recipients ?? s.recipient_count ?? 0;
+            let status = 'sent';
+            if ((s.failed ?? 0) > 0 && (s.delivered ?? 0) === 0) status = 'failed';
+            else if ((s.bounced ?? 0) > 0 && (s.delivered ?? 0) === 0) status = 'bounced';
+            else if ((s.delivered ?? 0) > 0) status = 'delivered';
+            return {
+              id: s.id,
+              type: s.type === 'broadcast' ? 'broadcast' : 'individual',
+              channel: s.channel,
+              subject: s.subject ?? null,
+              body_preview: s.recipient_name ? `To: ${s.recipient_name}` : '',
+              recipient_count: recipients,
+              sent_at: s.sent_at,
+              open_rate: s.channel === 'email' ? (s.open_rate ?? null) : null,
+              click_rate: s.channel === 'email' ? (s.click_rate ?? null) : null,
+              status: s.status ?? status,
+              sender_name: s.sender ?? s.sender_name ?? '',
+            };
+          });
+          setRecentSends({
+            sends,
+            total: pagination.total ?? data.total ?? sends.length,
+            page: pagination.page ?? data.page ?? sendsPage,
+            per_page: pagination.per_page ?? data.per_page ?? sendsPerPage,
+            total_pages: pagination.total_pages ?? data.total_pages ?? 1,
+          });
         }
       })
       .catch(err => console.error('Error fetching sends:', err))
       .finally(() => setLoadingSends(false));
   }, [buildParams, sendsPage]);
 
-  // Fetch per-email report
-  const fetchPerEmailReport = (id: number) => {
+  // Fetch per-email report. Broadcast sends and individual sends are reported
+  // through the same endpoint but must pass the matching `type` so the backend
+  // looks up by broadcast_campaign_id vs communication_log.id (CA-60).
+  const fetchPerEmailReport = (id: number, type: 'broadcast' | 'individual') => {
     if (expandedSendId === id) {
       setExpandedSendId(null);
       setPerEmailReport(null);
@@ -334,7 +371,8 @@ export const EmailReporting: React.FC = () => {
     setExpandedSendId(id);
     setLoadingPerEmail(true);
     setPerEmailReport(null);
-    fetch(`${API_URL}/api/analytics?action=per-email-report&id=${id}&type=single`, { headers })
+    const reportType = type === 'broadcast' ? 'broadcast' : 'single';
+    fetch(`${API_URL}/api/analytics?action=per-email-report&id=${id}&type=${reportType}`, { headers })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -747,7 +785,7 @@ export const EmailReporting: React.FC = () => {
                   {recentSends.sends.map(send => (
                     <React.Fragment key={send.id}>
                       <tr
-                        onClick={() => fetchPerEmailReport(send.id)}
+                        onClick={() => fetchPerEmailReport(send.id, send.type)}
                         className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
                       >
                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
@@ -934,7 +972,7 @@ export const EmailReporting: React.FC = () => {
               {recentSends.sends.map(send => (
                 <React.Fragment key={send.id}>
                   <div
-                    onClick={() => fetchPerEmailReport(send.id)}
+                    onClick={() => fetchPerEmailReport(send.id, send.type)}
                     className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">
