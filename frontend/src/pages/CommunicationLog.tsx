@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -70,6 +71,7 @@ function formatShortDate(dateStr: string): string {
 
 export const CommunicationLog: React.FC = () => {
   const { user } = useAuth();
+  const { currentClubId } = useOrg();
   const [entries, setEntries] = useState<CommunicationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -97,7 +99,13 @@ export const CommunicationLog: React.FC = () => {
   const [EmailCompose, setEmailCompose] = useState<React.FC<any> | null>(null);
   const [SmsCompose, setSmsCompose] = useState<React.FC<any> | null>(null);
 
-  const clubProfileId = user?.organization?.orgId;
+  // Source the club from the user's ACTIVE org context (OrgContext.currentClubId),
+  // not the legacy user.organization.orgId. For a coach, currentClubId resolves to
+  // their active club-scoped role's scope_id — which is the club_profile_id the
+  // backend's getCoachTeamIds()/scope checks expect. Using user.organization.orgId
+  // could point at a stale/other role (roles[0]) or be null for a coach, which made
+  // recipient search + groups come back empty and sends get rejected (COACH-18/19/25/26).
+  const clubProfileId = currentClubId ?? user?.organization?.orgId;
 
   // Load compose components on demand
   useEffect(() => {

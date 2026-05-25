@@ -240,11 +240,13 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
     setSendStatus('sending');
     setSendError('');
 
-    const isBroadcast = activeRecipients.length > 1;
-    const action = isBroadcast ? 'send-broadcast' : 'send-email';
+    // CA-44: Always use the send-email action for individually-resolved recipients,
+    // regardless of count. send-email accepts a `recipients` array; send-broadcast
+    // expects team_ids + recipient_types and would reject this payload as malformed.
+    const isMultiple = activeRecipients.length > 1;
 
     try {
-      const res = await fetch(`${API_URL}/api/communications?action=${action}`, {
+      const res = await fetch(`${API_URL}/api/communications?action=send-email`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -280,9 +282,17 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
         throw new Error(errorData.error || 'Failed to send email');
       }
 
+      // Surface the backend's queued/skipped counts so the user sees how many
+      // actually went out (suppressed/invalid recipients are skipped server-side).
+      const data = await res.json().catch(() => ({} as any));
+      const queued = data?.data?.queued ?? activeRecipients.length;
+      const skipped = data?.data?.skipped ?? 0;
+
       setSendStatus('success');
       showToast(
-        `Email${isBroadcast ? 's' : ''} queued for ${activeRecipients.length} recipient${activeRecipients.length > 1 ? 's' : ''}.`,
+        `Email${isMultiple ? 's' : ''} queued for ${queued} recipient${queued !== 1 ? 's' : ''}` +
+          (skipped > 0 ? ` (${skipped} skipped)` : '') +
+          '.',
         'success'
       );
 

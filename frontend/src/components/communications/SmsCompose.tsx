@@ -145,11 +145,13 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
 
     setSendStatus('sending');
 
-    const isBroadcast = recipientsWithPhone.length > 1;
-    const action = isBroadcast ? 'send-broadcast' : 'send-sms';
+    // CA-49: Always use the send-sms action for individually-resolved recipients,
+    // regardless of count. send-sms accepts a `recipients` array; send-broadcast
+    // expects team_ids + recipient_types and would reject this payload as malformed.
+    const isMultiple = recipientsWithPhone.length > 1;
 
     try {
-      const res = await fetch(`${API_URL}/api/communications?action=${action}`, {
+      const res = await fetch(`${API_URL}/api/communications?action=send-sms`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -182,9 +184,17 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
         throw new Error(errorData.error || 'Failed to send SMS');
       }
 
+      // Surface the backend's queued/skipped counts so the user sees how many
+      // messages actually went out.
+      const data = await res.json().catch(() => ({} as any));
+      const queued = data?.data?.queued ?? recipientsWithPhone.length;
+      const skipped = data?.data?.skipped ?? 0;
+
       setSendStatus('success');
       showToast(
-        `SMS queued for ${recipientsWithPhone.length} recipient${recipientsWithPhone.length > 1 ? 's' : ''}.`,
+        `SMS queued for ${queued} recipient${queued !== 1 ? 's' : ''}` +
+          (skipped > 0 ? ` (${skipped} skipped)` : '') +
+          '.',
         'success'
       );
 
@@ -276,7 +286,8 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
               </svg>
               <div className="text-sm text-amber-800">
                 <p className="font-medium">
-                  {recipientsWithoutPhone.length} recipient{recipientsWithoutPhone.length > 1 ? 's' : ''} missing phone number
+                  {recipientsWithoutPhone.length} recipient{recipientsWithoutPhone.length > 1 ? 's' : ''} missing a phone number
+                  {' '}&mdash; they will be excluded from this SMS.
                 </p>
                 <p className="text-xs text-amber-600 mt-0.5">
                   {recipientsWithoutPhone.map((r) => `${r.first_name} ${r.last_name}`).join(', ')}

@@ -168,6 +168,8 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       });
       if (!res.ok) throw new Error('Failed to resolve group');
       const data = await res.json();
+      // Backend (resolve-group) returns { success, recipients: [...] }. Tolerate
+      // a `results` alias for safety.
       const resolved: Recipient[] = data.recipients || data.results || [];
 
       // Filter out already-selected and suppressed recipients
@@ -177,8 +179,13 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
           !selectedRecipients.some((s) => s.id === r.id && s.type === r.type)
       );
 
-      onRecipientsChange([...selectedRecipients, ...newRecipients]);
-      setGroupChips((prev) => [...prev, { group, recipients: newRecipients }]);
+      // CA-37: add the resolved members as chips and record the group chip with
+      // its label/count. Only register the group chip when it actually contributed
+      // members so the label reflects real recipients (avoids a stale "(0)" chip).
+      if (newRecipients.length > 0) {
+        onRecipientsChange([...selectedRecipients, ...newRecipients]);
+        setGroupChips((prev) => [...prev, { group, recipients: newRecipients }]);
+      }
 
       if (onGroupSelect) onGroupSelect(group);
     } catch (err) {
