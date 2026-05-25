@@ -111,15 +111,23 @@ export function darkenColor(hex: string, percent: number): string {
 }
 
 /**
- * Generate a complete color palette from a primary color
+ * Generate a complete color palette from a primary color.
+ *
+ * If an explicit secondary color is provided (the brand's saved secondary_color),
+ * it is honored verbatim and its hover variant is derived from it. When omitted,
+ * the secondary is auto-derived from the primary as a lighter tint. This lets a
+ * club's chosen secondary brand color flow through to the --color-secondary CSS
+ * variable (consumed by brand-secondary across nav/buttons/badges) instead of
+ * always being overwritten by a primary-derived tint.
  */
-export function generateColorPalette(primaryHex: string) {
+export function generateColorPalette(primaryHex: string, secondaryHex?: string) {
+  const secondary = secondaryHex || lightenColor(primaryHex, 60);
   return {
     primary: primaryHex,
     primaryHover: darkenColor(primaryHex, 10),
     primaryDark: darkenColor(primaryHex, 15),
-    secondary: lightenColor(primaryHex, 60),
-    secondaryHover: lightenColor(primaryHex, 50),
+    secondary,
+    secondaryHover: darkenColor(secondary, 10),
     accent: lightenColor(primaryHex, 20),
     light: lightenColor(primaryHex, 50),
     muted: lightenColor(primaryHex, 25),

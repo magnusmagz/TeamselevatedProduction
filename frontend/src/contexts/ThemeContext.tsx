@@ -21,7 +21,7 @@ interface ThemeColors {
 
 interface ThemeContextType {
   colors: ThemeColors;
-  updateTheme: (primaryColor: string) => void;
+  updateTheme: (primaryColor: string, secondaryColor?: string) => void;
   isLoading: boolean;
   brandingVersion: number; // Incremented when branding changes to trigger re-fetches
 }
@@ -78,8 +78,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json();
 
         if (data.success && data.branding?.primary_color) {
-          // Generate palette from club's primary color
-          const palette = generateColorPalette(data.branding.primary_color);
+          // Generate palette from the club's primary color, honoring the club's
+          // explicitly saved secondary_color when present (falls back to a
+          // primary-derived tint inside generateColorPalette when absent).
+          const palette = generateColorPalette(
+            data.branding.primary_color,
+            data.branding.secondary_color || undefined
+          );
           setColors(palette);
           applyThemeToDOM(palette);
         } else {
@@ -103,10 +108,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [currentClubId, API_URL, isSuperAdmin]);
 
   /**
-   * Update theme colors immediately (called when branding is saved)
+   * Update theme colors immediately (called when branding is saved).
+   * Accepts an optional secondaryColor so a club's saved secondary brand
+   * color is applied to --color-secondary right away, rather than being
+   * overwritten by a primary-derived tint.
    */
-  const updateTheme = useCallback((primaryColor: string) => {
-    const palette = generateColorPalette(primaryColor);
+  const updateTheme = useCallback((primaryColor: string, secondaryColor?: string) => {
+    const palette = generateColorPalette(primaryColor, secondaryColor);
     setColors(palette);
     applyThemeToDOM(palette);
     // Increment version to trigger re-fetches in components like BrandingLogo

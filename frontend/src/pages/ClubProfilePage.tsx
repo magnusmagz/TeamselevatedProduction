@@ -100,7 +100,7 @@ const ClubProfilePage: React.FC = () => {
         // Clear branding cache and trigger refresh so header updates
         clearBrandingCache();
         if (formData.primary_color) {
-          updateTheme(formData.primary_color);
+          updateTheme(formData.primary_color, formData.secondary_color);
         }
       }
     } catch (error) {
@@ -446,7 +446,7 @@ const ClubProfilePage: React.FC = () => {
                     // Clear branding cache and trigger refresh so header updates
                     clearBrandingCache();
                     if (data.primaryColor) {
-                      updateTheme(data.primaryColor);
+                      updateTheme(data.primaryColor, data.secondaryColor);
                     }
                   } else {
                     throw new Error('Failed to save brand settings');
