@@ -303,7 +303,10 @@ try {
         case 'duplicate':
             if ($method !== 'POST') { methodNotAllowed(); }
 
-            if (!$isAdmin) { forbidden('Only club admins can duplicate templates'); }
+            // Anyone with access to the template's club may duplicate it (gated by
+            // requireClubAccess on the source's club below). The copy is always created
+            // as a private 'personal' template owned by the duplicator, so a coach can
+            // duplicate a club template into their own personal copy (COACH-22).
 
             $data = json_decode(file_get_contents('php://input'), true);
             $sourceId = (int)($data['id'] ?? 0);
@@ -331,8 +334,8 @@ try {
                 $source['design_json'], // already JSON string from DB
                 $source['html_output'],
                 $source['category'],
-                $source['scope'],
-                $source['team_visibility'], // already JSON string from DB
+                'personal',     // duplicate is always a private personal copy (COACH-22)
+                '[]',           // personal copy has no team visibility
                 $source['channel'] ?? 'email',
                 $source['body_text'],
                 $sourceId,

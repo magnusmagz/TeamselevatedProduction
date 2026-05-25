@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
 
 interface CampaignUpdate {
@@ -61,6 +61,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
   userId
 }) => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -79,6 +80,10 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
   // End campaign
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [endingCampaign, setEndingCampaign] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingCampaign, setDeletingCampaign] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,6 +207,36 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
       console.error('Error ending campaign:', err);
     } finally {
       setEndingCampaign(false);
+    }
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!campaign) return;
+
+    setDeletingCampaign(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/fundraiser-campaigns.php?action=delete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: campaign.id, deleted_by: userId })
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        navigate('/admin/fundraisers');
+      } else {
+        setDeleteError(result.error || 'Failed to delete campaign');
+      }
+    } catch (err) {
+      console.error('Error deleting campaign:', err);
+      setDeleteError('Failed to delete campaign');
+    } finally {
+      setDeletingCampaign(false);
     }
   };
 
@@ -530,11 +565,13 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
             </div>
           </div>
 
-          {/* End Campaign */}
-          {campaign.status === 'active' && campaign.is_active && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="font-semibold text-brand-primary mb-3">Manage Campaign</h3>
-              {showEndConfirm ? (
+          {/* Manage Campaign */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 className="font-semibold text-brand-primary mb-3">Manage Campaign</h3>
+
+            {/* End Campaign (active only) */}
+            {campaign.status === 'active' && campaign.is_active && (
+              showEndConfirm ? (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
                     Are you sure you want to end this campaign? This action cannot be undone.
@@ -562,9 +599,46 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                 >
                   End Campaign Early
                 </button>
+              )
+            )}
+
+            {/* Delete Campaign (any status) */}
+            <div className={campaign.status === 'active' && campaign.is_active ? 'mt-3 pt-3 border-t border-gray-100' : ''}>
+              {showDeleteConfirm ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Delete this campaign? It will be removed from all lists and the public
+                    donation page. Donation history is preserved in the database.
+                  </p>
+                  {deleteError && (
+                    <p className="text-sm text-red-600">{deleteError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}
+                      className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteCampaign}
+                      disabled={deletingCampaign}
+                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deletingCampaign ? 'Deleting...' : 'Delete Campaign'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50"
+                >
+                  Delete Campaign
+                </button>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

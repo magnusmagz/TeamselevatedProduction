@@ -112,14 +112,6 @@ export const PaymentStatusPage: React.FC = () => {
         <div className="bg-brand-primary text-white px-4 py-6">
           <p className="text-sm opacity-80">Total Outstanding</p>
           <p className="text-3xl font-bold">${totalOutstanding.toFixed(2)}</p>
-          {totalOutstanding > 0 && (
-            <Link
-              to="/parent/payments"
-              className="inline-block mt-4 bg-white text-brand-primary px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
-            >
-              View Invoices
-            </Link>
-          )}
         </div>
 
         {/* Filter Tabs */}

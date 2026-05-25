@@ -1049,6 +1049,7 @@ function AppContent() {
             <Route path="athlete/:id" element={<AthleteDetailPage />} />
             <Route path="payments" element={<PaymentStatusPage />} />
             <Route path="payments/checkout" element={<MakePaymentPage />} />
+            <Route path="settings" element={<UserProfile />} />
             <Route path="schedule" element={<UpcomingEventsPage />} />
             <Route path="schedule/rsvp/:id" element={<ScheduleRSVPPage />} />
             <Route path="chat" element={<TeamChatPage />} />
