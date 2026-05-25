@@ -32,9 +32,24 @@ if (empty($authHeader) || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches
 $token = $matches[1];
 
 try {
-    $jwt = new JWT();
-    $payload = $jwt->decode($token);
-    $userId = $payload['user_id'];
+    // Use verify() (signature + expiry check). decode() is debug-only and skips
+    // verification. JWT::verify() returns a stdClass payload, so read user_id
+    // with object syntax — the prior `$payload['user_id']` array access failed
+    // against the stdClass object, breaking image uploads with a 401/null user.
+    $payload = JWT::verify($token);
+    if ($payload === false) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
+        exit;
+    }
+    $userId = is_object($payload)
+        ? ($payload->user_id ?? null)
+        : ($payload['user_id'] ?? null);
+    if (!$userId) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid token: missing user_id']);
+        exit;
+    }
 } catch (Exception $e) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Invalid token: ' . $e->getMessage()]);
@@ -83,7 +98,8 @@ if (!in_array($mimeType, $allowedTypes)) {
 $maxSize = $allowsDocuments ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
 if ($file['size'] > $maxSize) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'File size exceeds 5MB limit']);
+    $limitLabel = $allowsDocuments ? '10MB' : '5MB';
+    echo json_encode(['success' => false, 'error' => "File size exceeds $limitLabel limit"]);
     exit;
 }
 
@@ -116,6 +132,7 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : '
 $fileUrl = $baseUrl . '/uploads/' . $type . '/' . $filename;
 
 // Return success response
+http_response_code(200);
 echo json_encode([
     'success' => true,
     'url' => $fileUrl,

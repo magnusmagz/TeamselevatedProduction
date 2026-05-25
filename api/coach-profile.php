@@ -37,9 +37,22 @@ if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
 $token = $matches[1];
 
 try {
-    $jwt = new JWT();
-    $decoded = $jwt->decode($token);
-    $currentUserId = $decoded->user_id;
+    // Use verify() (signature + expiry) rather than the debug-only decode(),
+    // which skips verification. verify() returns a stdClass payload.
+    $decoded = JWT::verify($token);
+    if ($decoded === false) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
+        exit();
+    }
+    $currentUserId = is_object($decoded)
+        ? ($decoded->user_id ?? null)
+        : ($decoded['user_id'] ?? null);
+    if (!$currentUserId) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid token: missing user_id']);
+        exit();
+    }
 } catch (Exception $e) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);

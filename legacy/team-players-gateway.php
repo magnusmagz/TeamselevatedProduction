@@ -10,6 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 
 try {
     $db = Database::getInstance();
@@ -21,6 +23,73 @@ try {
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
+
+/**
+ * Authenticate the caller from the Authorization header.
+ * Returns a validated AuthMiddleware instance or exits 401.
+ */
+function tpg_requireAuth() {
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    $authHeader = $headers['Authorization'] ?? $headers['authorization']
+        ?? ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+
+    if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $m)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'No authorization token provided']);
+        exit;
+    }
+
+    $auth = new AuthMiddleware();
+    if (!$auth->validateToken($m[1])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid or expired token']);
+        exit;
+    }
+    return $auth;
+}
+
+/**
+ * Verify the authenticated user may manage the given team's roster.
+ * Allowed: super_admin, club_admin of the team's club, or a coach of the team
+ * (primary_coach_id OR active assistant_coach/team_manager team_members row).
+ * Exits 403 if not authorized, 404 if the team_member row is missing.
+ */
+function tpg_requireTeamRosterAccess($pdo, $auth, $teamMemberId) {
+    $stmt = $pdo->prepare("
+        SELECT tm.team_id, t.club_id
+        FROM team_members tm
+        JOIN teams t ON t.id = tm.team_id
+        WHERE tm.id = ?
+    ");
+    $stmt->execute([$teamMemberId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Team member not found']);
+        exit;
+    }
+
+    $teamId = (int)$row['team_id'];
+    $clubId = $row['club_id'] !== null ? (int)$row['club_id'] : null;
+
+    if ($auth->isSuperAdmin()) {
+        return $teamId;
+    }
+    if ($clubId !== null && $auth->hasRole('club_admin', $clubId, 'club')) {
+        return $teamId;
+    }
+
+    $userId = (int)$auth->getUserId();
+    $coachTeamIds = AthleteScope::coachTeamIdsForUser($pdo, $userId);
+    if (in_array($teamId, $coachTeamIds, true)) {
+        return $teamId;
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'You do not have permission to edit this team\'s roster']);
+    exit;
+}
 
 try {
     switch ($method) {
@@ -100,41 +169,71 @@ try {
             break;
 
         case 'PUT':
-            // Update team player
+            // Update team player — requires auth + team-roster scope.
+            $auth = tpg_requireAuth();
+
             $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                $input = [];
+            }
             $id = isset($_GET['id']) ? (int)$_GET['id'] : ($input['team_member_id'] ?? null);
+            $id = $id !== null ? (int)$id : null;
 
             if (!$id) {
-                throw new Exception('Team player ID is required');
+                http_response_code(400);
+                echo json_encode(['error' => 'Team player ID is required']);
+                break;
             }
+
+            // Verify the caller coaches/administers the team this row belongs to.
+            tpg_requireTeamRosterAccess($pdo, $auth, $id);
 
             $fields = [];
             $values = [];
 
-            if (isset($input['status'])) {
+            if (array_key_exists('status', $input)) {
+                $allowedStatuses = ['active', 'injured', 'suspended', 'inactive'];
+                if (!in_array($input['status'], $allowedStatuses, true)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invalid status. Allowed: ' . implode(', ', $allowedStatuses)]);
+                    break;
+                }
                 $fields[] = 'status = ?';
                 $values[] = $input['status'];
             }
             if (array_key_exists('jersey_number', $input)) {
                 $fields[] = 'jersey_number = ?';
-                $values[] = $input['jersey_number'];
+                // Normalize empty string to NULL; cast numeric values to int.
+                $jersey = $input['jersey_number'];
+                $values[] = ($jersey === '' || $jersey === null) ? null : (int)$jersey;
             }
             if (array_key_exists('primary_position', $input)) {
                 $fields[] = 'primary_position = ?';
-                $values[] = $input['primary_position'];
+                $values[] = ($input['primary_position'] === '') ? null : $input['primary_position'];
             }
             if (array_key_exists('positions', $input)) {
                 $fields[] = 'positions = ?';
                 $values[] = json_encode($input['positions']);
             }
 
-            if (!empty($fields)) {
-                $values[] = $id;
-                $stmt = $pdo->prepare("UPDATE team_members SET " . implode(', ', $fields) . " WHERE id = ?");
-                $stmt->execute($values);
+            // No recognized fields => this is a no-op. Surface it instead of
+            // returning a misleading success (the original bug: empty $fields
+            // silently reported success without running any UPDATE).
+            if (empty($fields)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'No updatable fields provided']);
+                break;
             }
 
-            echo json_encode(['success' => true, 'message' => 'Team player updated successfully']);
+            $values[] = $id;
+            $stmt = $pdo->prepare("UPDATE team_members SET " . implode(', ', $fields) . " WHERE id = ?");
+            $stmt->execute($values);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Team player updated successfully',
+                'rows_affected' => $stmt->rowCount(),
+            ]);
             break;
 
         case 'DELETE':
