@@ -63,7 +63,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
         `${API_URL}/legacy/guardian-gateway.php`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
           body: JSON.stringify({ ...formData, athlete_id: athleteId })
         }
       );
@@ -103,7 +103,8 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
       const response = await fetch(
         `${API_URL}/legacy/guardian-gateway.php?id=${guardianId}`,
         {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
         }
       );
 
@@ -125,7 +126,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
         `${API_URL}/legacy/guardian-gateway.php`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
           body: JSON.stringify(guardian)
         }
       );

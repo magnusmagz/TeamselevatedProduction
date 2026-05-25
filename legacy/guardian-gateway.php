@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 try {
     $db = Database::getInstance();
@@ -19,6 +20,10 @@ try {
     echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit;
 }
+
+// Require an authenticated user — this gateway returns and edits guardian PII
+// (names, emails, phone numbers), so it must not be reachable without a valid token.
+$auth = AuthMiddleware::requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -62,7 +67,7 @@ try {
                            g.work_phone,
                            COUNT(ag.id) as athlete_count
                     FROM guardians g
-                    LEFT JOIN athlete_guardians ag ON g.id = ag.guardian_id AND ag.active_status = 1
+                    LEFT JOIN athlete_guardians ag ON g.id = ag.guardian_id
                     GROUP BY g.id
                     ORDER BY g.first_name ASC, g.last_name ASC
                 ");
