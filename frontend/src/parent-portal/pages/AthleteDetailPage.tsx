@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFinancialPermissions } from '../../contexts/FinancialPermissionsContext';
 import { ParentHeader } from '../components/ParentHeader';
 
 interface AthleteDetails {
@@ -62,6 +63,13 @@ export const AthleteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { accessibleAthleteIds, loading: permissionsLoading } = useFinancialPermissions();
+  // Defense-in-depth: only fetch/show an athlete this parent actually has
+  // access to. The backend enforces this too; this avoids a wasted request and
+  // shows a clear Access-denied state for a tampered/guessed :id.
+  const accessAllowed =
+    permissionsLoading || (!!id && accessibleAthleteIds.includes(Number(id)));
+  const accessDenied = !permissionsLoading && !accessAllowed;
   const [athlete, setAthlete] = useState<AthleteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +88,12 @@ export const AthleteDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchAthlete = async () => {
       if (!id) return;
+      // Wait for permissions to resolve; skip entirely if not accessible.
+      if (permissionsLoading) return;
+      if (!accessAllowed) {
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -104,11 +118,15 @@ export const AthleteDetailPage: React.FC = () => {
     };
 
     fetchAthlete();
-  }, [API_URL, id]);
+  }, [API_URL, id, accessAllowed, permissionsLoading]);
 
   useEffect(() => {
     const fetchRegistrations = async () => {
       if (!id) return;
+      if (permissionsLoading || !accessAllowed) {
+        setRegistrationsLoading(false);
+        return;
+      }
 
       setRegistrationsLoading(true);
       try {
@@ -129,11 +147,15 @@ export const AthleteDetailPage: React.FC = () => {
     };
 
     fetchRegistrations();
-  }, [API_URL, id]);
+  }, [API_URL, id, accessAllowed, permissionsLoading]);
 
   useEffect(() => {
     const fetchEvents = async () => {
       if (!id) return;
+      if (permissionsLoading || !accessAllowed) {
+        setEventsLoading(false);
+        return;
+      }
       setEventsLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
@@ -152,7 +174,7 @@ export const AthleteDetailPage: React.FC = () => {
       }
     };
     fetchEvents();
-  }, [API_URL, id]);
+  }, [API_URL, id, accessAllowed, permissionsLoading]);
 
   useEffect(() => {
     const fetchCoaches = async () => {
@@ -245,6 +267,19 @@ export const AthleteDetailPage: React.FC = () => {
     }
     return age;
   };
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <ParentHeader title="Athlete Details" showBack />
+        <div className="pt-14 px-4">
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mt-4">
+            Access denied. You do not have permission to view this athlete.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

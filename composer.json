@@ -9,6 +9,9 @@
         "phpmailer/phpmailer": "^6.9",
         "predis/predis": "^2.0"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
     "autoload": {
         "psr-4": {
             "TeamsElevated\\": "src/"
@@ -16,6 +19,11 @@
         "classmap": [
             "services/"
         ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TeamsElevated\\Tests\\": "tests/php/"
+        }
     },
     "config": {
         "vendor-dir": "vendor"

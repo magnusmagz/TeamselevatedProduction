@@ -53,7 +53,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   const fetchAthletes = async () => {
     try {
       // Fetch athletes
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const data = await response.json();
       const athleteList = data.athletes || [];
       setAthletes(athleteList);
@@ -136,7 +138,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const handleEditAthlete = async (athlete: Athlete) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const fullAthlete = await response.json();
       setSelectedAthlete(fullAthlete);
       setShowForm(true);
@@ -147,7 +151,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 
   const handleManageGuardians = async (athlete: Athlete) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`);
+      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const fullAthlete = await response.json();
       setSelectedAthleteForGuardians(fullAthlete);
       setShowGuardianManagement(true);
@@ -164,7 +170,10 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     try {
       const response = await fetch(`${API_URL}/legacy/athletes-gateway.php?id=${athlete.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        }
       });
 
       if (response.ok) {
