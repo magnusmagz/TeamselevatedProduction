@@ -291,8 +291,9 @@ try {
 
             requireClubAccess($auth, $existing['club_profile_id']);
 
-            $stmt = $db->prepare("DELETE FROM email_templates WHERE id = ?");
-            $stmt->execute([$id]);
+            // Soft delete: flip is_active so the row is preserved (the list query filters is_active = true)
+            $stmt = $db->prepare("UPDATE email_templates SET is_active = false, updated_by = ? WHERE id = ?");
+            $stmt->execute([$userId, $id]);
 
             echo json_encode(['success' => true, 'message' => 'Template deleted']);
             break;
