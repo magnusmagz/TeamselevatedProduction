@@ -22,6 +22,7 @@ export const TeamChatPage: React.FC = () => {
   } = useChatContext();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [messageText, setMessageText] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
@@ -33,10 +34,28 @@ export const TeamChatPage: React.FC = () => {
     setShowNewConversation(false);
   };
 
-  // Scroll to bottom when messages change
+  const scrollToBottom = (behavior: ScrollBehavior) => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior });
+    }
+  };
+
+  // Jump INSTANTLY to the newest message when a conversation is opened, so it
+  // never loads with the latest messages out of view. Keyed on the active
+  // conversation id (not the messages array) so it only fires on open/switch.
+  const activeConversationId = activeConversation?.id;
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (activeConversationId == null) return;
+    // Run after layout so scrollHeight reflects the rendered messages.
+    requestAnimationFrame(() => scrollToBottom('auto'));
+  }, [activeConversationId]);
+
+  // SMOOTHLY follow new messages that arrive while the conversation is open.
+  useEffect(() => {
+    if (activeConversationId == null) return;
+    scrollToBottom('smooth');
+  }, [messages, activeConversationId]);
 
   const handleSend = () => {
     if (!messageText.trim()) return;
@@ -115,7 +134,10 @@ export const TeamChatPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <ParentHeader title="Messages" showBack />
-        <div className="pt-14 flex items-center justify-center py-12">
+        <div
+          className="flex items-center justify-center py-12"
+          style={{ paddingTop: 'calc(3.5rem + var(--safe-area-inset-top, 0px) + 2rem)' }}
+        >
           <div className="text-center px-4">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -151,18 +173,25 @@ export const TeamChatPage: React.FC = () => {
 
   // Chat view: showing messages for a selected conversation
   if (activeConversation) {
+    // Header is fixed (h-14 = 3.5rem) + top safe area; input bar + bottom nav
+    // sit at the bottom. The scroll region is bounded between them so ONLY the
+    // message list scrolls internally — the page itself never scrolls under the
+    // fixed header (which previously hid the first message / empty state).
+    const headerOffset = 'calc(3.5rem + var(--safe-area-inset-top, 0px))';
+    const footerOffset = 'calc(4rem + 4.5rem + var(--safe-area-inset-bottom, 0px))';
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="fixed inset-0 bg-gray-50 overflow-hidden">
         <ParentHeader
           title={activeConversation.displayName}
           showBack
           onBack={handleBack}
         />
 
-        {/* Messages Container */}
+        {/* Messages Container — bounded internal scroll between header and input */}
         <div
-          className="flex-1 overflow-y-auto px-4 py-4"
-          style={{ paddingTop: '72px', paddingBottom: 'calc(5rem + 4rem + var(--safe-area-inset-bottom, 0px))' }}
+          ref={scrollContainerRef}
+          className="absolute left-0 right-0 overflow-y-auto px-4 py-4"
+          style={{ top: headerOffset, bottom: footerOffset }}
         >
           {messages.length === 0 && (
             <div className="text-center py-12">
@@ -205,12 +234,16 @@ export const TeamChatPage: React.FC = () => {
                           isOwnMessage
                             ? 'bg-brand-primary text-white rounded-br-md'
                             : 'bg-white border border-gray-200 rounded-bl-md'
-                        }`}
+                        } ${message.pending ? 'opacity-60' : ''}`}
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
                       </div>
-                      <p className={`text-xs text-gray-400 mt-1 ${isOwnMessage ? 'text-right' : ''}`}>
-                        {formatTime(message.timestamp)}
+                      <p className={`text-xs mt-1 ${isOwnMessage ? 'text-right' : ''} ${message.failed ? 'text-red-500' : 'text-gray-400'}`}>
+                        {message.failed
+                          ? 'Not delivered'
+                          : message.pending
+                          ? 'Sending…'
+                          : formatTime(message.timestamp)}
                       </p>
                     </div>
                   </div>
@@ -253,11 +286,10 @@ export const TeamChatPage: React.FC = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
-                disabled={!isConnected}
               />
               <button
                 onClick={handleSend}
-                disabled={!messageText.trim() || !isConnected}
+                disabled={!messageText.trim()}
                 className="w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

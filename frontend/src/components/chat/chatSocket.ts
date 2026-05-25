@@ -24,7 +24,16 @@ export function connectChat(token: string): Socket {
   socket = io(CHAT_SOCKET_URL, {
     transports: ['websocket', 'polling'],
     autoConnect: true,
-    forceNew: true
+    forceNew: true,
+    // Recover automatically from dropped / slow connections. Without these a
+    // single network blip can leave the socket permanently disconnected and
+    // PAR-29 (real-time receipt) silently stops working.
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,      // initial backoff (ms)
+    reconnectionDelayMax: 5000,   // max backoff (ms)
+    randomizationFactor: 0.5,     // jitter so reconnects don't thundering-herd
+    timeout: 20000
   });
 
   socket.on('connect', () => {
@@ -83,13 +92,18 @@ export const chatSocket = {
     }
   },
 
-  /** Send a message to a conversation */
-  sendMessage: (conversationId: number, text: string) => {
+  /**
+   * Send a message to a conversation.
+   * Returns true if the emit was dispatched, false if the socket is not
+   * connected (so callers can flag the optimistic message accordingly).
+   */
+  sendMessage: (conversationId: number, text: string): boolean => {
     if (socket?.connected) {
       socket.emit('sendMessage', { conversationId, text });
-    } else {
-      console.error('Cannot send message - socket not connected');
+      return true;
     }
+    console.error('Cannot send message - socket not connected');
+    return false;
   },
 
   /** Send typing indicator */

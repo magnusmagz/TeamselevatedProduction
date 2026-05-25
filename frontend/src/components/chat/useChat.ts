@@ -64,6 +64,12 @@ export function useChat(): UseChatReturn {
       setChatUser(data.user);
       // Load conversations after auth
       chatSocket.loadConversations();
+      // After a reconnect (auth re-runs on every connect), rejoin the room of
+      // the conversation the user is currently viewing so real-time receipt
+      // (PAR-29) survives a dropped/slow connection.
+      if (activeConvRef.current) {
+        chatSocket.joinConversation(activeConvRef.current.id);
+      }
     };
 
     const handleAuthError = (error: { message: string }) => {
@@ -93,8 +99,27 @@ export function useChat(): UseChatReturn {
     const handleNewMessage = (msg: ChatMessage) => {
       if (activeConvRef.current?.id === msg.conversationId) {
         setMessages(prev => {
-          const exists = prev.some(m => m.id === msg.id);
-          if (exists) return prev;
+          // Already have this server message by id -> nothing to do.
+          if (prev.some(m => m.id === msg.id && !m.pending)) return prev;
+
+          // Reconcile an optimistic (pending) message that this echo confirms.
+          // The server does NOT round-trip a client temp id, so we match on
+          // sender + text within the same conversation and take the FIRST
+          // still-pending candidate. This replaces the temp message with the
+          // authoritative server copy (real id / timestamp) instead of doubling.
+          const tempIdx = prev.findIndex(
+            m =>
+              m.pending &&
+              m.senderId === msg.senderId &&
+              m.conversationId === msg.conversationId &&
+              m.text === msg.text
+          );
+          if (tempIdx !== -1) {
+            const next = [...prev];
+            next[tempIdx] = msg;
+            return next;
+          }
+
           return [...prev, msg];
         });
       }
@@ -201,11 +226,39 @@ export function useChat(): UseChatReturn {
     }
   }, [activeConversation]);
 
-  // Send a message to the active conversation
+  // Send a message to the active conversation.
+  // PAR-28: optimistically append the message to local state immediately with a
+  // temporary id so it shows up without waiting for the server round-trip, THEN
+  // emit. The server echo (receiveMessage) reconciles the temp message by
+  // sender + text (the server does not echo our temp id) so it is not doubled.
   const sendMessage = useCallback((text: string) => {
-    if (!text.trim() || !activeConversation || !isConnected) return;
-    chatSocket.sendMessage(activeConversation.id, text.trim());
-  }, [activeConversation, isConnected]);
+    const trimmed = text.trim();
+    if (!trimmed || !activeConversation || !user) return;
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
+      conversationId: activeConversation.id,
+      text: trimmed,
+      sender: user.name || user.email,
+      senderId: user.id,
+      timestamp: new Date().toISOString(),
+      role: chatUser?.role || activeContext?.role,
+      pending: true,
+    };
+
+    // Append immediately so the sender sees it without a refresh.
+    setMessages(prev => [...prev, optimistic]);
+
+    // Emit; if the socket is offline the emit is not dispatched, so flag the
+    // optimistic message as failed rather than leaving it stuck "pending".
+    const dispatched = chatSocket.sendMessage(activeConversation.id, trimmed);
+    if (!dispatched) {
+      setMessages(prev =>
+        prev.map(m => (m.id === tempId ? { ...m, pending: false, failed: true } : m))
+      );
+    }
+  }, [activeConversation, user, chatUser, activeContext]);
 
   // Create a new conversation
   const createConversation = useCallback((participantIds: number[]) => {

@@ -24,6 +24,10 @@ export interface ChatMessage {
   timestamp: string;
   time?: string;
   role?: string;
+  /** Set on optimistically-appended messages until the server echo reconciles them. */
+  pending?: boolean;
+  /** Set when an optimistic send could not be dispatched (socket offline). */
+  failed?: boolean;
 }
 
 export interface TypingUser {
