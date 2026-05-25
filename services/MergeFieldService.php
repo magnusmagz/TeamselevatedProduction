@@ -41,7 +41,15 @@ class MergeFieldService {
             $replacements = array_merge($replacements, $data);
         }
         if (preg_match('/\{\{team_/', $text)) {
-            $data = $this->loadTeamData($context['team_id'] ?? null);
+            // Prefer an explicit team_id in the context; otherwise derive the team
+            // from the event being previewed/sent (events.team_id is the canonical
+            // event -> team link). This lets {{team_name}} resolve even when the
+            // caller only supplies an event_id.
+            $teamId = $context['team_id'] ?? null;
+            if (!$teamId && !empty($context['event_id'])) {
+                $teamId = $this->resolveEventTeamId($context['event_id']);
+            }
+            $data = $this->loadTeamData($teamId);
             $replacements = array_merge($replacements, $data);
         }
         if (preg_match('/\{\{club_/', $text)) {
@@ -276,6 +284,31 @@ class MergeFieldService {
         }
 
         return implode(', ', $parts);
+    }
+
+    /**
+     * Resolve the team_id that an event belongs to.
+     * events.team_id is a NOT NULL FK to teams(id) — the canonical event->team link.
+     * Returns null if the event has no team or doesn't exist.
+     */
+    private function resolveEventTeamId($eventId) {
+        if (!$eventId) return null;
+        $key = "event_team_$eventId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        $teamId = null;
+        try {
+            $stmt = $this->pdo->prepare("SELECT team_id FROM events WHERE id = ?");
+            $stmt->execute([$eventId]);
+            $val = $stmt->fetchColumn();
+            $teamId = ($val !== false && $val !== null) ? (int)$val : null;
+        } catch (\PDOException $e) {
+            // events table may lack team_id in some environments; degrade gracefully
+            $teamId = null;
+        }
+
+        $this->cache[$key] = $teamId;
+        return $teamId;
     }
 
     private function loadTeamData($teamId) {

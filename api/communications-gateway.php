@@ -125,6 +125,16 @@ try {
             handleLogDetail($auth, $connection);
             break;
 
+        // ─── PREVIEW EMAIL ───────────────────────
+        case 'preview-email':
+            if ($method !== 'POST' && $method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+                exit();
+            }
+            handlePreviewEmail($auth, $connection, $mergeFieldService);
+            break;
+
         default:
             http_response_code(404);
             echo json_encode(['error' => 'Unknown action: ' . ($action ?? 'none')]);
@@ -906,6 +916,87 @@ function handleLogDetail($auth, $connection) {
             'events' => $events,
             'links'  => $links,
         ]
+    ]);
+}
+
+
+/**
+ * preview-email — Resolve merge variables in a subject + HTML body for preview.
+ *
+ * Accepts JSON: { template_id?, subject, body_html, event_id?, team_id?, club_profile_id }
+ * Returns: { success:true, preview_subject, preview_html }
+ *
+ * Resolution context carries event_id and team_id (when provided) so that
+ * event_* and team_name merge fields resolve. When an event is supplied without
+ * an explicit team_id, MergeFieldService derives the event's team automatically.
+ */
+function handlePreviewEmail($auth, $connection, $mergeFieldService) {
+    // Accept body params on POST; allow query params as a fallback for GET.
+    $data = [];
+    if (($_SERVER['REQUEST_METHOD'] ?? 'POST') === 'POST') {
+        $raw = file_get_contents('php://input');
+        $data = $raw ? (json_decode($raw, true) ?: []) : [];
+    }
+    // Merge in query params (query string never overrides an explicit body value).
+    $data = array_merge($_GET, $data);
+
+    $clubProfileId = $data['club_profile_id'] ?? null;
+    $subject       = $data['subject'] ?? '';
+    $bodyHtml      = $data['body_html'] ?? '';
+    $templateId    = $data['template_id'] ?? null;
+    $eventId       = $data['event_id'] ?? null;
+    $teamId        = $data['team_id'] ?? null;
+
+    if (!$clubProfileId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'club_profile_id is required']);
+        return;
+    }
+
+    // Enforce club access (same pattern as the other authenticated actions).
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Access denied to this club']);
+        return;
+    }
+
+    // If a template_id was supplied but no inline body/subject, pull them from the
+    // stored template so a preview works straight off a template selection.
+    if ($templateId && ($subject === '' && $bodyHtml === '')) {
+        $tplStmt = $connection->prepare(
+            "SELECT subject, html_output, body_text, club_profile_id, scope
+             FROM email_templates WHERE id = ?"
+        );
+        $tplStmt->execute([$templateId]);
+        $tpl = $tplStmt->fetch(PDO::FETCH_ASSOC);
+        if ($tpl) {
+            // Only allow club templates the caller can access (platform templates are global).
+            if (($tpl['scope'] ?? null) !== 'platform' && !$auth->canAccessClub($tpl['club_profile_id'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied to this template']);
+                return;
+            }
+            $subject  = $subject !== '' ? $subject : ($tpl['subject'] ?? '');
+            $bodyHtml = $bodyHtml !== '' ? $bodyHtml : ($tpl['html_output'] ?? $tpl['body_text'] ?? '');
+        }
+    }
+
+    // Build resolution context. team_id is carried so loadTeamData runs; when only
+    // an event is provided, MergeFieldService derives the event's team.
+    $context = [
+        'club_profile_id' => $clubProfileId,
+        'user_id'         => $auth->getUserId(),
+    ];
+    if ($eventId) { $context['event_id'] = $eventId; }
+    if ($teamId)  { $context['team_id']  = $teamId; }
+
+    $previewSubject = $mergeFieldService->resolveVariables((string)$subject, $context);
+    $previewHtml    = $mergeFieldService->resolveVariables((string)$bodyHtml, $context);
+
+    echo json_encode([
+        'success'         => true,
+        'preview_subject' => $previewSubject,
+        'preview_html'    => $previewHtml,
     ]);
 }
 

@@ -47,6 +47,9 @@ const TemplateEditor: React.FC = () => {
   const editorReady = useRef(false);
   const [editorIsReady, setEditorIsReady] = useState(false);
   const hasUnsavedChanges = useRef(false);
+  // Tracks whether the saved design has already been loaded into the editor,
+  // so we never load it twice regardless of fetch/ready ordering (CA-53).
+  const designLoaded = useRef(false);
 
   const isNew = !id || id === 'new';
   const clubProfileId = activeContext?.scope_id;
@@ -75,6 +78,13 @@ const TemplateEditor: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showTeamVisibility, setShowTeamVisibility] = useState(false);
+  const [showMergeTags, setShowMergeTags] = useState(false);
+  const [mergeTagNotice, setMergeTagNotice] = useState<string | null>(null);
+
+  // Tracks the subject <input> and the caret position within it, so a merge tag
+  // can be inserted at the cursor when the subject field is the active target.
+  const subjectInputRef = useRef<HTMLInputElement | null>(null);
+  const subjectCaretRef = useRef<number | null>(null);
 
   // Fetch template data if editing
   useEffect(() => {
@@ -111,6 +121,14 @@ const TemplateEditor: React.FC = () => {
     }
   }, [successMessage]);
 
+  // Clear merge-tag insert notice after delay
+  useEffect(() => {
+    if (mergeTagNotice) {
+      const timer = setTimeout(() => setMergeTagNotice(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [mergeTagNotice]);
+
   const fetchTemplate = async (templateId: number) => {
     setLoading(true);
     try {
@@ -136,8 +154,10 @@ const TemplateEditor: React.FC = () => {
 
       if (template.design_json) {
         const brandedDesign = applyBrandColors(template.design_json);
-        setExistingDesign(brandedDesign);
+        // New design arriving (e.g. switching templates) — allow it to load.
+        designLoaded.current = false;
         existingDesignRef.current = brandedDesign;
+        setExistingDesign(brandedDesign);
       }
     } catch (err) {
       console.error('Error fetching template:', err);
@@ -252,6 +272,61 @@ const TemplateEditor: React.FC = () => {
     return editorRef.current?.editor || editorRef.current;
   };
 
+  // Insert a merge tag (e.g. "{{team_name}}") at the cursor.
+  //  - If the subject input is the active target, splice it into the subject at
+  //    the caret position.
+  //  - Otherwise insert into the Unlayer body via the editor API when available,
+  //    falling back to copying the tag to the clipboard so it can be pasted.
+  const insertMergeTag = useCallback((tagValue: string) => {
+    // Subject field path: insert at the tracked caret position.
+    if (subjectInputRef.current && document.activeElement === subjectInputRef.current) {
+      const input = subjectInputRef.current;
+      const pos = subjectCaretRef.current ?? input.value.length;
+      const next = subject.slice(0, pos) + tagValue + subject.slice(pos);
+      setSubject(next);
+      hasUnsavedChanges.current = true;
+      // Restore focus and place caret after the inserted tag.
+      requestAnimationFrame(() => {
+        input.focus();
+        const caret = pos + tagValue.length;
+        input.setSelectionRange(caret, caret);
+        subjectCaretRef.current = caret;
+      });
+      setMergeTagNotice(`Inserted ${tagValue} into the subject line.`);
+      return;
+    }
+
+    // Body path: try the Unlayer editor's insertion API. react-email-editor 1.x
+    // exposes the underlying Unlayer instance; different builds expose the
+    // insert helper under slightly different names, so probe for any of them.
+    const editor: any = getEditor();
+    const tryInsert =
+      editor &&
+      (editor.insertMergeTag ||
+        editor.insertTag ||
+        (editor.editor && (editor.editor.insertMergeTag || editor.editor.insertTag)));
+
+    if (typeof tryInsert === 'function') {
+      try {
+        tryInsert.call(editor.insertMergeTag ? editor : editor.editor || editor, tagValue);
+        hasUnsavedChanges.current = true;
+        setMergeTagNotice(`Inserted ${tagValue} at the cursor.`);
+        return;
+      } catch (err) {
+        // fall through to clipboard fallback
+      }
+    }
+
+    // Fallback: copy to clipboard. The tag is also available in the editor's
+    // built-in "Merge Tags" toolbar dropdown (registered via the mergeTags option).
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(tagValue).catch(() => {});
+    }
+    setMergeTagNotice(
+      `${tagValue} copied — click into a text block and paste, or pick it from the editor's Merge Tags menu.`
+    );
+  }, [subject]);
+
   // Replace placeholder colors in design JSON with the club's actual brand colors
   // Platform templates use these placeholder hex values:
   //   #1A3C5E → brand primary
@@ -265,6 +340,15 @@ const TemplateEditor: React.FC = () => {
       .replace(/#C9A96E/gi, colors.accent);
     return JSON.parse(branded);
   };
+
+  const loadDesignIntoEditor = useCallback((design: object) => {
+    const editor = getEditor();
+    if (!editor || !editorReady.current) return;
+    editor.loadDesign(design as any);
+    designLoaded.current = true;
+    // Loading a saved design is not a user edit.
+    hasUnsavedChanges.current = false;
+  }, []);
 
   const onEditorReady: EmailEditorProps['onReady'] = () => {
     editorReady.current = true;
@@ -287,17 +371,22 @@ const TemplateEditor: React.FC = () => {
         hasUnsavedChanges.current = true;
       });
     }
+
+    // If the template fetch already resolved before the editor became ready,
+    // load the saved design now (handles the "ready arrives last" ordering).
+    if (!designLoaded.current && existingDesignRef.current) {
+      loadDesignIntoEditor(existingDesignRef.current);
+    }
   };
 
-  // Load design into editor when both design data and editor are ready
+  // If the editor was ready before the template fetch resolved, load the design
+  // once it arrives (handles the "design arrives last" ordering). The
+  // designLoaded ref guarantees we never double-load across either path (CA-53).
   useEffect(() => {
-    if (existingDesign && editorIsReady) {
-      const editor = getEditor();
-      if (editor) {
-        editor.loadDesign(existingDesign as any);
-      }
+    if (existingDesign && editorIsReady && !designLoaded.current) {
+      loadDesignIntoEditor(existingDesign);
     }
-  }, [existingDesign, editorIsReady]);
+  }, [existingDesign, editorIsReady, loadDesignIntoEditor]);
 
   const handleSave = () => {
     if (!templateName.trim()) {
@@ -449,13 +538,19 @@ const TemplateEditor: React.FC = () => {
             className="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
           />
           <input
+            ref={subjectInputRef}
             type="text"
             placeholder="Subject line..."
             value={subject}
             onChange={(e) => {
               setSubject(e.target.value);
+              subjectCaretRef.current = e.target.selectionStart;
               hasUnsavedChanges.current = true;
             }}
+            onFocus={(e) => { subjectInputRef.current = e.currentTarget; subjectCaretRef.current = e.currentTarget.selectionStart; }}
+            onSelect={(e) => { subjectCaretRef.current = (e.target as HTMLInputElement).selectionStart; }}
+            onClick={(e) => { subjectCaretRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+            onKeyUp={(e) => { subjectCaretRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
             className="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none hidden lg:block"
           />
         </div>
@@ -494,6 +589,20 @@ const TemplateEditor: React.FC = () => {
             )}
           </button>
           <button
+            onClick={() => setShowMergeTags(!showMergeTags)}
+            className={`px-4 py-2 border rounded-md text-sm uppercase font-semibold transition-colors ${
+              showMergeTags
+                ? 'border-brand-secondary text-brand-primary bg-brand-primary bg-opacity-5'
+                : 'border-brand-secondary text-brand-primary hover:bg-gray-50'
+            }`}
+            title="Insert a merge tag at the cursor"
+          >
+            <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Tags
+          </button>
+          <button
             onClick={() => {
               setJsonMode('import');
               setJsonInput('');
@@ -528,8 +637,13 @@ const TemplateEditor: React.FC = () => {
           value={subject}
           onChange={(e) => {
             setSubject(e.target.value);
+            subjectCaretRef.current = e.target.selectionStart;
             hasUnsavedChanges.current = true;
           }}
+          onFocus={(e) => { subjectInputRef.current = e.currentTarget; subjectCaretRef.current = e.currentTarget.selectionStart; }}
+          onSelect={(e) => { subjectCaretRef.current = (e.target as HTMLInputElement).selectionStart; }}
+          onClick={(e) => { subjectCaretRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+          onKeyUp={(e) => { subjectCaretRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
           className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
         />
       </div>
@@ -664,6 +778,48 @@ const TemplateEditor: React.FC = () => {
                 <span className="text-xs text-gray-700">Active</span>
               </label>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Merge Tags Panel (CA-52) */}
+      {showMergeTags && (
+        <div className="flex-shrink-0 mx-4 mt-2 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-semibold text-gray-900">Insert Merge Tag</h3>
+            <button
+              onClick={() => setShowMergeTags(false)}
+              className="text-gray-400 hover:text-gray-600"
+              title="Close"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">
+            Click into the subject line or a text block in the editor, then choose a tag to insert it at the cursor.
+          </p>
+          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+            {mergeFields.length === 0 ? (
+              <p className="text-xs text-gray-400">No merge tags available.</p>
+            ) : (
+              mergeFields.map((field) => (
+                <button
+                  key={field.key}
+                  type="button"
+                  onClick={() => insertMergeTag(field.value)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm hover:border-brand-primary hover:bg-brand-primary hover:bg-opacity-5 hover:text-brand-primary transition-colors"
+                  title={`Insert ${field.value}`}
+                >
+                  <span className="font-medium">{field.name}</span>
+                  <span className="text-xs text-gray-400 font-mono">{field.value}</span>
+                </button>
+              ))
+            )}
+          </div>
+          {mergeTagNotice && (
+            <p className="mt-3 text-xs text-brand-primary">{mergeTagNotice}</p>
           )}
         </div>
       )}

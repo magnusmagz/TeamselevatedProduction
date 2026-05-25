@@ -67,6 +67,39 @@ try {
                 $t['team_visibility'] = json_decode($t['team_visibility'], true) ?: [];
                 $t['is_active'] = (bool)$t['is_active'];
             }
+            unset($t);
+
+            // Team-visibility scoping for non-admins (CA-55).
+            // A non-admin (coach) sees a template only when its team_visibility is
+            // empty (= visible to all teams) OR intersects the teams they coach.
+            // Admins / super-admins are unaffected. Their own personal templates
+            // remain visible regardless of team_visibility.
+            if (!$isAdmin) {
+                $coachTeamIds = getCoachTeamIdsForTemplates($db, $userId, $clubProfileId);
+                $coachTeamSet = array_fill_keys(array_map('intval', $coachTeamIds), true);
+
+                $templates = array_values(array_filter($templates, function ($t) use ($coachTeamSet, $userId) {
+                    $vis = $t['team_visibility'] ?? [];
+
+                    // Empty / "all teams" visibility — always visible.
+                    if (empty($vis)) {
+                        return true;
+                    }
+
+                    // The coach's own templates are always visible to them.
+                    if (isset($t['created_by']) && (int)$t['created_by'] === (int)$userId) {
+                        return true;
+                    }
+
+                    // Otherwise require an intersection with the coach's teams.
+                    foreach ($vis as $teamId) {
+                        if (isset($coachTeamSet[(int)$teamId])) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }));
+            }
 
             echo json_encode(['success' => true, 'templates' => $templates]);
             break;
@@ -421,4 +454,29 @@ function requireClubAccess($auth, $clubId) {
     if (!$auth->canAccessClub($clubId)) {
         forbidden();
     }
+}
+
+/**
+ * Team IDs a coach has access to within a club (CA-55 visibility filtering).
+ *
+ * Canonical coach-teams definition (mirrors AthleteScope::coachTeamIdsForUser and
+ * communications-gateway::getCoachTeamIds): teams.primary_coach_id = $userId OR an
+ * active team_members row with role assistant_coach / team_manager.
+ *
+ * @return int[] distinct team IDs
+ */
+function getCoachTeamIdsForTemplates($db, $userId, $clubProfileId) {
+    $stmt = $db->prepare("
+        SELECT DISTINCT t.id
+        FROM teams t
+        LEFT JOIN team_members tm
+            ON tm.team_id = t.id
+            AND tm.user_id = ?
+            AND tm.role IN ('assistant_coach','team_manager')
+            AND tm.status = 'active'
+        WHERE (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+          AND t.club_id = ?
+    ");
+    $stmt->execute([$userId, $userId, $clubProfileId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
