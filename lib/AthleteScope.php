@@ -56,13 +56,26 @@ class AthleteScope {
     }
 
     /**
-     * Distinct club IDs an athlete belongs to (via their team memberships).
+     * Distinct club IDs an athlete belongs to.
+     *
+     * An athlete's club is derived from BOTH:
+     *   - their direct athletes.club_id (set on creation/registration — covers
+     *     club athletes who are not yet assigned to any team), and
+     *   - their team memberships (team_members.athlete_id -> teams.club_id).
+     *
+     * Relying on team membership alone hid athletes who belong to a club but
+     * have no team yet from the People -> Athletes list and detail view for the
+     * club admin (CA-18). Including the direct club_id closes that gap while
+     * keeping the team-derived path for athletes whose club_id was never set.
      *
      * @param PDO $pdo
      * @param int $athleteId
      * @return int[] distinct club IDs
      */
     public static function athleteClubIds(PDO $pdo, int $athleteId): array {
+        $ids = [];
+
+        // Team-derived clubs.
         $sql = "
             SELECT DISTINCT t.club_id
             FROM team_members tm
@@ -72,7 +85,23 @@ class AthleteScope {
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':aid' => $athleteId]);
-        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $clubId) {
+            $ids[(int) $clubId] = true;
+        }
+
+        // Direct athletes.club_id (guarded: older fixtures may lack the column).
+        try {
+            $stmt = $pdo->prepare("SELECT club_id FROM athletes WHERE id = :aid AND club_id IS NOT NULL");
+            $stmt->execute([':aid' => $athleteId]);
+            $direct = $stmt->fetchColumn();
+            if ($direct !== false && $direct !== null) {
+                $ids[(int) $direct] = true;
+            }
+        } catch (\PDOException $e) {
+            // athletes.club_id not present in this schema — ignore.
+        }
+
+        return array_keys($ids);
     }
 
     /**
@@ -233,6 +262,8 @@ class AthleteScope {
         $adminClubIds = self::clubAdminClubIds($auth);
         if (!empty($adminClubIds)) {
             $ph = implode(',', array_fill(0, count($adminClubIds), '?'));
+
+            // (a) Athletes on a team in the admin's club(s).
             $sql = "
                 SELECT DISTINCT tm.athlete_id
                 FROM team_members tm
@@ -244,6 +275,21 @@ class AthleteScope {
             $stmt->execute(array_values($adminClubIds));
             foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
                 $ids[(int) $aid] = true;
+            }
+
+            // (b) Athletes directly linked to the admin's club(s) via
+            //     athletes.club_id — covers club athletes with no team yet, so
+            //     the People -> Athletes list shows the full club roster
+            //     (CA-18). Guarded for fixtures that lack the column.
+            try {
+                $sql = "SELECT id FROM athletes WHERE club_id IN ($ph)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute(array_values($adminClubIds));
+                foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
+                    $ids[(int) $aid] = true;
+                }
+            } catch (\PDOException $e) {
+                // athletes.club_id not present in this schema — ignore.
             }
         }
 

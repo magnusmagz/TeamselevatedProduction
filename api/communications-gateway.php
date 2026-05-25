@@ -649,14 +649,27 @@ function handleContactHistory($auth, $connection) {
     }
 
     $where = implode(' AND ', $whereClauses);
+    // Column set must match what CommunicationHistory.tsx renders: it reads the
+    // full body (HTML for emails / text for SMS), sender first+last name, open
+    // and click counts, and recipient identity. Returning a reduced/renamed set
+    // (body_preview, sender_name only) left the contact's Communications tab
+    // showing blank sender/body and no open/click metrics (CA-25).
     $sql = "
         SELECT
             cl.id,
             cl.channel,
+            cl.recipient_type,
+            cl.recipient_name,
+            cl.recipient_email,
+            cl.recipient_phone,
             cl.subject,
-            SUBSTRING(cl.body, 1, 100) AS body_preview,
+            cl.body,
             cl.status,
+            u.first_name AS sender_first_name,
+            u.last_name  AS sender_last_name,
             CONCAT(u.first_name, ' ', u.last_name) AS sender_name,
+            COALESCE(cl.open_count, 0)  AS open_count,
+            COALESCE(cl.click_count, 0) AS click_count,
             cl.sent_at,
             cl.delivered_at,
             cl.opened_at,
@@ -674,6 +687,7 @@ function handleContactHistory($auth, $connection) {
     echo json_encode([
         'success' => true,
         'data'    => $rows,
+        'entries' => $rows,
     ]);
 }
 

@@ -7,7 +7,8 @@ import SmsCompose from './communications/SmsCompose';
 import AthleteForm from './AthleteForm';
 import PlayerCard from './PlayerCard';
 import AthletePhotoUpload from './AthletePhotoUpload';
-import CoachNotes from './CoachNotes';
+import DocumentManager from './DocumentManager';
+import { AthletePaymentsDashboard } from '../pages/AthletePaymentsDashboard';
 
 interface Guardian {
   id: number;
@@ -99,7 +100,7 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [medical, setMedical] = useState<MedicalInfo | null>(null);
   const [selectedTeamIndex, setSelectedTeamIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [showEmailCompose, setShowEmailCompose] = useState(false);
   const [showSmsCompose, setShowSmsCompose] = useState(false);
@@ -641,11 +642,12 @@ const AthleteProfileEnhanced: React.FC = () => {
       <div className="border border-brand-secondary rounded-md mb-6">
         <div className="flex border-b border-brand-secondary">
           {[
-            { id: 'profile', label: 'Extended Profile' },
-            { id: 'medical', label: 'Medical Info' },
+            { id: 'overview', label: 'Overview' },
+            { id: 'teams', label: 'Teams' },
+            { id: 'medical', label: 'Medical' },
             { id: 'documents', label: 'Documents' },
             { id: 'communications', label: 'Communications' },
-            { id: 'performance', label: 'Performance' }
+            { id: 'payments', label: 'Payments' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -662,13 +664,99 @@ const AthleteProfileEnhanced: React.FC = () => {
         </div>
 
         <div className="p-6">
-          {activeTab === 'profile' && (
-            <div className="text-center py-8">
-              <div className="text-gray-600">Extended profile information</div>
-              <div className="text-sm text-gray-500 mt-2">
-                Additional fields like dominant foot, years experience, etc. can be added here
+          {activeTab === 'overview' && (
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <div className="text-sm font-bold uppercase tracking-wide mb-3">Player Details</div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">Full Name</span>
+                    <span>{athlete.first_name} {athlete.last_name}</span>
+                  </div>
+                  {athlete.preferred_name && (
+                    <div className="flex justify-between border-b border-gray-200 py-1">
+                      <span className="font-medium">Preferred Name</span>
+                      <span>{athlete.preferred_name}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">Birth Date</span>
+                    <span>{new Date(athlete.date_of_birth).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">Gender</span>
+                    <span>{athlete.gender}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">School</span>
+                    <span>{athlete.school_name || 'Not specified'}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">Grade</span>
+                    <span>{athlete.grade_level || 'Not specified'}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="font-medium">Email</span>
+                    <span>{athlete.email}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-bold uppercase tracking-wide mb-3">Guardians</div>
+                {athlete.guardians.length === 0 ? (
+                  <div className="text-sm text-gray-500">No guardians on file</div>
+                ) : (
+                  <div className="space-y-2">
+                    {athlete.guardians.map((g) => (
+                      <div key={g.id} className="border border-gray-300 p-3 text-sm">
+                        <div className="font-medium">
+                          {g.first_name} {g.last_name}
+                          <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100">
+                            {g.is_primary_contact ? 'PRIMARY' : (g.relationship_type || 'GUARDIAN').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="text-gray-600">{g.email}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'teams' && (
+            teams.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">
+                This athlete is not assigned to any teams yet.
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {teams.map((team, index) => (
+                  <div key={team.id} className="border border-brand-primary p-4">
+                    <div className="font-bold mb-3 flex items-center justify-between">
+                      <span>{team.team_name}</span>
+                      {index === 0 && <span className="px-2 py-1 text-xs bg-brand-primary text-white">PRIMARY</span>}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Jersey Number:</span>
+                        <span>{team.jersey_number || 'TBD'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Position:</span>
+                        <span>{team.position || team.primary_position || 'TBD'}</span>
+                      </div>
+                      {team.created_at && (
+                        <div className="flex justify-between">
+                          <span>Joined:</span>
+                          <span>{new Date(team.created_at).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           {activeTab === 'medical' && medical?.exists && (
@@ -776,13 +864,11 @@ const AthleteProfileEnhanced: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'documents' && (
-            <div className="text-center py-8">
-              <div className="text-gray-600">Document management</div>
-              <div className="text-sm text-gray-500 mt-2">
-                Birth certificate, medical release, registration forms, etc.
-              </div>
-            </div>
+          {activeTab === 'documents' && athlete && (
+            <DocumentManager
+              athleteId={String(athlete.id)}
+              athleteName={`${athlete.first_name} ${athlete.last_name}`}
+            />
           )}
 
           {activeTab === 'communications' && athlete && (
@@ -793,8 +879,8 @@ const AthleteProfileEnhanced: React.FC = () => {
             />
           )}
 
-          {activeTab === 'performance' && athlete && (
-            <CoachNotes athleteId={athlete.id} clubProfileId={currentClubId || 0} />
+          {activeTab === 'payments' && athlete && (
+            <AthletePaymentsDashboard />
           )}
         </div>
       </div>

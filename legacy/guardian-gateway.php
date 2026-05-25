@@ -96,9 +96,17 @@ try {
             $pdo->beginTransaction();
 
             try {
-                // Check if guardian already exists by email
-                $stmt = $pdo->prepare("SELECT id FROM guardians WHERE email = ?");
-                $stmt->execute([$email]);
+                // Find an existing guardian by the FULL identity (email + first +
+                // last), NOT email alone. Households share one email across two
+                // people (e.g. John & Jane at thejones@gmail.com); matching on
+                // email only would silently link the wrong person and merge two
+                // guardians into one. This mirrors api/athletes.php and
+                // AthleteController::createOrFindGuardian() so the per-person
+                // guardian / shared-email model is preserved.
+                $stmt = $pdo->prepare(
+                    "SELECT id FROM guardians WHERE email = ? AND first_name = ? AND last_name = ?"
+                );
+                $stmt->execute([$email, $first_name, $last_name]);
                 $existingGuardian = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existingGuardian) {
@@ -125,20 +133,54 @@ try {
                 $canPickup = (!isset($input['can_pickup']) || $input['can_pickup'] === true || $input['can_pickup'] === 'true' || $input['can_pickup'] === 1) ? 'true' : 'false';
                 $emergencyContact = !empty($input['emergency_contact']) && $input['emergency_contact'] !== 'false' ? 'true' : 'false';
 
-                $stmt = $pdo->prepare("
-                    INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship,
-                        is_primary, can_pickup, emergency_contact
-                    ) VALUES (?, ?, ?, ?::boolean, ?::boolean, ?::boolean)
-                ");
-                $stmt->execute([
-                    $athleteId,
-                    $guardianId,
-                    $relationship_type,
-                    $isPrimary,
-                    $canPickup,
-                    $emergencyContact
-                ]);
+                // Don't create a duplicate link if this guardian is already
+                // attached to the athlete; update the relationship instead.
+                $existingLink = $pdo->prepare(
+                    "SELECT id FROM athlete_guardians WHERE athlete_id = ? AND guardian_id = ?"
+                );
+                $existingLink->execute([$athleteId, $guardianId]);
+                $linkRow = $existingLink->fetch(PDO::FETCH_ASSOC);
+
+                // If this new link is primary, demote any other primary guardian
+                // on this athlete so exactly one stays primary (mirrors the PUT
+                // path). Without this, adding a second "primary contact" left two.
+                if ($isPrimary === 'true') {
+                    $demote = $pdo->prepare(
+                        "UPDATE athlete_guardians SET is_primary = false WHERE athlete_id = ? AND is_primary = true"
+                    );
+                    $demote->execute([$athleteId]);
+                }
+
+                if ($linkRow) {
+                    $stmt = $pdo->prepare("
+                        UPDATE athlete_guardians
+                        SET relationship = ?, is_primary = ?::boolean,
+                            can_pickup = ?::boolean, emergency_contact = ?::boolean
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([
+                        $relationship_type,
+                        $isPrimary,
+                        $canPickup,
+                        $emergencyContact,
+                        $linkRow['id']
+                    ]);
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO athlete_guardians (
+                            athlete_id, guardian_id, relationship,
+                            is_primary, can_pickup, emergency_contact
+                        ) VALUES (?, ?, ?, ?::boolean, ?::boolean, ?::boolean)
+                    ");
+                    $stmt->execute([
+                        $athleteId,
+                        $guardianId,
+                        $relationship_type,
+                        $isPrimary,
+                        $canPickup,
+                        $emergencyContact
+                    ]);
+                }
 
                 $pdo->commit();
                 echo json_encode(['success' => true, 'message' => 'Guardian added successfully']);
