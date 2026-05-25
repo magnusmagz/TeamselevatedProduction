@@ -37,6 +37,18 @@ interface Team {
   name: string;
 }
 
+interface TeamCompliance {
+  team_id: number;
+  team_name: string;
+  age_group: string | null;
+  division: string | null;
+  volunteer_count: number;
+  cleared: number;
+  pending_bg: number;
+  expired_bg: number;
+  compliance_rate: number;
+}
+
 interface UserSearchResult {
   id: number;
   first_name: string;
@@ -73,6 +85,7 @@ export const VolunteerManagement: React.FC = () => {
   // Data
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [compliance, setCompliance] = useState<ComplianceSummary | null>(null);
+  const [teamCompliance, setTeamCompliance] = useState<TeamCompliance[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -169,6 +182,9 @@ export const VolunteerManagement: React.FC = () => {
       );
       const data = await res.json();
       setCompliance(data.summary || null);
+      // Per-team compliance breakdown (was previously fetched and discarded —
+      // the dashboard rendered totals but never the per-team table).
+      setTeamCompliance(Array.isArray(data.team_breakdown) ? data.team_breakdown : []);
     } catch (err) {
       console.error('Error fetching compliance:', err);
     }
@@ -409,6 +425,50 @@ export const VolunteerManagement: React.FC = () => {
             <p className="text-3xl font-bold text-red-700 mt-1">
               {compliance.expired + compliance.pending}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Per-Team Compliance */}
+      {isClubAdmin && teamCompliance.length > 0 && (
+        <div className="bg-white rounded-lg border border-brand-secondary overflow-hidden mb-6">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-brand-primary uppercase tracking-wide">
+              Per-Team Compliance
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Volunteers</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Cleared</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Pending</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Expired</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Compliance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {teamCompliance.map((tc) => {
+                  const rate = Number(tc.compliance_rate);
+                  const rateClass =
+                    rate >= 100 ? 'text-green-700' : rate >= 75 ? 'text-amber-600' : 'text-red-600';
+                  return (
+                    <tr key={tc.team_id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-brand-primary whitespace-nowrap">
+                        {tc.team_name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{tc.volunteer_count}</td>
+                      <td className="px-4 py-3 text-sm text-green-700">{tc.cleared}</td>
+                      <td className="px-4 py-3 text-sm text-amber-600">{tc.pending_bg}</td>
+                      <td className="px-4 py-3 text-sm text-red-600">{tc.expired_bg}</td>
+                      <td className={`px-4 py-3 text-sm font-semibold ${rateClass}`}>{rate}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
