@@ -4,7 +4,11 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 const DISMISS_KEY = 'pwa-install-dismissed';
 
 export const InstallPrompt: React.FC = () => {
-  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
+  // All platform detection (iOS / Android / installed) comes from the hook so
+  // the hook is the single source of truth — the component no longer reaches
+  // into navigator / matchMedia itself (which previously diverged from the hook
+  // and made the component fragile in non-browser/test environments).
+  const { isInstallable, isInstalled, isIOS, isAndroid, promptInstall } = usePWAInstall();
   const [dismissed, setDismissed] = useState(() => {
     const stored = localStorage.getItem(DISMISS_KEY);
     if (!stored) return false;
@@ -13,17 +17,13 @@ export const InstallPrompt: React.FC = () => {
     return Date.now() - dismissedAt < 7 * 24 * 60 * 60 * 1000;
   });
 
-  const isAndroid = /android/i.test(navigator.userAgent);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true;
-
   const handleDismiss = () => {
     setDismissed(true);
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
   };
 
-  // Don't show if already installed or dismissed
-  if (isInstalled || isStandalone || dismissed) {
+  // Don't show if already installed (display-mode standalone) or dismissed
+  if (isInstalled || dismissed) {
     return null;
   }
 

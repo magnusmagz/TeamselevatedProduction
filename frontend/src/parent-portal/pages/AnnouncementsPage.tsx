@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
 import { AthleteSelector } from '../components/AthleteSelector';
@@ -17,11 +18,14 @@ interface Announcement {
 
 export const AnnouncementsPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  const { id } = useParams<{ id: string }>();
+  const focusedId = id ? parseInt(id, 10) : null;
   const { athletes, selectedAthleteId, selectAthlete } = useParentAthletes();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(focusedId);
+  const focusedRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -51,6 +55,24 @@ export const AnnouncementsPage: React.FC = () => {
 
     fetchAnnouncements();
   }, [API_URL, selectedAthleteId]);
+
+  // When arriving via a detail link (/parent/announcements/:id), expand and
+  // scroll to that announcement once the list has loaded.
+  useEffect(() => {
+    if (focusedId == null) return;
+    if (loading) return;
+    if (!announcements.some((a) => a.id === focusedId)) return;
+    setExpandedId(focusedId);
+    const target = announcements.find((a) => a.id === focusedId);
+    if (target && !target.read) {
+      markAsRead(focusedId);
+    }
+    // Scroll into view after the expanded content renders.
+    requestAnimationFrame(() => {
+      focusedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedId, loading, announcements]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -196,6 +218,7 @@ export const AnnouncementsPage: React.FC = () => {
               return (
                 <button
                   key={announcement.id}
+                  ref={focusedId === announcement.id ? focusedRef : undefined}
                   onClick={() => toggleExpand(announcement.id)}
                   className={`w-full text-left bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all ${
                     priorityStyles.border

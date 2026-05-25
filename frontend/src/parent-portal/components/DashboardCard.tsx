@@ -245,7 +245,7 @@ export const AnnouncementItem: React.FC<AnnouncementItemProps> = ({ announcement
 
   return (
     <Link
-      to={`/parent/announcements`}
+      to={`/parent/announcements/${announcement.id}`}
       className="block py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 -mx-4 px-4 transition-colors"
     >
       <div className="flex items-start justify-between gap-2 mb-1">

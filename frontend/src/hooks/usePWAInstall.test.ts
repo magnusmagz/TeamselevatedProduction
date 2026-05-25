@@ -34,6 +34,7 @@ describe('usePWAInstall', () => {
 
     expect(result.current.isInstallable).toBe(false);
     expect(result.current.isInstalled).toBe(false);
+    expect(result.current.isAndroid).toBe(false);
     expect(typeof result.current.promptInstall).toBe('function');
   });
 
@@ -46,6 +47,19 @@ describe('usePWAInstall', () => {
     const { result } = renderHook(() => usePWAInstall());
 
     expect(result.current.isIOS).toBe(true);
+    expect(result.current.isAndroid).toBe(false);
+  });
+
+  test('detects Android device', () => {
+    Object.defineProperty(navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (Linux; Android 10; Pixel 4) AppleWebKit/537.36 Chrome/100',
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => usePWAInstall());
+
+    expect(result.current.isAndroid).toBe(true);
+    expect(result.current.isIOS).toBe(false);
   });
 
   test('detects non-iOS device', () => {
@@ -57,6 +71,15 @@ describe('usePWAInstall', () => {
     const { result } = renderHook(() => usePWAInstall());
 
     expect(result.current.isIOS).toBe(false);
+  });
+
+  test('does not throw when matchMedia is unavailable', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: undefined,
+    });
+
+    expect(() => renderHook(() => usePWAInstall())).not.toThrow();
   });
 
   test('detects standalone mode (installed)', () => {

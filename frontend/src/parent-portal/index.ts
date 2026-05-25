@@ -6,6 +6,7 @@ export { ParentDashboard } from './ParentDashboard';
 export { BottomNavigation } from './components/BottomNavigation';
 export { ParentHeader } from './components/ParentHeader';
 export { InstallPrompt } from './components/InstallPrompt';
+export { ParentErrorBoundary } from './components/ParentErrorBoundary';
 export { AthleteSelector } from './components/AthleteSelector';
 export {
   DashboardCard,

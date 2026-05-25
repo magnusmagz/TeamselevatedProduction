@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { BottomNavigation } from './components/BottomNavigation';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SponsorMarquee } from './components/SponsorMarquee';
+import { ParentErrorBoundary } from './components/ParentErrorBoundary';
 import { ChatProvider } from './contexts/ChatContext';
 
 interface ParentPortalLayoutProps {
@@ -27,7 +28,9 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
       >
         {/* Content wrapper */}
         <div className="max-w-lg mx-auto w-full">
-          {children || <Outlet />}
+          <ParentErrorBoundary>
+            {children || <Outlet />}
+          </ParentErrorBoundary>
         </div>
       </main>
 

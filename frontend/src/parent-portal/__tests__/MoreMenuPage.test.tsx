@@ -59,6 +59,7 @@ describe('MoreMenuPage', () => {
       isInstallable: false,
       isInstalled: true,
       isIOS: false,
+      isAndroid: false,
       promptInstall: jest.fn(),
     });
   });
@@ -121,6 +122,7 @@ describe('MoreMenuPage', () => {
       isInstallable: true,
       isInstalled: false,
       isIOS: false,
+      isAndroid: false,
       promptInstall: jest.fn(),
     });
 
@@ -135,6 +137,7 @@ describe('MoreMenuPage', () => {
       isInstallable: false,
       isInstalled: true,
       isIOS: false,
+      isAndroid: false,
       promptInstall: jest.fn(),
     });
 
