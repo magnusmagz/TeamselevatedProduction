@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParentHeader } from '../components/ParentHeader';
@@ -40,6 +40,34 @@ export const MakePaymentPage: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState<'full' | 'custom'>('full');
   const [customAmount, setCustomAmount] = useState('');
 
+  // Fetch outstanding invoices for the family. Reused after a payment to
+  // refetch fresh balances so the UI reflects the recorded payment (PAR-17).
+  const fetchInvoices = useCallback(async (): Promise<Invoice[]> => {
+    const token = localStorage.getItem('auth_token');
+    const invoicesRes = await fetch(
+      `${API_URL}/api/invoices.php?action=family`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const invoicesData = await invoicesRes.json();
+
+    if (invoicesData.success && invoicesData.invoices) {
+      const mapped: Invoice[] = invoicesData.invoices.map((inv: Record<string, unknown>) => ({
+        id: inv.id,
+        athlete_id: inv.athlete_id,
+        athlete_name: `${inv.athlete_first || ''} ${inv.athlete_last || ''}`.trim(),
+        description: inv.program_name || inv.memo || 'Invoice',
+        total_amount: parseFloat(String(inv.total_amount || 0)),
+        paid_amount: parseFloat(String(inv.amount_paid || 0)),
+        balance_due: parseFloat(String(inv.amount_remaining || 0)),
+        status: inv.is_overdue ? 'overdue' : (inv.status as string),
+      }));
+      const outstanding = mapped.filter((inv: Invoice) => inv.status !== 'paid');
+      setInvoices(outstanding);
+      return outstanding;
+    }
+    return [];
+  }, [API_URL]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -48,35 +76,13 @@ export const MakePaymentPage: React.FC = () => {
       const token = localStorage.getItem('auth_token');
 
       try {
-        // Fetch outstanding invoices
-        const invoicesRes = await fetch(
-          `${API_URL}/api/invoices.php?action=family`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const invoicesData = await invoicesRes.json();
+        const outstanding = await fetchInvoices();
 
-        if (invoicesData.success && invoicesData.invoices) {
-          const mapped = invoicesData.invoices.map((inv: Record<string, unknown>) => ({
-            id: inv.id,
-            athlete_id: inv.athlete_id,
-            athlete_name: `${inv.athlete_first || ''} ${inv.athlete_last || ''}`.trim(),
-            description: inv.program_name || inv.memo || 'Invoice',
-            total_amount: parseFloat(String(inv.total_amount || 0)),
-            paid_amount: parseFloat(String(inv.amount_paid || 0)),
-            balance_due: parseFloat(String(inv.amount_remaining || 0)),
-            status: inv.is_overdue ? 'overdue' : (inv.status as string),
-          }));
-          const outstanding = mapped.filter(
-            (inv: Invoice) => inv.status !== 'paid'
-          );
-          setInvoices(outstanding);
-
-          // Pre-select invoice if specified in URL
-          if (invoiceId) {
-            setSelectedInvoices([parseInt(invoiceId)]);
-          } else if (outstanding.length > 0) {
-            setSelectedInvoices(outstanding.map((inv: Invoice) => inv.id));
-          }
+        // Pre-select invoice if specified in URL
+        if (invoiceId) {
+          setSelectedInvoices([parseInt(invoiceId)]);
+        } else if (outstanding.length > 0) {
+          setSelectedInvoices(outstanding.map((inv: Invoice) => inv.id));
         }
 
         // Fetch payment methods
@@ -101,7 +107,7 @@ export const MakePaymentPage: React.FC = () => {
     };
 
     fetchData();
-  }, [API_URL, user, invoiceId]);
+  }, [API_URL, user, invoiceId, fetchInvoices]);
 
   const selectedTotal = invoices
     .filter((inv) => selectedInvoices.includes(inv.id))
@@ -149,6 +155,13 @@ export const MakePaymentPage: React.FC = () => {
       const data = await response.json();
 
       if (data.success) {
+        // Refetch fresh balances so the UI reflects the recorded payment
+        // before leaving the page (PAR-17). If everything is now paid off,
+        // the selection clears and the "All Paid Up!" empty state shows.
+        const remaining = await fetchInvoices();
+        setSelectedInvoices((prev) =>
+          prev.filter((id) => remaining.some((inv) => inv.id === id))
+        );
         navigate('/parent/payments', {
           state: { message: 'Payment successful!' }
         });
