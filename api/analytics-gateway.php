@@ -167,7 +167,13 @@ function buildDateFilter($prefix = 'cl') {
         $params[] = $dateFrom;
     }
     if ($dateTo) {
-        $where .= " AND {$prefix}.created_at <= ?";
+        // date_to arrives as a bare date (YYYY-MM-DD). A naive `created_at <= ?`
+        // coerces it to 00:00:00, silently dropping everything sent on the final
+        // day — which made the link-analytics panel (and other panels) look
+        // empty because the default range's date_to is *today* (CA-61). Use an
+        // exclusive upper bound of the next midnight so the whole final day is
+        // included regardless of time-of-day.
+        $where .= " AND {$prefix}.created_at < (?::date + interval '1 day')";
         $params[] = $dateTo;
     }
 
@@ -393,17 +399,21 @@ function handleSingleReport($connection, $auth, $userId, $logId) {
         }
     }
 
-    // Fetch webhook events for this log entry
+    // Fetch webhook / tracking events for this log entry. Events live in
+    // email_events (cols: event_type, event_data, occurred_at) — NOT a
+    // "communication_events" table, which does not exist. The earlier name
+    // threw a PDO exception that bubbled to a 500, so the per-recipient report
+    // never rendered (CA-60).
     $evtStmt = $connection->prepare("
-        SELECT event_type, occurred_at, metadata
-        FROM communication_events
+        SELECT event_type, occurred_at, event_data
+        FROM email_events
         WHERE communication_log_id = ?
         ORDER BY occurred_at ASC
     ");
     $evtStmt->execute([$logId]);
     $events = $evtStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch link clicks
+    // Fetch link clicks for this send
     $linkStmt = $connection->prepare("
         SELECT original_url, click_count, last_clicked_at
         FROM email_links
@@ -413,12 +423,59 @@ function handleSingleReport($connection, $auth, $userId, $logId) {
     $linkStmt->execute([$logId]);
     $links = $linkStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // A single send is exactly one recipient. Build the per-recipient breakdown
+    // the frontend expects (name / email / phone / status / opened / clicked
+    // plus first-open and first-click timestamps derived from email_events).
+    $openedAt  = firstEventTime($events, 'open');
+    $clickedAt = firstEventTime($events, 'click');
+    $opened    = $openedAt !== null || (int)$log['open_count'] > 0;
+    $clicked   = $clickedAt !== null || (int)$log['click_count'] > 0;
+
+    $recipient = [
+        'name'       => $log['recipient_name'],
+        'email'      => $log['recipient_email'] ?? null,
+        'phone'      => $log['recipient_phone'] ?? null,
+        'status'     => $log['status'],
+        'opened'     => $opened,
+        'clicked'    => $clicked,
+        'opened_at'  => $openedAt,
+        'clicked_at' => $clickedAt,
+    ];
+
+    $delivered = $log['status'] === 'delivered' ? 1 : 0;
+    $bounced   = $log['status'] === 'bounced' ? 1 : 0;
+
     echo json_encode([
         'success' => true,
-        'log'     => $log,
-        'events'  => $events,
-        'links'   => $links,
+        'report'  => [
+            'id'              => (int)$log['id'],
+            'type'            => 'single',
+            'channel'         => $log['channel'],
+            'subject'         => $log['subject'],
+            'body'            => $log['body'] ?? null,
+            'sender_name'     => trim($log['sender_first'] . ' ' . $log['sender_last']),
+            'sent_at'         => $log['sent_at'] ?? $log['created_at'],
+            'recipient_count' => 1,
+            'total_delivered' => $delivered,
+            'total_opened'    => $opened ? 1 : 0,
+            'total_clicked'   => $clicked ? 1 : 0,
+            'total_bounced'   => $bounced,
+            'recipients'      => [$recipient],
+            'links'           => $links,
+        ],
     ]);
+}
+
+// ---------------------------------------------------------------------------
+// Helper: first occurred_at for a given event_type, or null if none.
+// ---------------------------------------------------------------------------
+function firstEventTime(array $events, string $type): ?string {
+    foreach ($events as $evt) {
+        if (($evt['event_type'] ?? null) === $type) {
+            return $evt['occurred_at'];
+        }
+    }
+    return null;
 }
 
 function handleBroadcastReport($connection, $auth, $userId, $broadcastCampaignId) {
@@ -497,7 +554,48 @@ function handleBroadcastReport($connection, $auth, $userId, $broadcastCampaignId
     ";
     $recipientStmt = $connection->prepare($recipientSql);
     $recipientStmt->execute($recipientParams);
-    $recipients = $recipientStmt->fetchAll(PDO::FETCH_ASSOC);
+    $recipientRows = $recipientStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Per-recipient open/click timestamps from email_events, keyed by
+    // communication_log_id, so the breakdown can show who opened / clicked.
+    $logIds = array_column($recipientRows, 'id');
+    $openTimes = [];
+    $clickTimes = [];
+    if (!empty($logIds)) {
+        $evtPlaceholders = implode(',', array_fill(0, count($logIds), '?'));
+        $evtStmt = $connection->prepare("
+            SELECT communication_log_id, event_type, MIN(occurred_at) as first_at
+            FROM email_events
+            WHERE communication_log_id IN ($evtPlaceholders)
+              AND event_type IN ('open', 'click')
+            GROUP BY communication_log_id, event_type
+        ");
+        $evtStmt->execute($logIds);
+        foreach ($evtStmt->fetchAll(PDO::FETCH_ASSOC) as $evt) {
+            $lid = (int)$evt['communication_log_id'];
+            if ($evt['event_type'] === 'open') {
+                $openTimes[$lid] = $evt['first_at'];
+            } else {
+                $clickTimes[$lid] = $evt['first_at'];
+            }
+        }
+    }
+
+    $recipients = array_map(function ($r) use ($openTimes, $clickTimes) {
+        $lid = (int)$r['id'];
+        $openedAt  = $openTimes[$lid] ?? null;
+        $clickedAt = $clickTimes[$lid] ?? null;
+        return [
+            'name'       => $r['recipient_name'],
+            'email'      => $r['recipient_email'] ?? null,
+            'phone'      => $r['recipient_phone'] ?? null,
+            'status'     => $r['status'],
+            'opened'     => $openedAt !== null || (int)$r['open_count'] > 0,
+            'clicked'    => $clickedAt !== null || (int)$r['click_count'] > 0,
+            'opened_at'  => $openedAt,
+            'clicked_at' => $clickedAt,
+        ];
+    }, $recipientRows);
 
     // Link click breakdown
     $linkParams = array_merge([$broadcastCampaignId], $scope['params']);
@@ -515,30 +613,31 @@ function handleBroadcastReport($connection, $auth, $userId, $broadcastCampaignId
     $linkStmt->execute($linkParams);
     $links = $linkStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Return under a uniform `report` key so the frontend renders broadcast and
+    // single sends through the same code path (CA-60).
     echo json_encode([
-        'success'    => true,
-        'campaign'   => [
-            'broadcast_campaign_id' => $broadcastCampaignId,
-            'subject'               => $campaignInfo['subject'],
-            'channel'               => $campaignInfo['channel'],
-            'sender'                => trim($campaignInfo['sender_first'] . ' ' . $campaignInfo['sender_last']),
-            'sent_at'               => $campaignInfo['created_at'],
-            'event_id'              => $campaignInfo['event_id'],
+        'success' => true,
+        'report'  => [
+            'id'              => $broadcastCampaignId,
+            'type'            => 'broadcast',
+            'channel'         => $campaignInfo['channel'],
+            'subject'         => $campaignInfo['subject'],
+            'sender_name'     => trim($campaignInfo['sender_first'] . ' ' . $campaignInfo['sender_last']),
+            'sent_at'         => $campaignInfo['created_at'],
+            'event_id'        => $campaignInfo['event_id'],
+            'recipient_count' => $totalRecipients,
+            'total_delivered' => $delivered,
+            'total_opened'    => $opened,
+            'total_clicked'   => $clicked,
+            'total_bounced'   => $bounced,
+            'total_failed'    => $failed,
+            'total_unsubscribed' => $unsubscribed,
+            'open_rate'       => $totalRecipients > 0 ? round($opened / $totalRecipients * 100, 1) : 0,
+            'click_rate'      => $totalRecipients > 0 ? round($clicked / $totalRecipients * 100, 1) : 0,
+            'bounce_rate'     => $totalRecipients > 0 ? round($bounced / $totalRecipients * 100, 1) : 0,
+            'recipients'      => $recipients,
+            'links'           => $links,
         ],
-        'stats'      => [
-            'total_recipients' => $totalRecipients,
-            'delivered'        => $delivered,
-            'failed'           => $failed,
-            'bounced'          => $bounced,
-            'opened'           => $opened,
-            'clicked'          => $clicked,
-            'unsubscribed'     => $unsubscribed,
-            'open_rate'        => $totalRecipients > 0 ? round($opened / $totalRecipients * 100, 1) : 0,
-            'click_rate'       => $totalRecipients > 0 ? round($clicked / $totalRecipients * 100, 1) : 0,
-            'bounce_rate'      => $totalRecipients > 0 ? round($bounced / $totalRecipients * 100, 1) : 0,
-        ],
-        'recipients' => $recipients,
-        'links'      => $links,
     ]);
 }
 
@@ -643,6 +742,8 @@ function handleLinkAnalytics($connection, $auth, $userId) {
 
     $params = array_merge([$clubProfileId], $scope['params'], $dateFilter['params']);
 
+    // Only surface URLs that were actually clicked — a "top clicked links"
+    // panel listing zero-click links is noise (CA-61).
     $sql = "
         SELECT el.original_url,
                SUM(el.click_count) as total_clicks,
@@ -654,6 +755,7 @@ function handleLinkAnalytics($connection, $auth, $userId) {
         {$scope['where']}
         {$dateFilter['where']}
         GROUP BY el.original_url
+        HAVING SUM(el.click_count) > 0
         ORDER BY total_clicks DESC
         LIMIT 20
     ";
