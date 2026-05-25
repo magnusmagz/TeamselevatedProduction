@@ -22,9 +22,16 @@ CREATE TABLE IF NOT EXISTS event_attendance (
     notes       TEXT,
     marked_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
     marked_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_event_attendance UNIQUE (event_id, athlete_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_attendance_event ON event_attendance(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_attendance_athlete ON event_attendance(athlete_id);
+
+-- NOTE: event_attendance already existed ad-hoc in Neon with an OLDER 2-value
+-- status CHECK (present/absent) and no created_at, so the CREATE TABLE IF NOT
+-- EXISTS above is a no-op there. Self-heal the CHECK to the 4 product states so
+-- both fresh installs and the pre-existing prod table accept late/excused.
+ALTER TABLE event_attendance DROP CONSTRAINT IF EXISTS event_attendance_status_check;
+ALTER TABLE event_attendance ADD CONSTRAINT event_attendance_status_check
+    CHECK (status IN ('present', 'absent', 'late', 'excused'));
