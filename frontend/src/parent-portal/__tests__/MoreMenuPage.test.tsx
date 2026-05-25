@@ -92,7 +92,7 @@ describe('MoreMenuPage', () => {
     expect(screen.getByText('My Athletes').closest('a')).toHaveAttribute('href', '/parent/athletes');
     expect(screen.getByText('Announcements').closest('a')).toHaveAttribute('href', '/parent/announcements');
     expect(screen.getByText('Documents').closest('a')).toHaveAttribute('href', '/parent/documents');
-    expect(screen.getByText('Account Settings').closest('a')).toHaveAttribute('href', '/profile');
+    expect(screen.getByText('Account Settings').closest('a')).toHaveAttribute('href', '/parent/settings');
   });
 
   test('renders Get Help link', () => {
