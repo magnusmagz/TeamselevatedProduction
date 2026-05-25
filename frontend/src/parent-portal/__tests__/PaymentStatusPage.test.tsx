@@ -211,4 +211,97 @@ describe('PaymentStatusPage', () => {
       expect(screen.getByText('Failed to load payment information')).toBeInTheDocument();
     });
   });
+
+  // ---- PAR-16: invoice detail view (line items + amounts + athlete name) ----
+
+  test('highlights overdue invoices', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          invoices: [
+            {
+              ...mockInvoices[0],
+              id: 1,
+              is_overdue: true,
+              status: 'sent',
+              due_date: '2024-01-01',
+            },
+          ],
+        }),
+    });
+
+    render(
+      <RouterWrapper>
+        <PaymentStatusPage />
+      </RouterWrapper>
+    );
+
+    const card = await screen.findByTestId('invoice-card-1');
+    // Overdue cards get a red highlight treatment.
+    expect(card.className).toMatch(/red/);
+    expect(screen.getByText(/Overdue:/)).toBeInTheDocument();
+  });
+
+  test('expanding an invoice fetches and renders line items, amounts, and athlete name', async () => {
+    // First call = family list; second call = action=get detail with items.
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            invoices: [mockInvoices[0]], // John Doe, Registration Fee, $500/$300 due
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            invoice: {
+              id: 1,
+              invoice_number: 'INV-202402-00001',
+              athlete_first: 'John',
+              athlete_last: 'Doe',
+              program_name: 'Spring Soccer',
+              total_amount: 500,
+              amount_paid: 200,
+              due_date: '2024-02-15',
+              items: [
+                { id: 11, description: 'Registration', quantity: 1, unit_price: 400, line_total: 400 },
+                { id: 12, description: 'Uniform', quantity: 1, unit_price: 100, line_total: 100 },
+              ],
+            },
+          }),
+      });
+
+    render(
+      <RouterWrapper>
+        <PaymentStatusPage />
+      </RouterWrapper>
+    );
+
+    // Card visible from the family list.
+    await screen.findByTestId('invoice-card-1');
+
+    // Expand to load detail.
+    fireEvent.click(screen.getByText('View details'));
+
+    // Detail panel renders line items + amounts once the action=get call resolves.
+    expect(await screen.findByText('Registration')).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-detail-1')).toBeInTheDocument();
+    expect(screen.getByText('Uniform')).toBeInTheDocument();
+    expect(screen.getByText('$400.00')).toBeInTheDocument();
+    expect(screen.getByText('INV-202402-00001')).toBeInTheDocument();
+    // Athlete name appears (card + detail header).
+    expect(screen.getAllByText('John Doe').length).toBeGreaterThan(0);
+
+    // Detail fetch hit the action=get endpoint for this invoice.
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('action=get&id=1'),
+      expect.anything()
+    );
+  });
 });

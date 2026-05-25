@@ -12,7 +12,30 @@ interface Invoice {
   paid_amount: number;
   balance_due: number;
   due_date?: string;
+  is_overdue: boolean;
   status: string;
+}
+
+interface InvoiceLineItem {
+  id: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
+interface InvoiceDetail {
+  id: number;
+  invoice_number?: string;
+  athlete_name: string;
+  program_name?: string;
+  invoice_date?: string;
+  due_date?: string;
+  subtotal?: number;
+  discount_amount?: number;
+  total_amount: number;
+  amount_paid: number;
+  items: InvoiceLineItem[];
 }
 
 export const PaymentStatusPage: React.FC = () => {
@@ -22,6 +45,12 @@ export const PaymentStatusPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'paid'>('outstanding');
+
+  // Invoice detail (line items) — lazily fetched per invoice on expand (PAR-16).
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailById, setDetailById] = useState<Record<number, InvoiceDetail>>({});
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -51,6 +80,7 @@ export const PaymentStatusPage: React.FC = () => {
             paid_amount: parseFloat(String(inv.amount_paid || 0)),
             balance_due: parseFloat(String(inv.amount_remaining || 0)),
             due_date: inv.due_date as string | undefined,
+            is_overdue: Boolean(inv.is_overdue),
             status: inv.is_overdue ? 'overdue' : (inv.status as string),
           }));
           setInvoices(mapped);
@@ -66,6 +96,64 @@ export const PaymentStatusPage: React.FC = () => {
 
     fetchInvoices();
   }, [API_URL, user]);
+
+  // Toggle the line-item detail panel for an invoice; fetch it on first expand.
+  const toggleDetail = async (invoiceId: number) => {
+    if (expandedId === invoiceId) {
+      setExpandedId(null);
+      return;
+    }
+
+    setExpandedId(invoiceId);
+    setDetailError(null);
+
+    // Already loaded — reuse cached detail.
+    if (detailById[invoiceId]) {
+      return;
+    }
+
+    setDetailLoadingId(invoiceId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(
+        `${API_URL}/api/invoices.php?action=get&id=${invoiceId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await response.json();
+
+      if (data.success && data.invoice) {
+        const inv = data.invoice as Record<string, unknown>;
+        const detail: InvoiceDetail = {
+          id: Number(inv.id),
+          invoice_number: inv.invoice_number as string | undefined,
+          athlete_name: `${inv.athlete_first || ''} ${inv.athlete_last || ''}`.trim(),
+          program_name: inv.program_name as string | undefined,
+          invoice_date: inv.invoice_date as string | undefined,
+          due_date: inv.due_date as string | undefined,
+          subtotal: inv.subtotal != null ? parseFloat(String(inv.subtotal)) : undefined,
+          discount_amount: inv.discount_amount != null ? parseFloat(String(inv.discount_amount)) : undefined,
+          total_amount: parseFloat(String(inv.total_amount || 0)),
+          amount_paid: parseFloat(String(inv.amount_paid || 0)),
+          items: Array.isArray(inv.items)
+            ? (inv.items as Record<string, unknown>[]).map((it) => ({
+                id: Number(it.id),
+                description: String(it.description ?? it.item_name ?? ''),
+                quantity: it.quantity != null ? Number(it.quantity) : 1,
+                unit_price: parseFloat(String(it.unit_price || 0)),
+                line_total: parseFloat(String(it.line_total || 0)),
+              }))
+            : [],
+        };
+        setDetailById((prev) => ({ ...prev, [invoiceId]: detail }));
+      } else {
+        setDetailError(data.error || 'Failed to load invoice details');
+      }
+    } catch (err) {
+      setDetailError('Failed to load invoice details');
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
 
   const filteredInvoices = invoices.filter((inv) => {
     if (filter === 'outstanding') return inv.status !== 'paid';
@@ -179,38 +267,136 @@ export const PaymentStatusPage: React.FC = () => {
         {/* Invoice List */}
         {!loading && !error && filteredInvoices.length > 0 && (
           <div className="px-4 py-4 space-y-3">
-            {filteredInvoices.map((invoice) => (
+            {filteredInvoices.map((invoice) => {
+              const isExpanded = expandedId === invoice.id;
+              const detail = detailById[invoice.id];
+              return (
               <div
                 key={invoice.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+                data-testid={`invoice-card-${invoice.id}`}
+                className={`bg-white rounded-lg shadow-sm border p-4 ${
+                  invoice.is_overdue
+                    ? 'border-red-300 ring-1 ring-red-200 bg-red-50'
+                    : 'border-gray-200'
+                }`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-900">{invoice.athlete_name}</p>
-                    <p className="text-sm text-gray-600">{invoice.description}</p>
+                <button
+                  type="button"
+                  onClick={() => toggleDetail(invoice.id)}
+                  aria-expanded={isExpanded}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">{invoice.athlete_name}</p>
+                      <p className="text-sm text-gray-600">{invoice.description}</p>
+                    </div>
+                    {getStatusBadge(invoice.status)}
                   </div>
-                  {getStatusBadge(invoice.status)}
-                </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    {invoice.due_date && (
-                      <p className="text-gray-500">
-                        Due: {formatDate(invoice.due_date)}
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      {invoice.due_date && (
+                        <p className={invoice.is_overdue ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                          {invoice.is_overdue ? 'Overdue: ' : 'Due: '}
+                          {formatDate(invoice.due_date)}
+                        </p>
+                      )}
+                      <p className="text-xs text-brand-primary mt-1">
+                        {isExpanded ? 'Hide details' : 'View details'}
                       </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">
+                        ${invoice.balance_due.toFixed(2)}
+                      </p>
+                      {invoice.paid_amount > 0 && (
+                        <p className="text-xs text-gray-500">
+                          Paid: ${invoice.paid_amount.toFixed(2)} of ${invoice.total_amount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Invoice detail: line items + amounts + athlete name (PAR-16) */}
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-gray-200" data-testid={`invoice-detail-${invoice.id}`}>
+                    {detailLoadingId === invoice.id && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary"></div>
+                      </div>
+                    )}
+
+                    {detailError && detailLoadingId !== invoice.id && !detail && (
+                      <p className="text-sm text-red-600">{detailError}</p>
+                    )}
+
+                    {detail && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-gray-900">
+                            {detail.athlete_name || invoice.athlete_name}
+                          </p>
+                          {detail.invoice_number && (
+                            <p className="text-xs font-mono text-gray-500">{detail.invoice_number}</p>
+                          )}
+                        </div>
+
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-xs text-gray-500">
+                              <th className="pb-1 font-normal">Description</th>
+                              <th className="pb-1 font-normal text-right">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detail.items.length > 0 ? (
+                              detail.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td className="py-1 text-gray-900">
+                                    {item.description}
+                                    {item.quantity > 1 && (
+                                      <span className="text-gray-400"> &times;{item.quantity}</span>
+                                    )}
+                                  </td>
+                                  <td className="py-1 text-right font-medium text-gray-900">
+                                    ${item.line_total.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td className="py-1 text-gray-900">
+                                  {detail.program_name || invoice.description}
+                                </td>
+                                <td className="py-1 text-right font-medium text-gray-900">
+                                  ${detail.total_amount.toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t border-gray-200">
+                              <td className="pt-2 font-semibold text-gray-900">Total</td>
+                              <td className="pt-2 text-right font-semibold text-gray-900">
+                                ${detail.total_amount.toFixed(2)}
+                              </td>
+                            </tr>
+                            {detail.amount_paid > 0 && (
+                              <tr>
+                                <td className="pt-1 text-gray-500">Paid</td>
+                                <td className="pt-1 text-right text-gray-500">
+                                  ${detail.amount_paid.toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
+                          </tfoot>
+                        </table>
+                      </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">
-                      ${invoice.balance_due.toFixed(2)}
-                    </p>
-                    {invoice.paid_amount > 0 && (
-                      <p className="text-xs text-gray-500">
-                        Paid: ${invoice.paid_amount.toFixed(2)} of ${invoice.total_amount.toFixed(2)}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 {invoice.status !== 'paid' && (
                   <Link
@@ -221,7 +407,8 @@ export const PaymentStatusPage: React.FC = () => {
                   </Link>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
