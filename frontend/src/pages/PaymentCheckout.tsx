@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useOrg } from '../contexts/OrgContext';
 
 interface PaymentDetails {
   athlete_id: number;
@@ -38,6 +39,8 @@ export const PaymentCheckout: React.FC = () => {
   const { athleteId, paymentId } = useParams<{ athleteId: string; paymentId?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { currentClubId, activeContext } = useOrg();
+  const clubId = currentClubId ?? activeContext?.scope_id ?? null;
 
   // Banking feature demo flag - enabled via ?bank URL parameter
   const showBankingFeature = searchParams.has('bank');
@@ -118,8 +121,9 @@ export const PaymentCheckout: React.FC = () => {
 
   // Fetch available payment plans
   useEffect(() => {
+    if (clubId == null) return;
     const token = localStorage.getItem('auth_token');
-    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=13`, {
+    fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=${clubId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -129,7 +133,7 @@ export const PaymentCheckout: React.FC = () => {
         }
       })
       .catch(err => console.error('Error fetching payment plans:', err));
-  }, []);
+  }, [clubId]);
 
   // Fetch installment schedule when plan is selected
   useEffect(() => {
