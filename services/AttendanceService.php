@@ -55,8 +55,8 @@ class AttendanceService
               WHERE event_id = :event_id AND athlete_id = :athlete_id"
         );
         $insertStmt = $this->pdo->prepare(
-            "INSERT INTO event_attendance (event_id, athlete_id, status, notes, marked_by, marked_at, created_at)
-             VALUES (:event_id, :athlete_id, :status, :notes, :marked_by, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            "INSERT INTO event_attendance (event_id, athlete_id, status, notes, marked_by, marked_at)
+             VALUES (:event_id, :athlete_id, :status, :notes, :marked_by, CURRENT_TIMESTAMP)"
         );
 
         $saved = 0;
