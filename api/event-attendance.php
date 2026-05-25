@@ -15,10 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../services/AttendanceService.php';
 
 try {
     $db = Database::getInstance();
     $pdo = $db->getConnection();
+    $attendanceService = new AttendanceService($pdo);
 
     $action = $_GET['action'] ?? 'get';
     $method = $_SERVER['REQUEST_METHOD'];
@@ -69,7 +71,7 @@ try {
                     'event' => $event,
                     'athletes' => [],
                     'attendance' => [],
-                    'summary' => ['present' => 0, 'absent' => 0, 'total' => 0]
+                    'summary' => ['present' => 0, 'absent' => 0, 'late' => 0, 'excused' => 0, 'total' => 0, 'not_marked' => 0]
                 ]);
                 exit;
             }
@@ -97,49 +99,18 @@ try {
             $stmt->execute($teamIds);
             $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Get existing attendance records
-            $attendanceQuery = "
-                SELECT
-                    athlete_id,
-                    status,
-                    notes,
-                    marked_at,
-                    marked_by
-                FROM event_attendance
-                WHERE event_id = :event_id
-            ";
-            $stmt = $pdo->prepare($attendanceQuery);
-            $stmt->execute(['event_id' => $event_id]);
-            $attendanceRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Existing attendance records, indexed by athlete_id (all 4 statuses)
+            $attendanceByAthlete = $attendanceService->getRecordsByAthlete((int) $event_id);
 
-            // Index attendance by athlete_id
-            $attendanceByAthlete = [];
-            foreach ($attendanceRecords as $record) {
-                $attendanceByAthlete[$record['athlete_id']] = $record;
-            }
-
-            // Calculate summary
-            $present = 0;
-            $absent = 0;
-            foreach ($attendanceRecords as $record) {
-                if ($record['status'] === 'present') {
-                    $present++;
-                } else {
-                    $absent++;
-                }
-            }
+            // Summary across all 4 statuses, scoped to the event roster size
+            $summary = $attendanceService->getSummary((int) $event_id, count($athletes));
 
             echo json_encode([
                 'success' => true,
                 'event' => $event,
                 'athletes' => $athletes,
                 'attendance' => $attendanceByAthlete,
-                'summary' => [
-                    'present' => $present,
-                    'absent' => $absent,
-                    'total' => count($athletes),
-                    'not_marked' => count($athletes) - count($attendanceRecords)
-                ]
+                'summary' => $summary
             ]);
             break;
 
@@ -170,54 +141,15 @@ try {
                 throw new Exception('Event not found');
             }
 
-            // Upsert attendance records
-            $upsertQuery = "
-                INSERT INTO event_attendance (event_id, athlete_id, status, marked_by, marked_at, notes)
-                VALUES (:event_id, :athlete_id, :status, :marked_by, CURRENT_TIMESTAMP, :notes)
-                ON CONFLICT (event_id, athlete_id)
-                DO UPDATE SET
-                    status = EXCLUDED.status,
-                    marked_by = EXCLUDED.marked_by,
-                    marked_at = CURRENT_TIMESTAMP,
-                    notes = EXCLUDED.notes
-            ";
-            $stmt = $pdo->prepare($upsertQuery);
+            // Upsert attendance records (present / absent / late / excused)
+            $savedCount = $attendanceService->saveAttendance(
+                (int) $event_id,
+                $attendance,
+                $marked_by !== null ? (int) $marked_by : null
+            );
 
-            $savedCount = 0;
-            foreach ($attendance as $record) {
-                $athleteId = $record['athlete_id'] ?? null;
-                $status = $record['status'] ?? 'present';
-                $notes = $record['notes'] ?? null;
-
-                if (!$athleteId) continue;
-
-                // Validate status
-                if (!in_array($status, ['present', 'absent'])) {
-                    $status = 'present';
-                }
-
-                $stmt->execute([
-                    'event_id' => $event_id,
-                    'athlete_id' => $athleteId,
-                    'status' => $status,
-                    'marked_by' => $marked_by,
-                    'notes' => $notes
-                ]);
-                $savedCount++;
-            }
-
-            // Get updated summary
-            $summaryQuery = "
-                SELECT
-                    COUNT(*) FILTER (WHERE status = 'present') as present,
-                    COUNT(*) FILTER (WHERE status = 'absent') as absent,
-                    COUNT(*) as total
-                FROM event_attendance
-                WHERE event_id = :event_id
-            ";
-            $stmt = $pdo->prepare($summaryQuery);
-            $stmt->execute(['event_id' => $event_id]);
-            $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Updated summary across all 4 statuses (marked-only total here)
+            $summary = $attendanceService->getSummary((int) $event_id);
 
             echo json_encode([
                 'success' => true,
@@ -253,11 +185,13 @@ try {
             $stmt->execute(['athlete_id' => $athlete_id]);
             $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Calculate stats
+            // Calculate stats across all 4 statuses (portable SUM/CASE, not FILTER)
             $statsQuery = "
                 SELECT
-                    COUNT(*) FILTER (WHERE status = 'present') as present_count,
-                    COUNT(*) FILTER (WHERE status = 'absent') as absent_count,
+                    SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+                    SUM(CASE WHEN status = 'absent'  THEN 1 ELSE 0 END) as absent_count,
+                    SUM(CASE WHEN status = 'late'    THEN 1 ELSE 0 END) as late_count,
+                    SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END) as excused_count,
                     COUNT(*) as total_events
                 FROM event_attendance
                 WHERE athlete_id = :athlete_id
@@ -266,8 +200,15 @@ try {
             $stmt->execute(['athlete_id' => $athlete_id]);
             $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
+            // Normalize null SUMs (no rows) to 0
+            foreach (['present_count', 'absent_count', 'late_count', 'excused_count', 'total_events'] as $k) {
+                $stats[$k] = (int) ($stats[$k] ?? 0);
+            }
+
+            // "Attended" counts present + late toward the attendance rate.
+            $attendedCount = $stats['present_count'] + $stats['late_count'];
             $attendanceRate = $stats['total_events'] > 0
-                ? round(($stats['present_count'] / $stats['total_events']) * 100, 1)
+                ? round(($attendedCount / $stats['total_events']) * 100, 1)
                 : 0;
 
             echo json_encode([

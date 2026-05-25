@@ -463,6 +463,40 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Color-code events by their type so the calendar reads at a glance.
+  // Each event_type gets a distinct background / border / text treatment.
+  // Falls back to a neutral style for unknown/legacy types.
+  const getEventTypeStyle = (type?: Event['type']) => {
+    switch (type) {
+      case 'game':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'practice':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'tournament':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'meeting':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'event':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'other':
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  // Human-readable label for an event type (used in the legend).
+  const eventTypeLabel = (type: Event['type']) => {
+    switch (type) {
+      case 'game': return 'Game';
+      case 'practice': return 'Practice';
+      case 'tournament': return 'Tournament';
+      case 'meeting': return 'Meeting';
+      case 'event': return 'Event';
+      case 'other':
+      default: return 'Other';
+    }
+  };
+
   // Define team colors
   const getTeamColor = (teamName: string) => {
     const colors = [
@@ -741,8 +775,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     {day.events.slice(0, 2).map((event, eIndex) => (
                       <div
                         key={`e-${eIndex}`}
-                        className={`text-xs p-1 border bg-brand-secondary border-brand-secondary text-brand-primary ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
-                        title={event.name}
+                        className={`text-xs p-1 border ${getEventTypeStyle(event.type)} ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
+                        title={`${eventTypeLabel(event.type)}: ${event.name}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEventClick(event);
@@ -803,13 +837,14 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         {day.events.map((event, eIndex) => (
                           <div
                             key={`e-${eIndex}`}
-                            className={`p-2 border bg-brand-secondary border-brand-secondary text-brand-primary cursor-pointer hover:bg-brand-secondary-hover ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
+                            className={`p-2 border cursor-pointer ${getEventTypeStyle(event.type)} ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
                             onClick={() => handleEventClick(event)}
                           >
                             <div className="font-bold text-sm">
                               {event.start_time && event.end_time ? `${event.start_time} - ${event.end_time}` : 'All Day'}
                             </div>
                             <div className="font-medium">
+                              <span className="uppercase text-xs font-semibold opacity-70 mr-1">{eventTypeLabel(event.type)}</span>
                               {event.name}
                               {event.subscription_id && <span className="ml-1 text-xs text-teal-600 font-normal">(imported)</span>}
                             </div>
@@ -931,6 +966,21 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* Event Type Legend */}
+        <div className="mt-6">
+          <h3 className="text-brand-primary font-bold uppercase mb-2">Event Types</h3>
+          <div className="flex flex-wrap gap-2">
+            {(['game', 'practice', 'tournament', 'meeting', 'event', 'other'] as Event['type'][]).map(t => (
+              <div
+                key={t}
+                className={`px-3 py-1 text-sm border ${getEventTypeStyle(t)}`}
+              >
+                {eventTypeLabel(t)}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Legend */}
         {displayTeams.length > 0 && !teamId && (

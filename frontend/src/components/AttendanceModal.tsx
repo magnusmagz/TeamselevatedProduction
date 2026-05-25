@@ -10,15 +10,44 @@ interface Athlete {
   team_name: string;
 }
 
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+const STATUS_ORDER: AttendanceStatus[] = ['present', 'absent', 'late', 'excused'];
+
+const STATUS_LABEL: Record<AttendanceStatus, string> = {
+  present: 'Present',
+  absent: 'Absent',
+  late: 'Late',
+  excused: 'Excused',
+};
+
+// Tailwind classes for each status' pill button.
+const STATUS_BTN_CLASS: Record<AttendanceStatus, string> = {
+  present: 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200',
+  absent: 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200',
+  late: 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200',
+  excused: 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200',
+};
+
+// Row highlight per status.
+const STATUS_ROW_CLASS: Record<AttendanceStatus, string> = {
+  present: 'bg-white',
+  absent: 'bg-red-50',
+  late: 'bg-amber-50',
+  excused: 'bg-blue-50',
+};
+
 interface AttendanceRecord {
   athlete_id: number;
-  status: 'present' | 'absent';
+  status: AttendanceStatus;
   notes?: string;
 }
 
 interface AttendanceSummary {
   present: number;
   absent: number;
+  late: number;
+  excused: number;
   total: number;
   not_marked?: number;
 }
@@ -55,7 +84,7 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [attendance, setAttendance] = useState<Record<number, AttendanceRecord>>({});
-  const [summary, setSummary] = useState<AttendanceSummary>({ present: 0, absent: 0, total: 0 });
+  const [summary, setSummary] = useState<AttendanceSummary>({ present: 0, absent: 0, late: 0, excused: 0, total: 0 });
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [initialAttendance, setInitialAttendance] = useState<Record<number, string>>({});
@@ -77,7 +106,7 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
       setEventInfo(data.event);
       setAthletes(data.athletes || []);
-      setSummary(data.summary || { present: 0, absent: 0, total: 0 });
+      setSummary(data.summary || { present: 0, absent: 0, late: 0, excused: 0, total: 0 });
 
       // Initialize attendance - default all to present, then apply saved records
       const initialRecords: Record<number, AttendanceRecord> = {};
@@ -119,49 +148,37 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Toggle attendance status
-  const toggleAttendance = (athleteId: number) => {
-    setAttendance(prev => {
-      const current = prev[athleteId]?.status || 'present';
-      const newStatus = current === 'present' ? 'absent' : 'present';
-
-      return {
-        ...prev,
-        [athleteId]: {
-          ...prev[athleteId],
-          athlete_id: athleteId,
-          status: newStatus
-        }
-      };
-    });
+  // Set an explicit status for one athlete.
+  const setAthleteStatus = (athleteId: number, status: AttendanceStatus) => {
+    setAttendance(prev => ({
+      ...prev,
+      [athleteId]: {
+        ...prev[athleteId],
+        athlete_id: athleteId,
+        status
+      }
+    }));
     setHasChanges(true);
   };
 
-  // Mark all present
-  const markAllPresent = () => {
+  // Cycle through the 4 statuses when a row is clicked
+  // (present -> absent -> late -> excused -> present).
+  const cycleAttendance = (athleteId: number) => {
+    const current = attendance[athleteId]?.status || 'present';
+    const idx = STATUS_ORDER.indexOf(current);
+    const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
+    setAthleteStatus(athleteId, next);
+  };
+
+  // Bulk-set every athlete to a single status.
+  const markAll = (status: AttendanceStatus) => {
     setAttendance(prev => {
       const updated: Record<number, AttendanceRecord> = {};
       athletes.forEach(athlete => {
         updated[athlete.athlete_id] = {
           ...prev[athlete.athlete_id],
           athlete_id: athlete.athlete_id,
-          status: 'present'
-        };
-      });
-      return updated;
-    });
-    setHasChanges(true);
-  };
-
-  // Mark all absent
-  const markAllAbsent = () => {
-    setAttendance(prev => {
-      const updated: Record<number, AttendanceRecord> = {};
-      athletes.forEach(athlete => {
-        updated[athlete.athlete_id] = {
-          ...prev[athlete.athlete_id],
-          athlete_id: athlete.athlete_id,
-          status: 'absent'
+          status
         };
       });
       return updated;
@@ -211,10 +228,12 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
     }
   };
 
-  // Calculate current summary
+  // Calculate current summary (live, from the in-memory attendance map)
   const currentSummary = {
     present: Object.values(attendance).filter(a => a.status === 'present').length,
     absent: Object.values(attendance).filter(a => a.status === 'absent').length,
+    late: Object.values(attendance).filter(a => a.status === 'late').length,
+    excused: Object.values(attendance).filter(a => a.status === 'excused').length,
     total: athletes.length
   };
 
@@ -270,8 +289,8 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
             <>
               {/* Summary Bar */}
               <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-6">
+                <div className="flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
+                  <div className="flex flex-wrap gap-4 sm:gap-6">
                     <div>
                       <span className="text-2xl font-bold text-green-600">{currentSummary.present}</span>
                       <span className="text-sm text-gray-600 ml-2">Present</span>
@@ -281,23 +300,28 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
                       <span className="text-sm text-gray-600 ml-2">Absent</span>
                     </div>
                     <div>
+                      <span className="text-2xl font-bold text-amber-600">{currentSummary.late}</span>
+                      <span className="text-sm text-gray-600 ml-2">Late</span>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-blue-600">{currentSummary.excused}</span>
+                      <span className="text-sm text-gray-600 ml-2">Excused</span>
+                    </div>
+                    <div>
                       <span className="text-2xl font-bold text-gray-600">{currentSummary.total}</span>
                       <span className="text-sm text-gray-600 ml-2">Total</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={markAllPresent}
-                      className="px-3 py-1 text-xs bg-green-100 text-green-700 border border-green-300 rounded hover:bg-green-200 uppercase font-medium"
-                    >
-                      All Present
-                    </button>
-                    <button
-                      onClick={markAllAbsent}
-                      className="px-3 py-1 text-xs bg-red-100 text-red-700 border border-red-300 rounded hover:bg-red-200 uppercase font-medium"
-                    >
-                      All Absent
-                    </button>
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_ORDER.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => markAll(s)}
+                        className={`px-3 py-1 text-xs rounded uppercase font-medium ${STATUS_BTN_CLASS[s]}`}
+                      >
+                        All {STATUS_LABEL[s]}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -315,18 +339,16 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {athletes.map((athlete, index) => {
+                    {athletes.map((athlete) => {
                       const record = attendance[athlete.athlete_id];
-                      const status = record?.status || 'present';
-                      const isPresent = status === 'present';
+                      const status: AttendanceStatus = record?.status || 'present';
 
                       return (
                         <tr
                           key={athlete.athlete_id}
-                          className={`hover:bg-gray-50 cursor-pointer ${
-                            isPresent ? 'bg-white' : 'bg-red-50'
-                          }`}
-                          onClick={() => toggleAttendance(athlete.athlete_id)}
+                          className={`hover:bg-gray-50 cursor-pointer ${STATUS_ROW_CLASS[status]}`}
+                          onClick={() => cycleAttendance(athlete.athlete_id)}
+                          title="Click row to cycle status"
                         >
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="text-sm font-medium text-gray-900">
@@ -349,19 +371,29 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
                             </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleAttendance(athlete.athlete_id);
-                              }}
-                              className={`px-4 py-2 text-sm font-bold uppercase rounded transition-colors ${
-                                isPresent
-                                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
-                                  : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
-                              }`}
-                            >
-                              {isPresent ? 'Present' : 'Absent'}
-                            </button>
+                            <div className="inline-flex flex-wrap gap-1 justify-center">
+                              {STATUS_ORDER.map(s => {
+                                const active = status === s;
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    aria-pressed={active}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAthleteStatus(athlete.athlete_id, s);
+                                    }}
+                                    className={`px-2.5 py-1 text-xs font-bold uppercase rounded transition-colors ${
+                                      active
+                                        ? STATUS_BTN_CLASS[s]
+                                        : 'bg-white text-gray-400 border border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {STATUS_LABEL[s]}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -372,7 +404,7 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
               {/* Info text */}
               <p className="text-sm text-gray-500 mt-4">
-                Click on a row or the status button to toggle attendance. All athletes default to Present.
+                Click a status button to set Present, Absent, Late, or Excused — or click the row to cycle through them. All athletes default to Present.
               </p>
             </>
           )}
