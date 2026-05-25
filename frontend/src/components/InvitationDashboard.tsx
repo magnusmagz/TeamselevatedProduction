@@ -32,6 +32,10 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Track which invitation row has an in-flight resend/cancel so we can
+  // disable its buttons and avoid double-submits ("invited over and over").
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInvitations();
@@ -65,6 +69,9 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
   };
 
   const handleResend = async (invitationId: string) => {
+    // Guard against double-submits / rapid re-clicks.
+    if (resendingId) return;
+    setResendingId(invitationId);
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/api/invitations-gateway.php?action=resend`, {
@@ -76,18 +83,27 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
         body: JSON.stringify({ invitationId })
       });
 
-      if (!response.ok) throw new Error('Failed to resend invitation');
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // Surface the cooldown / specific server message when present.
+        throw new Error(data.error || 'Failed to resend invitation');
+      }
 
       alert('Invitation resent successfully!');
       fetchInvitations();
     } catch (err) {
-      alert('Failed to resend invitation');
+      alert(err instanceof Error ? err.message : 'Failed to resend invitation');
+    } finally {
+      setResendingId(null);
     }
   };
 
   const handleCancel = async (invitationId: string) => {
+    if (cancelingId) return;
     if (!window.confirm('Are you sure you want to cancel this invitation?')) return;
 
+    setCancelingId(invitationId);
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/api/invitations-gateway.php?action=cancel`, {
@@ -99,11 +115,15 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
         body: JSON.stringify({ invitationId })
       });
 
-      if (!response.ok) throw new Error('Failed to cancel invitation');
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(data.error || 'Failed to cancel invitation');
 
       fetchInvitations();
     } catch (err) {
-      alert('Failed to cancel invitation');
+      alert(err instanceof Error ? err.message : 'Failed to cancel invitation');
+    } finally {
+      setCancelingId(null);
     }
   };
 
@@ -253,15 +273,17 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleResend(invitation.id)}
-                          className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
+                          disabled={resendingId === invitation.id || cancelingId === invitation.id}
+                          className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Resend
+                          {resendingId === invitation.id ? 'Resending...' : 'Resend'}
                         </button>
                         <button
                           onClick={() => handleCancel(invitation.id)}
-                          className="text-red-600 hover:text-red-700 font-semibold uppercase"
+                          disabled={cancelingId === invitation.id || resendingId === invitation.id}
+                          className="text-red-600 hover:text-red-700 font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Cancel
+                          {cancelingId === invitation.id ? 'Canceling...' : 'Cancel'}
                         </button>
                       </div>
                     )}

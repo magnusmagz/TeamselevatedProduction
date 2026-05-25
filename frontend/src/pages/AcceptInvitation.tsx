@@ -273,6 +273,11 @@ export default function AcceptInvitation() {
                       Logged in as <strong>{user.name || user.email}</strong>
                     </p>
                   </div>
+                  {error && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm text-left">
+                      {error}
+                    </div>
+                  )}
                   <button
                     onClick={handleAccept}
                     disabled={joining}
@@ -282,12 +287,20 @@ export default function AcceptInvitation() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleAccept}
-                  className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors uppercase"
-                >
-                  Accept Invitation
-                </button>
+                <>
+                  {error && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-sm text-left">
+                      {error}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleAccept}
+                    disabled={joining}
+                    className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+                  >
+                    {joining ? 'Accepting...' : 'Accept Invitation'}
+                  </button>
+                </>
               )}
             </div>
           ) : (

@@ -511,70 +511,100 @@ function handleAcceptInvitation($conn, $input) {
         return ['error' => 'Either id or code is required'];
     }
 
-    // Check if user exists
+    // For new users we need a name BEFORE we open the transaction so the
+    // caller gets a clean 400 (not a half-applied write).
+    $existingUser = null;
+    $needsNewUser = false;
+    $firstName = '';
+    $lastName = '';
+
     $stmt = $conn->prepare('SELECT id FROM users WHERE email = :email');
     $stmt->execute(['email' => $invitationEmail]);
     $existingUser = $stmt->fetch();
 
-    $userId = null;
-
-    if ($existingUser) {
-        $userId = $existingUser['id'];
-    } else {
-        // Create new user
+    if (!$existingUser) {
         if (!$name) {
             http_response_code(400);
             return ['error' => 'Name is required for new users'];
         }
-
+        $needsNewUser = true;
         $nameParts = explode(' ', trim($name), 2);
         $firstName = $nameParts[0];
         $lastName = $nameParts[1] ?? '';
+    }
 
+    // Run user-create + club-access grant + invitation status update as one
+    // unit so a failure can't leave a user with no access (or vice versa).
+    $userId = null;
+    $manageTxn = !$conn->inTransaction();
+    if ($manageTxn) {
+        $conn->beginTransaction();
+    }
+
+    try {
+        if ($existingUser) {
+            $userId = $existingUser['id'];
+        } else {
+            // Create new user. No password — they authenticate via the
+            // invitation/magic-link flow (auth_provider = 'invitation').
+            $stmt = $conn->prepare('
+                INSERT INTO users (first_name, last_name, email, auth_provider, created_at)
+                VALUES (:first_name, :last_name, :email, \'invitation\', CURRENT_TIMESTAMP)
+                RETURNING id
+            ');
+            $stmt->execute([
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $invitationEmail
+            ]);
+            $result = $stmt->fetch();
+            $userId = $result['id'];
+        }
+
+        // Grant club access (idempotent on the unique (user, club, role) key)
         $stmt = $conn->prepare('
-            INSERT INTO users (first_name, last_name, email, auth_provider, created_at)
-            VALUES (:first_name, :last_name, :email, \'invitation\', CURRENT_TIMESTAMP)
-            RETURNING id
+            INSERT INTO user_club_access (user_id, club_profile_id, role, granted_at)
+            VALUES (:user_id, :club_profile_id, :role, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, club_profile_id, role) DO NOTHING
         ');
         $stmt->execute([
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $invitationEmail
+            'user_id' => $userId,
+            'club_profile_id' => $clubId,
+            'role' => $role
         ]);
-        $result = $stmt->fetch();
-        $userId = $result['id'];
-    }
 
-    // Grant club access
-    $stmt = $conn->prepare('
-        INSERT INTO user_club_access (user_id, club_profile_id, role, granted_at)
-        VALUES (:user_id, :club_profile_id, :role, CURRENT_TIMESTAMP)
-        ON CONFLICT (user_id, club_profile_id, role) DO NOTHING
-    ');
-    $stmt->execute([
-        'user_id' => $userId,
-        'club_profile_id' => $clubId,
-        'role' => $role
-    ]);
+        // Mark invitation as accepted (if email invitation).
+        // NOTE: only set columns that exist on the table — `accepted_by` was
+        // never added by any migration, so writing it threw a SQL error and
+        // failed the whole accept (this was the "Accept button does nothing"
+        // bug). The accepting user's id is recoverable via the email link.
+        if ($id) {
+            $stmt = $conn->prepare('
+                UPDATE invitations
+                SET status = \'accepted\', accepted_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+            ');
+            $stmt->execute(['id' => $id]);
+        }
 
-    // Mark invitation as accepted (if email invitation)
-    if ($id) {
-        $stmt = $conn->prepare('
-            UPDATE invitations
-            SET status = \'accepted\', accepted_at = CURRENT_TIMESTAMP, accepted_by = :user_id
-            WHERE id = :id
-        ');
-        $stmt->execute(['id' => $id, 'user_id' => $userId]);
-    }
+        // Increment link usage (if link invitation)
+        if ($code) {
+            $stmt = $conn->prepare('
+                UPDATE invitation_links
+                SET uses_count = uses_count + 1
+                WHERE code = :code
+            ');
+            $stmt->execute(['code' => $code]);
+        }
 
-    // Increment link usage (if link invitation)
-    if ($code) {
-        $stmt = $conn->prepare('
-            UPDATE invitation_links
-            SET uses_count = uses_count + 1
-            WHERE code = :code
-        ');
-        $stmt->execute(['code' => $code]);
+        if ($manageTxn) {
+            $conn->commit();
+        }
+    } catch (Exception $e) {
+        if ($manageTxn && $conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        throw $e;
     }
 
     // Generate login token for the user
@@ -594,6 +624,32 @@ function handleAcceptInvitation($conn, $input) {
         'userId' => $userId,
         'role' => $role
     ];
+}
+
+/**
+ * Minimum seconds between resends of the same invitation.
+ * Prevents the "invited over and over" spam issue (CA-118).
+ */
+const RESEND_COOLDOWN_SECONDS = 120;
+
+/**
+ * Compute remaining cooldown (in seconds) for an invitation given its
+ * last-sent timestamp. Returns 0 when a resend is allowed.
+ *
+ * Pulled out as a pure function so it can be unit tested without a DB.
+ */
+function resendCooldownRemaining($lastSentAt, $nowTs = null) {
+    if (empty($lastSentAt)) {
+        return 0; // never sent / unknown -> allow
+    }
+    $nowTs = $nowTs ?? time();
+    $lastTs = is_numeric($lastSentAt) ? (int)$lastSentAt : strtotime($lastSentAt);
+    if ($lastTs === false) {
+        return 0;
+    }
+    $elapsed = $nowTs - $lastTs;
+    $remaining = RESEND_COOLDOWN_SECONDS - $elapsed;
+    return $remaining > 0 ? $remaining : 0;
 }
 
 /**
@@ -630,6 +686,19 @@ function handleResendInvitation($conn, $input, $userId) {
         return ['error' => 'Can only resend pending invitations'];
     }
 
+    // Cooldown guard — reject if the invitation was (re)sent very recently.
+    // We use created_at as the "last sent" marker because the table has no
+    // dedicated resend column (no migration allowed here) and created_at is
+    // bumped to CURRENT_TIMESTAMP on every successful resend below.
+    $remaining = resendCooldownRemaining($invitation['created_at'] ?? null);
+    if ($remaining > 0) {
+        http_response_code(429);
+        return [
+            'error' => 'This invitation was sent recently. Please wait before resending.',
+            'retryAfterSeconds' => $remaining
+        ];
+    }
+
     // Generate new invitation link
     $appUrl = getenv('APP_URL') ?: 'https://teams-elevated.netlify.app';
     $invitationLink = "$appUrl/accept-invitation?id=" . $invitation['id'];
@@ -645,6 +714,14 @@ function handleResendInvitation($conn, $input, $userId) {
         $invitationLink,
         $invitation['personal_message']
     );
+
+    // Record the send time so the cooldown applies to the next resend.
+    $stmt = $conn->prepare('
+        UPDATE invitations
+        SET created_at = CURRENT_TIMESTAMP
+        WHERE id = :id AND invited_by = :user_id
+    ');
+    $stmt->execute(['id' => $invitationId, 'user_id' => $userId]);
 
     return [
         'success' => true,
