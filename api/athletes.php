@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 WHERE a.id = ?
+                  AND a.active_status = true
             ";
 
             $stmt = $pdo->prepare($query);
@@ -104,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 FROM athletes a
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
+                WHERE a.active_status = true
                 ORDER BY a.last_name, a.first_name
             ";
 

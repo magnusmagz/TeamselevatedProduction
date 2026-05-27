@@ -56,6 +56,7 @@ class Coach {
                 WHERE tm.team_id = :team_id
                 AND tm.role = 'player'
                 AND tm.leave_date IS NULL
+                AND a.active_status = true
                 ORDER BY tm.jersey_number, a.last_name";
 
         $stmt = $this->db->prepare($sql);

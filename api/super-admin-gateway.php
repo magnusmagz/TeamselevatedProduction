@@ -216,7 +216,7 @@ function handleGetStats($pdo) {
     $stats['total_teams'] = (int)$stmt->fetchColumn();
 
     // Total athletes
-    $stmt = $pdo->query("SELECT COUNT(*) FROM athletes");
+    $stmt = $pdo->query("SELECT COUNT(*) FROM athletes WHERE active_status = true");
     $stats['total_athletes'] = (int)$stmt->fetchColumn();
 
     // Super admins count
@@ -248,7 +248,7 @@ function handleGetClubs($pdo) {
             (SELECT COUNT(*) FROM user_club_access WHERE club_profile_id = c.id AND role = 'club_admin' AND active = true) as admin_count,
             (SELECT COUNT(*) FROM user_club_access WHERE club_profile_id = c.id AND role = 'coach' AND active = true) as coach_count,
             (SELECT COUNT(*) FROM teams WHERE club_id = c.id) as team_count,
-            (SELECT COUNT(*) FROM athletes WHERE club_id = c.id) as athlete_count
+            (SELECT COUNT(*) FROM athletes WHERE club_id = c.id AND active_status = true) as athlete_count
         FROM club_profile c
         WHERE 1=1
     ";
@@ -511,6 +511,7 @@ function handleGetAthletes($pdo) {
         FROM athletes a
         LEFT JOIN club_profile c ON a.club_id = c.id
         WHERE 1=1
+          AND a.active_status = true
     ";
 
     $params = [];

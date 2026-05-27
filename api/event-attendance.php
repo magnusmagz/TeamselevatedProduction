@@ -97,6 +97,7 @@ try {
                 WHERE tm.team_id IN ($placeholders)
                   AND tm.status = 'active'
                   AND tm.role = 'player'
+                  AND a.active_status = true
                 ORDER BY a.last_name, a.first_name
             ";
             $stmt = $pdo->prepare($athleteQuery);

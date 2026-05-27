@@ -341,8 +341,8 @@ try {
             $pdo->beginTransaction();
 
             try {
-                // Soft delete from athletes table
-                $stmt = $pdo->prepare("UPDATE athletes SET active_status = false WHERE id = ?");
+                // Soft delete from athletes table (stamp audit timestamp)
+                $stmt = $pdo->prepare("UPDATE athletes SET active_status = false, deleted_at = NOW() WHERE id = ?");
                 $stmt->execute([$id]);
 
                 $pdo->commit();

@@ -177,6 +177,17 @@ try {
                 if ($existingAthlete) {
                     $athlete_id = $existingAthlete['id'];
                     $matchedExisting = true;
+
+                    // A returning athlete who was previously soft-deleted should
+                    // come back active when they re-register — otherwise they'd
+                    // sit "deleted" while holding a live registration. No-op if
+                    // the matched athlete is already active.
+                    $reactivate = $connection->prepare("
+                        UPDATE athletes
+                        SET active_status = true, deleted_at = NULL
+                        WHERE id = ? AND active_status = false
+                    ");
+                    $reactivate->execute([$athlete_id]);
                 } else {
                     // Create athlete record (address will be collected later).
                     // Stamp club_id so future registrations can match this athlete.

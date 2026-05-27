@@ -152,6 +152,7 @@ try {
                     FROM athletes a
                     JOIN athlete_guardians ag ON a.id = ag.athlete_id
                     WHERE ag.guardian_id IN ($placeholders)
+                      AND a.active_status = true
                 ");
                 $athleteStmt->execute($guardianIds);
                 $accessibleAthletes = $athleteStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -168,6 +169,7 @@ try {
                     JOIN coaches c ON tc.coach_id = c.id
                     JOIN users u ON c.email = u.email
                     WHERE u.id = :user_id
+                      AND a.active_status = true
                 ");
                 $teamAthleteStmt->execute(['user_id' => $userId]);
                 $coachAthletes = $teamAthleteStmt->fetchAll(PDO::FETCH_ASSOC);

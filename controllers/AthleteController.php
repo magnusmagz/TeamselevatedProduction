@@ -223,6 +223,7 @@ class AthleteController {
                 FROM athletes a
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
+                WHERE a.active_status = true
                 ORDER BY a.last_name, a.first_name";
 
         $stmt = $this->db->prepare($sql);
@@ -248,7 +249,7 @@ class AthleteController {
         }
 
         // Get athlete details
-        $sql = "SELECT * FROM athletes WHERE id = :id";
+        $sql = "SELECT * FROM athletes WHERE id = :id AND active_status = true";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $id]);
         $athlete = $stmt->fetch();

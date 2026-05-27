@@ -65,6 +65,7 @@ try {
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id AND ap.program_id = r.program_id
             WHERE r.program_id = :program_id
             AND r.status = 'approved'
+            AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email, g.mobile_phone,
                      r.status, r.submitted_at
@@ -105,6 +106,7 @@ try {
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             WHERE tm.team_id = :team_id
+            AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email, g.mobile_phone,
                      tm.jersey_number, tm.status
@@ -141,7 +143,8 @@ try {
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
-            WHERE a.league_id = :league_id OR p.league_id = :league_id
+            WHERE (a.league_id = :league_id OR p.league_id = :league_id)
+            AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email
             ORDER BY a.last_name, a.first_name
@@ -176,6 +179,7 @@ try {
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
             WHERE p.club_id = :club_id
+            AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email, g.mobile_phone
             ORDER BY a.last_name, a.first_name

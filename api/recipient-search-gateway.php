@@ -235,6 +235,7 @@ function handleSearch($connection, $auth, $userId) {
         JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
         JOIN teams t ON tm.team_id = t.id AND t.club_id = ?
         WHERE (a.first_name ILIKE ? OR a.last_name ILIKE ? OR a.email ILIKE ? OR a.phone LIKE ?)
+          AND a.active_status = true
         {$athleteTeamFilterSql}
         LIMIT 20
     ";
@@ -547,6 +548,7 @@ function handleResolveGroup($connection, $auth, $userId) {
             JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
             JOIN teams t ON tm.team_id = t.id
             WHERE tm.team_id IN ({$teamPlaceholders}) AND t.club_id = ?
+              AND a.active_status = true
         ";
         $stmt = $connection->prepare($sql);
         $stmt->execute(array_merge($teamIds, [$clubProfileId]));
