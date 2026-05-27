@@ -70,6 +70,14 @@ try {
             handleResetPassword($db, $input);
             break;
 
+        case 'set-parent-password':
+            handleSetParentPassword($db, $input);
+            break;
+
+        case 'send-parent-invite':
+            handleSendParentInvite($db, $input);
+            break;
+
         case 'switch-context':
             handleSwitchContext($db, $input);
             break;
@@ -649,6 +657,171 @@ function handleResetPassword($db, $input) {
     echo json_encode([
         'success' => true,
         'message' => 'Password has been reset successfully. You can now log in with your new password.'
+    ]);
+}
+
+/**
+ * Handle parent-invite "set your password" completion.
+ *
+ * Mirrors handleResetPassword but operates on the ':parent_invite' token suffix,
+ * sets the parent's password, and auto-logs them in by returning a JWT (same
+ * response shape as login/register).
+ */
+function handleSetParentPassword($db, $input) {
+    if (empty($input['token'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Token is required']);
+        return;
+    }
+
+    if (empty($input['password'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Password is required']);
+        return;
+    }
+
+    // Validate password strength (same rules as reset-password).
+    $password = $input['password'];
+    if (strlen($password) < 8) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Password must be at least 8 characters']);
+        return;
+    }
+    if (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Password must contain uppercase, lowercase, and numbers']);
+        return;
+    }
+
+    $token = $input['token'];
+
+    // Look up the parent-invite token (':parent_invite' suffix in email field).
+    $stmt = $db->prepare("
+        SELECT id, email, expires_at, used_at
+        FROM magic_link_tokens
+        WHERE token = ? AND email LIKE '%:parent_invite' AND used_at IS NULL AND expires_at > NOW()
+        LIMIT 1
+    ");
+    $stmt->execute([$token]);
+    $tokenData = $stmt->fetch();
+
+    if (!$tokenData) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid or expired link']);
+        return;
+    }
+
+    // Derive the real email by stripping the trailing ':parent_invite' suffix.
+    $email = preg_replace('/:parent_invite$/', '', $tokenData['email']);
+
+    // Set the password and flip the account to password auth.
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $db->prepare("UPDATE users SET password_hash = ?, auth_provider = 'password', updated_at = NOW() WHERE email = ?");
+    $stmt->execute([$passwordHash, $email]);
+
+    // Mark token used.
+    $stmt = $db->prepare('UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt->execute([$tokenData['id']]);
+
+    // Load the user and auto-log them in.
+    $stmt = $db->prepare('SELECT id, email, first_name, last_name FROM users WHERE email = ? LIMIT 1');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid or expired link']);
+        return;
+    }
+
+    $userName = trim($user['first_name'] . ' ' . $user['last_name']);
+    $jwt = JWT::generateEnhanced($db, $user['id'], $user['email'], $userName);
+    $payload = JWT::decode($jwt);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Your parent account is ready.',
+        'token' => $jwt,
+        'user' => [
+            'id' => (int)$user['id'],
+            'email' => $user['email'],
+            'name' => $userName,
+            'system_role' => $payload->system_role ?? 'user',
+            'organization' => [
+                'orgId' => $payload->org_id ?? null,
+                'orgType' => $payload->org_type ?? null,
+                'orgName' => $payload->org_name ?? null
+            ],
+            'roles' => $payload->roles ?? [],
+            'activeRole' => $payload->active_context ?? null
+        ]
+    ]);
+}
+
+/**
+ * Handle the manual "Invite to parent portal" button.
+ *
+ * Admin/coach-only. Ensures the guardian has a parent login + emails them a
+ * "set your password" link. Returns the resolved status so the UI can toast.
+ */
+function handleSendParentInvite($db, $input) {
+    require_once __DIR__ . '/../lib/AuthMiddleware.php';
+    require_once __DIR__ . '/../lib/ParentInvite.php';
+
+    $auth = AuthMiddleware::requireAuth();
+
+    if (empty($input['guardian_id']) || empty($input['club_id'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'guardian_id and club_id are required']);
+        return;
+    }
+
+    $clubId = (int)$input['club_id'];
+    $guardianId = (int)$input['guardian_id'];
+
+    if (!$auth->canAccessClub($clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'You do not have access to this club']);
+        return;
+    }
+
+    $inv = parentInvite_ensureUserAndToken($db, $guardianId, $clubId);
+
+    if ($inv['status'] === 'error') {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'status' => 'error',
+            'error' => $inv['message'] ?? 'Could not create invite'
+        ]);
+        return;
+    }
+
+    if ($inv['status'] === 'invited') {
+        // Optional athlete name for context.
+        $athleteName = null;
+        if (!empty($input['athlete_id'])) {
+            try {
+                $aStmt = $db->prepare('SELECT first_name, last_name FROM athletes WHERE id = ?');
+                $aStmt->execute([(int)$input['athlete_id']]);
+                $a = $aStmt->fetch();
+                if ($a) {
+                    $athleteName = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? '')) ?: null;
+                }
+            } catch (Throwable $ae) {
+                // non-fatal
+            }
+        }
+
+        $appUrl = rtrim(Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/');
+        $link = $appUrl . '/set-parent-password?token=' . $inv['token'];
+        (new Email())->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
+    }
+
+    echo json_encode([
+        'success' => true,
+        'status' => $inv['status'],
+        'email' => $inv['email']
     ]);
 }
 

@@ -555,13 +555,63 @@ try {
                     }
                 }
 
+                // Parent-portal invite: ensure the guardian has a login and email
+                // them a "set your password" link. Wrapped so a failure here can
+                // NEVER break approval.
+                $parent_invite_status = null;
+                if ($data['status'] === 'approved') {
+                    try {
+                        require_once __DIR__ . '/../config/env.php';
+                        require_once __DIR__ . '/../lib/ParentInvite.php';
+                        require_once __DIR__ . '/../lib/Email.php';
+
+                        // Resolve the club that owns this program.
+                        $stmt = $connection->prepare('SELECT club_id FROM programs WHERE id = ?');
+                        $stmt->execute([$registration['program_id']]);
+                        $clubId = (int)$stmt->fetchColumn();
+
+                        $inv = parentInvite_ensureUserAndToken(
+                            $connection,
+                            (int)$registration['guardian_id'],
+                            $clubId
+                        );
+                        $parent_invite_status = $inv['status'];
+
+                        if ($inv['status'] === 'invited') {
+                            // Athlete name for context (best-effort).
+                            $athleteName = null;
+                            try {
+                                $aStmt = $connection->prepare('SELECT first_name, last_name FROM athletes WHERE id = ?');
+                                $aStmt->execute([$registration['athlete_id']]);
+                                $a = $aStmt->fetch(PDO::FETCH_ASSOC);
+                                if ($a) {
+                                    $athleteName = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? '')) ?: null;
+                                }
+                            } catch (Throwable $ae) {
+                                // non-fatal
+                            }
+
+                            $appUrl = rtrim(Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/');
+                            $link = $appUrl . '/set-parent-password?token=' . $inv['token'];
+                            (new Email())->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
+                        } elseif ($inv['status'] === 'already_active') {
+                            error_log('parent invite skipped (already active): ' . ($inv['email'] ?? ''));
+                        } else {
+                            error_log('parent invite not sent: ' . ($inv['message'] ?? 'unknown'));
+                        }
+                    } catch (Throwable $e) {
+                        error_log('parent invite failed: ' . $e->getMessage());
+                    }
+                }
+
                 $connection->commit();
 
                 echo json_encode([
                     'success' => true,
                     'message' => 'Registration updated',
                     'athlete_payment_id' => $athlete_payment_id,
-                    'invoice_id' => $invoice_id
+                    'invoice_id' => $invoice_id,
+                    'parent_invite' => $parent_invite_status
                 ]);
 
             } catch (Exception $e) {

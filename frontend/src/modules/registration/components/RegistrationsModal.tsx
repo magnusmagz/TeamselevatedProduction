@@ -39,6 +39,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [processing, setProcessing] = useState<number | null>(null);
+  const [inviting, setInviting] = useState<number | null>(null);
 
   useEffect(() => {
     fetchRegistrations();
@@ -81,6 +82,41 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
       console.error('Error updating registration:', error);
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleInviteToPortal = async (reg: Registration) => {
+    setInviting(reg.id);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=send-parent-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          guardian_id: reg.guardian_id,
+          club_id: program.club_id,
+          athlete_id: reg.athlete_id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        if (result.status === 'already_active') {
+          alert('That parent already has an account.');
+        } else if (result.status === 'invited') {
+          alert(`Invite sent to ${result.email}`);
+        } else {
+          alert('Could not send invite.');
+        }
+      } else {
+        alert(result.error || 'Could not send invite.');
+      }
+    } catch (error) {
+      console.error('Error sending parent invite:', error);
+      alert('Could not send invite.');
+    } finally {
+      setInviting(null);
     }
   };
 
@@ -253,7 +289,14 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                     )}
 
                     {reg.status === 'approved' && (
-                      <div className="ml-4 text-right">
+                      <div className="ml-4 text-right space-y-2">
+                        <button
+                          onClick={() => handleInviteToPortal(reg)}
+                          disabled={inviting === reg.id}
+                          className="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
+                        >
+                          {inviting === reg.id ? 'Sending...' : 'Invite to parent portal'}
+                        </button>
                         {reg.invoice_id ? (
                           <div className="space-y-1">
                             <div className="text-sm text-gray-500">

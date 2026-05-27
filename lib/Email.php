@@ -66,6 +66,37 @@ class Email {
     }
 
     /**
+     * Send parent-portal invite email ("set your password" link)
+     *
+     * Mirrors sendPasswordReset: a branded email with a button linking to the
+     * one-time set-password page. The link expires in 7 days.
+     *
+     * @param string $to Recipient email
+     * @param string $name Recipient name
+     * @param string $inviteLink The set-parent-password URL
+     * @param string|null $athleteName Optional athlete name for context
+     * @return bool Success status
+     */
+    public function sendParentInvite($to, $name, $inviteLink, $athleteName = null) {
+        $subject = 'Set up your Teams Elevated parent account';
+
+        $htmlBody = $this->getParentInviteTemplate($name, $inviteLink, $athleteName);
+
+        $athleteLine = $athleteName
+            ? "Your athlete $athleteName has been registered.\n\n"
+            : '';
+        $textBody = "Hi $name,\n\n" .
+                    $athleteLine .
+                    "You've been invited to set up your Teams Elevated parent account.\n\n" .
+                    "Click the link below to set your password and access the parent portal:\n\n" .
+                    "$inviteLink\n\n" .
+                    "This link expires in 7 days.\n\n" .
+                    "If you weren't expecting this invitation, you can safely ignore this email.";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * Send team invitation email
      *
      * @param string $to Recipient email
@@ -314,6 +345,59 @@ HTML;
             </div>
             <p style="color: #999; font-size: 12px; word-break: break-all;">
                 Or copy and paste this link: {$resetLink}
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Teams Elevated. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Parent-portal invite email template
+     */
+    private function getParentInviteTemplate($name, $inviteLink, $athleteName = null) {
+        $athleteHtml = $athleteName
+            ? "<p>Your athlete <strong>{$athleteName}</strong> has been registered.</p>"
+            : '';
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Teams Elevated</h1>
+        </div>
+        <div class="content">
+            <h2>Set Up Your Parent Account</h2>
+            <p>Hi {$name},</p>
+            {$athleteHtml}
+            <p>You've been invited to set up your Teams Elevated parent account. Click the button below to choose a password and access the parent portal.</p>
+            <p style="text-align: center;">
+                <a href="{$inviteLink}" class="button">Set Up My Account</a>
+            </p>
+            <div class="warning">
+                <strong>This link expires in 7 days.</strong> If you weren't expecting this invitation, you can safely ignore this email.
+            </div>
+            <p style="color: #999; font-size: 12px; word-break: break-all;">
+                Or copy and paste this link: {$inviteLink}
             </p>
         </div>
         <div class="footer">

@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import SetParentPassword from './pages/SetParentPassword';
 import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -697,6 +698,7 @@ function AppContent() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/set-parent-password" element={<SetParentPassword />} />
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
