@@ -89,6 +89,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [attendanceEventId, setAttendanceEventId] = useState<number | null>(null);
   const [rsvpSummary, setRsvpSummary] = useState<{ total: number; responded: number } | null>(null);
+  const [rsvpList, setRsvpList] = useState<{ athlete_id: number; athlete_name: string; status: string | null }[]>([]);
+  const [showRsvpBreakdown, setShowRsvpBreakdown] = useState(false);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [eventFormData, setEventFormData] = useState<Event>({
     name: '',
@@ -146,13 +148,18 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   useEffect(() => {
     if (!selectedEvent?.id || !showEventForm) {
       setRsvpSummary(null);
+      setRsvpList([]);
+      setShowRsvpBreakdown(false);
       return;
     }
     const RSVP_TRACKED_TYPES = ['practice', 'game', 'tournament', 'meeting', 'event'];
     if (!RSVP_TRACKED_TYPES.includes(selectedEvent.type)) {
       setRsvpSummary(null);
+      setRsvpList([]);
+      setShowRsvpBreakdown(false);
       return;
     }
+    setShowRsvpBreakdown(false);
     const token = localStorage.getItem('auth_token');
     fetch(`${API_URL}/api/calendar-events-gateway.php?action=get&id=${selectedEvent.id}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -160,17 +167,26 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       .then((r) => r.json())
       .then((data) => {
         if (data.success && Array.isArray(data.event?.athletes_rsvp)) {
-          const total = data.event.athletes_rsvp.length;
-          const responded = data.event.athletes_rsvp.filter(
-            (a: { status: string | null }) =>
-              a.status && a.status !== 'pending'
+          const list = data.event.athletes_rsvp as {
+            athlete_id: number;
+            athlete_name: string;
+            status: string | null;
+          }[];
+          const total = list.length;
+          const responded = list.filter(
+            (a) => a.status && a.status !== 'pending'
           ).length;
           setRsvpSummary({ total, responded });
+          setRsvpList(list);
         } else {
           setRsvpSummary(null);
+          setRsvpList([]);
         }
       })
-      .catch(() => setRsvpSummary(null));
+      .catch(() => {
+        setRsvpSummary(null);
+        setRsvpList([]);
+      });
   }, [API_URL, selectedEvent, showEventForm]);
 
   const handleSendReminders = async () => {
@@ -268,9 +284,10 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     try {
       const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
       const data = await response.json();
-      if (data.venues) {
-        setVenues(data.venues);
-      }
+      // Endpoint returns a bare JSON array of venues (not {venues:[...]}).
+      // Parse defensively in case the shape ever changes.
+      const list = Array.isArray(data) ? data : (data.venues || []);
+      setVenues(list);
     } catch (error) {
       console.error('Error fetching venues:', error);
     }
@@ -1369,6 +1386,16 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                           </button>
                         );
                       })()}
+                      {rsvpSummary && rsvpSummary.total > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRsvpBreakdown((v) => !v)}
+                          className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                          title="Show who has and hasn't responded"
+                        >
+                          {showRsvpBreakdown ? 'Hide' : 'View'} RSVPs ({rsvpSummary.responded}/{rsvpSummary.total})
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1397,6 +1424,49 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                   </button>
                 </div>
               </div>
+
+              {selectedEvent && showRsvpBreakdown && rsvpList.length > 0 && (
+                <div className="mt-4 border border-brand-secondary rounded-md p-4 bg-gray-50">
+                  {(() => {
+                    const groups: { key: string; label: string }[] = [
+                      { key: 'attending', label: 'Attending' },
+                      { key: 'not_attending', label: 'Not attending' },
+                      { key: 'maybe', label: 'Maybe' },
+                      { key: 'no_response', label: 'No response' },
+                    ];
+                    const bucket = (status: string | null) => {
+                      if (status === 'attending' || status === 'not_attending' || status === 'maybe') {
+                        return status;
+                      }
+                      // null and 'pending' (and any unknown value) count as no response
+                      return 'no_response';
+                    };
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {groups.map((g) => {
+                          const members = rsvpList.filter((a) => bucket(a.status) === g.key);
+                          return (
+                            <div key={g.key}>
+                              <h4 className="text-brand-primary text-sm font-semibold uppercase mb-1">
+                                {g.label} ({members.length})
+                              </h4>
+                              {members.length === 0 ? (
+                                <p className="text-sm text-gray-400">—</p>
+                              ) : (
+                                <ul className="text-sm text-brand-primary space-y-0.5">
+                                  {members.map((a) => (
+                                    <li key={a.athlete_id}>{a.athlete_name}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </form>
           </div>
         </div>
