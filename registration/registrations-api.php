@@ -76,7 +76,7 @@ try {
 
             // Validate program exists and is open for registration
             $stmt = $connection->prepare("
-                SELECT id, status, registration_closes, registration_fee
+                SELECT id, status, registration_closes, registration_fee, club_id
                 FROM programs
                 WHERE id = ? AND status = 'published'
             ");
@@ -105,6 +105,9 @@ try {
             try {
                 $formData = $data['form_data'];
 
+                // Club that owns this program — used to scope returning-athlete dedup
+                $programClubId = $program['club_id'];
+
                 // Extract guardian information
                 $guardianEmail = $formData['guardian_email'] ?? null;
                 $guardianFirst = $formData['guardian_first'] ?? null;
@@ -115,9 +118,16 @@ try {
                     throw new Exception('Guardian information is required');
                 }
 
-                // Check if guardian exists by email
-                $stmt = $connection->prepare("SELECT id FROM guardians WHERE email = ?");
-                $stmt->execute([$guardianEmail]);
+                // Check if guardian exists by composite match (email + first + last).
+                // guardians.email is intentionally non-unique to support shared
+                // household emails, so match on the full name too — mirrors
+                // AthleteImportStrategy / AthleteController::createOrFindGuardian.
+                $stmt = $connection->prepare("
+                    SELECT id FROM guardians
+                    WHERE email = ? AND first_name = ? AND last_name = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$guardianEmail, $guardianFirst, $guardianLast]);
                 $existingGuardian = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existingGuardian) {
@@ -152,30 +162,89 @@ try {
                 ];
                 $gradeLevel = $gradeMap[$athleteGrade] ?? null;
 
-                // Create athlete record (address will be collected later)
+                // Returning-athlete dedup: look for an existing athlete in this
+                // program's club matching (first + last + dob), the same key the
+                // importer uses. Avoids creating duplicate athlete rows when a
+                // family re-registers a child season over season.
                 $stmt = $connection->prepare("
-                    INSERT INTO athletes (
-                        first_name, last_name, date_of_birth, gender,
-                        grade_level, created_at, active_status
-                    ) VALUES (?, ?, ?, ?, ?, NOW(), TRUE)
+                    SELECT id FROM athletes
+                    WHERE first_name = ? AND last_name = ? AND date_of_birth = ? AND club_id = ?
+                    LIMIT 1
                 ");
-                $stmt->execute([
-                    $athleteFirst,
-                    $athleteLast,
-                    $athleteBirthday,
-                    $athleteGender,
-                    $gradeLevel
-                ]);
-                $athlete_id = $connection->lastInsertId();
+                $stmt->execute([$athleteFirst, $athleteLast, $athleteBirthday, $programClubId]);
+                $existingAthlete = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                // Link athlete to guardian
+                if ($existingAthlete) {
+                    $athlete_id = $existingAthlete['id'];
+                    $matchedExisting = true;
+                } else {
+                    // Create athlete record (address will be collected later).
+                    // Stamp club_id so future registrations can match this athlete.
+                    $stmt = $connection->prepare("
+                        INSERT INTO athletes (
+                            first_name, last_name, date_of_birth, gender,
+                            grade_level, club_id, created_at, active_status
+                        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), TRUE)
+                    ");
+                    $stmt->execute([
+                        $athleteFirst,
+                        $athleteLast,
+                        $athleteBirthday,
+                        $athleteGender,
+                        $gradeLevel,
+                        $programClubId
+                    ]);
+                    $athlete_id = $connection->lastInsertId();
+                    $matchedExisting = false;
+                }
+
+                // Link athlete to guardian only if the relationship doesn't exist yet
                 $stmt = $connection->prepare("
-                    INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship,
-                        is_primary, created_at
-                    ) VALUES (?, ?, 'Guardian', TRUE, NOW())
+                    SELECT id FROM athlete_guardians
+                    WHERE athlete_id = ? AND guardian_id = ?
                 ");
                 $stmt->execute([$athlete_id, $guardian_id]);
+                if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $stmt = $connection->prepare("
+                        INSERT INTO athlete_guardians (
+                            athlete_id, guardian_id, relationship,
+                            is_primary, created_at
+                        ) VALUES (?, ?, 'Guardian', TRUE, NOW())
+                    ");
+                    $stmt->execute([$athlete_id, $guardian_id]);
+                }
+
+                // Duplicate-registration guard: if this athlete already has a
+                // non-rejected registration for this program, don't create a
+                // second one. Roll back any newly-created athlete/guardian rows —
+                // a matched athlete/guardian already existed; a brand-new one will
+                // be recreated on a legitimate future registration.
+                $stmt = $connection->prepare("
+                    SELECT id FROM registrations
+                    WHERE program_id = ? AND athlete_id = ? AND status <> 'rejected'
+                    LIMIT 1
+                ");
+                $stmt->execute([$data['program_id'], $athlete_id]);
+                $existingRegistration = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($existingRegistration) {
+                    $connection->rollBack();
+                    echo json_encode([
+                        'success' => true,
+                        'id' => $existingRegistration['id'],
+                        'athlete_id' => $athlete_id,
+                        'guardian_id' => $guardian_id,
+                        'already_registered' => true,
+                        'message' => 'This athlete is already registered for this program'
+                    ]);
+                    exit();
+                }
+
+                // Persist a returning-athlete flag in form_data so the admin sees
+                // a "verify same athlete" badge at approval time.
+                if ($matchedExisting) {
+                    $formData['_athlete_matched'] = true;
+                }
 
                 // Insert registration with athlete and guardian references
                 $stmt = $connection->prepare("
@@ -298,6 +367,7 @@ try {
                     'id' => $registration_id,
                     'athlete_id' => $athlete_id,
                     'guardian_id' => $guardian_id,
+                    'athlete_matched' => $matchedExisting,
                     'athlete_payment_id' => $athlete_payment_id,
                     'payment_amount' => $payment_amount,
                     'sibling_discount_applied' => $sibling_discount_applied,

@@ -24,6 +24,7 @@ interface Registration {
     guardian_last: string;
     guardian_email: string;
     mobile_phone: string;
+    _athlete_matched?: boolean;
   };
 }
 
@@ -188,6 +189,14 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                           {reg.form_data.athlete_first} {reg.form_data.athlete_last}
                         </h3>
                         {getStatusBadge(reg.status)}
+                        {reg.form_data._athlete_matched && (
+                          <span
+                            className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded"
+                            title="This registration was matched to an existing athlete in your club. Confirm it's the same person before approving."
+                          >
+                            ↩ Returning — verify same athlete
+                          </span>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-600">
                         <div>
