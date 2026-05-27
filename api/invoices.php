@@ -257,6 +257,25 @@ try {
                 $program_id = $data['program_id'] ?? null;
             }
 
+            // Idempotency guard: the registration-approval PUT already creates a
+            // draft invoice for this payment, and RegistrationsModal then ALSO calls
+            // this endpoint — without this check that created a DUPLICATE invoice on
+            // every approval. If one already exists for the payment, return it.
+            if ($athlete_payment_id) {
+                $existing = $pdo->prepare("SELECT id, invoice_number FROM invoices WHERE athlete_payment_id = :id ORDER BY id LIMIT 1");
+                $existing->execute(['id' => $athlete_payment_id]);
+                if ($row = $existing->fetch(PDO::FETCH_ASSOC)) {
+                    echo json_encode([
+                        'success' => true,
+                        'invoice_id' => $row['id'],
+                        'invoice_number' => $row['invoice_number'],
+                        'message' => 'Invoice already exists for this payment',
+                        'idempotent' => true
+                    ]);
+                    break;
+                }
+            }
+
             // Generate invoice number
             $stmt = $pdo->query("SELECT generate_invoice_number()");
             $invoice_number = $stmt->fetchColumn();
