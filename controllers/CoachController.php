@@ -229,8 +229,9 @@ class CoachController {
     private function validatePlayerData($data) {
         $errors = [];
 
-        if (empty($data['user_id'])) {
-            $errors['user_id'] = 'Player selection is required';
+        // Players are athletes: require athlete_id (UI may send player_id as an alias).
+        if (empty($data['athlete_id']) && empty($data['player_id'])) {
+            $errors['athlete_id'] = 'Player selection is required';
         }
 
         if (empty($data['positions']) || !is_array($data['positions'])) {

@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -22,6 +23,24 @@ try {
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_GET['path'] ?? '';
+
+// Authentication: the public registration widget endpoint (GET path=by-embed)
+// stays public so embedded forms can load. Everything else requires a valid
+// token; write operations additionally verify club access.
+$auth = null;
+$isPublic = ($method === 'GET' && $path === 'by-embed');
+if (!$isPublic) {
+    $auth = AuthMiddleware::requireAuth();
+}
+
+/**
+ * Look up a program's club_id (for update/delete club-access checks).
+ */
+function getProgramClubId($connection, $programId) {
+    $stmt = $connection->prepare("SELECT club_id FROM programs WHERE id = ?");
+    $stmt->execute([$programId]);
+    return $stmt->fetchColumn();
+}
 
 try {
     switch ($method) {
@@ -106,6 +125,14 @@ try {
             if ($path === 'create') {
                 $data = json_decode(file_get_contents("php://input"), true);
 
+                // Verify the caller can manage the target club.
+                $clubId = $data['club_id'] ?? 1;
+                if (!$auth->canAccessClub($clubId)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Forbidden: no access to this club']);
+                    exit();
+                }
+
                 // Generate unique embed code
                 $embed_code = 'PRG' . strtoupper(bin2hex(random_bytes(8)));
 
@@ -179,6 +206,14 @@ try {
                 $data = json_decode(file_get_contents("php://input"), true);
                 $program_id = $data['program_id'];
 
+                // Verify caller can manage the program's club.
+                $programClubId = getProgramClubId($connection, $program_id);
+                if ($programClubId === false || !$auth->canAccessClub($programClubId)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Forbidden: no access to this program']);
+                    exit();
+                }
+
                 // Delete existing fields
                 $stmt = $connection->prepare("DELETE FROM program_form_fields WHERE program_id = ?");
                 $stmt->execute([$program_id]);
@@ -212,6 +247,14 @@ try {
             $data = json_decode(file_get_contents("php://input"), true);
             $program_id = $_GET['id'] ?? 0;
 
+            // Verify caller can manage the program's club.
+            $programClubId = getProgramClubId($connection, $program_id);
+            if ($programClubId === false || !$auth->canAccessClub($programClubId)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden: no access to this program']);
+                exit();
+            }
+
             $stmt = $connection->prepare("
                 UPDATE programs SET
                     name = ?, type = ?, description = ?,
@@ -242,6 +285,15 @@ try {
 
         case 'DELETE':
             $program_id = $_GET['id'] ?? 0;
+
+            // Verify caller can manage the program's club.
+            $programClubId = getProgramClubId($connection, $program_id);
+            if ($programClubId === false || !$auth->canAccessClub($programClubId)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden: no access to this program']);
+                exit();
+            }
+
             $stmt = $connection->prepare("DELETE FROM programs WHERE id = ?");
             $stmt->execute([$program_id]);
             echo json_encode(['success' => true, 'message' => 'Program deleted']);

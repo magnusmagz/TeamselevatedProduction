@@ -41,19 +41,22 @@ class Coach {
     }
 
     public function getTeamRoster($teamId) {
-        $sql = "SELECT tm.*, u.first_name, u.last_name, u.email, u.phone, u.date_of_birth,
-                tm.positions, tm.primary_position, tm.jersey_number, tm.jersey_number_alt,
-                tm.team_priority, tm.status,
-                GROUP_CONCAT(DISTINCT CONCAT(ppa.position, ':', COALESCE(ppa.jersey_number, ''))
-                    ORDER BY ppa.position SEPARATOR '|') as position_jerseys
+        // Rosters are athlete-based: join athletes on tm.athlete_id, NOT users.
+        // The roster UI reads id (= team_members.id), athlete_id, first_name,
+        // last_name, date_of_birth, gender, grade_level, primary_position,
+        // positions (JSON array) and jersey_number.
+        $sql = "SELECT tm.id, tm.athlete_id, tm.team_id, tm.role,
+                       tm.positions, tm.primary_position, tm.jersey_number,
+                       tm.jersey_number_alt, tm.team_priority, tm.status,
+                       tm.join_date, tm.leave_date,
+                       a.first_name, a.last_name, a.email, a.phone,
+                       a.date_of_birth, a.gender, a.grade_level
                 FROM team_members tm
-                JOIN users u ON tm.user_id = u.id
-                LEFT JOIN player_position_assignments ppa ON tm.id = ppa.team_member_id AND ppa.is_active = 1
+                JOIN athletes a ON tm.athlete_id = a.id
                 WHERE tm.team_id = :team_id
                 AND tm.role = 'player'
                 AND tm.leave_date IS NULL
-                GROUP BY tm.id
-                ORDER BY tm.jersey_number, u.last_name";
+                ORDER BY tm.jersey_number, a.last_name";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':team_id' => $teamId]);
@@ -61,23 +64,11 @@ class Coach {
         $roster = $stmt->fetchAll();
 
         foreach ($roster as &$player) {
-            $player['positions'] = json_decode($player['positions'], true) ?? [];
+            // positions is jsonb; PDO returns it as a string — decode to array.
+            $player['positions'] = json_decode($player['positions'] ?? '', true) ?? [];
             $player['name'] = $player['first_name'] . ' ' . $player['last_name'];
 
-            $positionJerseys = [];
-            if (!empty($player['position_jerseys'])) {
-                $pairs = explode('|', $player['position_jerseys']);
-                foreach ($pairs as $pair) {
-                    list($position, $jersey) = explode(':', $pair);
-                    $positionJerseys[] = [
-                        'position' => $position,
-                        'jersey' => $jersey ?: null
-                    ];
-                }
-            }
-            $player['position_jerseys'] = $positionJerseys;
-
-            $otherTeams = $this->getPlayerOtherTeams($player['user_id'], $teamId);
+            $otherTeams = $this->getPlayerOtherTeams($player['athlete_id'], $teamId);
             $player['other_teams'] = $otherTeams;
         }
 
@@ -88,138 +79,100 @@ class Coach {
         $this->db->beginTransaction();
 
         try {
+            // Players are athletes, not users. Accept athlete_id (UI sends
+            // player_id as an alias).
+            $athleteId = $data['athlete_id'] ?? $data['player_id'] ?? null;
+            if (empty($athleteId)) {
+                throw new Exception('athlete_id is required');
+            }
+
             $existingCheck = "SELECT id FROM team_members
-                            WHERE team_id = :team_id AND user_id = :user_id
+                            WHERE team_id = :team_id AND athlete_id = :athlete_id
                             AND leave_date IS NULL";
             $stmt = $this->db->prepare($existingCheck);
-            $stmt->execute([':team_id' => $teamId, ':user_id' => $data['user_id']]);
+            $stmt->execute([':team_id' => $teamId, ':athlete_id' => $athleteId]);
 
             if ($stmt->fetch()) {
                 throw new Exception('Player is already on this team');
             }
 
+            // Postgres needs RETURNING to get the new id; team_members has no
+            // guest_player_agreement_id column, so it is not inserted here.
             $sql = "INSERT INTO team_members
-                    (team_id, user_id, role, jersey_number, jersey_number_alt, positions,
-                     primary_position, team_priority, status, join_date, guest_player_agreement_id)
-                    VALUES (:team_id, :user_id, 'player', :jersey, :jersey_alt, :positions,
-                            :primary_pos, :priority, :status, CURDATE(), :guest_id)";
+                    (team_id, athlete_id, role, jersey_number, jersey_number_alt, positions,
+                     primary_position, team_priority, status, join_date)
+                    VALUES (:team_id, :athlete_id, 'player', :jersey, :jersey_alt, :positions,
+                            :primary_pos, :priority, :status, CURRENT_DATE)
+                    RETURNING id";
 
             $stmt = $this->db->prepare($sql);
             $stmt->execute([
                 ':team_id' => $teamId,
-                ':user_id' => $data['user_id'],
+                ':athlete_id' => $athleteId,
                 ':jersey' => $data['jersey_number'] ?? null,
                 ':jersey_alt' => $data['jersey_number_alt'] ?? null,
-                ':positions' => json_encode($data['positions']),
-                ':primary_pos' => $data['primary_position'],
+                ':positions' => json_encode($data['positions'] ?? []),
+                ':primary_pos' => $data['primary_position'] ?? null,
                 ':priority' => $data['team_priority'] ?? 'primary',
-                ':status' => $data['status'] ?? 'active',
-                ':guest_id' => $data['guest_player_agreement_id'] ?? null
+                ':status' => $data['status'] ?? 'active'
             ]);
 
-            $teamMemberId = $this->db->lastInsertId();
-
-            if (!empty($data['position_assignments'])) {
-                foreach ($data['position_assignments'] as $pa) {
-                    $sql = "INSERT INTO player_position_assignments
-                            (team_member_id, position, jersey_number, is_active, assigned_date)
-                            VALUES (:tm_id, :position, :jersey, 1, CURDATE())";
-                    $stmt = $this->db->prepare($sql);
-                    $stmt->execute([
-                        ':tm_id' => $teamMemberId,
-                        ':position' => $pa['position'],
-                        ':jersey' => $pa['jersey_number'] ?? null
-                    ]);
-                }
-            }
+            $teamMemberId = $stmt->fetchColumn();
 
             $this->db->commit();
             return $teamMemberId;
         } catch (Exception $e) {
             $this->db->rollBack();
+            error_log('Coach::addPlayerToTeam failed: ' . $e->getMessage());
             return false;
         }
     }
 
     public function updatePlayerPositions($teamId, $playerId, $data) {
-        $this->db->beginTransaction();
+        // Decision: the roster route passes the roster identifier the UI holds.
+        // getTeamRoster returns athlete_id (and id = team_members.id), so we
+        // match the row by athlete_id to stay athlete-based and consistent.
+        // (player_position_assignments / roster_change_log tables do not exist
+        // in the Postgres schema, so those side writes are dropped.)
+        $sql = "UPDATE team_members
+                SET positions = :positions, primary_position = :primary_pos,
+                    jersey_number = :jersey, jersey_number_alt = :jersey_alt
+                WHERE team_id = :team_id AND athlete_id = :athlete_id
+                AND leave_date IS NULL";
 
-        try {
-            $sql = "UPDATE team_members
-                    SET positions = :positions, primary_position = :primary_pos,
-                        jersey_number = :jersey, jersey_number_alt = :jersey_alt
-                    WHERE team_id = :team_id AND user_id = :player_id
-                    AND leave_date IS NULL";
-
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([
-                ':positions' => json_encode($data['positions']),
-                ':primary_pos' => $data['primary_position'],
-                ':jersey' => $data['jersey_number'] ?? null,
-                ':jersey_alt' => $data['jersey_number_alt'] ?? null,
-                ':team_id' => $teamId,
-                ':player_id' => $playerId
-            ]);
-
-            $tmSql = "SELECT id FROM team_members
-                     WHERE team_id = :team_id AND user_id = :player_id
-                     AND leave_date IS NULL";
-            $tmStmt = $this->db->prepare($tmSql);
-            $tmStmt->execute([':team_id' => $teamId, ':player_id' => $playerId]);
-            $teamMemberId = $tmStmt->fetchColumn();
-
-            $sql = "UPDATE player_position_assignments
-                    SET is_active = 0
-                    WHERE team_member_id = :tm_id";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':tm_id' => $teamMemberId]);
-
-            if (!empty($data['position_assignments'])) {
-                foreach ($data['position_assignments'] as $pa) {
-                    $sql = "INSERT INTO player_position_assignments
-                            (team_member_id, position, jersey_number, is_active, assigned_date)
-                            VALUES (:tm_id, :position, :jersey, 1, CURDATE())";
-                    $stmt = $this->db->prepare($sql);
-                    $stmt->execute([
-                        ':tm_id' => $teamMemberId,
-                        ':position' => $pa['position'],
-                        ':jersey' => $pa['jersey_number'] ?? null
-                    ]);
-                }
-            }
-
-            $this->logRosterChange($teamMemberId, 'positions',
-                                 json_encode($data['old_positions'] ?? []),
-                                 json_encode($data['positions']));
-
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            return false;
-        }
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            ':positions' => json_encode($data['positions'] ?? []),
+            ':primary_pos' => $data['primary_position'] ?? null,
+            ':jersey' => $data['jersey_number'] ?? null,
+            ':jersey_alt' => $data['jersey_number_alt'] ?? null,
+            ':team_id' => $teamId,
+            ':athlete_id' => $playerId
+        ]);
     }
 
     public function removePlayerFromTeam($teamId, $playerId, $reason) {
+        // Athlete-based: match on athlete_id (the roster identifier the UI holds),
+        // consistent with getTeamRoster/updatePlayerPositions. team_members has no
+        // removed_by column in the Postgres schema, so it is not written.
         $sql = "UPDATE team_members
-                SET leave_date = CURDATE(), leave_reason = :reason, removed_by = :removed_by
-                WHERE team_id = :team_id AND user_id = :player_id
+                SET leave_date = CURRENT_DATE, leave_reason = :reason
+                WHERE team_id = :team_id AND athlete_id = :athlete_id
                 AND leave_date IS NULL";
 
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             ':reason' => $reason,
-            ':removed_by' => $_SESSION['user_id'] ?? 2,
             ':team_id' => $teamId,
-            ':player_id' => $playerId
+            ':athlete_id' => $playerId
         ]);
     }
 
     public function getPositionReport($teamId) {
-        $sql = "SELECT tm.*, u.first_name, u.last_name,
+        $sql = "SELECT tm.id, tm.athlete_id, a.first_name, a.last_name,
                 tm.positions, tm.primary_position, tm.team_priority, tm.status
                 FROM team_members tm
-                JOIN users u ON tm.user_id = u.id
+                JOIN athletes a ON tm.athlete_id = a.id
                 WHERE tm.team_id = :team_id
                 AND tm.role = 'player'
                 AND tm.leave_date IS NULL";
@@ -231,7 +184,7 @@ class Coach {
         $positionMap = [];
 
         foreach ($players as $player) {
-            $positions = json_decode($player['positions'], true) ?? [];
+            $positions = json_decode($player['positions'] ?? '', true) ?? [];
             $playerName = $player['first_name'] . ' ' . $player['last_name'];
 
             foreach ($positions as $position) {
@@ -245,7 +198,7 @@ class Coach {
                 }
 
                 $playerInfo = [
-                    'id' => $player['user_id'],
+                    'id' => $player['athlete_id'],
                     'name' => $playerName,
                     'is_primary' => $player['primary_position'] === $position,
                     'status' => $player['status']
@@ -281,15 +234,17 @@ class Coach {
     }
 
     public function getJerseyReport($teamId) {
-        $sql = "SELECT ppa.jersey_number, ppa.position,
-                u.first_name, u.last_name, tm.team_priority, tm.join_date, tm.leave_date
-                FROM player_position_assignments ppa
-                JOIN team_members tm ON ppa.team_member_id = tm.id
-                JOIN users u ON tm.user_id = u.id
+        // player_position_assignments does not exist in the Postgres schema;
+        // derive jersey/position from team_members + athletes instead.
+        $sql = "SELECT tm.jersey_number, tm.primary_position AS position,
+                a.first_name, a.last_name, tm.team_priority, tm.join_date, tm.leave_date
+                FROM team_members tm
+                JOIN athletes a ON tm.athlete_id = a.id
                 WHERE tm.team_id = :team_id
+                AND tm.role = 'player'
                 AND tm.leave_date IS NULL
-                AND ppa.is_active = 1
-                ORDER BY ppa.jersey_number, ppa.position";
+                AND tm.jersey_number IS NOT NULL
+                ORDER BY tm.jersey_number, tm.primary_position";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':team_id' => $teamId]);
@@ -408,21 +363,51 @@ class Coach {
     }
 
     public function recordAttendance($eventId, $data) {
-        $sql = "INSERT INTO attendance_records
-                (event_id, team_member_id, status, notes, recorded_by)
-                VALUES (:event_id, :tm_id, :status, :notes, :recorded_by)
-                ON DUPLICATE KEY UPDATE
-                status = VALUES(status), notes = VALUES(notes)";
+        // Attendance lives in event_attendance, keyed on (event_id, athlete_id).
+        // The UI sends team_member_id per record, so resolve it to athlete_id
+        // first. Records may also carry athlete_id directly. Postgres upsert via
+        // ON CONFLICT on the (event_id, athlete_id) unique constraint.
+        $allowedStatuses = ['present', 'absent', 'late', 'excused'];
 
-        $stmt = $this->db->prepare($sql);
+        $resolveStmt = $this->db->prepare(
+            "SELECT athlete_id FROM team_members WHERE id = :tm_id"
+        );
+
+        $upsert = "INSERT INTO event_attendance
+                    (event_id, athlete_id, status, notes, marked_by, marked_at)
+                   VALUES (:event_id, :athlete_id, :status, :notes, :marked_by, CURRENT_TIMESTAMP)
+                   ON CONFLICT (event_id, athlete_id) DO UPDATE
+                   SET status = EXCLUDED.status,
+                       notes = EXCLUDED.notes,
+                       marked_by = EXCLUDED.marked_by,
+                       marked_at = CURRENT_TIMESTAMP";
+        $stmt = $this->db->prepare($upsert);
+
+        $markedBy = $_SESSION['user_id'] ?? null;
 
         foreach ($data['attendance'] as $record) {
+            $athleteId = $record['athlete_id'] ?? null;
+
+            if (empty($athleteId) && !empty($record['team_member_id'])) {
+                $resolveStmt->execute([':tm_id' => $record['team_member_id']]);
+                $athleteId = $resolveStmt->fetchColumn();
+            }
+
+            if (empty($athleteId)) {
+                // Can't resolve an athlete for this row; skip it.
+                continue;
+            }
+
+            $status = in_array($record['status'] ?? '', $allowedStatuses, true)
+                ? $record['status']
+                : 'present';
+
             $stmt->execute([
                 ':event_id' => $eventId,
-                ':tm_id' => $record['team_member_id'],
-                ':status' => $record['status'],
+                ':athlete_id' => $athleteId,
+                ':status' => $status,
                 ':notes' => $record['notes'] ?? null,
-                ':recorded_by' => $_SESSION['user_id'] ?? 2
+                ':marked_by' => $markedBy
             ]);
         }
 
@@ -431,26 +416,36 @@ class Coach {
 
     public function getAttendance($teamId, $eventId = null) {
         if ($eventId) {
-            $sql = "SELECT ar.*, tm.user_id, u.first_name, u.last_name
-                    FROM attendance_records ar
-                    JOIN team_members tm ON ar.team_member_id = tm.id
-                    JOIN users u ON tm.user_id = u.id
-                    WHERE ar.event_id = :event_id
-                    AND tm.team_id = :team_id";
+            // Per-event roster status. event_attendance is keyed by athlete_id;
+            // join athletes for names and scope to athletes on this team.
+            $sql = "SELECT ea.id, ea.event_id, ea.athlete_id, ea.status, ea.notes,
+                           ea.marked_by, ea.marked_at,
+                           a.first_name, a.last_name
+                    FROM event_attendance ea
+                    JOIN athletes a ON ea.athlete_id = a.id
+                    JOIN team_members tm ON tm.athlete_id = ea.athlete_id
+                    WHERE ea.event_id = :event_id
+                    AND tm.team_id = :team_id
+                    AND tm.role = 'player'
+                    AND tm.leave_date IS NULL";
 
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':event_id' => $eventId, ':team_id' => $teamId]);
             return $stmt->fetchAll();
         } else {
-            $sql = "SELECT e.id, e.title, e.start_datetime,
-                    COUNT(CASE WHEN ar.status = 'present' THEN 1 END) as present_count,
-                    COUNT(CASE WHEN ar.status = 'absent' THEN 1 END) as absent_count,
-                    COUNT(CASE WHEN ar.status = 'late' THEN 1 END) as late_count
-                    FROM events e
-                    LEFT JOIN attendance_records ar ON e.id = ar.event_id
-                    WHERE e.team_id = :team_id
-                    GROUP BY e.id
-                    ORDER BY e.start_datetime DESC
+            // Recent events for the team (via calendar_event_teams) with
+            // present/absent/late counts from event_attendance.
+            $sql = "SELECT ce.id, ce.name AS title, ce.event_date, ce.start_time,
+                    COUNT(CASE WHEN ea.status = 'present' THEN 1 END) as present_count,
+                    COUNT(CASE WHEN ea.status = 'absent' THEN 1 END) as absent_count,
+                    COUNT(CASE WHEN ea.status = 'late' THEN 1 END) as late_count,
+                    COUNT(CASE WHEN ea.status = 'excused' THEN 1 END) as excused_count
+                    FROM calendar_events ce
+                    JOIN calendar_event_teams cet ON cet.event_id = ce.id
+                    LEFT JOIN event_attendance ea ON ea.event_id = ce.id
+                    WHERE cet.team_id = :team_id
+                    GROUP BY ce.id, ce.name, ce.event_date, ce.start_time
+                    ORDER BY ce.event_date DESC
                     LIMIT 10";
 
             $stmt = $this->db->prepare($sql);
@@ -460,22 +455,21 @@ class Coach {
     }
 
     public function searchAvailablePlayers($search, $excludeTeamId = null) {
-        $sql = "SELECT u.id, u.first_name, u.last_name, u.email, u.date_of_birth,
-                GROUP_CONCAT(DISTINCT t.name) as current_teams
-                FROM users u
-                LEFT JOIN team_members tm ON u.id = tm.user_id AND tm.leave_date IS NULL
-                LEFT JOIN teams t ON tm.team_id = t.id
-                WHERE u.role = 'player'
-                AND (u.first_name LIKE :search OR u.last_name LIKE :search OR u.email LIKE :search2)";
+        // Rosters are athlete-based: search the athletes table (Postgres ILIKE),
+        // returning athletes not already on $excludeTeamId.
+        $sql = "SELECT a.id, a.first_name, a.last_name, a.date_of_birth
+                FROM athletes a
+                WHERE a.active_status = true
+                AND (a.first_name ILIKE :search OR a.last_name ILIKE :search2)";
 
         if ($excludeTeamId) {
             $sql .= " AND NOT EXISTS (SELECT 1 FROM team_members tm2
-                                     WHERE tm2.user_id = u.id
+                                     WHERE tm2.athlete_id = a.id
                                      AND tm2.team_id = :exclude_team
                                      AND tm2.leave_date IS NULL)";
         }
 
-        $sql .= " GROUP BY u.id LIMIT 20";
+        $sql .= " ORDER BY a.last_name, a.first_name LIMIT 20";
 
         $stmt = $this->db->prepare($sql);
         $params = [
@@ -491,27 +485,28 @@ class Coach {
     }
 
     public function checkJerseyConflicts($teamId, $positions) {
+        // player_position_assignments does not exist in the Postgres schema;
+        // check active team_members jersey_number on this team instead.
         $conflicts = [];
 
         foreach ($positions as $position) {
-            if (isset($position['jersey_number'])) {
-                $sql = "SELECT COUNT(*) FROM player_position_assignments ppa
-                        JOIN team_members tm ON ppa.team_member_id = tm.id
+            // $positions entries may be plain position strings or arrays with a
+            // jersey_number. Only arrays carrying a jersey can conflict.
+            if (is_array($position) && isset($position['jersey_number'])) {
+                $sql = "SELECT COUNT(*) FROM team_members tm
                         WHERE tm.team_id = :team_id
-                        AND ppa.position = :position
-                        AND ppa.jersey_number = :jersey
-                        AND ppa.is_active = 1
+                        AND tm.jersey_number = :jersey
+                        AND tm.role = 'player'
                         AND tm.leave_date IS NULL";
 
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute([
                     ':team_id' => $teamId,
-                    ':position' => $position['position'],
                     ':jersey' => $position['jersey_number']
                 ]);
 
                 if ($stmt->fetchColumn() > 0) {
-                    $conflicts[] = "Jersey #{$position['jersey_number']} is already in use for position {$position['position']}";
+                    $conflicts[] = "Jersey #{$position['jersey_number']} is already in use";
                 }
             }
         }
@@ -538,15 +533,15 @@ class Coach {
         return $stmt->fetch() !== false;
     }
 
-    private function getPlayerOtherTeams($userId, $excludeTeamId) {
+    private function getPlayerOtherTeams($athleteId, $excludeTeamId) {
         $sql = "SELECT t.id, t.name FROM team_members tm
                 JOIN teams t ON tm.team_id = t.id
-                WHERE tm.user_id = :user_id
+                WHERE tm.athlete_id = :athlete_id
                 AND tm.team_id != :exclude_team
                 AND tm.leave_date IS NULL";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([':user_id' => $userId, ':exclude_team' => $excludeTeamId]);
+        $stmt->execute([':athlete_id' => $athleteId, ':exclude_team' => $excludeTeamId]);
         return $stmt->fetchAll();
     }
 

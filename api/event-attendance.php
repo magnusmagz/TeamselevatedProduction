@@ -15,7 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../services/AttendanceService.php';
+
+// All attendance actions (get/save/athlete-history) require a valid token.
+$auth = AuthMiddleware::requireAuth();
 
 try {
     $db = Database::getInstance();
