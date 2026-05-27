@@ -1375,10 +1375,64 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 </p>
               </div>
 
-              <div className="flex justify-between">
-                <div className="flex gap-2">
-                  {selectedEvent && (
-                    <>
+              <div className="flex flex-col gap-3">
+                {selectedEvent && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttendanceEventId(selectedEvent.id!);
+                        setShowAttendanceModal(true);
+                        setShowEventForm(false);
+                      }}
+                      className="px-4 py-2 border border-green-200 rounded-md text-green-600 hover:bg-green-50 font-semibold uppercase"
+                    >
+                      Take Attendance
+                    </button>
+                    {rsvpSummary && (() => {
+                      const missing = rsvpSummary.total - rsvpSummary.responded;
+                      const allResponded = missing <= 0 || rsvpSummary.total === 0;
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleSendReminders}
+                          disabled={allResponded || sendingReminders}
+                          className={`px-4 py-2 border rounded-md font-semibold uppercase ${
+                            allResponded
+                              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                          } ${sendingReminders ? 'opacity-60 cursor-wait' : ''}`}
+                          title={
+                            rsvpSummary.total === 0
+                              ? 'No athletes on this event'
+                              : allResponded
+                              ? 'All athletes have responded'
+                              : `${missing} of ${rsvpSummary.total} have not RSVPed`
+                          }
+                        >
+                          {sendingReminders
+                            ? 'Sending…'
+                            : allResponded
+                            ? `RSVP: ${rsvpSummary.responded}/${rsvpSummary.total} ✓`
+                            : `Remind ${missing} (${rsvpSummary.responded}/${rsvpSummary.total} responded)`}
+                        </button>
+                      );
+                    })()}
+                    {rsvpSummary && rsvpSummary.total > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowRsvpBreakdown((v) => !v)}
+                        className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                        title="Show who has and hasn't responded"
+                      >
+                        {showRsvpBreakdown ? 'Hide' : 'View'} RSVPs ({rsvpSummary.responded}/{rsvpSummary.total})
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                  <div>
+                    {selectedEvent && (
                       <button
                         type="button"
                         onClick={() => handleDeleteEvent(selectedEvent.id!)}
@@ -1386,82 +1440,32 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                       >
                         Delete
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAttendanceEventId(selectedEvent.id!);
-                          setShowAttendanceModal(true);
-                          setShowEventForm(false);
-                        }}
-                        className="px-4 py-2 border border-green-200 rounded-md text-green-600 hover:bg-green-50 font-semibold uppercase"
-                      >
-                        Take Attendance
-                      </button>
-                      {rsvpSummary && (() => {
-                        const missing = rsvpSummary.total - rsvpSummary.responded;
-                        const allResponded = missing <= 0 || rsvpSummary.total === 0;
-                        return (
-                          <button
-                            type="button"
-                            onClick={handleSendReminders}
-                            disabled={allResponded || sendingReminders}
-                            className={`px-4 py-2 border rounded-md font-semibold uppercase ${
-                              allResponded
-                                ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                            } ${sendingReminders ? 'opacity-60 cursor-wait' : ''}`}
-                            title={
-                              rsvpSummary.total === 0
-                                ? 'No athletes on this event'
-                                : allResponded
-                                ? 'All athletes have responded'
-                                : `${missing} of ${rsvpSummary.total} have not RSVPed`
-                            }
-                          >
-                            {sendingReminders
-                              ? 'Sending…'
-                              : allResponded
-                              ? `RSVP: ${rsvpSummary.responded}/${rsvpSummary.total} ✓`
-                              : `Remind ${missing} (${rsvpSummary.responded}/${rsvpSummary.total} responded)`}
-                          </button>
-                        );
-                      })()}
-                      {rsvpSummary && rsvpSummary.total > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setShowRsvpBreakdown((v) => !v)}
-                          className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-                          title="Show who has and hasn't responded"
-                        >
-                          {showRsvpBreakdown ? 'Hide' : 'View'} RSVPs ({rsvpSummary.responded}/{rsvpSummary.total})
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEventForm(false);
-                      setEventFormData({
-                        name: '',
-                        type: 'event',
-                        event_date: '',
-                        team_ids: teamId ? [teamId] : [],
-                        status: 'scheduled'
-                      });
-                    }}
-                    className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-brand-primary text-white border border-brand-secondary rounded-md hover:bg-brand-primary font-semibold uppercase"
-                  >
-                    {selectedEvent ? 'Update' : 'Create'} Event
-                  </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEventForm(false);
+                        setEventFormData({
+                          name: '',
+                          type: 'event',
+                          event_date: '',
+                          team_ids: teamId ? [teamId] : [],
+                          status: 'scheduled'
+                        });
+                      }}
+                      className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-brand-primary text-white border border-brand-secondary rounded-md hover:bg-brand-primary font-semibold uppercase"
+                    >
+                      {selectedEvent ? 'Update' : 'Create'} Event
+                    </button>
+                  </div>
                 </div>
               </div>
 
