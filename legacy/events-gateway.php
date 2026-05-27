@@ -147,8 +147,8 @@ try {
                 $stmt = $pdo->prepare("
                     INSERT INTO calendar_events (
                         club_id, name, type, event_date, start_time, end_time,
-                        program_id, venue_id, location, description, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        program_id, venue_id, location, description, status, opponent_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
 
                 $stmt->execute([
@@ -162,7 +162,8 @@ try {
                     $data['venue_id'] ?? null,
                     $data['location'] ?? null,
                     $data['description'] ?? null,
-                    $data['status'] ?? 'scheduled'
+                    $data['status'] ?? 'scheduled',
+                    $data['opponent_name'] ?? null
                 ]);
 
                 $eventId = $pdo->lastInsertId();
@@ -263,7 +264,8 @@ try {
                         venue_id = ?,
                         location = ?,
                         description = ?,
-                        status = ?
+                        status = ?,
+                        opponent_name = ?
                     WHERE id = ?
                 ");
 
@@ -278,6 +280,7 @@ try {
                     $data['location'] ?? null,
                     $data['description'] ?? null,
                     $data['status'] ?? 'scheduled',
+                    $data['opponent_name'] ?? null,
                     $_GET['id']
                 ]);
 
