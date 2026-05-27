@@ -125,9 +125,17 @@ try {
             if ($path === 'create') {
                 $data = json_decode(file_get_contents("php://input"), true);
 
-                // Verify the caller can manage the target club.
-                $clubId = $data['club_id'] ?? 1;
-                if (!$auth->canAccessClub($clubId)) {
+                // Derive the target club from the authenticated user — never trust the
+                // body's club_id outright (the frontend historically hardcoded 1). If the
+                // body supplies a club the caller can access, honor it; otherwise fall back
+                // to the user's own org. Reject if the result is empty or inaccessible.
+                if (isset($data['club_id']) && $auth->canAccessClub((int)$data['club_id'])) {
+                    $clubId = (int)$data['club_id'];
+                } else {
+                    $clubId = $auth->getOrgId();
+                }
+
+                if (empty($clubId) || !$auth->canAccessClub((int)$clubId)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Forbidden: no access to this club']);
                     exit();
@@ -145,7 +153,7 @@ try {
                 ");
 
                 $stmt->execute([
-                    $data['club_id'] ?? 1,
+                    $clubId,
                     $data['name'],
                     $data['type'],
                     !empty($data['description']) ? $data['description'] : null,

@@ -96,7 +96,8 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
     try {
       const response = await fetch(
-        `${API_URL}/api/event-attendance.php?action=get&event_id=${eventId}`
+        `${API_URL}/api/event-attendance.php?action=get&event_id=${eventId}`,
+        { headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` } }
       );
       const data = await response.json();
 
@@ -197,7 +198,8 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
       const response = await fetch(`${API_URL}/api/event-attendance.php?action=save`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           event_id: eventId,

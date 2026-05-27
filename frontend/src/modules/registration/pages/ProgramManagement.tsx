@@ -82,7 +82,9 @@ const ProgramManagement: React.FC = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=${clubId}`);
+      const response = await fetch(`${API_URL}/registration/programs-api.php?path=list&club_id=${clubId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
       if (!response.ok) {
         console.error('Failed to fetch programs:', response.status);
         return;
@@ -119,7 +121,8 @@ const ProgramManagement: React.FC = () => {
 
     try {
       const response = await fetch(`${API_URL}/registration/programs-api.php?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (response.ok) {
         fetchPrograms();

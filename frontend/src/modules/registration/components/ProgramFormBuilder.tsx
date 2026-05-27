@@ -49,7 +49,7 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
         body: JSON.stringify({ ...formData, club_id: 1 })
       });
 
