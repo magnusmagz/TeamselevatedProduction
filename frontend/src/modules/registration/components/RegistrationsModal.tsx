@@ -71,33 +71,15 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // If approved and we have an athlete_payment_id, create invoice
-        if (status === 'approved' && result.athlete_payment_id) {
-          await createInvoiceFromPayment(result.athlete_payment_id);
-        }
-        // Refresh the list
+        // The approval PUT already creates the invoice (idempotently) on the backend.
+        // A separate invoices.php?action=create call used to run here too and
+        // double-created invoices — removed.
         await fetchRegistrations();
       }
     } catch (error) {
       console.error('Error updating registration:', error);
     } finally {
       setProcessing(null);
-    }
-  };
-
-  const createInvoiceFromPayment = async (athletePaymentId: number) => {
-    try {
-      // Create invoice from the athlete payment
-      const token = localStorage.getItem('auth_token');
-      await fetch(`${API_URL}/api/invoices.php?action=create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          athlete_payment_id: athletePaymentId
-        })
-      });
-    } catch (error) {
-      console.error('Error creating invoice:', error);
     }
   };
 
