@@ -30,6 +30,7 @@ interface Event {
   venue_id?: number;
   venue_name?: string;
   location?: string;
+  opponent_name?: string;
   description?: string;
   status: 'scheduled' | 'cancelled' | 'postponed' | 'completed';
   subscription_id?: number | null;
@@ -94,7 +95,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     type: 'event',
     event_date: '',
     team_ids: teamId ? [teamId] : [],
-    status: 'scheduled'
+    status: 'scheduled',
+    opponent_name: ''
   });
 
   // Fetch the list of teams this user coaches/manages so we can offer a
@@ -518,7 +520,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       type: 'event',
       event_date: dateStr,
       team_ids: teamId ? [teamId] : [],
-      status: 'scheduled'
+      status: 'scheduled',
+      opponent_name: ''
     });
     setSelectedEvent(null);
     setShowEventForm(true);
@@ -530,7 +533,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     // Convert teams array to team_ids for the form
     const formData = {
       ...event,
-      team_ids: event.teams ? event.teams.map(t => t.id) : []
+      team_ids: event.teams ? event.teams.map(t => t.id) : [],
+      opponent_name: event.opponent_name || ''
     };
     setEventFormData(formData);
     setChangesSummary('');
@@ -592,7 +596,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
           type: 'event',
           event_date: '',
           team_ids: teamId ? [teamId] : [],
-          status: 'scheduled'
+          status: 'scheduled',
+          opponent_name: ''
         });
         setChangesSummary('');
       } else {
@@ -776,13 +781,14 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                       <div
                         key={`e-${eIndex}`}
                         className={`text-xs p-1 border ${getEventTypeStyle(event.type)} ${event.subscription_id ? 'border-l-4 border-l-teal-400' : ''}`}
-                        title={`${eventTypeLabel(event.type)}: ${event.name}`}
+                        title={`${eventTypeLabel(event.type)}: ${event.name}${event.opponent_name ? ` vs ${event.opponent_name}` : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEventClick(event);
                         }}
                       >
                         <div className="font-medium truncate">{event.name}</div>
+                        {event.opponent_name && <div className="text-xs truncate">vs {event.opponent_name}</div>}
                         {event.start_time && <div className="text-xs">{event.start_time}</div>}
                       </div>
                     ))}
@@ -848,6 +854,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                               {event.name}
                               {event.subscription_id && <span className="ml-1 text-xs text-teal-600 font-normal">(imported)</span>}
                             </div>
+                            {event.opponent_name && <div className="text-xs opacity-75">vs {event.opponent_name}</div>}
                             {event.venue_name && <div className="text-xs opacity-75">{event.venue_name}</div>}
                           </div>
                         ))}
@@ -1238,6 +1245,21 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     placeholder="e.g., Away game at opponent's field"
                   />
                 </div>
+
+                {eventFormData.type === 'game' && (
+                  <div className="col-span-2">
+                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      Opponent
+                    </label>
+                    <input
+                      type="text"
+                      value={eventFormData.opponent_name || ''}
+                      onChange={(e) => setEventFormData({ ...eventFormData, opponent_name: e.target.value })}
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                      placeholder="e.g., Springfield FC"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="mb-4">
