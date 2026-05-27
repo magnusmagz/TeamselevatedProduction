@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AttendanceModal from './AttendanceModal';
 import CalendarSubscriptionManager from './CalendarSubscriptionManager';
+import PracticeScheduler from './PracticeScheduler';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Practice {
@@ -88,6 +89,12 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const [changesSummary, setChangesSummary] = useState<string>('');
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [attendanceEventId, setAttendanceEventId] = useState<number | null>(null);
+  // Recurring-practice scheduler: reuses the same PracticeScheduler component
+  // surfaced from the teams page. `scheduleTeam` holds the {id, name} the
+  // scheduler is opened for; `showSchedulePicker` shows a team chooser first
+  // when the calendar isn't already scoped to a single team.
+  const [scheduleTeam, setScheduleTeam] = useState<{ id: number; name: string } | null>(null);
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
   const [rsvpSummary, setRsvpSummary] = useState<{ total: number; responded: number } | null>(null);
   const [rsvpList, setRsvpList] = useState<{ athlete_id: number; athlete_name: string; status: string | null }[]>([]);
   const [showRsvpBreakdown, setShowRsvpBreakdown] = useState(false);
@@ -644,6 +651,31 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     }
   };
 
+  // Open the recurring-practice scheduler. If the calendar is already scoped
+  // to a single team (locked teamId prop, or the filter is set to a specific
+  // team), open the scheduler directly for that team. Otherwise show a small
+  // picker so the coach can pick which team the practices are for. Reuses the
+  // teams already loaded in allTeams — no extra fetch.
+  const handleSchedulePractices = () => {
+    // Locked to a single team via prop.
+    if (teamId) {
+      const t = allTeams.find(team => team.id === teamId);
+      setScheduleTeam({ id: teamId, name: t?.name || teamName || `Team ${teamId}` });
+      return;
+    }
+    // Filter narrowed to one specific team.
+    if (selectedTeamFilter !== 'all' && selectedTeamFilter !== 'my_teams') {
+      const filterTeamId = parseInt(selectedTeamFilter);
+      const t = allTeams.find(team => team.id === filterTeamId);
+      if (t) {
+        setScheduleTeam({ id: t.id, name: t.name });
+        return;
+      }
+    }
+    // Multiple teams in play — let the coach choose.
+    setShowSchedulePicker(true);
+  };
+
   // Get filtered teams for display
   const displayTeams = teamId ? allTeams.filter(t => t.id === teamId) : allTeams;
 
@@ -664,6 +696,14 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
               className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
             >
               Subscriptions
+            </button>
+          )}
+          {showAddEvent && !readOnly && (
+            <button
+              onClick={handleSchedulePractices}
+              className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
+            >
+              Schedule Practices
             </button>
           )}
           {showAddEvent && !readOnly && (
@@ -1493,6 +1533,63 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             setAttendanceEventId(null);
           }}
           onSave={() => {
+            fetchEvents();
+          }}
+        />
+      )}
+
+      {/* Team picker for scheduling recurring practices (shown when the
+          calendar isn't already scoped to a single team) */}
+      {showSchedulePicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-brand-secondary rounded-md max-w-md w-full my-8">
+            <div className="border-b border-brand-secondary px-6 py-4">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
+                Schedule Practices
+              </h3>
+            </div>
+            <div className="p-6">
+              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                Select a team
+              </label>
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  const id = parseInt(e.target.value);
+                  const t = allTeams.find(team => team.id === id);
+                  if (t) {
+                    setScheduleTeam({ id: t.id, name: t.name });
+                    setShowSchedulePicker(false);
+                  }
+                }}
+                className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+              >
+                <option value="" disabled>Choose a team…</option>
+                {allTeams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+              <div className="flex justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowSchedulePicker(false)}
+                  className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recurring-practice scheduler (same component used on the teams page) */}
+      {scheduleTeam && (
+        <PracticeScheduler
+          team={scheduleTeam}
+          onClose={() => {
+            setScheduleTeam(null);
+            // Refresh so newly created recurring practices appear immediately.
             fetchEvents();
           }}
         />
