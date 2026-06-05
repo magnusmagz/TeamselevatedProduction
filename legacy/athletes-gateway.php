@@ -112,8 +112,18 @@ try {
                            g.mobile_phone as primary_guardian_phone
                     FROM athletes a
                     LEFT JOIN users u ON u.id = a.id AND u.role = 'player'
-                    LEFT JOIN athlete_guardians ag ON ag.athlete_id = a.id AND ag.is_primary = true
-                    LEFT JOIN guardians g ON g.id = ag.guardian_id
+                    -- One row per athlete: pick a single primary guardian. A plain
+                    -- JOIN multiplies rows when an athlete has >1 is_primary guardian
+                    -- (two-parent / blended households), which duplicated athlete ids
+                    -- and broke the frontend table (duplicate React keys → sort froze).
+                    LEFT JOIN LATERAL (
+                        SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                        FROM athlete_guardians ag
+                        JOIN guardians gg ON gg.id = ag.guardian_id
+                        WHERE ag.athlete_id = a.id AND ag.is_primary = true
+                        ORDER BY ag.id
+                        LIMIT 1
+                    ) g ON true
                     WHERE a.active_status = true
                     {$filter['sql']}
                     ORDER BY a.last_name, a.first_name
