@@ -408,10 +408,9 @@ const AthleteListContent: React.FC<{
     if (sortKey !== key) {
       setSortKey(key);
       setSortDir('asc');
-    } else if (sortDir === 'asc') {
-      setSortDir('desc');
     } else {
-      setSortKey(null); // third click clears the sort
+      // Same column: just flip direction. Stays sorted on every click.
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     }
   };
   const sortArrow = (key: ColKey) => (sortKey !== key ? '▾' : sortDir === 'asc' ? '▲' : '▼');
