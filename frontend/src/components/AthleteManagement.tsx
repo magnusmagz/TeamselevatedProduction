@@ -406,7 +406,7 @@ const AthleteListContent: React.FC<{
       setSortKey(null); // third click clears the sort
     }
   };
-  const sortArrow = (key: ColKey) => (sortKey !== key ? '↕' : sortDir === 'asc' ? '↑' : '↓');
+  const sortArrow = (key: ColKey) => (sortKey !== key ? '▾' : sortDir === 'asc' ? '▲' : '▼');
 
   const teamLabel = (a: Athlete) => (athleteTeams[a.id] || a.teams || []).join(', ');
   const contactStr = (a: Athlete) =>
