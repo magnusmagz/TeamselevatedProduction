@@ -335,7 +335,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
 };
 
 // Shared content component
-const AthleteListContent: React.FC<{
+export const AthleteListContent: React.FC<{
   athletes: Athlete[];
   loading: boolean;
   searchTerm: string;
