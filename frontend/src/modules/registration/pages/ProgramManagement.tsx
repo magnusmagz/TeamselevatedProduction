@@ -225,6 +225,12 @@ const ProgramManagement: React.FC = () => {
             >
               + Tryout
             </button>
+            <Link
+              to="/tournaments/create"
+              className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none text-center"
+            >
+              + Tournament
+            </Link>
           </div>
         </div>
 
