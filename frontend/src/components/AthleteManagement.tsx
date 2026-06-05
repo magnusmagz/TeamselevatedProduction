@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
@@ -379,6 +379,85 @@ const AthleteListContent: React.FC<{
   const [showSmsCompose, setShowSmsCompose] = useState(false);
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
 
+  // Per-column sort + filter for the athlete table.
+  type ColKey = 'name' | 'age' | 'gender' | 'team' | 'guardian' | 'contact';
+  const COLUMNS: { key: ColKey; label: string; type: 'text' | 'number' | 'gender' }[] = [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'age', label: 'Age', type: 'number' },
+    { key: 'gender', label: 'Gender', type: 'gender' },
+    { key: 'team', label: 'Team', type: 'text' },
+    { key: 'guardian', label: 'Primary Guardian', type: 'text' },
+    { key: 'contact', label: 'Contact', type: 'text' },
+  ];
+  const [sortKey, setSortKey] = useState<ColKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  const setColFilter = (key: ColKey, value: string) =>
+    setColFilters((prev) => ({ ...prev, [key]: value }));
+
+  const toggleSort = (key: ColKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortKey(null); // third click clears the sort
+    }
+  };
+  const sortArrow = (key: ColKey) => (sortKey !== key ? '↕' : sortDir === 'asc' ? '↑' : '↓');
+
+  const teamLabel = (a: Athlete) => (athleteTeams[a.id] || a.teams || []).join(', ');
+  const contactStr = (a: Athlete) =>
+    [a.primary_guardian_email, a.primary_guardian_phone, a.email].filter(Boolean).join(' ');
+  const ageOf = (a: Athlete) => (a.date_of_birth ? calculateAge(a.date_of_birth) : null);
+
+  const sortValue = (a: Athlete, key: ColKey): string | number => {
+    switch (key) {
+      case 'name': return `${a.last_name || ''} ${a.first_name || ''}`.trim().toLowerCase();
+      case 'age': { const v = ageOf(a); return v == null ? -Infinity : v; }
+      case 'gender': return (a.gender || '').toLowerCase();
+      case 'team': return teamLabel(a).toLowerCase();
+      case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
+      case 'contact': return contactStr(a).toLowerCase();
+    }
+  };
+  const filterText = (a: Athlete, key: ColKey): string => {
+    switch (key) {
+      case 'name': return `${a.first_name || ''} ${a.middle_initial || ''} ${a.last_name || ''} ${a.preferred_name || ''}`.toLowerCase();
+      case 'age': { const v = ageOf(a); return v == null ? '' : String(v); }
+      case 'gender': return (a.gender || '').toLowerCase();
+      case 'team': return teamLabel(a).toLowerCase();
+      case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
+      case 'contact': return contactStr(a).toLowerCase();
+    }
+  };
+
+  const displayedAthletes = useMemo(() => {
+    const rows = athletes.filter((a) =>
+      COLUMNS.every((col) => {
+        const f = (colFilters[col.key] || '').trim().toLowerCase();
+        if (!f) return true;
+        if (col.key === 'gender') return (a.gender || '').toLowerCase() === f;
+        return filterText(a, col.key).includes(f);
+      })
+    );
+    if (sortKey) {
+      rows.sort((a, b) => {
+        const va = sortValue(a, sortKey);
+        const vb = sortValue(b, sortKey);
+        const cmp =
+          typeof va === 'number' && typeof vb === 'number'
+            ? va - vb
+            : String(va).localeCompare(String(vb));
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [athletes, colFilters, sortKey, sortDir, athleteTeams]);
+
   return (
     <>
       <div className="border border-brand-secondary rounded-md bg-white p-4 sm:p-6 mb-6">
@@ -439,7 +518,8 @@ const AthleteListContent: React.FC<{
         </div>
 
         <div className="mt-4 text-brand-primary">
-          Showing {athletes.length} athletes
+          Showing {displayedAthletes.length}
+          {displayedAthletes.length !== athletes.length ? ` of ${athletes.length}` : ''} athletes
         </div>
       </div>
 
@@ -451,31 +531,49 @@ const AthleteListContent: React.FC<{
           <table className="min-w-full bg-white">
             <thead>
               <tr className="border-b border-brand-secondary">
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Age
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Gender
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Team
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Primary Guardian
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase w-32">
+                {COLUMNS.map((col) => (
+                  <th
+                    key={col.key}
+                    className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300 align-top"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.key)}
+                      className="flex items-center gap-1 uppercase font-bold text-brand-primary hover:text-brand-primary-hover"
+                      title="Click to sort"
+                    >
+                      {col.label}
+                      <span className="text-[10px] text-gray-400">{sortArrow(col.key)}</span>
+                    </button>
+                    {col.type === 'gender' ? (
+                      <select
+                        value={colFilters[col.key] || ''}
+                        onChange={(e) => setColFilter(col.key, e.target.value)}
+                        className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
+                      >
+                        <option value="">All</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="non-binary">Non-binary</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={colFilters[col.key] || ''}
+                        onChange={(e) => setColFilter(col.key, e.target.value)}
+                        placeholder="Filter…"
+                        className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
+                      />
+                    )}
+                  </th>
+                ))}
+                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase w-32 align-top">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody>
-              {athletes.map((athlete, index) => (
+              {displayedAthletes.map((athlete, index) => (
                 <tr
                   key={athlete.id}
                   className="border-b border-gray-300 hover:bg-gray-50"
@@ -647,6 +745,13 @@ const AthleteListContent: React.FC<{
                   </td>
                 </tr>
               ))}
+              {displayedAthletes.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                    No athletes match the current filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           </div>
