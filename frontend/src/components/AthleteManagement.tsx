@@ -57,8 +57,18 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
       });
       const data = await response.json();
-      const athleteList = data.athletes || [];
-      setAthletes(athleteList);
+      const athleteList: Athlete[] = data.athletes || [];
+      // The gateway LEFT JOINs guardians, so an athlete with more than one
+      // primary guardian comes back as duplicate rows sharing the same id.
+      // Dedupe by id — duplicate React keys silently break row re-ordering on
+      // sort (first sort applies, later ones no-op) and inflate the count.
+      const seen = new Set<number>();
+      const uniqueAthletes = athleteList.filter((a) => {
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        return true;
+      });
+      setAthletes(uniqueAthletes);
 
       // Fetch team-player relationships
       const teamPlayersResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);

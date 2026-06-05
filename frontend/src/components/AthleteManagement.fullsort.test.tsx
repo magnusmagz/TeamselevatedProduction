@@ -58,3 +58,33 @@ test('full component: repeated Name clicks keep toggling asc/desc', async () => 
   expect(desc).toEqual(['Amy Zych', 'Max Brown', 'Zoe Adams']);
   expect(ascAgain).toEqual(asc); // third click flips back to asc (never unsorts)
 });
+
+test('dedupes duplicate-id rows (multi-primary-guardian) and still re-sorts', async () => {
+  // Real gateway returns a duplicate row for an athlete with 2 primary guardians.
+  const dupRows = [...athletes, { ...athletes[0] }]; // Zoe Adams (id 1) appears twice
+  (global as any).fetch = jest.fn((url: any) => {
+    const u = String(url);
+    const json = (b: any) => Promise.resolve({ ok: true, json: () => Promise.resolve(b) });
+    if (u.includes('athletes-gateway')) return json({ athletes: dupRows });
+    if (u.includes('team-players-gateway')) return json({ success: true, team_players: [] });
+    if (u.includes('teams-gateway')) return json({ teams: [] });
+    return json({});
+  });
+
+  render(
+    <MemoryRouter>
+      <AthleteManagement />
+    </MemoryRouter>
+  );
+  await screen.findByText(/Zoe Adams/);
+
+  expect(rowNames().length).toBe(3); // 4 rows in, 3 unique out
+
+  const nameBtn = screen.getByRole('button', { name: /^Name/ });
+  fireEvent.click(nameBtn);
+  const asc = rowNames();
+  fireEvent.click(nameBtn);
+  const desc = rowNames();
+  expect(asc).toEqual(['Zoe Adams', 'Max Brown', 'Amy Zych']);
+  expect(desc).toEqual(['Amy Zych', 'Max Brown', 'Zoe Adams']); // re-sort works (unique keys)
+});
