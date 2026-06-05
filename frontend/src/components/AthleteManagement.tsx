@@ -500,7 +500,7 @@ const AthleteListContent: React.FC<{
                     <button
                       type="button"
                       onClick={() => toggleSort(col.key)}
-                      className="flex items-center gap-1 uppercase font-bold text-brand-primary hover:text-brand-primary-hover"
+                      className="flex w-full items-center gap-1 uppercase font-bold text-left text-brand-primary hover:text-brand-primary-hover cursor-pointer"
                       title="Click to sort"
                     >
                       {col.label}

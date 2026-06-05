@@ -39,6 +39,19 @@ export function register(config?: Config): void {
   }
 }
 
+// When a freshly-activated service worker takes control, reload once so the
+// page actually runs the new bundle. Without this the user is left on the old
+// JS until they manually refresh a SECOND time — deploys appear to "not take",
+// e.g. a shipped feature behaving like the previous version.
+let swRefreshing = false;
+function reloadOnControllerChange(): void {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshing) return;
+    swRefreshing = true;
+    window.location.reload();
+  });
+}
+
 function registerValidSW(swUrl: string, config?: Config): void {
   navigator.serviceWorker
     .register(swUrl)
@@ -51,8 +64,13 @@ function registerValidSW(swUrl: string, config?: Config): void {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              // New content is available
-              console.log('New content is available; please refresh.');
+              // New content is available. Activate the waiting worker and reload
+              // once it takes control so the new bundle runs after ONE refresh.
+              console.log('New content is available; activating new version…');
+              reloadOnControllerChange();
+              if (registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
