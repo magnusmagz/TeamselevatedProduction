@@ -357,12 +357,6 @@ const AthleteListContent: React.FC<{
 }> = ({
   athletes,
   loading,
-  searchTerm,
-  setSearchTerm,
-  filterGender,
-  setFilterGender,
-  filterGrade,
-  setFilterGrade,
   handleAddAthlete,
   handleEditAthlete,
   handleManageGuardians,
@@ -380,14 +374,28 @@ const AthleteListContent: React.FC<{
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
 
   // Per-column sort + filter for the athlete table.
-  type ColKey = 'name' | 'age' | 'gender' | 'team' | 'guardian' | 'contact';
-  const COLUMNS: { key: ColKey; label: string; type: 'text' | 'number' | 'gender' }[] = [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'age', label: 'Age', type: 'number' },
-    { key: 'gender', label: 'Gender', type: 'gender' },
-    { key: 'team', label: 'Team', type: 'text' },
-    { key: 'guardian', label: 'Primary Guardian', type: 'text' },
-    { key: 'contact', label: 'Contact', type: 'text' },
+  type ColKey = 'name' | 'age' | 'grade' | 'gender' | 'team' | 'guardian' | 'contact';
+  const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: `Grade ${i + 1}`,
+  }));
+  // Columns with `options` render an exact-match dropdown filter; the rest a substring text filter.
+  const COLUMNS: { key: ColKey; label: string; options?: { value: string; label: string }[] }[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'age', label: 'Age' },
+    { key: 'grade', label: 'Grade', options: GRADE_OPTIONS },
+    {
+      key: 'gender',
+      label: 'Gender',
+      options: [
+        { value: 'male', label: 'Male' },
+        { value: 'female', label: 'Female' },
+        { value: 'non-binary', label: 'Non-binary' },
+      ],
+    },
+    { key: 'team', label: 'Team' },
+    { key: 'guardian', label: 'Primary Guardian' },
+    { key: 'contact', label: 'Contact' },
   ];
   const [sortKey, setSortKey] = useState<ColKey | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -417,6 +425,7 @@ const AthleteListContent: React.FC<{
     switch (key) {
       case 'name': return `${a.last_name || ''} ${a.first_name || ''}`.trim().toLowerCase();
       case 'age': { const v = ageOf(a); return v == null ? -Infinity : v; }
+      case 'grade': return a.grade_level == null ? -Infinity : a.grade_level;
       case 'gender': return (a.gender || '').toLowerCase();
       case 'team': return teamLabel(a).toLowerCase();
       case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
@@ -427,6 +436,7 @@ const AthleteListContent: React.FC<{
     switch (key) {
       case 'name': return `${a.first_name || ''} ${a.middle_initial || ''} ${a.last_name || ''} ${a.preferred_name || ''}`.toLowerCase();
       case 'age': { const v = ageOf(a); return v == null ? '' : String(v); }
+      case 'grade': return a.grade_level == null ? '' : String(a.grade_level);
       case 'gender': return (a.gender || '').toLowerCase();
       case 'team': return teamLabel(a).toLowerCase();
       case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
@@ -439,7 +449,7 @@ const AthleteListContent: React.FC<{
       COLUMNS.every((col) => {
         const f = (colFilters[col.key] || '').trim().toLowerCase();
         if (!f) return true;
-        if (col.key === 'gender') return (a.gender || '').toLowerCase() === f;
+        if (col.options) return filterText(a, col.key) === f;
         return filterText(a, col.key).includes(f);
       })
     );
@@ -460,67 +470,18 @@ const AthleteListContent: React.FC<{
 
   return (
     <>
-      <div className="border border-brand-secondary rounded-md bg-white p-4 sm:p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <input
-              type="text"
-              placeholder="Search athletes..."
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent w-full sm:w-auto"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <span className="text-brand-primary text-sm">
-              {athletes.length} athlete{athletes.length !== 1 ? 's' : ''} found
-            </span>
-          </div>
-          <button
-            onClick={handleAddAthlete}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-          >
-            + Add New Athlete
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <select
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-            value={filterGender}
-            onChange={(e) => setFilterGender(e.target.value)}
-          >
-            <option value="">All Genders</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Non-binary">Non-binary</option>
-          </select>
-
-          <select
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-            value={filterGrade}
-            onChange={(e) => setFilterGrade(e.target.value)}
-          >
-            <option value="">All Grades</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map(grade => (
-              <option key={grade} value={grade}>Grade {grade}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setFilterGender('');
-              setFilterGrade('');
-            }}
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
-          >
-            Clear Filters
-          </button>
-        </div>
-
-        <div className="mt-4 text-brand-primary">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <span className="text-brand-primary text-sm">
           Showing {displayedAthletes.length}
-          {displayedAthletes.length !== athletes.length ? ` of ${athletes.length}` : ''} athletes
-        </div>
+          {displayedAthletes.length !== athletes.length ? ` of ${athletes.length}` : ''} athlete
+          {displayedAthletes.length !== 1 ? 's' : ''}
+        </span>
+        <button
+          onClick={handleAddAthlete}
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+        >
+          + Add New Athlete
+        </button>
       </div>
 
       {loading ? (
@@ -545,16 +506,16 @@ const AthleteListContent: React.FC<{
                       {col.label}
                       <span className="text-[10px] text-gray-400">{sortArrow(col.key)}</span>
                     </button>
-                    {col.type === 'gender' ? (
+                    {col.options ? (
                       <select
                         value={colFilters[col.key] || ''}
                         onChange={(e) => setColFilter(col.key, e.target.value)}
                         className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
                       >
                         <option value="">All</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="non-binary">Non-binary</option>
+                        {col.options.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
                       </select>
                     ) : (
                       <input
@@ -629,6 +590,11 @@ const AthleteListContent: React.FC<{
                       ) : (
                         'No date of birth'
                       )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
+                    <div className="text-sm text-brand-primary">
+                      {athlete.grade_level != null ? `Grade ${athlete.grade_level}` : 'Not set'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
@@ -747,7 +713,7 @@ const AthleteListContent: React.FC<{
               ))}
               {displayedAthletes.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
                     No athletes match the current filters.
                   </td>
                 </tr>
