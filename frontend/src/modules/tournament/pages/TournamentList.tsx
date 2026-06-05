@@ -20,9 +20,13 @@ function formatCurrency(cents: number): string {
 
 const TournamentList: React.FC = () => {
   const { user } = useAuth();
-  const { isClubAdmin } = useOrg();
+  const { isClubAdmin, currentClubId, activeContext } = useOrg();
   const navigate = useNavigate();
-  const clubId = user?.organization?.orgId;
+  // Source club from the active org context (like ProgramManagement / comms),
+  // falling back to the legacy user.organization.orgId. Using orgId alone left
+  // the list silently empty for coaches / multi-role users whose active role
+  // isn't roles[0] (cf. CommunicationLog COACH-18/19/25/26).
+  const clubId = currentClubId ?? activeContext?.scope_id ?? user?.organization?.orgId;
 
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);

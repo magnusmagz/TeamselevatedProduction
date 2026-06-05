@@ -11,6 +11,10 @@ jest.mock('../../../contexts/AuthContext', () => ({
   }),
 }));
 
+jest.mock('../../../contexts/OrgContext', () => ({
+  useOrg: () => ({ currentClubId: 47, activeContext: { scope_id: 47 } }),
+}));
+
 // Mock fetch
 const mockFetch = jest.fn();
 global.fetch = mockFetch;

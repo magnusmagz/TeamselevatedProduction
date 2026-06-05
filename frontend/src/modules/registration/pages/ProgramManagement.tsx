@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Program, ProgramType, ProgramStatus } from '../types';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
@@ -7,6 +8,8 @@ import TryoutCreationWizard from '../components/TryoutCreationWizard';
 import TryoutManagement from '../components/TryoutManagement';
 import { useAuth } from '../../../hooks/useAuth';
 import { useOrg } from '../../../contexts/OrgContext';
+import { listTournaments } from '../../tournament/api/tournamentApi';
+import { Tournament, TOURNAMENT_STATUS_CONFIG } from '../../tournament/types';
 
 type ProgramTab = 'all' | ProgramType;
 
@@ -27,6 +30,9 @@ const ProgramManagement: React.FC = () => {
   const { currentClubId, activeContext } = useOrg();
   const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [programs, setPrograms] = useState<Program[]>([]);
+  // Tournaments live in their own module/table (not the programs table). We surface
+  // them read-only under the Tournament tab; managing them links into /tournaments/:id.
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [embedProgram, setEmbedProgram] = useState<Program | null>(null);
@@ -50,17 +56,30 @@ const ProgramManagement: React.FC = () => {
     }
   };
 
+  // Tournament statuses (registration_open, in_progress, …) don't share the program
+  // status vocabulary, so only the shared values (draft/cancelled) or "All" surface them.
+  const visibleTournaments = useMemo(() => {
+    return statusFilter === 'all'
+      ? tournaments
+      : tournaments.filter((t) => t.status === statusFilter);
+  }, [tournaments, statusFilter]);
+
   const tabCounts = useMemo(() => {
     const statusFiltered = statusFilter === 'all'
       ? programs
       : programs.filter((p) => p.status === statusFilter);
     return TABS.reduce<Record<ProgramTab, number>>((acc, { value }) => {
-      acc[value] = value === 'all'
+      const programCount = value === 'all'
         ? statusFiltered.length
         : statusFiltered.filter((p) => p.type === value).length;
+      // Fold module tournaments into the All and Tournament tab counts.
+      const tournamentCount = value === 'all' || value === 'tournament'
+        ? visibleTournaments.length
+        : 0;
+      acc[value] = programCount + tournamentCount;
       return acc;
     }, {} as Record<ProgramTab, number>);
-  }, [programs, statusFilter]);
+  }, [programs, statusFilter, visibleTournaments]);
 
   const filteredPrograms = useMemo(() => {
     return programs.filter((program) => {
@@ -70,10 +89,28 @@ const ProgramManagement: React.FC = () => {
     });
   }, [programs, statusFilter, activeTab]);
 
+  // Module tournaments render under the All and Tournament tabs only.
+  const shownTournaments = useMemo(() => {
+    return activeTab === 'all' || activeTab === 'tournament' ? visibleTournaments : [];
+  }, [activeTab, visibleTournaments]);
+
   useEffect(() => {
     fetchPrograms();
+    fetchTournaments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId]);
+
+  const fetchTournaments = async () => {
+    if (clubId == null) return;
+    try {
+      const data = await listTournaments(clubId);
+      setTournaments(Array.isArray(data?.tournaments) ? data.tournaments : []);
+    } catch (error) {
+      // Non-fatal: the programs list still renders if the tournament module is unavailable.
+      console.error('Error fetching tournaments:', error);
+      setTournaments([]);
+    }
+  };
 
   const fetchPrograms = async () => {
     if (clubId == null) {
@@ -221,7 +258,7 @@ const ProgramManagement: React.FC = () => {
         {/* Programs List */}
         {loading ? (
           <div className="text-center py-12 text-brand-primary">Loading programs...</div>
-        ) : filteredPrograms.length === 0 ? (
+        ) : filteredPrograms.length === 0 && shownTournaments.length === 0 ? (
           <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
             <p className="text-gray-600 text-lg">No programs yet.</p>
             <p className="text-gray-500 mt-2">Create your first program to start accepting registrations.</p>
@@ -351,6 +388,49 @@ const ProgramManagement: React.FC = () => {
                       </td>
                     </tr>
                   ))}
+                  {shownTournaments.map((t) => (
+                    <tr key={`tournament-${t.id}`} className="border-b border-gray-300 hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="text-brand-primary font-medium">{t.name}</div>
+                        <div className="text-gray-500 text-xs mt-1">Tournament module</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-brand-primary">Tournament</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-brand-primary">
+                          {t.start_date ? (
+                            <>
+                              {new Date(t.start_date).toLocaleDateString()}
+                              {t.end_date && (
+                                <> - {new Date(t.end_date).toLocaleDateString()}</>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-gray-400">No dates set</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-brand-primary">
+                          {t.registration_count || 0} registrations
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`uppercase text-xs font-semibold px-2 py-0.5 rounded-full ${TOURNAMENT_STATUS_CONFIG[t.status]?.color || 'bg-gray-100 text-gray-700'}`}>
+                          {TOURNAMENT_STATUS_CONFIG[t.status]?.label || t.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link
+                          to={`/tournaments/${t.id}`}
+                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+                        >
+                          Manage
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -459,6 +539,51 @@ const ProgramManagement: React.FC = () => {
                       Delete
                     </button>
                   </div>
+                </div>
+              ))}
+              {shownTournaments.map((t) => (
+                <div key={`tournament-${t.id}`} className="border border-brand-secondary rounded-md bg-white p-4">
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-brand-primary">{t.name}</h3>
+                    <p className="text-gray-500 text-xs mt-1">Tournament module</p>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 text-sm font-semibold uppercase">Type:</span>
+                      <span className="text-brand-primary text-sm">Tournament</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 text-sm font-semibold uppercase">Dates:</span>
+                      <span className="text-brand-primary text-sm">
+                        {t.start_date ? (
+                          <>
+                            {new Date(t.start_date).toLocaleDateString()}
+                            {t.end_date && (
+                              <> - {new Date(t.end_date).toLocaleDateString()}</>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-gray-400">No dates set</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 text-sm font-semibold uppercase">Registrations:</span>
+                      <span className="text-brand-primary text-sm">{t.registration_count || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 text-sm font-semibold uppercase">Status:</span>
+                      <span className={`uppercase text-xs font-semibold px-2 py-0.5 rounded-full ${TOURNAMENT_STATUS_CONFIG[t.status]?.color || 'bg-gray-100 text-gray-700'}`}>
+                        {TOURNAMENT_STATUS_CONFIG[t.status]?.label || t.status}
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    to={`/tournaments/${t.id}`}
+                    className="block w-full text-center border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
+                  >
+                    Manage
+                  </Link>
                 </div>
               ))}
             </div>

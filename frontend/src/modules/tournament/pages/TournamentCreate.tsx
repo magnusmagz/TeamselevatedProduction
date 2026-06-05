@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useOrg } from '../../../contexts/OrgContext';
 import { TournamentFormData, GOVERNING_BODY_LABELS, GoverningBody } from '../types';
 import { createTournament, getTournament, updateTournament } from '../api/tournamentApi';
 import VenuePicker from '../components/VenuePicker';
@@ -51,10 +52,13 @@ const EMPTY_FORM: TournamentFormData = {
 
 const TournamentCreate: React.FC = () => {
   const { user } = useAuth();
+  const { currentClubId, activeContext } = useOrg();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
-  const clubId = user?.organization?.orgId;
+  // Source club from the active org context (like ProgramManagement / comms),
+  // falling back to the legacy user.organization.orgId.
+  const clubId = currentClubId ?? activeContext?.scope_id ?? user?.organization?.orgId;
 
   const [form, setForm] = useState<TournamentFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
