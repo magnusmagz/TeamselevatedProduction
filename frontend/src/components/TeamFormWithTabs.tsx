@@ -72,10 +72,13 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
     try {
       // Fetch coaches
       try {
-        const coachesRes = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`);
+        const token = localStorage.getItem('auth_token');
+        const coachesRes = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (coachesRes.ok) {
           const coachesData = await coachesRes.json();
-          setCoaches(coachesData || []);
+          setCoaches(Array.isArray(coachesData) ? coachesData : []);
         }
       } catch (error) {
         console.error('Error fetching coaches:', error);

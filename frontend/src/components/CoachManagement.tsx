@@ -44,9 +44,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
 
   const fetchCoaches = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
-      setCoaches(data);
+      // Endpoint returns an array on success, or an error object on 401/403.
+      setCoaches(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching coaches:', error);
     } finally {
@@ -137,9 +141,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         ? `${API_URL}/legacy/coaches-gateway.php?action=update&id=${selectedCoach.id}`
         : `${API_URL}/legacy/coaches-gateway.php?action=create`;
 
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
 
