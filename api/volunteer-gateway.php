@@ -178,8 +178,19 @@ try {
 
             requireTeamAccess($auth, $db, $teamId);
 
-            // Get background check status (informational, not blocking)
+            // Enforce the same background-check gate as the self-signup approval
+            // path: a volunteer may not be assigned to a team unless their check is
+            // cleared. Direct assignment previously recorded the status but still let
+            // a non-cleared volunteer onto the team — a child-safety enforcement gap.
             $bgStatus = getUserBackgroundCheckStatus($db, $volunteerUserId);
+            if ($bgStatus !== 'cleared') {
+                http_response_code(403);
+                echo json_encode([
+                    'error' => 'Cannot assign: volunteer background check not cleared',
+                    'background_check_status' => $bgStatus
+                ]);
+                exit();
+            }
 
             // Check if already assigned
             $checkStmt = $db->prepare("SELECT id FROM team_volunteers WHERE team_id = ? AND user_id = ?");
