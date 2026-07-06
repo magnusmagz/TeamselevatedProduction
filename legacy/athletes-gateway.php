@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/athlete_writes.php';
 
 try {
     $db = Database::getInstance();
@@ -61,7 +62,7 @@ try {
                 $stmt = $pdo->prepare("
                     SELECT a.*, u.email
                     FROM athletes a
-                    LEFT JOIN users u ON u.id = a.id AND u.role = 'player'
+                    LEFT JOIN users u ON u.id = a.user_id AND u.role = 'player'
                     WHERE a.id = ?
                 ");
                 $stmt->execute([$id]);
@@ -111,7 +112,7 @@ try {
                            g.email as primary_guardian_email,
                            g.mobile_phone as primary_guardian_phone
                     FROM athletes a
-                    LEFT JOIN users u ON u.id = a.id AND u.role = 'player'
+                    LEFT JOIN users u ON u.id = a.user_id AND u.role = 'player'
                     -- One row per athlete: pick a single primary guardian. A plain
                     -- JOIN multiplies rows when an athlete has >1 is_primary guardian
                     -- (two-parent / blended households), which duplicated athlete ids
@@ -167,81 +168,15 @@ try {
                 $gender = 'Male'; // Default gender
             }
 
-            // Start transaction
+            // Create the athlete and (if an email was given) find-or-create its linked
+            // player user. See lib/athlete_writes.php: athletes.id is ALWAYS sequence-
+            // generated and the user link lives in athletes.user_id — never overloaded
+            // onto the primary key (which used to collide: athletes_pkey duplicate).
             $pdo->beginTransaction();
-
             try {
-                // Create user record if email provided
-                $user_id = null;
-                if ($email) {
-                    $stmt = $pdo->prepare("
-                        INSERT INTO users (first_name, last_name, email, password_hash, role)
-                        VALUES (?, ?, ?, ?, 'player')
-                        RETURNING id
-                    ");
-                    $stmt->execute([$first_name, $last_name, $email, $password]);
-                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $user_id = $result['id'];
-                }
-
-                // Create athlete record with required fields
-                if ($user_id) {
-                    // If we have a user_id, use it as the athlete id
-                    $stmt = $pdo->prepare("
-                        INSERT INTO athletes (
-                            id, first_name, middle_initial, last_name, preferred_name,
-                            date_of_birth, gender, home_address_line1, city, state, zip_code,
-                            school_name, grade_level, active_status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
-                    ");
-
-                    $stmt->execute([
-                        $user_id,
-                        $first_name,
-                        $middle_initial,
-                        $last_name,
-                        $preferred_name,
-                        $date_of_birth,
-                        $gender,
-                        $input['home_address_line1'] ?? 'TBD',
-                        $input['city'] ?? 'TBD',
-                        $input['state'] ?? 'CA',
-                        $input['zip_code'] ?? '00000',
-                        $school_name,
-                        $grade_level
-                    ]);
-                    $athlete_id = $user_id;
-                } else {
-                    // No user_id, let database generate athlete id
-                    $stmt = $pdo->prepare("
-                        INSERT INTO athletes (
-                            first_name, middle_initial, last_name, preferred_name,
-                            date_of_birth, gender, home_address_line1, city, state, zip_code,
-                            school_name, grade_level, active_status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
-                        RETURNING id
-                    ");
-
-                    $stmt->execute([
-                        $first_name,
-                        $middle_initial,
-                        $last_name,
-                        $preferred_name,
-                        $date_of_birth,
-                        $gender,
-                        $input['home_address_line1'] ?? 'TBD',
-                        $input['city'] ?? 'TBD',
-                        $input['state'] ?? 'CA',
-                        $input['zip_code'] ?? '00000',
-                        $school_name,
-                        $grade_level
-                    ]);
-                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $athlete_id = $result['id'];
-                }
-
+                $created = te_create_athlete($pdo, $input);
                 $pdo->commit();
-                echo json_encode(['success' => true, 'athlete_id' => $athlete_id, 'message' => 'Athlete created successfully']);
+                echo json_encode(['success' => true, 'athlete_id' => $created['athlete_id'], 'message' => 'Athlete created successfully']);
             } catch (Exception $e) {
                 $pdo->rollBack();
                 throw $e;
@@ -320,9 +255,15 @@ try {
                 }
 
                 if (!empty($user_fields)) {
-                    $user_values[] = $id;
-                    $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $user_fields) . " WHERE id = ? AND role = 'player'");
-                    $stmt->execute($user_values);
+                    // The linked user lives at athletes.user_id (NOT the athlete id).
+                    $linkStmt = $pdo->prepare("SELECT user_id FROM athletes WHERE id = ?");
+                    $linkStmt->execute([$id]);
+                    $linkedUserId = $linkStmt->fetchColumn();
+                    if ($linkedUserId) {
+                        $user_values[] = $linkedUserId;
+                        $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $user_fields) . " WHERE id = ? AND role = 'player'");
+                        $stmt->execute($user_values);
+                    }
                 }
 
                 $pdo->commit();
@@ -369,7 +310,18 @@ try {
             break;
     }
 } catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode(['error' => $e->getMessage()]);
+    // Return a clean message for unique-constraint violations instead of raw SQL
+    // (e.g. an email already in use); otherwise surface the (validation) message.
+    $msg = $e->getMessage();
+    if (strpos($msg, '23505') !== false || stripos($msg, 'duplicate key') !== false) {
+        http_response_code(409);
+        $friendly = (stripos($msg, 'users_email') !== false)
+            ? 'That email is already in use by another account.'
+            : 'That record already exists.';
+        echo json_encode(['error' => $friendly]);
+    } else {
+        http_response_code(400);
+        echo json_encode(['error' => $msg]);
+    }
 }
 ?>
