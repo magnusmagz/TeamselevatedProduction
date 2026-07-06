@@ -21,13 +21,23 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
+require_once __DIR__ . '/../../services/ContributionLinkService.php';
 require_once __DIR__ . '/../../lib/Email.php';
 
-/** Gather everything the payment receipt email needs (reads only). */
-function buildReceiptData(PDO $pdo, int $payerUserId, int $clubId, array $invoiceIds, float $amount, string $ref): ?array {
-    $userStmt = $pdo->prepare("SELECT email, first_name FROM users WHERE id = ?");
-    $userStmt->execute([$payerUserId]);
-    $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+/**
+ * Gather everything the payment receipt email needs (reads only).
+ * Recipient comes from the payer's user record, or — for guest contributions —
+ * from the email/name passed through session metadata.
+ */
+function buildReceiptData(PDO $pdo, ?int $payerUserId, int $clubId, array $invoiceIds, float $amount, string $ref,
+                          ?string $guestEmail = null, ?string $guestName = null): ?array {
+    if ($payerUserId !== null && $payerUserId > 0) {
+        $userStmt = $pdo->prepare("SELECT email, first_name FROM users WHERE id = ?");
+        $userStmt->execute([$payerUserId]);
+        $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+    } else {
+        $user = $guestEmail ? ['email' => $guestEmail, 'first_name' => $guestName] : null;
+    }
     if (!$user || empty($user['email'])) {
         return null;
     }
@@ -161,11 +171,24 @@ try {
                 ];
             }
 
+            // Contribution-link payments: record the contributor and auto-close
+            // the link at goal — inside the same transaction as the ledger.
+            if (empty($result['already_applied']) && !empty($meta['contribution_link_id'])) {
+                (new ContributionLinkService($pdo))->recordContribution($meta, (int) $result['transaction_id']);
+            }
+
             // Collect receipt data now (inside the txn, cheap reads); send after commit.
-            if (empty($result['already_applied']) && !empty($meta['payer_user_id'])) {
-                $receiptData = buildReceiptData($pdo, (int) $meta['payer_user_id'],
-                    (int) ($meta['club_id'] ?? 0), $invoiceIds,
-                    $session['amount_total'] / 100, $session['payment_intent']);
+            if (empty($result['already_applied'])) {
+                $receiptData = buildReceiptData(
+                    $pdo,
+                    !empty($meta['payer_user_id']) ? (int) $meta['payer_user_id'] : null,
+                    (int) ($meta['club_id'] ?? 0),
+                    $invoiceIds,
+                    $session['amount_total'] / 100,
+                    $session['payment_intent'],
+                    $meta['contributor_email'] ?? null,
+                    ($meta['contributor_name'] ?? '') !== '' ? $meta['contributor_name'] : null
+                );
             }
             break;
 
