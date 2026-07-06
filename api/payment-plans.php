@@ -15,10 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 try {
     $db = Database::getInstance();
     $pdo = $db->getConnection();
+
+    // Financial/admin endpoint — authentication required for all actions.
+    $auth = AuthMiddleware::requireAuth();
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
@@ -151,6 +155,17 @@ try {
 
             if (!$athletePayment) {
                 throw new Exception('Athlete payment not found');
+            }
+
+            // Scope: the caller must be able to access the athlete's club (prevents
+            // applying a plan to another club's athlete payment by enumerating IDs).
+            $scopeStmt = $pdo->prepare("SELECT club_id FROM athletes WHERE id = :aid");
+            $scopeStmt->execute(['aid' => $athletePayment['athlete_id']]);
+            $athleteClubId = (int)$scopeStmt->fetchColumn();
+            if (!$auth->canAccessClub($athleteClubId)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this athlete payment']);
+                exit;
             }
 
             // Get the plan

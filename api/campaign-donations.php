@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 require_once '../config/database.php';
 require_once '../lib/PaymentProcessorFactory.php';
+require_once '../lib/AuthMiddleware.php';
 require_once '../lib/Email.php';
 
 $database = Database::getInstance();
@@ -176,6 +177,19 @@ try {
 
             // Check if admin view (show all details) or public view (respect privacy)
             $isAdmin = isset($_GET['admin']) && $_GET['admin'] === 'true';
+
+            // The admin view exposes donor PII — require auth + access to the campaign's club.
+            if ($isAdmin) {
+                $auth = AuthMiddleware::requireAuth();
+                $cstmt = $db->prepare("SELECT club_id FROM fundraiser_campaigns WHERE id = ?");
+                $cstmt->execute([$campaignId]);
+                $campaignClubId = (int)$cstmt->fetchColumn();
+                if (!$auth->canAccessClub($campaignClubId)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Not authorized for this campaign']);
+                    exit();
+                }
+            }
             $limit = intval($_GET['limit'] ?? 50);
             $offset = intval($_GET['offset'] ?? 0);
 
@@ -373,6 +387,9 @@ try {
                 exit();
             }
 
+            // Admin action (sends an email) — require authentication.
+            AuthMiddleware::requireAuth();
+
             $data = json_decode(file_get_contents("php://input"), true);
 
             if (empty($data['donation_id'])) {
@@ -437,14 +454,20 @@ try {
                 exit();
             }
 
-            // Get campaign title for filename
-            $stmt = $db->prepare("SELECT title FROM fundraiser_campaigns WHERE id = ?");
+            // Admin export of donor PII — require auth + access to the campaign's club.
+            $auth = AuthMiddleware::requireAuth();
+            $stmt = $db->prepare("SELECT title, club_id FROM fundraiser_campaigns WHERE id = ?");
             $stmt->execute([$campaignId]);
             $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$campaign) {
                 http_response_code(404);
                 echo json_encode(['error' => 'Campaign not found']);
+                exit();
+            }
+            if (!$auth->canAccessClub((int)$campaign['club_id'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this campaign']);
                 exit();
             }
 
