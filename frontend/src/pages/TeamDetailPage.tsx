@@ -1,4 +1,5 @@
 import React from 'react';
+import { ageGroup } from '../utils/ageGroup';
 import { useParams, Link } from 'react-router-dom';
 import TeamFormWithTabs from '../components/TeamFormWithTabs';
 
@@ -46,10 +47,7 @@ function getAgeQuarter(dob: string): string {
 }
 
 function getUGroup(dob: string): string {
-  const birth = new Date(dob);
-  const today = new Date();
-  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-  return `U${seasonYear - birth.getFullYear()}`;
+  return ageGroup(dob) ?? '';
 }
 
 function formatDOB(dob: string): string {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
 
@@ -54,10 +55,7 @@ function getAgeQuarter(dob: string): string {
 }
 
 function getUGroup(dob: string): string {
-  const birth = new Date(dob);
-  const today = new Date();
-  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-  return `U${seasonYear - birth.getFullYear()}`;
+  return ageGroup(dob) ?? '';
 }
 
 function formatDOB(dob: string): string {
@@ -66,10 +64,8 @@ function formatDOB(dob: string): string {
 }
 
 function getUNumber(dob: string): number {
-  const birth = new Date(dob);
-  const today = new Date();
-  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-  return seasonYear - birth.getFullYear();
+  const by = birthYearOf(dob);
+  return by === null ? 0 : currentSeasonYear() - by;
 }
 
 function sortAthletesByU(athletes: Athlete[], teamAgeGroup?: string): Athlete[] {
