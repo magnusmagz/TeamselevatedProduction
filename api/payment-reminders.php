@@ -15,10 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 
 try {
     $db = Database::getInstance();
     $pdo = $db->getConnection();
+
+    // Financial/admin endpoint — authentication required for all actions.
+    $auth = AuthMiddleware::requireAuth();
 
     $action = $_GET['action'] ?? 'list';
 

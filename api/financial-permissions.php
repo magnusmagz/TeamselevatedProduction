@@ -22,8 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/JWT.php';
 
-// Helper to extract JWT token
+// Helper to extract JWT token — signature-verified (never trust an unverified payload).
 function getJWTPayload() {
     $headers = getallheaders();
     $authHeader = $headers['Authorization'] ?? '';
@@ -32,15 +33,15 @@ function getJWTPayload() {
         return null;
     }
 
-    $token = $matches[1];
-    $parts = explode('.', $token);
-
-    if (count($parts) !== 3) {
+    // Verify the HMAC/RS256 signature before trusting anything in the token.
+    // A forged or tampered token fails verification and is treated as anonymous.
+    $verified = JWT::verify($matches[1]);
+    if (!$verified) {
         return null;
     }
 
-    $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-    return $payload;
+    // Return the same associative-array shape the rest of this file expects.
+    return json_decode(json_encode($verified), true);
 }
 
 try {
