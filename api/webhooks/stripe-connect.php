@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
+require_once __DIR__ . '/../../services/PaymentService.php';
 
 header('Content-Type: application/json');
 
@@ -77,6 +78,49 @@ try {
             $service = new StripeConnectService($pdo);
             if (!$service->applyAccountUpdate($account)) {
                 error_log('stripe-connect webhook: account.updated for unknown account ' . ($account['id'] ?? '?'));
+            }
+            break;
+
+        case 'checkout.session.completed':
+            // Direct charges: this event arrives from the club's connected account.
+            // Applied inline INSIDE the surrounding transaction so dedup + ledger
+            // commit atomically; PaymentService is additionally idempotent on
+            // (processor, transaction_id) as a second line of defense.
+            $session = $event->data->object->toArray();
+
+            if (($session['payment_status'] ?? '') !== 'paid') {
+                // Delayed payment methods (ACH, Phase 5) complete later via
+                // async_payment_succeeded — nothing to apply yet.
+                error_log('stripe-connect webhook: session ' . $session['id'] . ' completed but unpaid (async method?)');
+                break;
+            }
+
+            $meta = $session['metadata'] ?? [];
+            $invoiceIds = array_values(array_filter(array_map('intval', explode(',', $meta['invoice_ids'] ?? ''))));
+            if (empty($invoiceIds)) {
+                // Not one of our invoice sessions (or metadata lost) — log loudly, ack quietly.
+                error_log('stripe-connect webhook: checkout.session.completed without invoice_ids metadata: ' . $session['id']);
+                break;
+            }
+
+            $result = PaymentService::applyProcessorPayment($pdo, [
+                'processor' => 'stripe',
+                'transaction_id' => $session['payment_intent'],
+                'session_id' => $session['id'],
+                'customer_id' => $session['customer'] ?? null,
+                'amount' => $session['amount_total'] / 100,
+                'invoice_ids' => $invoiceIds,
+                'paid_by_user_id' => isset($meta['payer_user_id']) ? (int) $meta['payer_user_id'] : null,
+                'payment_method' => 'credit_card',
+            ]);
+
+            if (!empty($result['already_applied'])) {
+                error_log('stripe-connect webhook: payment ' . $session['payment_intent'] . ' already applied — replay no-op');
+            } elseif ($result['amount_unapplied'] > 0) {
+                // Race overpayment (two payers, same balance). Phase 3 auto-refunds;
+                // until then this needs a human, so make it visible.
+                error_log('stripe-connect webhook: OVERPAYMENT ' . $result['amount_unapplied']
+                    . ' unapplied on session ' . $session['id'] . ' — manual refund needed');
             }
             break;
 

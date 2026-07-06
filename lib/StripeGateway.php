@@ -42,4 +42,13 @@ class StripeGateway {
     public function retrieveAccount(string $accountId): array {
         return $this->client->accounts->retrieve($accountId)->toArray();
     }
+
+    /**
+     * Create a Checkout Session. When $connectedAccount is given the session is
+     * created ON that account (direct charge — funds settle to the club).
+     */
+    public function createCheckoutSession(array $params, ?string $connectedAccount = null): array {
+        $opts = $connectedAccount ? ['stripe_account' => $connectedAccount] : [];
+        return $this->client->checkout->sessions->create($params, $opts)->toArray();
+    }
 }
