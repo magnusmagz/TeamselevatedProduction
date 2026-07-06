@@ -61,7 +61,7 @@ try {
 
             // Verify campaign exists and is active
             $stmt = $db->prepare("
-                SELECT fc.*, cp.club_name
+                SELECT fc.*, cp.name AS club_name
                 FROM fundraiser_campaigns fc
                 JOIN club_profile cp ON fc.club_id = cp.id
                 WHERE fc.id = ? AND fc.deleted_at IS NULL
@@ -334,7 +334,7 @@ try {
 
             // Verify donation exists and email matches
             $stmt = $db->prepare("
-                SELECT cd.*, fc.title as campaign_title, cp.club_name
+                SELECT cd.*, fc.title as campaign_title, cp.name AS club_name
                 FROM campaign_donations cd
                 JOIN fundraiser_campaigns fc ON cd.campaign_id = fc.id
                 JOIN club_profile cp ON fc.club_id = cp.id
@@ -383,7 +383,7 @@ try {
 
             // Get donation details
             $stmt = $db->prepare("
-                SELECT cd.*, fc.title as campaign_title, cp.club_name
+                SELECT cd.*, fc.title as campaign_title, cp.name AS club_name
                 FROM campaign_donations cd
                 JOIN fundraiser_campaigns fc ON cd.campaign_id = fc.id
                 JOIN club_profile cp ON fc.club_id = cp.id
