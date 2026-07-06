@@ -444,6 +444,7 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
                     'template_id'           => $templateId,
                     'event_id'              => $eventId,
                     'broadcast_campaign_id' => $campaignId,
+                    'team_ids'              => $teamIds,
                 ]);
                 $totalQueued  += $result['queued'];
                 $totalSkipped += $result['skipped'];
@@ -459,6 +460,7 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
                 'template_id'           => $templateId,
                 'event_id'              => $eventId,
                 'broadcast_campaign_id' => $campaignId,
+                'team_ids'              => $teamIds,
             ]);
             $totalQueued  = $result['queued'];
             $totalSkipped = $result['skipped'];
