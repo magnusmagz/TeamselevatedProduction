@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/StripeGateway.php';
+require_once __DIR__ . '/../lib/AuditLog.php';
 require_once __DIR__ . '/../services/StripeConnectService.php';
 
 $auth = AuthMiddleware::requireAuth();
@@ -109,6 +110,12 @@ try {
             } else {
                 $result = $service->refreshLink($clubId, $refreshUrl, $returnUrl);
             }
+
+            AuditLog::record($pdo, $auth->getUserId(),
+                $action === 'create' ? 'payments.onboarding_started' : 'payments.onboarding_link_refreshed',
+                'club_payment_account', $clubId, [
+                    'stripe_account_id' => $result['account']['stripe_account_id'] ?? null,
+                ]);
 
             echo json_encode(['success' => true, 'url' => $result['url'], 'account' => $result['account']]);
             break;

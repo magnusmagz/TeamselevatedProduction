@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/StripeGateway.php';
+require_once __DIR__ . '/../lib/AuditLog.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -45,6 +46,15 @@ try {
     if ($transactionId <= 0) {
         http_response_code(400);
         echo json_encode(['error' => 'transaction_id is required']);
+        exit;
+    }
+
+    // Refunds are the one place a human moves money — a reason is mandatory
+    // and lands in the audit trail alongside who asked and from where.
+    $reason = trim((string) ($body['reason'] ?? ''));
+    if ($reason === '' || mb_strlen($reason) > 500) {
+        http_response_code(400);
+        echo json_encode(['error' => 'A reason is required (up to 500 characters)']);
         exit;
     }
 
@@ -118,6 +128,14 @@ try {
     }
 
     $refund = $gateway->refundPayment($txn['processor_transaction_id'], $requestCents, $stripeAccountId);
+
+    AuditLog::record($pdo, $auth->getUserId(), 'payment.refund_requested', 'payment_transaction', $transactionId, [
+        'amount' => $requestCents / 100,
+        'reason' => $reason,
+        'club_id' => $clubId,
+        'stripe_refund_id' => $refund['id'] ?? null,
+        'stripe_payment_intent' => $txn['processor_transaction_id'],
+    ]);
 
     echo json_encode([
         'success' => true,
