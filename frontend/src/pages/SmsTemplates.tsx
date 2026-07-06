@@ -69,6 +69,8 @@ const SmsTemplates: React.FC = () => {
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -239,6 +241,20 @@ const SmsTemplates: React.FC = () => {
     return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
+  // Categories are stored lowercased with underscores (e.g. game_day) — compare
+  // against the display labels on normalized form.
+  const filteredTemplates = templates.filter((t) => {
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch =
+      q === '' ||
+      t.name.toLowerCase().includes(q) ||
+      (t.body_text || '').toLowerCase().includes(q);
+    const matchesCategory =
+      categoryFilter === 'All' ||
+      formatCategory(t.category).toLowerCase() === categoryFilter.toLowerCase();
+    return matchesSearch && matchesCategory;
+  });
+
   if (!clubProfileId) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -269,6 +285,44 @@ const SmsTemplates: React.FC = () => {
         </div>
       )}
 
+      {/* Filters row (matches the email Template Library) */}
+      {!loading && templates.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by name or message..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+            />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none bg-white"
+          >
+            <option value="All">All Categories</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Template list */}
       {loading ? (
         <div className="flex justify-center py-12">
@@ -295,9 +349,20 @@ const SmsTemplates: React.FC = () => {
             </button>
           )}
         </div>
+      ) : filteredTemplates.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg font-medium mb-1">No matching templates</p>
+          <p className="text-sm">Try adjusting your search or filter criteria.</p>
+          <button
+            onClick={() => { setSearchQuery(''); setCategoryFilter('All'); }}
+            className="mt-4 text-sm font-medium text-brand-primary hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((t) => {
+          {filteredTemplates.map((t) => {
             const bodyLen = (t.body_text || '').length;
             const segs = getSegmentCount(bodyLen);
             return (
