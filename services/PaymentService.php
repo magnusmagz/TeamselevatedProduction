@@ -403,4 +403,126 @@ class PaymentService {
             throw $e;
         }
     }
+
+    /**
+     * Reverse the ledger for a processor refund (charge.refunded webhook).
+     *
+     * $totalRefunded is the CUMULATIVE refunded amount reported by the
+     * processor (Stripe's charge.amount_refunded) — the delta against what we
+     * have already reversed is applied, which makes replays and partial-refund
+     * sequences naturally idempotent.
+     *
+     * Reversal walks the transaction's allocations newest-first, reducing each
+     * invoice's amount_paid and recomputing status (paid -> partial -> sent).
+     * Refunded money that was never applied to an invoice (the overpayment
+     * race case) reverses nothing — it was never on the ledger.
+     */
+    public static function applyProcessorRefund(PDO $pdo, string $processor, string $transactionId, float $totalRefunded): array {
+        if ($totalRefunded < 0) {
+            throw new PaymentValidationException('Refund amount cannot be negative');
+        }
+
+        $ownTxn = !$pdo->inTransaction();
+        if ($ownTxn) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT id, amount, refund_amount FROM payment_transactions
+                WHERE processor = ? AND processor_transaction_id = ?
+            ");
+            $stmt->execute([$processor, $transactionId]);
+            $txn = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$txn) {
+                if ($ownTxn) {
+                    $pdo->commit();
+                }
+                return ['success' => false, 'unknown_transaction' => true];
+            }
+
+            $deltaCents = self::toCents($totalRefunded) - self::toCents($txn['refund_amount']);
+            if ($deltaCents <= 0) {
+                if ($ownTxn) {
+                    $pdo->commit();
+                }
+                return ['success' => true, 'already_applied' => true, 'transaction_id' => (int) $txn['id']];
+            }
+
+            $forUpdate = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' ? ' FOR UPDATE' : '';
+            $allocStmt = $pdo->prepare("
+                SELECT pa.id, pa.invoice_id, pa.amount
+                FROM payment_allocations pa
+                WHERE pa.payment_transaction_id = ?
+                ORDER BY pa.id DESC
+            ");
+            $allocStmt->execute([$txn['id']]);
+            $allocations = $allocStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $invUpdate = $pdo->prepare("
+                UPDATE invoices
+                SET amount_paid = ?, status = ?, paid_at = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            $invSelect = $pdo->prepare("SELECT total_amount, amount_paid FROM invoices WHERE id = ?{$forUpdate}");
+
+            $remainingCents = $deltaCents;
+            $reversed = [];
+            foreach ($allocations as $alloc) {
+                if ($remainingCents <= 0) {
+                    break;
+                }
+                $invSelect->execute([$alloc['invoice_id']]);
+                $inv = $invSelect->fetch(PDO::FETCH_ASSOC);
+                if (!$inv) {
+                    continue;
+                }
+                $reverseCents = min($remainingCents, self::toCents($alloc['amount']), self::toCents($inv['amount_paid']));
+                if ($reverseCents <= 0) {
+                    continue;
+                }
+                $newPaidCents = self::toCents($inv['amount_paid']) - $reverseCents;
+                $totalCents = self::toCents($inv['total_amount']);
+                $newStatus = $newPaidCents <= 0 ? 'sent' : ($newPaidCents < $totalCents ? 'partial' : 'paid');
+                $invUpdate->execute([
+                    self::fromCents($newPaidCents),
+                    $newStatus,
+                    $newPaidCents >= $totalCents ? date('Y-m-d H:i:s') : null,
+                    $alloc['invoice_id'],
+                ]);
+                $remainingCents -= $reverseCents;
+                $reversed[] = ['invoice_id' => (int) $alloc['invoice_id'], 'reversed' => (float) self::fromCents($reverseCents)];
+            }
+
+            $fullRefund = self::toCents($totalRefunded) >= self::toCents($txn['amount']);
+            $txnUpdate = $pdo->prepare("
+                UPDATE payment_transactions
+                SET refund_amount = ?, refunded_at = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            $txnUpdate->execute([
+                self::fromCents(self::toCents($totalRefunded)),
+                date('Y-m-d H:i:s'),
+                $fullRefund ? 'refunded' : 'succeeded',
+                $txn['id'],
+            ]);
+
+            if ($ownTxn) {
+                $pdo->commit();
+            }
+
+            return [
+                'success' => true,
+                'already_applied' => false,
+                'transaction_id' => (int) $txn['id'],
+                'reversed' => $reversed,
+                'full_refund' => $fullRefund,
+            ];
+        } catch (Exception $e) {
+            if ($ownTxn && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
 }

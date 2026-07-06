@@ -21,6 +21,38 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
+require_once __DIR__ . '/../../lib/Email.php';
+
+/** Gather everything the payment receipt email needs (reads only). */
+function buildReceiptData(PDO $pdo, int $payerUserId, int $clubId, array $invoiceIds, float $amount, string $ref): ?array {
+    $userStmt = $pdo->prepare("SELECT email, first_name FROM users WHERE id = ?");
+    $userStmt->execute([$payerUserId]);
+    $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user || empty($user['email'])) {
+        return null;
+    }
+
+    $clubName = 'your club';
+    if ($clubId > 0) {
+        $clubStmt = $pdo->prepare("SELECT name FROM club_profile WHERE id = ?");
+        $clubStmt->execute([$clubId]);
+        $clubName = $clubStmt->fetchColumn() ?: $clubName;
+    }
+
+    $ph = implode(',', array_fill(0, count($invoiceIds), '?'));
+    $invStmt = $pdo->prepare("SELECT invoice_number FROM invoices WHERE id IN ($ph)");
+    $invStmt->execute($invoiceIds);
+    $numbers = $invStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    return [
+        'to' => $user['email'],
+        'name' => $user['first_name'] ?: 'there',
+        'amount' => $amount,
+        'invoice_numbers' => $numbers,
+        'club_name' => $clubName,
+        'ref' => $ref,
+    ];
+}
 
 header('Content-Type: application/json');
 
@@ -51,6 +83,7 @@ try {
 }
 
 $pdo = null;
+$receiptData = null; // populated on a fresh successful payment; sent AFTER commit
 try {
     $pdo = Database::getInstance()->getConnection();
 
@@ -122,6 +155,26 @@ try {
                 error_log('stripe-connect webhook: OVERPAYMENT ' . $result['amount_unapplied']
                     . ' unapplied on session ' . $session['id'] . ' — manual refund needed');
             }
+
+            // Collect receipt data now (inside the txn, cheap reads); send after commit.
+            if (empty($result['already_applied']) && !empty($meta['payer_user_id'])) {
+                $receiptData = buildReceiptData($pdo, (int) $meta['payer_user_id'],
+                    (int) ($meta['club_id'] ?? 0), $invoiceIds,
+                    $session['amount_total'] / 100, $session['payment_intent']);
+            }
+            break;
+
+        case 'charge.refunded':
+            // Cumulative amount_refunded makes replays + partial sequences idempotent.
+            $charge = $event->data->object->toArray();
+            if (empty($charge['payment_intent'])) {
+                break;
+            }
+            $refundResult = PaymentService::applyProcessorRefund(
+                $pdo, 'stripe', $charge['payment_intent'], $charge['amount_refunded'] / 100);
+            if (!empty($refundResult['unknown_transaction'])) {
+                error_log('stripe-connect webhook: charge.refunded for unknown transaction ' . $charge['payment_intent']);
+            }
             break;
 
         default:
@@ -133,6 +186,18 @@ try {
         ->execute([$event->id]);
 
     $pdo->commit();
+
+    // Receipt is best-effort and post-commit: a mail hiccup must never make
+    // Stripe retry (and re-litigate) an already-committed payment.
+    if ($receiptData !== null) {
+        try {
+            (new Email())->sendPaymentReceipt(
+                $receiptData['to'], $receiptData['name'], $receiptData['amount'],
+                $receiptData['invoice_numbers'], $receiptData['club_name'], $receiptData['ref']);
+        } catch (Exception $e) {
+            error_log('stripe-connect webhook: receipt email failed: ' . $e->getMessage());
+        }
+    }
 
     echo json_encode(['status' => 'ok', 'event_id' => $event->id]);
 } catch (Exception $e) {
