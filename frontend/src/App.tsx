@@ -5,6 +5,7 @@ import { OrgProvider, useOrg } from './contexts/OrgContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 // LeagueSelector removed - clubs are now the top-level entity
 import BrandingLogo from './components/BrandingLogo';
+import ErrorBoundary from './components/ErrorBoundary';
 import ProfileMenu from './components/ProfileMenu';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
@@ -1080,19 +1081,21 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <OrgProvider>
-          <ThemeProvider>
-            <FinancialPermissionsProvider>
-              <RegistrationCartProvider>
-                <AppContent />
-              </RegistrationCartProvider>
-            </FinancialPermissionsProvider>
-          </ThemeProvider>
-        </OrgProvider>
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <OrgProvider>
+            <ThemeProvider>
+              <FinancialPermissionsProvider>
+                <RegistrationCartProvider>
+                  <AppContent />
+                </RegistrationCartProvider>
+              </FinancialPermissionsProvider>
+            </ThemeProvider>
+          </OrgProvider>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
