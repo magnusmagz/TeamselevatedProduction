@@ -16,6 +16,7 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
   const [formData, setFormData] = useState<Program>({
     name: '',
     type: 'camp',
+    participant_type: 'athlete',
     description: '',
     status: 'draft',
     start_date: '',
@@ -178,6 +179,25 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                     <option value="tournament">Tournament</option>
                     <option value="drop_in">Drop In</option>
                   </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                    Who Registers?
+                  </label>
+                  <select
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                    value={formData.participant_type || 'athlete'}
+                    onChange={(e) => setFormData({ ...formData, participant_type: e.target.value as any })}
+                  >
+                    <option value="athlete">Athlete (with guardian)</option>
+                    <option value="coach">Coach</option>
+                    <option value="adult">Adult</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sets the default registration form. Coach/Adult collects the registrant's own info
+                    (name, email, phone) — no guardian or birthday. Choose this before creating the program.
+                  </p>
                 </div>
 
                 <div className="col-span-2">

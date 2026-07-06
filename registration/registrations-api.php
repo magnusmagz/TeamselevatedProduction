@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/registration_writes.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -76,7 +77,7 @@ try {
 
             // Validate program exists and is open for registration
             $stmt = $connection->prepare("
-                SELECT id, status, registration_closes, registration_fee, club_id
+                SELECT id, status, registration_closes, registration_fee, club_id, participant_type
                 FROM programs
                 WHERE id = ? AND status = 'published'
             ");
@@ -97,6 +98,37 @@ try {
                     http_response_code(400);
                     echo json_encode(['error' => 'Registration period has ended']);
                     exit();
+                }
+            }
+
+            // Coach / adult programs use a separate, athlete-free flow: no guardian,
+            // no athlete record, no login user — just a registration keyed by the
+            // registrant's email. The athlete flow below is intentionally untouched.
+            $participantType = $program['participant_type'] ?? 'athlete';
+            if ($participantType === 'coach' || $participantType === 'adult') {
+                $connection->beginTransaction();
+                try {
+                    $res = te_create_coach_registration($connection, $program, $data['form_data'] ?? []);
+                    if ($res['already_registered']) {
+                        $connection->rollBack();
+                        echo json_encode([
+                            'success' => true,
+                            'id' => $res['registration_id'],
+                            'already_registered' => true,
+                            'message' => "You're already registered for this program"
+                        ]);
+                        exit();
+                    }
+                    $connection->commit();
+                    echo json_encode([
+                        'success' => true,
+                        'id' => $res['registration_id'],
+                        'message' => 'Registration submitted successfully'
+                    ]);
+                    exit();
+                } catch (Exception $e) {
+                    $connection->rollBack();
+                    throw $e;
                 }
             }
 
