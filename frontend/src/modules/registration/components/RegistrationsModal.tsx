@@ -15,16 +15,22 @@ interface Registration {
   total_amount: number | null;
   invoice_status: string | null;
   form_data: {
-    athlete_first: string;
-    athlete_last: string;
-    athlete_birthday: string;
-    athlete_gender: string;
+    // Athlete registrations
+    athlete_first?: string;
+    athlete_last?: string;
+    athlete_birthday?: string;
+    athlete_gender?: string;
     athlete_grade?: string;
-    guardian_first: string;
-    guardian_last: string;
-    guardian_email: string;
-    mobile_phone: string;
+    guardian_first?: string;
+    guardian_last?: string;
+    guardian_email?: string;
+    mobile_phone?: string;
     _athlete_matched?: boolean;
+    // Coach / adult registrations
+    coach_first?: string;
+    coach_last?: string;
+    coach_email?: string;
+    coach_phone?: string;
   };
 }
 
@@ -222,7 +228,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-brand-primary">
-                          {reg.form_data.athlete_first} {reg.form_data.athlete_last}
+                          {`${reg.form_data.athlete_first || reg.form_data.coach_first || ''} ${reg.form_data.athlete_last || reg.form_data.coach_last || ''}`.trim() || '—'}
                         </h3>
                         {getStatusBadge(reg.status)}
                         {reg.form_data._athlete_matched && (
@@ -235,19 +241,38 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-600">
-                        <div>
-                          <span className="text-gray-400">Birthday:</span>{' '}
-                          {new Date(reg.form_data.athlete_birthday).toLocaleDateString()}
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Gender:</span>{' '}
-                          {reg.form_data.athlete_gender}
-                        </div>
-                        {reg.form_data.athlete_grade && (
-                          <div>
-                            <span className="text-gray-400">Grade:</span>{' '}
-                            {reg.form_data.athlete_grade}
-                          </div>
+                        {reg.form_data.athlete_birthday ? (
+                          <>
+                            <div>
+                              <span className="text-gray-400">Birthday:</span>{' '}
+                              {new Date(reg.form_data.athlete_birthday).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Gender:</span>{' '}
+                              {reg.form_data.athlete_gender}
+                            </div>
+                            {reg.form_data.athlete_grade && (
+                              <div>
+                                <span className="text-gray-400">Grade:</span>{' '}
+                                {reg.form_data.athlete_grade}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {reg.form_data.coach_email && (
+                              <div>
+                                <span className="text-gray-400">Email:</span>{' '}
+                                {reg.form_data.coach_email}
+                              </div>
+                            )}
+                            {reg.form_data.coach_phone && (
+                              <div>
+                                <span className="text-gray-400">Phone:</span>{' '}
+                                {reg.form_data.coach_phone}
+                              </div>
+                            )}
+                          </>
                         )}
                         <div>
                           <span className="text-gray-400">Submitted:</span>{' '}

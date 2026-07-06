@@ -158,9 +158,13 @@ try {
                     INSERT INTO programs (
                         club_id, name, type, description,
                         start_date, end_date, registration_opens, registration_closes,
-                        min_age, max_age, capacity, status, embed_code, registration_fee, venue_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_age, max_age, capacity, status, embed_code, registration_fee, venue_id,
+                        participant_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
+                $participantType = in_array($data['participant_type'] ?? 'athlete', ['athlete', 'coach', 'adult'], true)
+                    ? ($data['participant_type'] ?? 'athlete')
+                    : 'athlete';
 
                 $stmt->execute([
                     $clubId,
@@ -177,13 +181,16 @@ try {
                     $data['status'] ?? 'draft',
                     $embed_code,
                     !empty($data['registration_fee']) ? $data['registration_fee'] : null,
-                    !empty($data['venue_id']) ? $data['venue_id'] : null
+                    !empty($data['venue_id']) ? $data['venue_id'] : null,
+                    $participantType
                 ]);
 
                 $program_id = $connection->lastInsertId();
 
-                // Add default form fields
-                $default_fields = [
+                // Seed the default form fields for the program's participant type.
+                // Athlete = athlete + guardian sections (unchanged). Coach/adult =
+                // coach fields only (no birthday/grade, no guardian, no emergency).
+                $athlete_fields = [
                     ['field_name' => 'athlete_first', 'field_label' => 'Athlete First', 'field_type' => 'text', 'required' => true, 'section' => 'athlete_info', 'display_order' => 1, 'options' => null],
                     ['field_name' => 'athlete_last', 'field_label' => 'Athlete Last', 'field_type' => 'text', 'required' => true, 'section' => 'athlete_info', 'display_order' => 2, 'options' => null],
                     ['field_name' => 'athlete_birthday', 'field_label' => 'Athlete Birthday', 'field_type' => 'date', 'required' => true, 'section' => 'athlete_info', 'display_order' => 3, 'options' => null],
@@ -194,6 +201,17 @@ try {
                     ['field_name' => 'guardian_email', 'field_label' => 'Guardian Email', 'field_type' => 'email', 'required' => true, 'section' => 'parent_info', 'display_order' => 8, 'options' => null],
                     ['field_name' => 'mobile_phone', 'field_label' => 'Mobile Phone', 'field_type' => 'tel', 'required' => true, 'section' => 'parent_info', 'display_order' => 9, 'options' => null]
                 ];
+                $coach_fields = [
+                    ['field_name' => 'coach_first', 'field_label' => 'First Name', 'field_type' => 'text', 'required' => true, 'section' => 'coach_info', 'display_order' => 1, 'options' => null],
+                    ['field_name' => 'coach_last', 'field_label' => 'Last Name', 'field_type' => 'text', 'required' => true, 'section' => 'coach_info', 'display_order' => 2, 'options' => null],
+                    ['field_name' => 'coach_email', 'field_label' => 'Email', 'field_type' => 'email', 'required' => true, 'section' => 'coach_info', 'display_order' => 3, 'options' => null],
+                    ['field_name' => 'coach_phone', 'field_label' => 'Mobile Phone', 'field_type' => 'tel', 'required' => true, 'section' => 'coach_info', 'display_order' => 4, 'options' => null],
+                    ['field_name' => 'current_club', 'field_label' => 'Club / Organization', 'field_type' => 'text', 'required' => false, 'section' => 'coach_info', 'display_order' => 5, 'options' => null],
+                    ['field_name' => 'certification_level', 'field_label' => 'Certification Level', 'field_type' => 'select', 'required' => false, 'section' => 'coach_info', 'display_order' => 6, 'options' => ['None', 'Grassroots', 'D', 'C', 'B', 'A/Pro']],
+                    ['field_name' => 'years_experience', 'field_label' => 'Years Coaching', 'field_type' => 'number', 'required' => false, 'section' => 'coach_info', 'display_order' => 7, 'options' => null],
+                    ['field_name' => 'accessibility_notes', 'field_label' => 'Dietary / Accessibility Notes', 'field_type' => 'textarea', 'required' => false, 'section' => 'coach_info', 'display_order' => 8, 'options' => null]
+                ];
+                $default_fields = ($participantType === 'coach' || $participantType === 'adult') ? $coach_fields : $athlete_fields;
 
                 $field_stmt = $connection->prepare("
                     INSERT INTO program_form_fields (
@@ -280,7 +298,7 @@ try {
                     start_date = ?, end_date = ?,
                     registration_opens = ?, registration_closes = ?,
                     min_age = ?, max_age = ?, capacity = ?, status = ?, registration_fee = ?,
-                    venue_id = ?
+                    venue_id = ?, participant_type = COALESCE(?, participant_type)
                 WHERE id = ?
             ");
 
@@ -298,6 +316,7 @@ try {
                 $data['status'] ?? 'draft',
                 !empty($data['registration_fee']) ? $data['registration_fee'] : null,
                 !empty($data['venue_id']) ? $data['venue_id'] : null,
+                in_array($data['participant_type'] ?? null, ['athlete', 'coach', 'adult'], true) ? $data['participant_type'] : null,
                 $program_id
             ]);
 
