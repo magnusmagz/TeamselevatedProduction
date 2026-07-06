@@ -38,6 +38,7 @@ export interface Program {
   registration_count?: number;
   pending_count?: number;
   what_to_bring?: string[];
+  participant_type?: 'athlete' | 'coach' | 'adult';
   venue_id?: number;
   // Joined from the venues catalog on GET (read-only display).
   venue_name?: string;
