@@ -332,7 +332,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/events-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/events-gateway.php`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
+      });
       const data = await response.json();
       if (data.events) {
         setEvents(data.events);
@@ -647,7 +649,10 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
       const response = await fetch(url, {
         method: selectedEvent ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`
+        },
         body: JSON.stringify(requestData)
       });
 
@@ -714,7 +719,10 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     try {
       const response = await fetch(
         `${API_URL}/legacy/events-gateway.php?id=${eventId}${series ? '&series=1' : ''}`,
-        { method: 'DELETE' }
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
+        }
       );
 
       if (response.ok) {
