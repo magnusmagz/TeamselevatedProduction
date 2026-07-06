@@ -35,7 +35,24 @@ interface Event {
   description?: string;
   status: 'scheduled' | 'cancelled' | 'postponed' | 'completed';
   subscription_id?: number | null;
+  recurrence_group_id?: string | null;
+  recurrence_rule?: string | null;
 }
+
+// Add Event "Repeat" choices → backend recurrence config (frequency/interval).
+const REPEAT_OPTIONS: { value: string; label: string; frequency?: string; interval?: number }[] = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Daily', frequency: 'daily' },
+  { value: 'weekday', label: 'Every weekday (Mon–Fri)', frequency: 'weekday' },
+  { value: 'weekly', label: 'Weekly', frequency: 'weekly', interval: 1 },
+  { value: 'biweekly', label: 'Every other week', frequency: 'weekly', interval: 2 },
+  { value: 'every3weeks', label: 'Every 3 weeks', frequency: 'weekly', interval: 3 },
+  { value: 'every4weeks', label: 'Every 4 weeks', frequency: 'weekly', interval: 4 },
+  { value: 'monthly_date', label: 'Monthly (same date)', frequency: 'monthly_date' },
+  { value: 'monthly_weekday', label: 'Monthly (e.g. 2nd Friday)', frequency: 'monthly_weekday' },
+];
+
+const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 interface CalendarDay {
   date: Date;
@@ -107,6 +124,44 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     status: 'scheduled',
     opponent_name: ''
   });
+  // Recurrence controls for the Add Event form (new events only — occurrences
+  // are materialized server-side, so edits always target one occurrence).
+  const [repeatOption, setRepeatOption] = useState('none');
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
+  const [repeatEndType, setRepeatEndType] = useState<'date' | 'count'>('count');
+  const [repeatEndDate, setRepeatEndDate] = useState('');
+  const [repeatCount, setRepeatCount] = useState(10);
+
+  const resetRecurrence = () => {
+    setRepeatOption('none');
+    setRepeatWeekdays([]);
+    setRepeatEndType('count');
+    setRepeatEndDate('');
+    setRepeatCount(10);
+  };
+
+  const isWeeklyRepeat = REPEAT_OPTIONS.find((o) => o.value === repeatOption)?.frequency === 'weekly';
+
+  // Weekday index (0=Sun..6=Sat) of the form's date, parsed as a local date.
+  const formDateWeekday = (): number | null => {
+    if (!eventFormData.event_date) return null;
+    const [y, m, d] = eventFormData.event_date.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d).getDay();
+  };
+
+  const buildRecurrencePayload = () => {
+    const option = REPEAT_OPTIONS.find((o) => o.value === repeatOption);
+    if (!option || !option.frequency) return undefined;
+    return {
+      frequency: option.frequency,
+      interval: option.interval ?? 1,
+      weekdays: option.frequency === 'weekly' ? repeatWeekdays : [],
+      end_type: repeatEndType,
+      end_date: repeatEndType === 'date' ? repeatEndDate : undefined,
+      count: repeatEndType === 'count' ? repeatCount : undefined,
+    };
+  };
 
   // Fetch the list of teams this user coaches/manages so we can offer a
   // "My Teams" filter option and default coaches to that view. Skipped when
@@ -548,6 +603,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       opponent_name: ''
     });
     setSelectedEvent(null);
+    resetRecurrence();
     setShowEventForm(true);
   };
 
@@ -563,6 +619,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     setEventFormData(formData);
     setChangesSummary('');
     setSendUpdates(true);
+    resetRecurrence();
     setShowEventForm(true);
   };
 
@@ -582,7 +639,10 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       const requestData = {
         ...eventFormData,
         send_invites: !selectedEvent && sendInvites,  // Send invites only for new events
-        send_updates: selectedEvent && sendUpdates     // Send updates only when editing
+        send_updates: selectedEvent && sendUpdates,    // Send updates only when editing
+        // Recurrence applies to new events only; the backend expands it into
+        // one calendar_events row per occurrence.
+        recurrence: !selectedEvent ? buildRecurrencePayload() : undefined
       };
 
       const response = await fetch(url, {
@@ -598,6 +658,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       if (response.ok) {
         console.log('Event saved successfully');
 
+        if (responseData.count && responseData.count > 1) {
+          alert(`${responseData.message || `Created ${responseData.count} events.`}\n\nNote: calendar invites are not sent for recurring events.`);
+        } else
         // Show invite results if available
         if (responseData.invites) {
           if (responseData.invites.sent > 0) {
@@ -637,10 +700,22 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const handleDeleteEvent = async (eventId: number) => {
     if (!window.confirm('Are you sure you want to delete this event?')) return;
 
+    // For a recurring event, offer to remove the rest of its series too
+    // (this occurrence and everything after it in the group).
+    let series = false;
+    if (selectedEvent?.recurrence_group_id) {
+      series = window.confirm(
+        `This event repeats (${selectedEvent.recurrence_rule || 'recurring series'}).\n\n` +
+        'OK = delete this event AND all later events in the series\n' +
+        'Cancel = delete only this event'
+      );
+    }
+
     try {
-      const response = await fetch(`${API_URL}/legacy/events-gateway.php?id=${eventId}`, {
-        method: 'DELETE'
-      });
+      const response = await fetch(
+        `${API_URL}/legacy/events-gateway.php?id=${eventId}${series ? '&series=1' : ''}`,
+        { method: 'DELETE' }
+      );
 
       if (response.ok) {
         setShowEventForm(false);
@@ -1200,6 +1275,123 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     <option value="completed">Completed</option>
                   </select>
                 </div>
+
+                {/* Repeat — new events only; occurrences are created as individual events */}
+                {!selectedEvent && (
+                  <div className="col-span-2 border border-gray-200 rounded-md p-3 bg-gray-50">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Repeat
+                        </label>
+                        <select
+                          value={repeatOption}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setRepeatOption(value);
+                            // Weekly variants: default the day picker to the event date's weekday.
+                            const freq = REPEAT_OPTIONS.find((o) => o.value === value)?.frequency;
+                            if (freq === 'weekly' && repeatWeekdays.length === 0) {
+                              const dow = formDateWeekday();
+                              if (dow !== null) setRepeatWeekdays([dow]);
+                            }
+                          }}
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                        >
+                          {REPEAT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {repeatOption !== 'none' && (
+                        <div>
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                            Ends
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={repeatEndType}
+                              onChange={(e) => setRepeatEndType(e.target.value as 'date' | 'count')}
+                              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-2 py-2 focus:outline-none focus:border-brand-accent"
+                            >
+                              <option value="count">After</option>
+                              <option value="date">On date</option>
+                            </select>
+                            {repeatEndType === 'count' ? (
+                              <>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={52}
+                                  value={repeatCount}
+                                  onChange={(e) => setRepeatCount(Math.max(1, Math.min(52, Number(e.target.value) || 1)))}
+                                  className="w-20 bg-white text-brand-primary border border-brand-secondary rounded-md px-2 py-2 focus:outline-none focus:border-brand-accent"
+                                />
+                                <span className="text-sm text-gray-600">events</span>
+                              </>
+                            ) : (
+                              <input
+                                type="date"
+                                value={repeatEndDate}
+                                min={eventFormData.event_date || undefined}
+                                onChange={(e) => setRepeatEndDate(e.target.value)}
+                                required
+                                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-2 py-2 focus:outline-none focus:border-brand-accent"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {isWeeklyRepeat && (
+                        <div className="col-span-2">
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                            On days
+                          </label>
+                          <div className="flex gap-1.5">
+                            {WEEKDAY_LABELS.map((label, dow) => {
+                              const active = repeatWeekdays.includes(dow);
+                              return (
+                                <button
+                                  key={dow}
+                                  type="button"
+                                  onClick={() =>
+                                    setRepeatWeekdays((prev) =>
+                                      prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort()
+                                    )
+                                  }
+                                  className={`w-9 h-9 rounded-full text-xs font-semibold border transition-colors ${
+                                    active
+                                      ? 'bg-brand-primary text-white border-brand-primary'
+                                      : 'bg-white text-brand-primary border-brand-secondary hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {repeatOption !== 'none' && (
+                        <p className="col-span-2 text-xs text-gray-500">
+                          Each occurrence is created as its own event (max 52, within one year). Calendar
+                          invite emails are not sent for recurring events.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Series note when editing one occurrence of a recurring event */}
+                {selectedEvent?.recurrence_group_id && (
+                  <div className="col-span-2 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                    Part of a recurring series{selectedEvent.recurrence_rule ? ` — ${selectedEvent.recurrence_rule}` : ''}.
+                    Changes here affect only this occurrence; deleting offers to remove the rest of the series.
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">

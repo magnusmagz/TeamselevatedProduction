@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Include service classes
 require_once __DIR__ . '/../services/CalendarInviteService.php';
 require_once __DIR__ . '/../services/RecipientService.php';
+require_once __DIR__ . '/../lib/event_recurrence.php';
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
@@ -141,44 +142,80 @@ try {
         case 'POST':
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Recurring events: expand the rule into concrete dates and insert
+            // one calendar_events row per occurrence (materialized — RSVP,
+            // invites, and attendance all stay per-event). A shared
+            // recurrence_group_id ties the series together.
+            $occurrenceDates = [$data['event_date']];
+            $recurrenceGroupId = null;
+            $recurrenceRule = null;
+            if (!empty($data['recurrence']) && is_array($data['recurrence'])) {
+                $occurrenceDates = te_expand_recurrence($data['event_date'], $data['recurrence']);
+                if (empty($occurrenceDates)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'The repeat settings produce no event dates']);
+                    exit;
+                }
+                if (count($occurrenceDates) > 1) {
+                    $recurrenceGroupId = bin2hex(random_bytes(16));
+                    $recurrenceRule = te_recurrence_label($data['event_date'], $data['recurrence'], count($occurrenceDates));
+                }
+            }
+
             $pdo->beginTransaction();
 
             try {
                 $stmt = $pdo->prepare("
                     INSERT INTO calendar_events (
                         club_id, name, type, event_date, start_time, end_time,
-                        program_id, venue_id, location, description, status, opponent_name
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        program_id, venue_id, location, description, status, opponent_name,
+                        recurrence_group_id, recurrence_rule
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
+                $teamStmt = $pdo->prepare("INSERT INTO calendar_event_teams (event_id, team_id) VALUES (?, ?)");
 
-                $stmt->execute([
-                    $data['club_id'] ?? 1,
-                    $data['name'],
-                    $data['type'] ?? 'event',
-                    $data['event_date'],
-                    $data['start_time'] ?? null,
-                    $data['end_time'] ?? null,
-                    $data['program_id'] ?? null,
-                    $data['venue_id'] ?? null,
-                    $data['location'] ?? null,
-                    $data['description'] ?? null,
-                    $data['status'] ?? 'scheduled',
-                    $data['opponent_name'] ?? null
-                ]);
+                $eventId = null; // first occurrence id (kept for invites + response)
+                foreach ($occurrenceDates as $occurrenceDate) {
+                    $stmt->execute([
+                        $data['club_id'] ?? 1,
+                        $data['name'],
+                        $data['type'] ?? 'event',
+                        $occurrenceDate,
+                        $data['start_time'] ?? null,
+                        $data['end_time'] ?? null,
+                        $data['program_id'] ?? null,
+                        $data['venue_id'] ?? null,
+                        $data['location'] ?? null,
+                        $data['description'] ?? null,
+                        $data['status'] ?? 'scheduled',
+                        $data['opponent_name'] ?? null,
+                        $recurrenceGroupId,
+                        $recurrenceRule
+                    ]);
 
-                $eventId = $pdo->lastInsertId();
+                    $occurrenceId = $pdo->lastInsertId();
+                    if ($eventId === null) {
+                        $eventId = $occurrenceId;
+                    }
 
-                // Insert team associations
-                if (!empty($data['team_ids']) && is_array($data['team_ids'])) {
-                    $teamStmt = $pdo->prepare("INSERT INTO calendar_event_teams (event_id, team_id) VALUES (?, ?)");
-                    foreach ($data['team_ids'] as $teamId) {
-                        if ($teamId) {
-                            $teamStmt->execute([$eventId, $teamId]);
+                    // Insert team associations
+                    if (!empty($data['team_ids']) && is_array($data['team_ids'])) {
+                        foreach ($data['team_ids'] as $teamId) {
+                            if ($teamId) {
+                                $teamStmt->execute([$occurrenceId, $teamId]);
+                            }
                         }
                     }
                 }
 
                 $pdo->commit();
+
+                // Per-occurrence invite emails would spam recipients for a
+                // series (one email per occurrence), so invites are only sent
+                // for single events. (Level 2: one iCal invite with an RRULE.)
+                if ($recurrenceGroupId !== null) {
+                    $data['send_invites'] = false;
+                }
 
                 // Send calendar invites if requested
                 $inviteResults = null;
@@ -220,8 +257,15 @@ try {
                 $response = [
                     'success' => true,
                     'id' => $eventId,
-                    'message' => 'Event created successfully'
+                    'count' => count($occurrenceDates),
+                    'message' => count($occurrenceDates) > 1
+                        ? 'Created ' . count($occurrenceDates) . ' events (' . $recurrenceRule . ')'
+                        : 'Event created successfully'
                 ];
+                if ($recurrenceGroupId !== null) {
+                    $response['recurrence_group_id'] = $recurrenceGroupId;
+                    $response['invites'] = ['sent' => 0, 'message' => 'Invites are not sent for recurring events'];
+                }
 
                 if ($inviteResults) {
                     $response['invites'] = $inviteResults;
@@ -396,21 +440,46 @@ try {
                 exit;
             }
 
-            // Send cancellation notices before deleting
-            try {
-                $testMode = file_exists(__DIR__ . '/.env.test') || getenv('APP_ENV') === 'test';
-                $inviteService = new CalendarInviteService($pdo, $testMode);
-                $inviteService->sendEventCancellation($_GET['id']);
-            } catch (Exception $e) {
-                error_log("Failed to send cancellation notices for event {$_GET['id']}: " . $e->getMessage());
+            // series=1: delete this occurrence AND all later ones in its
+            // recurrence group (a wrongly-built series shouldn't need 50
+            // one-by-one deletes). Falls back to single delete when the event
+            // isn't part of a series.
+            $seriesIds = [(int) $_GET['id']];
+            if (!empty($_GET['series'])) {
+                $stmt = $pdo->prepare("SELECT recurrence_group_id, event_date FROM calendar_events WHERE id = ?");
+                $stmt->execute([$_GET['id']]);
+                $anchor = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($anchor && !empty($anchor['recurrence_group_id'])) {
+                    $stmt = $pdo->prepare("
+                        SELECT id FROM calendar_events
+                        WHERE recurrence_group_id = ? AND event_date >= ?
+                    ");
+                    $stmt->execute([$anchor['recurrence_group_id'], $anchor['event_date']]);
+                    $seriesIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+                }
             }
 
-            $stmt = $pdo->prepare("DELETE FROM calendar_events WHERE id = ?");
-            $stmt->execute([$_GET['id']]);
+            // Send cancellation notices before deleting
+            $testMode = file_exists(__DIR__ . '/.env.test') || getenv('APP_ENV') === 'test';
+            foreach ($seriesIds as $deleteId) {
+                try {
+                    $inviteService = new CalendarInviteService($pdo, $testMode);
+                    $inviteService->sendEventCancellation($deleteId);
+                } catch (Exception $e) {
+                    error_log("Failed to send cancellation notices for event {$deleteId}: " . $e->getMessage());
+                }
+            }
+
+            $ph = implode(',', array_fill(0, count($seriesIds), '?'));
+            $stmt = $pdo->prepare("DELETE FROM calendar_events WHERE id IN ($ph)");
+            $stmt->execute($seriesIds);
 
             echo json_encode([
                 'success' => true,
-                'message' => 'Event deleted and cancellation notices sent'
+                'deleted' => count($seriesIds),
+                'message' => count($seriesIds) > 1
+                    ? count($seriesIds) . ' events deleted and cancellation notices sent'
+                    : 'Event deleted and cancellation notices sent'
             ]);
             break;
 
@@ -418,6 +487,10 @@ try {
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
     }
+} catch (InvalidArgumentException $e) {
+    // Bad recurrence input (invalid frequency/end date) — client error, not 500.
+    http_response_code(400);
+    echo json_encode(['error' => $e->getMessage()]);
 } catch(Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
