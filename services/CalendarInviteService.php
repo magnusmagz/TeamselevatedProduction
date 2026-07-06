@@ -159,6 +159,250 @@ class CalendarInviteService {
     }
 
     /**
+     * Send series invitations for a recurring event: ONE email per recipient
+     * whose ICS carries the series RRULE, so the whole repeating schedule
+     * lands in their calendar as a single recurring event.
+     *
+     * $series = ['group_id', 'calendar_uid', 'rrule', 'dates' => string[],
+     *            'label' => human-readable rule]
+     * $event is the FIRST occurrence (with venue_name/venue_address/team_names).
+     *
+     * Invitations are tracked against the first occurrence's event id with
+     * calendar_uid = the series UID — every later ICS message about this
+     * series (cancel now; RECURRENCE-ID exceptions in Phase 2) must reference
+     * that UID.
+     */
+    public function sendSeriesInvites($event, $recipients, $series) {
+        $results = ['sent' => 0, 'failed' => 0, 'errors' => []];
+
+        $ical = $this->generateCalendarInvite($event, $series['calendar_uid'], 'REQUEST', 0, $series['rrule']);
+        $subject = "Invitation: {$event['name']} — {$series['label']}";
+        $htmlBody = $this->generateSeriesHTMLBody($event, $series);
+
+        foreach ($recipients as $recipient) {
+            try {
+                if ($this->testMode) {
+                    $result = $this->mockMailer->send($recipient['email'], $subject, $htmlBody, $ical, 'invite');
+                    if (!$result['success']) {
+                        throw new Exception('Mock mailer failed');
+                    }
+                } else {
+                    $this->mailer->clearAddresses();
+                    $this->mailer->clearAttachments();
+                    $this->mailer->addAddress($recipient['email'], $recipient['name']);
+                    $this->mailer->Subject = $subject;
+                    $this->mailer->isHTML(true);
+                    $this->mailer->Body = $htmlBody;
+                    $this->mailer->AltBody = $ical;
+                    $this->mailer->addStringEmbeddedImage(
+                        $ical, 'invite.ics', 'invite.ics', 'base64',
+                        'text/calendar; charset=utf-8; method=REQUEST', 'attachment'
+                    );
+                    $this->mailer->Ical = $ical;
+                    $this->mailer->send();
+                }
+
+                $this->trackInvitation($event['id'], $recipient, $series['calendar_uid'], 0);
+                $results['sent']++;
+            } catch (Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = ['recipient' => $recipient['email'], 'error' => $e->getMessage()];
+                $this->logInviteError($event['id'], $recipient, $e->getMessage());
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Cancel a WHOLE series: METHOD:CANCEL against the series UID removes the
+     * recurring event (all occurrences) from recipients' calendars. Only
+     * correct when the entire series is being deleted — mid-series truncation
+     * must use sendSeriesChangeNotice() instead.
+     */
+    public function sendSeriesCancellation($groupId) {
+        $series = $this->getSeries($groupId);
+        if (!$series) {
+            return ['sent' => 0];
+        }
+
+        $invitations = $this->getSeriesInvitations($series['calendar_uid']);
+        if (empty($invitations)) {
+            return ['sent' => 0];
+        }
+
+        $newSequence = ((int) $series['ics_sequence']) + 1;
+        $event = $this->getEventDetails($invitations[0]['event_id']);
+        $sent = 0;
+
+        foreach ($invitations as $invite) {
+            try {
+                $ical = $this->generateCancellation($event, $series['calendar_uid'], $newSequence);
+
+                if ($this->testMode) {
+                    $this->mockMailer->send($invite['recipient_email'], "Cancelled: {$event['name']} (all dates)", $this->generateHTMLBody($event, 'cancel'), $ical, 'cancel');
+                } else {
+                    $this->mailer->clearAddresses();
+                    $this->mailer->clearAttachments();
+                    $this->mailer->addAddress($invite['recipient_email'], $invite['recipient_name']);
+                    $this->mailer->Subject = "Cancelled: {$event['name']} (all dates)";
+                    $this->mailer->isHTML(true);
+                    $this->mailer->Body = $this->generateHTMLBody($event, 'cancel');
+                    $this->mailer->AltBody = $ical;
+                    $this->mailer->Ical = $ical;
+                    $this->mailer->send();
+                }
+
+                $this->updateInvitationStatus($invite['id'], 'cancelled');
+                $sent++;
+            } catch (Exception $e) {
+                $this->logInviteError($invite['event_id'], ['email' => $invite['recipient_email']], $e->getMessage());
+            }
+        }
+
+        $stmt = $this->pdo->prepare("UPDATE calendar_event_series SET ics_sequence = ? WHERE group_id = ?");
+        $stmt->execute([$newSequence, $groupId]);
+
+        return ['sent' => $sent];
+    }
+
+    /**
+     * Plain notification email (NO ICS) to everyone invited to a series.
+     * Used for changes we don't yet express as iCal exceptions: a single
+     * occurrence edited or removed, or a mid-series truncation. The email
+     * tells recipients to update their calendars by hand — honest until
+     * Phase 2 sends real RECURRENCE-ID exceptions.
+     */
+    public function sendSeriesChangeNotice($groupId, $subject, $messageHtml) {
+        $series = $this->getSeries($groupId);
+        if (!$series) {
+            return ['sent' => 0];
+        }
+
+        $invitations = $this->getSeriesInvitations($series['calendar_uid']);
+        $sent = 0;
+
+        $html = <<<HTML
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto;">
+    <div style="background-color: #ffc107; color: #333; padding: 16px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h2 style="margin: 0;">Schedule Change</h2>
+    </div>
+    <div style="padding: 24px; border: 1px solid #eee; border-top: none; border-radius: 0 0 8px 8px;">
+        {$messageHtml}
+        <p style="color: #666; font-size: 13px;">Please update this in your calendar — this change is not applied automatically.</p>
+        <p style="color: #999; font-size: 12px;">Sent by Teams Elevated. This is an automated message.</p>
+    </div>
+</div>
+HTML;
+
+        foreach ($invitations as $invite) {
+            try {
+                if ($this->testMode) {
+                    $this->mockMailer->send($invite['recipient_email'], $subject, $html, '', 'notice');
+                } else {
+                    $this->mailer->clearAddresses();
+                    $this->mailer->clearAttachments();
+                    $this->mailer->Ical = ''; // plain email — never attach calendar data here
+                    $this->mailer->addAddress($invite['recipient_email'], $invite['recipient_name']);
+                    $this->mailer->Subject = $subject;
+                    $this->mailer->isHTML(true);
+                    $this->mailer->Body = $html;
+                    $this->mailer->AltBody = strip_tags(str_replace(['<br>', '</p>'], "\n", $messageHtml));
+                    $this->mailer->send();
+                }
+                $sent++;
+            } catch (Exception $e) {
+                $this->logInviteError($invite['event_id'], ['email' => $invite['recipient_email']], $e->getMessage());
+            }
+        }
+
+        return ['sent' => $sent];
+    }
+
+    /**
+     * Invite email body for a recurring series: the rule, time, place, and
+     * the first dates (capped — the ICS carries the full schedule).
+     */
+    private function generateSeriesHTMLBody($event, $series) {
+        $timeStr = '';
+        if (!empty($event['start_time'])) {
+            $timeStr = date('g:i A', strtotime($event['start_time']));
+            if (!empty($event['end_time'])) {
+                $timeStr .= ' - ' . date('g:i A', strtotime($event['end_time']));
+            }
+        }
+
+        $location = $event['venue_name'] ?? $event['location'] ?? '';
+
+        $dates = $series['dates'];
+        $shown = array_slice($dates, 0, 8);
+        $dateItems = '';
+        foreach ($shown as $d) {
+            $dateItems .= '<li>' . date('l, F j, Y', strtotime($d)) . '</li>';
+        }
+        $more = count($dates) - count($shown);
+        if ($more > 0) {
+            $dateItems .= "<li>… and {$more} more</li>";
+        }
+
+        $detailRows = "<p><strong>Schedule:</strong> {$series['label']}</p>";
+        if ($timeStr) {
+            $detailRows .= "<p><strong>Time:</strong> {$timeStr}</p>";
+        }
+        if ($location) {
+            $detailRows .= "<p><strong>Location:</strong> {$location}</p>";
+        }
+        if (!empty($event['team_names'])) {
+            $detailRows .= "<p><strong>Teams:</strong> {$event['team_names']}</p>";
+        }
+        if (!empty($event['description'])) {
+            $detailRows .= "<p><strong>Details:</strong> {$event['description']}</p>";
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0;">You're Invited!</h1>
+        </div>
+        <div style="padding: 30px;">
+            <h2>{$event['name']}</h2>
+            <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                {$detailRows}
+            </div>
+            <p><strong>Dates:</strong></p>
+            <ul>{$dateItems}</ul>
+            <p>Accepting this invitation adds the full recurring schedule to your calendar.</p>
+        </div>
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+            <p>Sent by Teams Elevated</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    }
+
+    private function getSeries($groupId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM calendar_event_series WHERE group_id = ?");
+        $stmt->execute([$groupId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    private function getSeriesInvitations($calendarUid) {
+        $stmt = $this->pdo->prepare("
+            SELECT * FROM event_invitations
+            WHERE calendar_uid = ? AND status != 'cancelled'
+        ");
+        $stmt->execute([$calendarUid]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Send an update to an existing calendar invite
      */
     public function sendEventUpdate($event, $recipient, $existingInvite) {
@@ -212,8 +456,8 @@ class CalendarInviteService {
 
         foreach ($invitations as $invite) {
             try {
-                // Generate cancellation iCal
-                $ical = $this->generateCancellation($event, $invite['calendar_uid']);
+                // Generate cancellation iCal (sequence must exceed the last REQUEST's)
+                $ical = $this->generateCancellation($event, $invite['calendar_uid'], ((int) ($invite['sequence'] ?? 0)) + 1);
 
                 // Prepare email
                 $this->mailer->clearAddresses();
@@ -247,7 +491,7 @@ class CalendarInviteService {
     /**
      * Generate iCalendar content for the invite
      */
-    private function generateCalendarInvite($event, $uid, $method = 'REQUEST', $sequence = 0) {
+    private function generateCalendarInvite($event, $uid, $method = 'REQUEST', $sequence = 0, $rrule = null) {
         $timezone = $this->config['calendar']['timezone'];
         $dtstart = $this->formatDateTimeForICal($event['event_date'], $event['start_time'], $timezone);
         $dtend = $this->formatDateTimeForICal($event['event_date'], $event['end_time'], $timezone);
@@ -297,6 +541,9 @@ class CalendarInviteService {
         $ical .= "ORGANIZER;CN={$this->config['calendar']['organizer_name']}:mailto:{$this->config['calendar']['organizer_email']}\r\n";
         $ical .= "DTSTART;TZID={$timezone}:{$dtstart}\r\n";
         $ical .= "DTEND;TZID={$timezone}:{$dtend}\r\n";
+        if (!empty($rrule)) {
+            $ical .= "RRULE:{$rrule}\r\n";
+        }
         $ical .= "SEQUENCE:{$sequence}\r\n";
         $ical .= "SUMMARY:{$this->escapeICalText($event['name'])}\r\n";
 
@@ -328,7 +575,7 @@ class CalendarInviteService {
     /**
      * Generate cancellation iCal
      */
-    private function generateCancellation($event, $uid) {
+    private function generateCancellation($event, $uid, $sequence = 1) {
         $now = gmdate('Ymd\THis\Z');
 
         $ical = "BEGIN:VCALENDAR\r\n";
@@ -338,6 +585,7 @@ class CalendarInviteService {
         $ical .= "BEGIN:VEVENT\r\n";
         $ical .= "UID:{$uid}\r\n";
         $ical .= "DTSTAMP:{$now}\r\n";
+        $ical .= "SEQUENCE:{$sequence}\r\n";
         $ical .= "ORGANIZER;CN={$this->config['calendar']['organizer_name']}:mailto:{$this->config['calendar']['organizer_email']}\r\n";
         $ical .= "SUMMARY:{$this->escapeICalText($event['name'])}\r\n";
         $ical .= "STATUS:CANCELLED\r\n";

@@ -664,7 +664,12 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         console.log('Event saved successfully');
 
         if (responseData.count && responseData.count > 1) {
-          alert(`${responseData.message || `Created ${responseData.count} events.`}\n\nNote: calendar invites are not sent for recurring events.`);
+          const inviteNote = responseData.invites?.sent > 0
+            ? `\n\nSeries invite emailed to ${responseData.invites.sent} recipient(s) — one email covering all dates.`
+            : responseData.invites?.message
+              ? `\n\n${responseData.invites.message}`
+              : '';
+          alert(`${responseData.message || `Created ${responseData.count} events.`}${inviteNote}`);
         } else
         // Show invite results if available
         if (responseData.invites) {
@@ -1385,8 +1390,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
                       {repeatOption !== 'none' && (
                         <p className="col-span-2 text-xs text-gray-500">
-                          Each occurrence is created as its own event (max 52, within one year). Calendar
-                          invite emails are not sent for recurring events.
+                          Each occurrence is created as its own event (max 52, within one year). With
+                          invites on, each person gets one email that adds the whole repeating series
+                          to their calendar.
                         </p>
                       )}
                     </div>
