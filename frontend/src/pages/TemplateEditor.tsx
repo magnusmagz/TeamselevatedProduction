@@ -131,6 +131,14 @@ const TemplateEditor: React.FC = () => {
 
   const fetchTemplate = async (templateId: number) => {
     setLoading(true);
+    // The loading skeleton unmounts the Unlayer editor, but this component
+    // instance survives same-route param changes (e.g. the post-save navigate
+    // from /new to /:id). Stale ready flags from the previous editor instance
+    // made the design-load effect call loadDesign on a remounted-but-not-ready
+    // editor — a TypeError with no error boundary, i.e. a white screen. Reset
+    // them so only the remounted editor's own onReady re-arms the load.
+    editorReady.current = false;
+    setEditorIsReady(false);
     try {
       const response = await fetch(
         `${API_URL}/api/email-templates.php?action=get&id=${templateId}`,
@@ -343,7 +351,9 @@ const TemplateEditor: React.FC = () => {
 
   const loadDesignIntoEditor = useCallback((design: object) => {
     const editor = getEditor();
-    if (!editor || !editorReady.current) return;
+    // getEditor() can return the component wrapper while the Unlayer iframe is
+    // still initializing (its .editor is null); never call into it then.
+    if (!editor || typeof editor.loadDesign !== 'function' || !editorReady.current) return;
     editor.loadDesign(design as any);
     designLoaded.current = true;
     // Loading a saved design is not a user edit.
