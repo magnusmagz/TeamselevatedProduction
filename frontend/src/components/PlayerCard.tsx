@@ -1,4 +1,5 @@
 import React from 'react';
+import { ageGroup } from '../utils/ageGroup';
 
 interface PlayerCardProps {
   player: {
@@ -23,10 +24,7 @@ interface PlayerCardProps {
 }
 
 function getUGroup(dob: string): string {
-  const birth = new Date(dob);
-  const today = new Date();
-  const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-  return `U${seasonYear - birth.getFullYear()}`;
+  return ageGroup(dob) ?? '';
 }
 
 function getAgeQuarter(dob: string): string {

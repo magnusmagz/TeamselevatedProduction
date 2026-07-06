@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { ageGroup, ageInYears } from '../utils/ageGroup';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
 import EmailCompose from './communications/EmailCompose';
@@ -198,33 +199,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     }
   };
 
-  const calculateUGroup = (dob: string): string | null => {
-    if (!dob || dob === 'null' || dob === 'undefined') return null;
-    const birth = new Date(dob);
-    if (isNaN(birth.getTime())) return null;
-    const today = new Date();
-    // Aug 1 - Jul 31 cycle: season year = current year if we're Aug+, otherwise current year
-    const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-    const uAge = seasonYear - birth.getFullYear();
-    return `U${uAge}`;
-  };
-
-  const calculateAge = (dob: string) => {
-    if (!dob || dob === 'null' || dob === 'undefined') {
-      return null;
-    }
-    const birthDate = new Date(dob);
-    if (isNaN(birthDate.getTime())) {
-      return null;
-    }
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
+  // Age-group + age come from the shared calendar-year util (utils/ageGroup).
+  const calculateUGroup = (dob: string): string | null => ageGroup(dob);
+  const calculateAge = (dob: string): number | null => ageInYears(dob);
 
   const filteredAthletes = athletes.filter(athlete => {
     const fullName = `${athlete.first_name} ${athlete.last_name}`.toLowerCase();
@@ -568,12 +545,11 @@ export const AthleteListContent: React.FC<{
                       {athlete.date_of_birth ? (() => {
                         const age = calculateAge(athlete.date_of_birth);
                         if (age === null) return 'Invalid date';
-                        const month = new Date(athlete.date_of_birth).getMonth();
+                        // Birth quarter from the date string (no timezone shift).
+                        const mm = /^\d{4}-(\d{2})/.exec(athlete.date_of_birth);
+                        const month = mm ? parseInt(mm[1], 10) - 1 : 0;
                         const quarter = month <= 2 ? 'Q1' : month <= 5 ? 'Q2' : month <= 8 ? 'Q3' : 'Q4';
-                        const birthYear = new Date(athlete.date_of_birth).getFullYear();
-                        const now = new Date();
-                        const seasonYear = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
-                        const uGroup = `U${seasonYear - birthYear}`;
+                        const uGroup = ageGroup(athlete.date_of_birth) ?? '';
                         return (
                           <>
                             {age} years
