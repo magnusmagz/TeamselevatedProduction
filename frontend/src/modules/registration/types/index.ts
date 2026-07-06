@@ -38,8 +38,25 @@ export interface Program {
   registration_count?: number;
   pending_count?: number;
   what_to_bring?: string[];
+  venue_id?: number;
+  // Joined from the venues catalog on GET (read-only display).
+  venue_name?: string;
+  venue_address?: string;
+  venue_city?: string;
+  venue_state?: string;
+  venue_zip?: string;
+  venue_map_url?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+// A facility from the venues catalog (subset used by pickers/display).
+export interface Venue {
+  id: number;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface FormField {
