@@ -50,9 +50,11 @@ try {
                 $club_id = $_GET['club_id'] ?? 1; // Default to club 1 for now
                 $stmt = $connection->prepare("
                     SELECT p.*,
+                           v.name as venue_name,
                            (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status != 'rejected') as registration_count,
                            (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status = 'pending') as pending_count
                     FROM programs p
+                    LEFT JOIN venues v ON p.venue_id = v.id
                     WHERE p.club_id = ?
                     ORDER BY p.created_at DESC
                 ");
@@ -66,9 +68,13 @@ try {
                     SELECT p.*,
                            c.name as club_name,
                            c.logo_url as club_logo,
-                           c.primary_color as club_primary_color
+                           c.primary_color as club_primary_color,
+                           v.name as venue_name, v.address as venue_address,
+                           v.city as venue_city, v.state as venue_state,
+                           v.zip_code as venue_zip, v.map_url as venue_map_url
                     FROM programs p
                     LEFT JOIN club_profile c ON p.club_id = c.id
+                    LEFT JOIN venues v ON p.venue_id = v.id
                     WHERE p.id = ?
                 ");
                 $stmt->execute([$program_id]);
@@ -93,9 +99,13 @@ try {
                     SELECT p.*,
                            c.name as club_name,
                            c.logo_url as club_logo,
-                           c.primary_color as club_primary_color
+                           c.primary_color as club_primary_color,
+                           v.name as venue_name, v.address as venue_address,
+                           v.city as venue_city, v.state as venue_state,
+                           v.zip_code as venue_zip, v.map_url as venue_map_url
                     FROM programs p
                     LEFT JOIN club_profile c ON p.club_id = c.id
+                    LEFT JOIN venues v ON p.venue_id = v.id
                     WHERE p.embed_code = ? AND p.status = 'published'
                 ");
                 $stmt->execute([$embed_code]);
@@ -148,8 +158,8 @@ try {
                     INSERT INTO programs (
                         club_id, name, type, description,
                         start_date, end_date, registration_opens, registration_closes,
-                        min_age, max_age, capacity, status, embed_code, registration_fee
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_age, max_age, capacity, status, embed_code, registration_fee, venue_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
 
                 $stmt->execute([
@@ -166,7 +176,8 @@ try {
                     !empty($data['capacity']) ? $data['capacity'] : null,
                     $data['status'] ?? 'draft',
                     $embed_code,
-                    !empty($data['registration_fee']) ? $data['registration_fee'] : null
+                    !empty($data['registration_fee']) ? $data['registration_fee'] : null,
+                    !empty($data['venue_id']) ? $data['venue_id'] : null
                 ]);
 
                 $program_id = $connection->lastInsertId();
@@ -268,7 +279,8 @@ try {
                     name = ?, type = ?, description = ?,
                     start_date = ?, end_date = ?,
                     registration_opens = ?, registration_closes = ?,
-                    min_age = ?, max_age = ?, capacity = ?, status = ?, registration_fee = ?
+                    min_age = ?, max_age = ?, capacity = ?, status = ?, registration_fee = ?,
+                    venue_id = ?
                 WHERE id = ?
             ");
 
@@ -285,6 +297,7 @@ try {
                 !empty($data['capacity']) ? $data['capacity'] : null,
                 $data['status'] ?? 'draft',
                 !empty($data['registration_fee']) ? $data['registration_fee'] : null,
+                !empty($data['venue_id']) ? $data['venue_id'] : null,
                 $program_id
             ]);
 

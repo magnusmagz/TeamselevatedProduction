@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Program, FormField, FieldType } from '../types';
+import { Program, FormField, FieldType, Venue } from '../types';
 import FormFieldBuilder from './FormFieldBuilder';
+import VenuePicker from './VenuePicker';
+import ProgramScheduleBuilder from './ProgramScheduleBuilder';
 
 interface ProgramFormBuilderProps {
   program: Program | null;
@@ -9,7 +11,7 @@ interface ProgramFormBuilderProps {
 
 const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
-  const [activeTab, setActiveTab] = useState<'details' | 'fields'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'fields' | 'schedule'>('details');
   const [savedProgramId, setSavedProgramId] = useState<number | undefined>(program?.id);
   const [formData, setFormData] = useState<Program>({
     name: '',
@@ -28,6 +30,7 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
 
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [saving, setSaving] = useState(false);
+  const [venues, setVenues] = useState<Venue[]>([]);
 
   useEffect(() => {
     if (program) {
@@ -35,6 +38,21 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
       // TODO: Load existing form fields
     }
   }, [program]);
+
+  // Load the venues catalog once for the facility picker (program + per-session).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/venues.php`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
+        const data = await res.json();
+        setVenues(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Error loading venues:', e);
+      }
+    })();
+  }, [API_URL]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -114,6 +132,16 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
             >
               Registration Form
             </button>
+            <button
+              onClick={() => setActiveTab('schedule')}
+              className={`pb-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'schedule'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Schedule
+            </button>
           </div>
         </div>
 
@@ -163,6 +191,20 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                     rows={3}
                     placeholder="Describe your program..."
                   />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                    Facility / Location
+                  </label>
+                  <VenuePicker
+                    venues={venues}
+                    value={formData.venue_id}
+                    onChange={(id) => setFormData({ ...formData, venue_id: id })}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The main facility for this program. Individual sessions can override it in the Schedule tab.
+                  </p>
                 </div>
 
                 <div>
@@ -302,6 +344,19 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                 <p className="text-yellow-800 font-medium mb-2">Save Program Details First</p>
                 <p className="text-yellow-600 text-sm">
                   Please save the program details in the first tab before configuring the registration form.
+                </p>
+              </div>
+            )
+          )}
+
+          {activeTab === 'schedule' && (
+            savedProgramId ? (
+              <ProgramScheduleBuilder programId={savedProgramId} venues={venues} />
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-400 rounded-md p-6 text-center">
+                <p className="text-yellow-800 font-medium mb-2">Save Program Details First</p>
+                <p className="text-yellow-600 text-sm">
+                  Please save the program details in the first tab before building the schedule.
                 </p>
               </div>
             )
