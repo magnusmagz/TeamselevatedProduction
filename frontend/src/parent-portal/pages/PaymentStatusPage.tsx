@@ -67,6 +67,9 @@ export const PaymentStatusPage: React.FC = () => {
   const [detailById, setDetailById] = useState<Record<number, InvoiceDetail>>({});
   // Who-paid-what ledger per invoice (split payments) — lazy, same trigger.
   const [paymentsById, setPaymentsById] = useState<Record<number, InvoicePayment[]>>({});
+
+  // Contribution-link sharing (Phase 4): invoice id -> share state.
+  const [shareById, setShareById] = useState<Record<number, { url?: string; copied?: boolean; loading?: boolean; error?: string }>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
@@ -125,6 +128,40 @@ export const PaymentStatusPage: React.FC = () => {
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Create (or reuse) the invoice's contribution link and copy it for sharing.
+  const shareLink = async (invoice: Invoice) => {
+    setShareById((prev) => ({ ...prev, [invoice.id]: { loading: true } }));
+    try {
+      const token = localStorage.getItem('auth_token');
+      const firstName = invoice.athlete_name.split(' ')[0] || 'Our athlete';
+      const res = await fetch(`${API_URL}/api/contribution-links.php?action=create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          invoice_id: invoice.id,
+          display_name: `${firstName} — ${invoice.description}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.link?.share_url) {
+        throw new Error(data.error || 'Could not create the link');
+      }
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(data.link.share_url);
+        copied = true;
+      } catch {
+        // clipboard can be unavailable (http / permissions) — still show the URL
+      }
+      setShareById((prev) => ({ ...prev, [invoice.id]: { url: data.link.share_url, copied } }));
+    } catch (err) {
+      setShareById((prev) => ({
+        ...prev,
+        [invoice.id]: { error: err instanceof Error ? err.message : 'Could not create the link' },
+      }));
+    }
+  };
 
   // Toggle the line-item detail panel for an invoice; fetch it on first expand.
   const toggleDetail = async (invoiceId: number) => {
@@ -485,9 +522,34 @@ export const PaymentStatusPage: React.FC = () => {
                 )}
 
                 {invoice.status !== 'paid' && (
+                  <div className="mt-3">
+                    {shareById[invoice.id]?.url ? (
+                      <div className="mb-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-700 break-all">
+                        {shareById[invoice.id].copied && (
+                          <span className="block font-medium text-green-700 mb-1">Link copied — paste it into a text or email!</span>
+                        )}
+                        {shareById[invoice.id].url}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => shareLink(invoice)}
+                        disabled={shareById[invoice.id]?.loading}
+                        className="mb-2 block w-full text-center py-2 border border-brand-primary text-brand-primary rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {shareById[invoice.id]?.loading ? 'Creating link…' : 'Share with family & friends'}
+                      </button>
+                    )}
+                    {shareById[invoice.id]?.error && (
+                      <p className="mb-2 text-xs text-red-600">{shareById[invoice.id].error}</p>
+                    )}
+                  </div>
+                )}
+
+                {invoice.status !== 'paid' && (
                   <Link
                     to={`/parent/pay/${invoice.id}`}
-                    className="mt-3 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
+                    className="mt-0 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
                   >
                     Pay Now
                   </Link>
