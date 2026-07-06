@@ -12,6 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../services/CalendarInviteService.php';
 require_once __DIR__ . '/../services/RecipientService.php';
 require_once __DIR__ . '/../lib/event_recurrence.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
@@ -25,7 +27,74 @@ try {
     exit;
 }
 
+// Events (and the invite emails they trigger) are tenant data: every method
+// requires a valid token. Reads are open to any authenticated club user
+// (admins, coaches, parents all see the calendar); writes additionally
+// require admin/coach standing — see te_can_manage_events().
+$auth = AuthMiddleware::requireAuth();
+
+/**
+ * May this user create/update/delete calendar events?
+ * super_admin, any club_admin, or a coach of any team. Parents/players: no.
+ * (Same standing rule as athlete creation in legacy/athletes-gateway.php.)
+ */
+function te_can_manage_events(PDO $pdo, AuthMiddleware $auth): bool {
+    if ($auth->isSuperAdmin()) {
+        return true;
+    }
+    if (!empty(AthleteScope::clubAdminClubIds($auth))) {
+        return true;
+    }
+    $uid = (int) $auth->getUserId();
+    return $uid > 0 && !empty(AthleteScope::coachTeamIdsForUser($pdo, $uid));
+}
+
+/**
+ * Resolve the club a new event belongs to (events created by the UI never
+ * carried a club_id and fell back to the hardcoded default). Explicit club_id
+ * the requester may use → their sole admin club → the sole club of the teams
+ * they coach → legacy default.
+ */
+function te_resolve_event_club_id(PDO $pdo, AuthMiddleware $auth, $requested): int {
+    $requested = is_numeric($requested) ? (int) $requested : null;
+
+    if ($auth->isSuperAdmin() && $requested !== null) {
+        return $requested;
+    }
+
+    $adminClubIds = AthleteScope::clubAdminClubIds($auth);
+    if ($requested !== null && in_array($requested, $adminClubIds, true)) {
+        return $requested;
+    }
+    if (count($adminClubIds) === 1) {
+        return $adminClubIds[0];
+    }
+
+    $uid = (int) $auth->getUserId();
+    if ($uid > 0) {
+        $teamIds = AthleteScope::coachTeamIdsForUser($pdo, $uid);
+        if (!empty($teamIds)) {
+            $ph = implode(',', array_fill(0, count($teamIds), '?'));
+            $stmt = $pdo->prepare("SELECT DISTINCT club_id FROM teams WHERE id IN ($ph) AND club_id IS NOT NULL");
+            $stmt->execute(array_values($teamIds));
+            $clubs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            if (count($clubs) === 1) {
+                return (int) $clubs[0];
+            }
+        }
+    }
+
+    return $requested ?? 1;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
+
+// Enforce write standing once, up front.
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true) && !te_can_manage_events($pdo, $auth)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Access denied']);
+    exit;
+}
 
 try {
     switch ($method) {
@@ -174,10 +243,12 @@ try {
                 ");
                 $teamStmt = $pdo->prepare("INSERT INTO calendar_event_teams (event_id, team_id) VALUES (?, ?)");
 
+                $eventClubId = te_resolve_event_club_id($pdo, $auth, $data['club_id'] ?? null);
+
                 $eventId = null; // first occurrence id (kept for invites + response)
                 foreach ($occurrenceDates as $occurrenceDate) {
                     $stmt->execute([
-                        $data['club_id'] ?? 1,
+                        $eventClubId,
                         $data['name'],
                         $data['type'] ?? 'event',
                         $occurrenceDate,
