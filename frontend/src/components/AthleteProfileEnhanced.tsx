@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ageGroup } from '../utils/ageGroup';
 import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import CommunicationHistory from './communications/CommunicationHistory';
@@ -203,14 +204,7 @@ const AthleteProfileEnhanced: React.FC = () => {
     return 'Q4';
   };
 
-  const getUGroup = (dob: string): string | null => {
-    if (!dob) return null;
-    const birth = new Date(dob);
-    if (isNaN(birth.getTime())) return null;
-    const today = new Date();
-    const seasonYear = today.getMonth() >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-    return `U${seasonYear - birth.getFullYear()}`;
-  };
+  const getUGroup = (dob: string): string | null => ageGroup(dob);
 
   const formatPhoneForDisplay = (phone: string) => {
     return phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
