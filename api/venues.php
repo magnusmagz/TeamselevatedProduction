@@ -73,8 +73,14 @@ try {
             try {
                 // Insert venue
                 $stmt = $db->prepare("
-                    INSERT INTO venues (name, address, city, state, zip_code, map_url, website)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO venues (
+                        name, address, city, state, zip_code, map_url, website,
+                        maintenance_contact_name, maintenance_contact_phone, maintenance_contact_email,
+                        emergency_contact_name, emergency_contact_phone, emergency_contact_email,
+                        billing_contact_name, billing_contact_phone, billing_contact_email,
+                        gm_contact_name, gm_contact_phone, gm_contact_email
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $data['name'],
@@ -83,7 +89,19 @@ try {
                     $data['state'] ?? null,
                     $data['zip_code'] ?? $data['zip'] ?? null,
                     $data['map_url'] ?? null,
-                    $data['website'] ?? null
+                    $data['website'] ?? null,
+                    $data['maintenance_contact_name'] ?? null,
+                    $data['maintenance_contact_phone'] ?? null,
+                    $data['maintenance_contact_email'] ?? null,
+                    $data['emergency_contact_name'] ?? null,
+                    $data['emergency_contact_phone'] ?? null,
+                    $data['emergency_contact_email'] ?? null,
+                    $data['billing_contact_name'] ?? null,
+                    $data['billing_contact_phone'] ?? null,
+                    $data['billing_contact_email'] ?? null,
+                    $data['gm_contact_name'] ?? null,
+                    $data['gm_contact_phone'] ?? null,
+                    $data['gm_contact_email'] ?? null
                 ]);
 
                 $venue_id = $db->lastInsertId();
@@ -132,7 +150,11 @@ try {
                     // Update venue
                     $stmt = $db->prepare("
                         UPDATE venues
-                        SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?
+                        SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?,
+                            maintenance_contact_name = ?, maintenance_contact_phone = ?, maintenance_contact_email = ?,
+                            emergency_contact_name = ?, emergency_contact_phone = ?, emergency_contact_email = ?,
+                            billing_contact_name = ?, billing_contact_phone = ?, billing_contact_email = ?,
+                            gm_contact_name = ?, gm_contact_phone = ?, gm_contact_email = ?
                         WHERE id = ?
                     ");
                     $stmt->execute([
@@ -143,6 +165,18 @@ try {
                         $data['zip_code'] ?? $data['zip'] ?? null,
                         $data['map_url'] ?? null,
                         $data['website'] ?? null,
+                        $data['maintenance_contact_name'] ?? null,
+                        $data['maintenance_contact_phone'] ?? null,
+                        $data['maintenance_contact_email'] ?? null,
+                        $data['emergency_contact_name'] ?? null,
+                        $data['emergency_contact_phone'] ?? null,
+                        $data['emergency_contact_email'] ?? null,
+                        $data['billing_contact_name'] ?? null,
+                        $data['billing_contact_phone'] ?? null,
+                        $data['billing_contact_email'] ?? null,
+                        $data['gm_contact_name'] ?? null,
+                        $data['gm_contact_phone'] ?? null,
+                        $data['gm_contact_email'] ?? null,
                         $venue_id
                     ]);
 

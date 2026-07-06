@@ -158,14 +158,22 @@ class EmailSendService {
         $stmt = $this->pdo->prepare('UPDATE communication_log SET status = ? WHERE id = ?');
         $stmt->execute(['sending', $logId]);
 
-        // Fetch sender info
-        $stmt = $this->pdo->prepare('SELECT first_name, last_name, email FROM users WHERE id = ?');
+        // Fetch sender info (incl. their saved email signature).
+        $stmt = $this->pdo->prepare('SELECT first_name, last_name, email, email_signature FROM users WHERE id = ?');
         $stmt->execute([$logRecord['user_id']]);
         $senderInfo = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$senderInfo) {
             $this->markFailed($logId, 'Sender user not found');
             throw new \Exception("Sender user ID {$logRecord['user_id']} not found");
+        }
+
+        // Append the sender's signature — the profile page promises it is "appended
+        // to all outbound emails". nl2br keeps plain-text signatures readable and
+        // leaves HTML signatures intact.
+        if (!empty($senderInfo['email_signature'])) {
+            $processedHtml .= '<div class="email-signature" style="margin-top:16px">'
+                . nl2br($senderInfo['email_signature']) . '</div>';
         }
 
         try {
