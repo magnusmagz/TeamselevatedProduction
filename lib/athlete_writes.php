@@ -18,8 +18,15 @@ if (!function_exists('te_create_athlete')) {
      *      ids → athletes_pkey unique violation. Now: athletes.id is ALWAYS
      *      sequence-generated; the user link lives in athletes.user_id.
      *
+     * Also stamps athletes.club_id when the caller supplies one. Without it a
+     * team-less athlete is invisible to club admins: AthleteScope derives club
+     * membership from team_members OR athletes.club_id, and an admin-created
+     * athlete has neither (the write-side half of CA-18 — the read side already
+     * honors club_id).
+     *
      * @param PDO   $pdo   Connection (caller owns the transaction).
-     * @param array $input Athlete fields (first_name, last_name required; email optional).
+     * @param array $input Athlete fields (first_name, last_name required; email,
+     *                     club_id optional).
      * @return array{athlete_id:int, user_id:?int}
      * @throws InvalidArgumentException when required fields are missing.
      */
@@ -53,13 +60,17 @@ if (!function_exists('te_create_athlete')) {
             }
         }
 
+        $club_id = (isset($input['club_id']) && is_numeric($input['club_id']))
+            ? (int) $input['club_id']
+            : null;
+
         // Always sequence-generate athletes.id; store the link in user_id (never as the PK).
         $stmt = $pdo->prepare(
             "INSERT INTO athletes (
                 first_name, middle_initial, last_name, preferred_name,
                 date_of_birth, gender, home_address_line1, city, state, zip_code,
-                school_name, grade_level, user_id, active_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+                school_name, grade_level, user_id, club_id, active_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
             RETURNING id"
         );
         $stmt->execute([
@@ -76,6 +87,7 @@ if (!function_exists('te_create_athlete')) {
             $input['school_name'] ?? null,
             $input['grade_level'] ?? null,
             $user_id,
+            $club_id,
         ]);
         $athlete_id = (int) $stmt->fetch(PDO::FETCH_ASSOC)['id'];
 

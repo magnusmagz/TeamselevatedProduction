@@ -75,6 +75,20 @@ try {
         check('new athlete got a fresh id, not the user id', $c['athlete_id'] !== (int)$coupled['athlete_id']);
     }
 
+    // ---- D: club_id is stamped when supplied (CA-18 write side) ----
+    echo "Scenario D — club_id stamping\n";
+    $clubId = $pdo->query('SELECT id FROM club_profile ORDER BY id LIMIT 1')->fetchColumn();
+    if ($clubId === false) {
+        echo "  SKIP  no club_profile rows available\n";
+    } else {
+        $d = te_create_athlete($pdo, ['first_name' => 'Test', 'last_name' => 'AthleteD', 'club_id' => (int)$clubId]);
+        $row = $pdo->query("SELECT club_id FROM athletes WHERE id = {$d['athlete_id']}")->fetch(PDO::FETCH_ASSOC);
+        check('club_id persisted on the athlete', (int)$row['club_id'] === (int)$clubId);
+    }
+    $e = te_create_athlete($pdo, ['first_name' => 'Test', 'last_name' => 'AthleteE']);
+    $row = $pdo->query("SELECT club_id FROM athletes WHERE id = {$e['athlete_id']}")->fetch(PDO::FETCH_ASSOC);
+    check('no club_id supplied -> stays NULL', $row['club_id'] === null);
+
     $pdo->rollBack();
     echo "\n(rolled back — no rows persisted)\n";
 } catch (Throwable $e) {
