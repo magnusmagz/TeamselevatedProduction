@@ -202,6 +202,24 @@ class ApplyProcessorPaymentTest extends TestCase {
         $this->assertSame('partial', $this->invoice(101)['status']);
     }
 
+    public function testRefundConsumesUnappliedPoolBeforeReversingAllocations(): void {
+        // 101 has 500 total; someone else already paid 300 of it.
+        $this->pdo->exec("UPDATE invoices SET amount_paid = 300.00, status = 'partial' WHERE id = 101");
+        // Our payer pays 500 but only 200 fits — 300 overpaid (never allocated).
+        $this->apply(['transaction_id' => 'pi_pool']);
+        $this->assertEquals(500.00, (float) $this->invoice(101)['amount_paid']);
+
+        // Auto-refund of the 300 excess: ledger must NOT move.
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_pool', 300.00);
+        $this->assertEquals(500.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('paid', $this->invoice(101)['status']);
+
+        // Refunding beyond the pool (total 400 = 300 pool + 100 real) reverses 100.
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_pool', 400.00);
+        $this->assertEquals(400.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('partial', $this->invoice(101)['status']);
+    }
+
     public function testRefundForUnknownTransactionReportsIt(): void {
         $result = PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_nope', 10.00);
         $this->assertFalse($result['success']);

@@ -459,6 +459,18 @@ class PaymentService {
             $allocStmt->execute([$txn['id']]);
             $allocations = $allocStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Money charged but never applied to an invoice (the overpayment race)
+            // is refunded FIRST and reverses nothing — it was never on the ledger.
+            // Only refunds beyond that pool claw back invoice allocations.
+            $allocatedCents = 0;
+            foreach ($allocations as $alloc) {
+                $allocatedCents += self::toCents($alloc['amount']);
+            }
+            $unallocatedCents = max(0, self::toCents($txn['amount']) - $allocatedCents);
+            $poolAlreadyConsumed = min(self::toCents($txn['refund_amount']), $unallocatedCents);
+            $poolRemaining = $unallocatedCents - $poolAlreadyConsumed;
+            $fromPoolCents = min($deltaCents, $poolRemaining);
+
             $invUpdate = $pdo->prepare("
                 UPDATE invoices
                 SET amount_paid = ?, status = ?, paid_at = ?, updated_at = CURRENT_TIMESTAMP
@@ -466,7 +478,7 @@ class PaymentService {
             ");
             $invSelect = $pdo->prepare("SELECT total_amount, amount_paid FROM invoices WHERE id = ?{$forUpdate}");
 
-            $remainingCents = $deltaCents;
+            $remainingCents = $deltaCents - $fromPoolCents;
             $reversed = [];
             foreach ($allocations as $alloc) {
                 if ($remainingCents <= 0) {
