@@ -33,6 +33,7 @@ class ApplyProcessorPaymentTest extends TestCase {
                 status TEXT, payment_type TEXT, paid_by_user_id INTEGER,
                 processor TEXT, processor_transaction_id TEXT,
                 processor_charge_id TEXT, processor_customer_id TEXT, processor_session_id TEXT,
+                refund_amount NUMERIC DEFAULT 0.00, refunded_at TEXT, updated_at TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE payment_allocations (
@@ -146,6 +147,83 @@ class ApplyProcessorPaymentTest extends TestCase {
         // transaction still recorded (money WAS taken — needs the manual refund path)
         $this->assertEquals(1, $this->pdo->query("SELECT COUNT(*) FROM payment_transactions")->fetchColumn());
         $this->assertEquals(0, $this->pdo->query("SELECT COUNT(*) FROM payment_allocations")->fetchColumn());
+    }
+
+    // ---- applyProcessorRefund (charge.refunded webhook path) ----------------
+
+    public function testFullRefundReversesInvoiceAndMarksTransactionRefunded(): void {
+        $this->apply(); // pays 101 in full
+
+        $result = PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_test_1', 500.00);
+
+        $this->assertTrue($result['success']);
+        $this->assertTrue($result['full_refund']);
+        $inv = $this->invoice(101);
+        $this->assertSame('sent', $inv['status']);
+        $this->assertEquals(0.00, (float) $inv['amount_paid']);
+        $this->assertNull($inv['paid_at']);
+
+        $txn = $this->pdo->query("SELECT status, refund_amount FROM payment_transactions")->fetch();
+        $this->assertSame('refunded', $txn['status']);
+        $this->assertEquals(500.00, (float) $txn['refund_amount']);
+    }
+
+    public function testPartialRefundSetsPartialStatusAndIsCumulativelyIdempotent(): void {
+        $this->apply();
+
+        // Stripe reports CUMULATIVE amount_refunded: first 100, then 150 total.
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_test_1', 100.00);
+        $this->assertEquals(400.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('partial', $this->invoice(101)['status']);
+
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_test_1', 150.00);
+        $this->assertEquals(350.00, (float) $this->invoice(101)['amount_paid']);
+
+        // Replay of the same cumulative total is a no-op.
+        $replay = PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_test_1', 150.00);
+        $this->assertTrue($replay['already_applied']);
+        $this->assertEquals(350.00, (float) $this->invoice(101)['amount_paid']);
+
+        $txn = $this->pdo->query("SELECT status, refund_amount FROM payment_transactions")->fetch();
+        $this->assertSame('succeeded', $txn['status']); // not fully refunded
+        $this->assertEquals(150.00, (float) $txn['refund_amount']);
+    }
+
+    public function testMultiInvoiceRefundReversesNewestAllocationFirst(): void {
+        // 550 pays 101 fully (500) then 50 onto 102
+        $this->apply(['amount' => 550.00, 'invoice_ids' => [101, 102], 'transaction_id' => 'pi_multi']);
+
+        // Refund 60: reverses 102's 50 first, then 10 from 101
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_multi', 60.00);
+
+        $this->assertEquals(25.00, (float) $this->invoice(102)['amount_paid']); // back to pre-payment
+        $this->assertSame('partial', $this->invoice(102)['status']);
+        $this->assertEquals(490.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('partial', $this->invoice(101)['status']);
+    }
+
+    public function testRefundConsumesUnappliedPoolBeforeReversingAllocations(): void {
+        // 101 has 500 total; someone else already paid 300 of it.
+        $this->pdo->exec("UPDATE invoices SET amount_paid = 300.00, status = 'partial' WHERE id = 101");
+        // Our payer pays 500 but only 200 fits — 300 overpaid (never allocated).
+        $this->apply(['transaction_id' => 'pi_pool']);
+        $this->assertEquals(500.00, (float) $this->invoice(101)['amount_paid']);
+
+        // Auto-refund of the 300 excess: ledger must NOT move.
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_pool', 300.00);
+        $this->assertEquals(500.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('paid', $this->invoice(101)['status']);
+
+        // Refunding beyond the pool (total 400 = 300 pool + 100 real) reverses 100.
+        PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_pool', 400.00);
+        $this->assertEquals(400.00, (float) $this->invoice(101)['amount_paid']);
+        $this->assertSame('partial', $this->invoice(101)['status']);
+    }
+
+    public function testRefundForUnknownTransactionReportsIt(): void {
+        $result = PaymentService::applyProcessorRefund($this->pdo, 'stripe', 'pi_nope', 10.00);
+        $this->assertFalse($result['success']);
+        $this->assertTrue($result['unknown_transaction']);
     }
 
     public function testUnknownInvoiceRollsBackEverything(): void {

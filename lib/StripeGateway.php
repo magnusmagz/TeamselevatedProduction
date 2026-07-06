@@ -51,4 +51,17 @@ class StripeGateway {
         $opts = $connectedAccount ? ['stripe_account' => $connectedAccount] : [];
         return $this->client->checkout->sessions->create($params, $opts)->toArray();
     }
+
+    /**
+     * Refund a PaymentIntent, fully (null amount) or partially (cents).
+     * Direct charges live on the connected account, so the refund must too.
+     */
+    public function refundPayment(string $paymentIntentId, ?int $amountCents = null, ?string $connectedAccount = null): array {
+        $params = ['payment_intent' => $paymentIntentId];
+        if ($amountCents !== null) {
+            $params['amount'] = $amountCents;
+        }
+        $opts = $connectedAccount ? ['stripe_account' => $connectedAccount] : [];
+        return $this->client->refunds->create($params, $opts)->toArray();
+    }
 }

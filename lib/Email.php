@@ -751,6 +751,70 @@ HTML;
     }
 
     /**
+     * Receipt for an online invoice payment (Stripe checkout path).
+     * $invoiceNumbers is an array like ['INV-202607-00018'].
+     */
+    public function sendPaymentReceipt($to, $payerName, $amount, array $invoiceNumbers, $clubName, $transactionRef) {
+        $amountFormatted = '$' . number_format($amount, 2);
+        $invoiceList = implode(', ', $invoiceNumbers);
+        $subject = "Payment received — $amountFormatted to $clubName";
+        $date = date('F j, Y');
+
+        $textBody = "Payment received — thank you!\n\n" .
+                    "Dear $payerName,\n\n" .
+                    "We received your payment of $amountFormatted to $clubName.\n\n" .
+                    "Payment Details:\n" .
+                    "- Amount: $amountFormatted\n" .
+                    "- Applied to: $invoiceList\n" .
+                    "- Date: $date\n" .
+                    "- Reference: $transactionRef\n\n" .
+                    "You can view your balance anytime in the parent portal under Payments.\n\n" .
+                    "Best regards,\n$clubName\nvia Teams Elevated";
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #12443E; color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .receipt-box { background: white; border: 2px solid #12443E; border-radius: 8px; padding: 25px; margin: 20px 0; }
+        .amount-display { font-size: 36px; color: #12443E; font-weight: bold; text-align: center; margin: 20px 0; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .detail-label { color: #666; }
+        .detail-value { font-weight: 500; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Payment Received</h1>
+            <p style="margin: 0; opacity: 0.9;">Thank you, {$payerName}</p>
+        </div>
+        <div class="content">
+            <div class="receipt-box">
+                <div class="amount-display">{$amountFormatted}</div>
+                <div class="detail-row"><span class="detail-label">Applied to</span><span class="detail-value">{$invoiceList}</span></div>
+                <div class="detail-row"><span class="detail-label">Paid to</span><span class="detail-value">{$clubName}</span></div>
+                <div class="detail-row"><span class="detail-label">Date</span><span class="detail-value">{$date}</span></div>
+                <div class="detail-row"><span class="detail-label">Reference</span><span class="detail-value">{$transactionRef}</span></div>
+            </div>
+            <p>You can view your balance anytime in the parent portal under Payments.</p>
+        </div>
+        <div class="footer">{$clubName} · via Teams Elevated</div>
+    </div>
+</body>
+</html>
+HTML;
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * Donation receipt email template
      */
     private function getDonationReceiptTemplate($donorName, $amount, $campaignTitle, $clubName, $donationId, $transactionId, $date) {

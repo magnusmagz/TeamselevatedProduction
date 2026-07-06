@@ -24,6 +24,16 @@ interface InvoiceLineItem {
   line_total: number;
 }
 
+interface InvoicePayment {
+  transaction_id: number;
+  payer_name: string;
+  amount: number;
+  payment_method: string;
+  status: string;
+  refunded: boolean;
+  date: string;
+}
+
 interface InvoiceDetail {
   id: number;
   invoice_number?: string;
@@ -46,9 +56,17 @@ export const PaymentStatusPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'paid'>('outstanding');
 
+  // Return leg of hosted Stripe Checkout (?checkout=success|cancelled). The
+  // webhook applies the payment, which can lag the redirect by a few seconds —
+  // refreshTick re-runs the invoice fetch a few times so balances catch up.
+  const checkoutReturn = new URLSearchParams(window.location.search).get('checkout');
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Invoice detail (line items) — lazily fetched per invoice on expand (PAR-16).
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, InvoiceDetail>>({});
+  // Who-paid-what ledger per invoice (split payments) — lazy, same trigger.
+  const [paymentsById, setPaymentsById] = useState<Record<number, InvoicePayment[]>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
@@ -56,7 +74,9 @@ export const PaymentStatusPage: React.FC = () => {
     const fetchInvoices = async () => {
       if (!user) return;
 
-      setLoading(true);
+      if (refreshTick === 0) {
+        setLoading(true); // re-polls refresh silently, no full-page spinner
+      }
       setError(null);
 
       try {
@@ -95,7 +115,16 @@ export const PaymentStatusPage: React.FC = () => {
     };
 
     fetchInvoices();
-  }, [API_URL, user]);
+  }, [API_URL, user, refreshTick]);
+
+  useEffect(() => {
+    if (checkoutReturn !== 'success') return;
+    const timers = [3000, 8000, 15000].map((ms) =>
+      setTimeout(() => setRefreshTick((t) => t + 1), ms)
+    );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Toggle the line-item detail panel for an invoice; fetch it on first expand.
   const toggleDetail = async (invoiceId: number) => {
@@ -106,6 +135,26 @@ export const PaymentStatusPage: React.FC = () => {
 
     setExpandedId(invoiceId);
     setDetailError(null);
+
+    // Payment history loads alongside the line items; failures stay silent —
+    // the ledger is supplementary to the invoice detail.
+    if (!paymentsById[invoiceId]) {
+      (async () => {
+        try {
+          const token = localStorage.getItem('auth_token');
+          const res = await fetch(
+            `${API_URL}/api/invoice-payments.php?invoice_id=${invoiceId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const data = await res.json();
+          if (data.success && Array.isArray(data.payments)) {
+            setPaymentsById((prev) => ({ ...prev, [invoiceId]: data.payments }));
+          }
+        } catch {
+          // supplementary data — ignore
+        }
+      })();
+    }
 
     // Already loaded — reuse cached detail.
     if (detailById[invoiceId]) {
@@ -196,6 +245,17 @@ export const PaymentStatusPage: React.FC = () => {
       <ParentHeader title="Payments" showBack />
 
       <div className="pt-14 pb-4">
+        {checkoutReturn === 'success' && (
+          <div className="mx-4 mt-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            Payment received — thank you! Balances update automatically within a few seconds.
+          </div>
+        )}
+        {checkoutReturn === 'cancelled' && (
+          <div className="mx-4 mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            Checkout was cancelled — no payment was made.
+          </div>
+        )}
+
         {/* Summary Card */}
         <div className="bg-brand-primary text-white px-4 py-6">
           <p className="text-sm opacity-80">Total Outstanding</p>
@@ -393,6 +453,32 @@ export const PaymentStatusPage: React.FC = () => {
                             )}
                           </tfoot>
                         </table>
+
+                        {(paymentsById[invoice.id]?.length ?? 0) > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-2">
+                              Payment history
+                            </p>
+                            <ul className="space-y-1.5">
+                              {paymentsById[invoice.id].map((p) => (
+                                <li key={p.transaction_id} className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">
+                                    {p.payer_name}
+                                    <span className="text-gray-400"> · {formatDate(p.date)}</span>
+                                    {p.refunded && (
+                                      <span className="ml-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5">
+                                        refunded
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className={`font-medium ${p.refunded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                    ${p.amount.toFixed(2)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
