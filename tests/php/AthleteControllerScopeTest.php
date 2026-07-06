@@ -63,7 +63,8 @@ class AthleteControllerScopeTest extends TestCase
             CREATE TABLE athletes (
                 id INTEGER PRIMARY KEY,
                 first_name TEXT,
-                last_name TEXT
+                last_name TEXT,
+                active_status INTEGER DEFAULT 1
             );
             CREATE TABLE guardians (
                 id INTEGER PRIMARY KEY,
@@ -138,8 +139,11 @@ class AthleteControllerScopeTest extends TestCase
         $controller = $this->controller($auth);
         http_response_code(200);
         ob_start();
-        $controller->getAthlete($athleteId);
-        $body = ob_get_clean();
+        try {
+            $controller->getAthlete($athleteId);
+        } finally {
+            $body = ob_get_clean();
+        }
         return [
             'status' => http_response_code(),
             'json' => json_decode($body, true),
