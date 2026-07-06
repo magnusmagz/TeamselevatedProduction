@@ -210,6 +210,8 @@ Clubs have asked for teams to have their own Stripe accounts (2026-07-06). Decis
    - Onboarding UI gate question: "Does this team have its own EIN and bank account?" If no → steer to team-tagged reporting instead, with a plain-language warning about personal 1099-K/liability if they insist.
 3. **Explicitly deferred:** club-collects-then-splits-to-teams (Stripe separate charges & transfers). Rarer need, real complexity; revisit only on demand after 1+2 ship.
 
+**Open question (2026-07-06, raised for Park City club):** split *distributions* — parent pays the club's registration, team automatically receives XX% of it. Mechanically this is Stripe separate charges & transfers (item 3 above): charge settles to the club's account, a Transfer moves the team's share to the team's connected account. Prerequisites if ever built: (a) the receiving team must be a connected account (Phase 2.5 legal-entity gate — EIN or someone's SSN/1099-K), (b) a split-percentage config per program or team, (c) reconciliation views showing gross → club share → team share. Same-currency/region only. Interim answer that needs no Stripe machinery: team-tagged accounting (roadmap item 1) + club treasurer distributes internally. Decision deferred until a club commits to team-level accounts.
+
 ---
 
 ## Cross-cutting
