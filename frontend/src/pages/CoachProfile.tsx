@@ -208,7 +208,8 @@ const CoachProfile: React.FC = () => {
       <div className="bg-white border border-brand-secondary rounded-md mb-6">
         <div className="border-b border-brand-secondary">
           <div className="flex space-x-8 px-6">
-            {(['about', 'teams', 'forms', 'activities', 'resources'] as TabType[]).map((tab) => (
+            {/* forms / activities / resources hidden for now */}
+            {(['about', 'teams'] as TabType[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
