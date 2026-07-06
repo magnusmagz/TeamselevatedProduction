@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOrg } from '../contexts/OrgContext';
 
 interface GuardianData {
   first_name: string;
@@ -79,6 +80,7 @@ interface AthleteFormProps {
 
 const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
+  const { currentClubId } = useOrg();
   const [currentStep, setCurrentStep] = useState(1);
   const [consentDataCollection, setConsentDataCollection] = useState(false);
   const [consentMedicalData, setConsentMedicalData] = useState(false);
@@ -276,7 +278,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         zip_code: formData.zip_code,
         school_name: formData.school_name,
         grade_level: formData.grade_level,
-        email: formData.guardian?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`
+        email: formData.guardian?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`,
+        // Stamp the active club so the new athlete is visible in this club's
+        // Athletes list even before any team assignment (CA-18 write side).
+        club_id: currentClubId
       };
 
       if (athlete) {

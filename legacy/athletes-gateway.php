@@ -42,6 +42,49 @@ function requesterCanCreateAthletes(PDO $pdo, AuthMiddleware $auth): bool {
     return $uid > 0 && !empty(AthleteScope::coachTeamIdsForUser($pdo, $uid));
 }
 
+/**
+ * Resolve which club a newly created athlete belongs to, so athletes.club_id is
+ * stamped at creation. Without it, a team-less athlete is invisible to club
+ * admins (AthleteScope derives club membership from team_members OR
+ * athletes.club_id — the write-side half of CA-18).
+ *
+ * Order: an explicit club_id the requester is allowed to use (super admin: any;
+ * club admin: one of their clubs) → the requester's sole admin club → the sole
+ * club of the teams they coach → null (visible to super admins only, same as
+ * the pre-fix behavior).
+ */
+function te_resolve_create_club_id(PDO $pdo, AuthMiddleware $auth, $requested): ?int {
+    $requested = is_numeric($requested) ? (int) $requested : null;
+
+    if ($auth->isSuperAdmin()) {
+        return $requested;
+    }
+
+    $adminClubIds = AthleteScope::clubAdminClubIds($auth);
+    if ($requested !== null && in_array($requested, $adminClubIds, true)) {
+        return $requested;
+    }
+    if (count($adminClubIds) === 1) {
+        return $adminClubIds[0];
+    }
+
+    $uid = (int) $auth->getUserId();
+    if ($uid > 0) {
+        $teamIds = AthleteScope::coachTeamIdsForUser($pdo, $uid);
+        if (!empty($teamIds)) {
+            $ph = implode(',', array_fill(0, count($teamIds), '?'));
+            $stmt = $pdo->prepare("SELECT DISTINCT club_id FROM teams WHERE id IN ($ph) AND club_id IS NOT NULL");
+            $stmt->execute(array_values($teamIds));
+            $clubs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            if (count($clubs) === 1) {
+                return (int) $clubs[0];
+            }
+        }
+    }
+
+    return null;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
@@ -167,6 +210,10 @@ try {
             if (!$gender) {
                 $gender = 'Male'; // Default gender
             }
+
+            // Stamp the athlete's club so club admins can see team-less athletes
+            // in the People -> Athletes list (write-side half of CA-18).
+            $input['club_id'] = te_resolve_create_club_id($pdo, $auth, $input['club_id'] ?? null);
 
             // Create the athlete and (if an email was given) find-or-create its linked
             // player user. See lib/athlete_writes.php: athletes.id is ALWAYS sequence-
