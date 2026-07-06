@@ -9,6 +9,7 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
     public static $files = array (
         '6124b4c8570aa390c21fafd04a26c69f' => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy/deep_copy.php',
         'ec07570ca5a812141189b1fa81503674' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Assert/Functions.php',
+        'd92f49fe138fde4e7a3ec6f988960524' => __DIR__ . '/..' . '/stripe/stripe-php/lib/version_check.php',
     );
 
     public static $prefixLengthsPsr4 = array (
@@ -16,6 +17,10 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         array (
             'TeamsElevated\\Tests\\' => 20,
             'TeamsElevated\\' => 14,
+        ),
+        'S' => 
+        array (
+            'Stripe\\' => 7,
         ),
         'P' => 
         array (
@@ -38,6 +43,10 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
+        'Stripe\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/stripe/stripe-php/lib',
+        ),
         'Predis\\' => 
         array (
             0 => __DIR__ . '/..' . '/predis/predis/src',
@@ -59,6 +68,7 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
     public static $classMap = array (
         'AgeEligibilityService' => __DIR__ . '/../..' . '/services/AgeEligibilityService.php',
         'AthleteImportStrategy' => __DIR__ . '/../..' . '/services/AthleteImportStrategy.php',
+        'AttendanceService' => __DIR__ . '/../..' . '/services/AttendanceService.php',
         'BracketGenerator' => __DIR__ . '/../..' . '/services/BracketGenerator.php',
         'CalendarInviteService' => __DIR__ . '/../..' . '/services/CalendarInviteService.php',
         'CalendarSyncService' => __DIR__ . '/../..' . '/services/CalendarSyncService.php',
@@ -71,6 +81,7 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         'ImportStrategy' => __DIR__ . '/../..' . '/services/ImportStrategy.php',
         'MergeFieldService' => __DIR__ . '/../..' . '/services/MergeFieldService.php',
         'MockMailerService' => __DIR__ . '/../..' . '/services/MockMailerService.php',
+        'OwnershipException' => __DIR__ . '/../..' . '/services/PaymentService.php',
         'PHPUnit\\Event\\Application\\Finished' => __DIR__ . '/..' . '/phpunit/phpunit/src/Event/Events/Application/Finished.php',
         'PHPUnit\\Event\\Application\\FinishedSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/Event/Events/Application/FinishedSubscriber.php',
         'PHPUnit\\Event\\Application\\Started' => __DIR__ . '/..' . '/phpunit/phpunit/src/Event/Events/Application/Started.php',
@@ -964,6 +975,8 @@ class ComposerStaticInit8d523da8f1494b409c0cdf59b3049bfb
         'PHPUnit\\Util\\Xml' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Xml/Xml.php',
         'PHPUnit\\Util\\Xml\\Loader' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Xml/Loader.php',
         'PHPUnit\\Util\\Xml\\XmlException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Exception/XmlException.php',
+        'PaymentService' => __DIR__ . '/../..' . '/services/PaymentService.php',
+        'PaymentValidationException' => __DIR__ . '/../..' . '/services/PaymentService.php',
         'PharIo\\Manifest\\Application' => __DIR__ . '/..' . '/phar-io/manifest/src/values/Application.php',
         'PharIo\\Manifest\\ApplicationName' => __DIR__ . '/..' . '/phar-io/manifest/src/values/ApplicationName.php',
         'PharIo\\Manifest\\Author' => __DIR__ . '/..' . '/phar-io/manifest/src/values/Author.php',
