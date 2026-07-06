@@ -63,13 +63,20 @@ try {
         exit;
     }
 
+    // Whitelisted return targets — never client-provided URLs (open-redirect guard).
+    $returnPaths = [
+        'parent' => '/parent/payments',
+        'family' => '/payment/family-invoices',
+    ];
+    $returnPath = $returnPaths[$body['return_context'] ?? 'family'] ?? $returnPaths['family'];
+
     $service = new StripeCheckoutService($pdo, $gateway, (int) Env::get('PLATFORM_FEE_BPS', '0'));
     $result = $service->createInvoiceCheckout(
         $auth,
         $invoiceIds,
         $amount,
-        $appUrl . '/payment/family-invoices?checkout=success',
-        $appUrl . '/payment/family-invoices?checkout=cancelled'
+        $appUrl . $returnPath . '?checkout=success',
+        $appUrl . $returnPath . '?checkout=cancelled'
     );
 
     echo json_encode(['success' => true, 'url' => $result['url'], 'session_id' => $result['session_id']]);

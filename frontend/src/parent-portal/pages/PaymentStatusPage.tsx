@@ -46,6 +46,12 @@ export const PaymentStatusPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'paid'>('outstanding');
 
+  // Return leg of hosted Stripe Checkout (?checkout=success|cancelled). The
+  // webhook applies the payment, which can lag the redirect by a few seconds —
+  // refreshTick re-runs the invoice fetch a few times so balances catch up.
+  const checkoutReturn = new URLSearchParams(window.location.search).get('checkout');
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Invoice detail (line items) — lazily fetched per invoice on expand (PAR-16).
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, InvoiceDetail>>({});
@@ -56,7 +62,9 @@ export const PaymentStatusPage: React.FC = () => {
     const fetchInvoices = async () => {
       if (!user) return;
 
-      setLoading(true);
+      if (refreshTick === 0) {
+        setLoading(true); // re-polls refresh silently, no full-page spinner
+      }
       setError(null);
 
       try {
@@ -95,7 +103,16 @@ export const PaymentStatusPage: React.FC = () => {
     };
 
     fetchInvoices();
-  }, [API_URL, user]);
+  }, [API_URL, user, refreshTick]);
+
+  useEffect(() => {
+    if (checkoutReturn !== 'success') return;
+    const timers = [3000, 8000, 15000].map((ms) =>
+      setTimeout(() => setRefreshTick((t) => t + 1), ms)
+    );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Toggle the line-item detail panel for an invoice; fetch it on first expand.
   const toggleDetail = async (invoiceId: number) => {
@@ -196,6 +213,17 @@ export const PaymentStatusPage: React.FC = () => {
       <ParentHeader title="Payments" showBack />
 
       <div className="pt-14 pb-4">
+        {checkoutReturn === 'success' && (
+          <div className="mx-4 mt-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            Payment received — thank you! Balances update automatically within a few seconds.
+          </div>
+        )}
+        {checkoutReturn === 'cancelled' && (
+          <div className="mx-4 mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            Checkout was cancelled — no payment was made.
+          </div>
+        )}
+
         {/* Summary Card */}
         <div className="bg-brand-primary text-white px-4 py-6">
           <p className="text-sm opacity-80">Total Outstanding</p>
