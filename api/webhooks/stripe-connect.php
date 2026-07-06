@@ -22,6 +22,7 @@ require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
 require_once __DIR__ . '/../../services/ContributionLinkService.php';
+require_once __DIR__ . '/../../services/PaymentReportService.php';
 require_once __DIR__ . '/../../lib/Email.php';
 
 /**
@@ -189,6 +190,15 @@ try {
                     $meta['contributor_email'] ?? null,
                     ($meta['contributor_name'] ?? '') !== '' ? $meta['contributor_name'] : null
                 );
+            }
+            break;
+
+        case 'payout.paid':
+        case 'payout.failed':
+            $payout = $event->data->object->toArray();
+            $reportService = new PaymentReportService($pdo);
+            if (!$reportService->applyPayoutEvent($event->account ?? null, $payout)) {
+                error_log('stripe-connect webhook: payout event for unknown account ' . ($event->account ?? '?'));
             }
             break;
 

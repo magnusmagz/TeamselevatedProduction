@@ -9,6 +9,32 @@ interface PaymentAccount {
   details_submitted: boolean;
 }
 
+interface ReportSummary {
+  collected: number;
+  refunded: number;
+  net: number;
+  transaction_count: number;
+}
+
+interface ReportTransaction {
+  id: number;
+  payer_name: string;
+  amount: number;
+  refund_amount: number;
+  payment_method: string;
+  status: string;
+  invoice_numbers: string[];
+  date: string;
+}
+
+interface Payout {
+  stripe_payout_id: string;
+  amount: number;
+  status: string;
+  arrival_date: string | null;
+  failure_message: string | null;
+}
+
 const STATUS_COPY: Record<PaymentAccount['onboarding_status'], { label: string; blurb: string }> = {
   pending: { label: 'Not started', blurb: 'Onboarding has not been started yet.' },
   in_progress: {
@@ -40,6 +66,11 @@ const ClubPaymentsSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Treasurer reporting — loaded once an account exists.
+  const [summary, setSummary] = useState<ReportSummary | null>(null);
+  const [transactions, setTransactions] = useState<ReportTransaction[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
   const justReturned = new URLSearchParams(window.location.search).get('onboarding') === 'return';
 
   const fetchStatus = useCallback(async () => {
@@ -64,6 +95,26 @@ const ClubPaymentsSettings: React.FC = () => {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!account || !currentClubId) return;
+    const token = localStorage.getItem('auth_token');
+    const headers = { Authorization: `Bearer ${token}` };
+    const get = async (action: string) => {
+      const res = await fetch(`${API_URL}/api/payment-reports.php?action=${action}&club_id=${currentClubId}`, { headers });
+      return res.ok ? res.json() : null;
+    };
+    (async () => {
+      try {
+        const [s, t, p] = await Promise.all([get('summary'), get('transactions'), get('payouts')]);
+        if (s?.success) setSummary(s.summary);
+        if (t?.success) setTransactions(t.transactions);
+        if (p?.success) setPayouts(p.payouts);
+      } catch {
+        // reporting is supplementary — the account card above still works
+      }
+    })();
+  }, [API_URL, account, currentClubId]);
 
   // After returning from Stripe, the account.updated webhook can lag the
   // redirect by a few seconds — re-poll briefly so the badges flip without a
@@ -183,6 +234,91 @@ const ClubPaymentsSettings: React.FC = () => {
               {working ? 'Redirecting to Stripe…' : 'Continue setup on Stripe'}
             </button>
           )}
+        </div>
+      )}
+
+      {account && summary && (
+        <div className="mt-8">
+          <h3 className="text-base font-semibold text-brand-primary mb-3">Reporting</h3>
+
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="rounded-md border border-brand-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Collected</p>
+              <p className="text-xl font-bold text-gray-900 tabular-nums">${summary.collected.toFixed(2)}</p>
+            </div>
+            <div className="rounded-md border border-brand-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Refunded</p>
+              <p className="text-xl font-bold text-gray-900 tabular-nums">${summary.refunded.toFixed(2)}</p>
+            </div>
+            <div className="rounded-md border border-brand-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Net</p>
+              <p className="text-xl font-bold text-brand-primary tabular-nums">${summary.net.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <p className="text-sm font-medium text-gray-900 mb-2">Bank payouts</p>
+            {payouts.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Deposits to your bank account will appear here after your first payout from Stripe.
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                {payouts.map((p) => (
+                  <li key={p.stripe_payout_id} className="flex items-center justify-between px-4 py-2 text-sm">
+                    <span className="text-gray-700">
+                      {p.arrival_date || 'Pending'}
+                      {p.status === 'failed' && (
+                        <span className="ml-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-1.5">
+                          failed{p.failure_message ? ` — ${p.failure_message}` : ''}
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-medium tabular-nums text-gray-900">${p.amount.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-gray-900 mb-2">
+              Recent payments{summary.transaction_count > 0 ? ` (${summary.transaction_count})` : ''}
+            </p>
+            {transactions.length === 0 ? (
+              <p className="text-sm text-gray-500">No online payments yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-md border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
+                      <th className="px-4 py-2 font-normal">Payer</th>
+                      <th className="px-4 py-2 font-normal">Invoices</th>
+                      <th className="px-4 py-2 font-normal text-right">Amount</th>
+                      <th className="px-4 py-2 font-normal">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.map((t) => (
+                      <tr key={t.id}>
+                        <td className="px-4 py-2 text-gray-900">{t.payer_name}</td>
+                        <td className="px-4 py-2 text-gray-500 font-mono text-xs">{t.invoice_numbers.join(', ')}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">
+                          <span className={t.refund_amount > 0 ? 'text-gray-400' : 'text-gray-900'}>
+                            ${t.amount.toFixed(2)}
+                          </span>
+                          {t.refund_amount > 0 && (
+                            <span className="block text-xs text-amber-700">-${t.refund_amount.toFixed(2)} refunded</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-gray-500">{new Date(t.date).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
