@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Program, FormField, TryoutSession } from '../types';
+import { formatDateOnly } from '../../../utils/dateFormat';
 
 interface PaymentItem {
   id: number;
@@ -87,13 +88,10 @@ const PublicTryoutRegistration: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Date-only values (program/session dates) must render on their stored calendar
+  // day — see utils/dateFormat. new Date("YYYY-MM-DD") + local render shifts a day.
+  const formatDate = (dateString: string) =>
+    formatDateOnly(dateString, { weekday: 'short', month: 'short', day: 'numeric' });
 
   const formatTime = (timeString: string | undefined) => {
     if (!timeString) return '';
@@ -401,10 +399,10 @@ const PublicTryoutRegistration: React.FC = () => {
                       >
                         <div className="flex-shrink-0 w-16 text-center">
                           <div className="text-2xl font-bold text-brand-primary">
-                            {new Date(session.session_date).getDate()}
+                            {formatDateOnly(session.session_date, { day: 'numeric' })}
                           </div>
                           <div className="text-xs text-gray-500 uppercase">
-                            {new Date(session.session_date).toLocaleDateString('en-US', { month: 'short' })}
+                            {formatDateOnly(session.session_date, { month: 'short' })}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -458,10 +456,10 @@ const PublicTryoutRegistration: React.FC = () => {
                         >
                           <div className="flex-shrink-0 w-16 text-center">
                             <div className="text-lg font-bold text-yellow-700">
-                              {new Date(session.session_date).getDate()}
+                              {formatDateOnly(session.session_date, { day: 'numeric' })}
                             </div>
                             <div className="text-xs text-yellow-600 uppercase">
-                              {new Date(session.session_date).toLocaleDateString('en-US', { month: 'short' })}
+                              {formatDateOnly(session.session_date, { month: 'short' })}
                             </div>
                           </div>
                           <div className="flex-1 text-sm text-yellow-800">

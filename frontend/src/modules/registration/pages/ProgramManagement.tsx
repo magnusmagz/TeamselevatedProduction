@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Program, ProgramType, ProgramStatus } from '../types';
+import { formatDateOnly } from '../../../utils/dateFormat';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
 import EmbedCodeModal from '../components/EmbedCodeModal';
 import RegistrationsModal from '../components/RegistrationsModal';
@@ -316,9 +317,9 @@ const ProgramManagement: React.FC = () => {
                         <div className="text-sm text-brand-primary">
                           {program.start_date ? (
                             <>
-                              {new Date(program.start_date).toLocaleDateString()}
+                              {formatDateOnly(program.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                               {program.end_date && (
-                                <> - {new Date(program.end_date).toLocaleDateString()}</>
+                                <> - {formatDateOnly(program.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                               )}
                             </>
                           ) : (
@@ -407,9 +408,9 @@ const ProgramManagement: React.FC = () => {
                         <div className="text-sm text-brand-primary">
                           {t.start_date ? (
                             <>
-                              {new Date(t.start_date).toLocaleDateString()}
+                              {formatDateOnly(t.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                               {t.end_date && (
-                                <> - {new Date(t.end_date).toLocaleDateString()}</>
+                                <> - {formatDateOnly(t.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                               )}
                             </>
                           ) : (
@@ -464,9 +465,9 @@ const ProgramManagement: React.FC = () => {
                       <span className="text-brand-primary text-sm">
                         {program.start_date ? (
                           <>
-                            {new Date(program.start_date).toLocaleDateString()}
+                            {formatDateOnly(program.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                             {program.end_date && (
-                              <> - {new Date(program.end_date).toLocaleDateString()}</>
+                              <> - {formatDateOnly(program.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                             )}
                           </>
                         ) : (
@@ -563,9 +564,9 @@ const ProgramManagement: React.FC = () => {
                       <span className="text-brand-primary text-sm">
                         {t.start_date ? (
                           <>
-                            {new Date(t.start_date).toLocaleDateString()}
+                            {formatDateOnly(t.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                             {t.end_date && (
-                              <> - {new Date(t.end_date).toLocaleDateString()}</>
+                              <> - {formatDateOnly(t.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                             )}
                           </>
                         ) : (
