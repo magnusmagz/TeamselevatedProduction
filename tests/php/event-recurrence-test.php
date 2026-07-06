@@ -76,6 +76,32 @@ try {
     check('end date before start throws', true);
 }
 
+echo "RRULE round-trip — every repeat shape must reproduce our expansion\n";
+$shapes = [
+    ['2026-07-10', ['frequency' => 'daily', 'end_type' => 'count', 'count' => 5], 'daily'],
+    ['2026-07-10', ['frequency' => 'weekday', 'end_type' => 'count', 'count' => 8], 'weekday'],
+    ['2026-07-10', ['frequency' => 'weekly', 'interval' => 1, 'weekdays' => [5], 'end_type' => 'count', 'count' => 4], 'weekly Fri'],
+    ['2026-07-10', ['frequency' => 'weekly', 'interval' => 2, 'weekdays' => [5], 'end_type' => 'count', 'count' => 6], 'every other Fri'],
+    ['2026-07-07', ['frequency' => 'weekly', 'interval' => 2, 'weekdays' => [2, 4], 'end_type' => 'count', 'count' => 7], 'biweekly Tue+Thu'],
+    ['2026-07-08', ['frequency' => 'weekly', 'interval' => 3, 'weekdays' => [1, 3, 5], 'end_type' => 'count', 'count' => 9], 'every 3 weeks Mo/We/Fr'],
+    ['2026-07-15', ['frequency' => 'monthly_date', 'end_type' => 'count', 'count' => 6], 'monthly 15th'],
+    ['2026-07-31', ['frequency' => 'monthly_date', 'end_type' => 'count', 'count' => 5], 'monthly 31st (skips short months)'],
+    ['2026-07-10', ['frequency' => 'monthly_weekday', 'end_type' => 'count', 'count' => 6], '2nd Friday'],
+    ['2026-07-29', ['frequency' => 'monthly_weekday', 'end_type' => 'count', 'count' => 4], '5th Wednesday (skips most months)'],
+];
+foreach ($shapes as [$startDate, $rec, $label]) {
+    $expanded = te_expand_recurrence($startDate, $rec);
+    $rrule = te_recurrence_rrule($startDate, $rec, count($expanded));
+    $roundTrip = $rrule !== null ? te_expand_rrule($startDate, $rrule) : [];
+    check("round-trip: {$label}", $roundTrip === $expanded);
+}
+
+echo "RRULE strings\n";
+check('every-other-Friday rrule', te_recurrence_rrule('2026-07-10', ['frequency' => 'weekly', 'interval' => 2, 'weekdays' => [5]], 4) === 'FREQ=WEEKLY;WKST=MO;INTERVAL=2;BYDAY=FR;COUNT=4');
+check('2nd-Friday rrule', te_recurrence_rrule('2026-07-10', ['frequency' => 'monthly_weekday'], 3) === 'FREQ=MONTHLY;BYDAY=2FR;COUNT=3');
+check('weekday rrule', te_recurrence_rrule('2026-07-10', ['frequency' => 'weekday'], 8) === 'FREQ=WEEKLY;WKST=MO;BYDAY=MO,TU,WE,TH,FR;COUNT=8');
+check('invalid frequency -> null', te_recurrence_rrule('2026-07-10', ['frequency' => 'nope'], 3) === null);
+
 echo "Labels\n";
 $label = te_recurrence_label('2026-07-10', ['frequency' => 'weekly', 'interval' => 2, 'weekdays' => [5]], 4);
 check('every-2-weeks label', $label === 'Every 2 weeks on Fri · 4 events');

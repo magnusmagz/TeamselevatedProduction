@@ -121,6 +121,160 @@ if (!function_exists('te_expand_recurrence')) {
     }
 }
 
+if (!function_exists('te_recurrence_rrule')) {
+    /**
+     * Build the RFC 5545 RRULE line for a recurrence config, for series
+     * calendar invites. Always COUNT-terminated (COUNT is unambiguous across
+     * mail clients; UNTIL has timezone traps), with $count = the number of
+     * occurrences te_expand_recurrence() actually produced.
+     *
+     * Returns null for configs that don't map (defensive; all current
+     * frequencies map).
+     */
+    function te_recurrence_rrule(string $startDate, array $rec, int $count): ?string
+    {
+        $start = DateTimeImmutable::createFromFormat('!Y-m-d', $startDate);
+        if (!$start || $count < 1) {
+            return null;
+        }
+        $byday = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+        $interval = max(1, min(4, (int) ($rec['interval'] ?? 1)));
+
+        switch ($rec['frequency'] ?? '') {
+            case 'daily':
+                return "FREQ=DAILY;COUNT={$count}";
+            case 'weekday':
+                return "FREQ=WEEKLY;WKST=MO;BYDAY=MO,TU,WE,TH,FR;COUNT={$count}";
+            case 'weekly':
+                $days = [];
+                foreach ((array) ($rec['weekdays'] ?? []) as $d) {
+                    $d = (int) $d;
+                    if ($d >= 0 && $d <= 6) {
+                        $days[$d] = $byday[$d];
+                    }
+                }
+                if (empty($days)) {
+                    $days[(int) $start->format('w')] = $byday[(int) $start->format('w')];
+                }
+                ksort($days);
+                $dayList = implode(',', $days);
+                $intervalPart = $interval > 1 ? ";INTERVAL={$interval}" : '';
+                return "FREQ=WEEKLY;WKST=MO{$intervalPart};BYDAY={$dayList};COUNT={$count}";
+            case 'monthly_date':
+                return 'FREQ=MONTHLY;BYMONTHDAY=' . (int) $start->format('j') . ";COUNT={$count}";
+            case 'monthly_weekday':
+                $nth = intdiv((int) $start->format('j') - 1, 7) + 1;
+                return 'FREQ=MONTHLY;BYDAY=' . $nth . $byday[(int) $start->format('w')] . ";COUNT={$count}";
+            default:
+                return null;
+        }
+    }
+}
+
+if (!function_exists('te_expand_rrule')) {
+    /**
+     * Independent mini-evaluator for the RRULE shapes te_recurrence_rrule()
+     * emits (FREQ/INTERVAL/WKST/BYDAY/BYMONTHDAY/COUNT). Used as a round-trip
+     * guard at creation: the RRULE only ships in an invite when expanding it
+     * reproduces exactly the occurrence dates we materialized — otherwise
+     * recipients' calendars would show a different pattern than our system.
+     *
+     * @return string[] Y-m-d dates, ascending (empty on unparseable input)
+     */
+    function te_expand_rrule(string $startDate, string $rrule): array
+    {
+        $start = DateTimeImmutable::createFromFormat('!Y-m-d', $startDate);
+        if (!$start) {
+            return [];
+        }
+
+        $parts = [];
+        foreach (explode(';', $rrule) as $kv) {
+            $pair = explode('=', $kv, 2);
+            if (count($pair) === 2) {
+                $parts[strtoupper($pair[0])] = strtoupper($pair[1]);
+            }
+        }
+        $freq = $parts['FREQ'] ?? '';
+        $count = (int) ($parts['COUNT'] ?? 0);
+        $interval = max(1, (int) ($parts['INTERVAL'] ?? 1));
+        if ($count < 1) {
+            return [];
+        }
+
+        $dayCodes = ['SU' => 0, 'MO' => 1, 'TU' => 2, 'WE' => 3, 'TH' => 4, 'FR' => 5, 'SA' => 6];
+
+        $dates = [];
+        if ($freq === 'DAILY') {
+            for ($i = 0, $d = $start; $i < $count; $i++, $d = $d->modify('+' . $interval . ' day')) {
+                $dates[] = $d->format('Y-m-d');
+            }
+        } elseif ($freq === 'WEEKLY') {
+            $wanted = [];
+            foreach (explode(',', $parts['BYDAY'] ?? '') as $code) {
+                if (isset($dayCodes[$code])) {
+                    $wanted[$dayCodes[$code]] = true;
+                }
+            }
+            if (empty($wanted)) {
+                $wanted[(int) $start->format('w')] = true;
+            }
+            // Per RFC 5545 the interval anchors to DTSTART's week (WKST=MO).
+            $anchorMonday = $start->modify('monday this week');
+            $d = $start;
+            while (count($dates) < $count) {
+                $weeks = intdiv((int) $anchorMonday->diff($d->modify('monday this week'))->format('%a'), 7);
+                if (isset($wanted[(int) $d->format('w')]) && ($weeks % $interval) === 0) {
+                    $dates[] = $d->format('Y-m-d');
+                }
+                $d = $d->modify('+1 day');
+            }
+        } elseif ($freq === 'MONTHLY' && isset($parts['BYMONTHDAY'])) {
+            $dom = (int) $parts['BYMONTHDAY'];
+            if ($dom < 1 || $dom > 31) {
+                return [];
+            }
+            $cursor = new DateTimeImmutable($start->format('Y-m-01'));
+            $guard = 0;
+            while (count($dates) < $count && ++$guard <= 480) {
+                if ($dom <= (int) $cursor->format('t')) {
+                    $candidate = $cursor->setDate((int) $cursor->format('Y'), (int) $cursor->format('n'), $dom);
+                    if ($candidate >= $start) {
+                        $dates[] = $candidate->format('Y-m-d');
+                    }
+                }
+                $cursor = $cursor->modify('first day of next month');
+            }
+        } elseif ($freq === 'MONTHLY' && isset($parts['BYDAY'])) {
+            if (!preg_match('/^(\d)([A-Z]{2})$/', $parts['BYDAY'], $m) || !isset($dayCodes[$m[2]])) {
+                return [];
+            }
+            $nth = (int) $m[1];
+            $dow = $dayCodes[$m[2]];
+            $names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            $ordinals = [1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth', 5 => 'fifth'];
+            if (!isset($ordinals[$nth])) {
+                return [];
+            }
+            $cursor = new DateTimeImmutable($start->format('Y-m-01'));
+            $guard = 0;
+            while (count($dates) < $count && ++$guard <= 480) {
+                $candidate = $cursor->modify($ordinals[$nth] . ' ' . $names[$dow] . ' of this month');
+                // A 5th weekday may not exist; modify() rolls into the next
+                // month, so verify the month stayed the same.
+                if ($candidate->format('Y-m') === $cursor->format('Y-m') && $candidate >= $start) {
+                    $dates[] = $candidate->format('Y-m-d');
+                }
+                $cursor = $cursor->modify('first day of next month');
+            }
+        } else {
+            return [];
+        }
+
+        return $dates;
+    }
+}
+
 if (!function_exists('te_recurrence_label')) {
     /**
      * Human-readable summary of a recurrence rule, stored on each occurrence
