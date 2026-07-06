@@ -73,7 +73,6 @@ export const MakePaymentPage: React.FC = () => {
       if (!user) return;
 
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
 
       try {
         const outstanding = await fetchInvoices();
@@ -85,20 +84,9 @@ export const MakePaymentPage: React.FC = () => {
           setSelectedInvoices(outstanding.map((inv: Invoice) => inv.id));
         }
 
-        // Fetch payment methods
-        const methodsRes = await fetch(
-          `${API_URL}/api/payment-methods.php?action=list`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const methodsData = await methodsRes.json();
-
-        if (methodsData.success && methodsData.methods) {
-          setPaymentMethods(methodsData.methods);
-          const defaultMethod = methodsData.methods.find((m: PaymentMethod) => m.isDefault);
-          if (defaultMethod) {
-            setSelectedPaymentMethod(defaultMethod.id);
-          }
-        }
+        // Saved payment methods intentionally not fetched — the endpoint ships with
+        // the Stripe integration (Phase 5, docs/payments-stripe-implementation-plan.md).
+        // paymentMethods stays empty and the method selector stays hidden until then.
       } catch (err) {
         setError('Failed to load payment information');
       } finally {
