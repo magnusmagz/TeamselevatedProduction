@@ -195,6 +195,23 @@ The cost-saver (0.8% capped at $5 vs 2.9%+30¢ — matters on $500+ camp fees) a
 
 ---
 
+## Roadmapped: team-level Stripe accounts ("Phase 2.5", opt-in) · +1–2 wk
+
+Clubs have asked for teams to have their own Stripe accounts (2026-07-06). Decision: roadmap, don't build yet.
+
+**The gating reality:** a connected account needs a legal entity — an EIN, or an individual's SSN. Teams that are their own nonprofit/LLC (own EIN + bank account) fit cleanly. Teams that are just part of the club would need a person (team manager) to attach their SSN and personal bank account — that person then receives a **1099-K for the team's entire payment volume** and personally carries chargeback liability. Most of the demand is actually for *team-level money visibility*, not team-level bank accounts.
+
+**Plan:**
+1. **Team-tagged accounting for everyone (fold into Phases 2 + 6):** stamp team attribution on every transaction; per-team collected/outstanding/payout views for club treasurers. No KYC, no new accounts — covers the common need.
+2. **Team-level connected accounts (opt-in, after Phase 2 is stable):**
+   - Additive migration generalizing `club_payment_accounts` → owner (club | team), or a parallel `team_payment_accounts` table.
+   - Same Payments settings section on team management, club-admin initiated (reuses `StripeConnectService` unchanged — it's owner-agnostic already except for the table).
+   - Checkout-session creation routes to the team's connected account when it exists and is `charges_enabled`; falls back to the club's.
+   - Onboarding UI gate question: "Does this team have its own EIN and bank account?" If no → steer to team-tagged reporting instead, with a plain-language warning about personal 1099-K/liability if they insist.
+3. **Explicitly deferred:** club-collects-then-splits-to-teams (Stripe separate charges & transfers). Rarer need, real complexity; revisit only on demand after 1+2 ship.
+
+---
+
 ## Cross-cutting
 
 **Security & compliance**
@@ -213,7 +230,7 @@ The cost-saver (0.8% capped at $5 vs 2.9%+30¢ — matters on $500+ camp fees) a
 **Rough timeline (2 eng):** ~10–14 weeks total. Phases 0–2 are sequential (~4–6 wk to real-money MVP). Phase 3 and the Phase 4 frontend can overlap once Phase 2's webhook machinery is stable. Designer's heavy phases: 4 (public page) and 1 (onboarding UX).
 
 **Open items for Maggie**
-1. Confirm whether any Maverick relationship/contract exists behind the stub branding (changes nothing technically; may matter contractually).
+1. ~~Maverick relationship check~~ — resolved 2026-07-06: no engagement ever existed; stub branding was cosmetic.
 2. Decide initial platform monetization: $0 fee at launch vs payer-facing fee from day one (market tolerates 3.25%+; recommend launching *with* a modest fee — retrofitting fees is harder than lowering them).
 3. Legal/copy review of the contribution-page disclaimer language before Phase 4 ships.
-4. Sign-off on the `invoices.status` CHECK-constraint migration (Phase 0, technically alters a constraint).
+4. ~~CHECK-constraint sign-off~~ — approved and applied to prod Neon 2026-07-06 (migrations 041–043).
