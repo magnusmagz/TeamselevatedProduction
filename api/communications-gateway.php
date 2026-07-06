@@ -339,6 +339,16 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
         return;
     }
 
+    // INTERIM (silent-failure fix): no worker dispatches due 'scheduled' campaigns
+    // yet, so a scheduled broadcast would be stored and silently never sent. Reject
+    // scheduling with a clear message until the dispatcher ships, rather than
+    // accepting input that never happens. Remove this guard when the dispatcher lands.
+    if (!empty($scheduledAt)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Scheduled sending is not available yet — please send now.']);
+        return;
+    }
+
     if (!$auth->canAccessClub($clubProfileId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied to this club']);
