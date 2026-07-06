@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
+require_once __DIR__ . '/../lib/suppression.php';
 
 /**
  * Email Send Service
@@ -47,6 +48,9 @@ class EmailSendService {
         $templateId = $params['template_id'] ?? null;
         $eventId = $params['event_id'] ?? null;
         $broadcastCampaignId = $params['broadcast_campaign_id'] ?? null;
+        // Teams this send targets (team broadcast). Empty for a general/individual
+        // send — used so a team-scoped unsubscribe only blocks that team's email.
+        $teamIds = $params['team_ids'] ?? [];
 
         $queued = 0;
         $skipped = 0;
@@ -61,8 +65,8 @@ class EmailSendService {
             $recipientId = $recipient['id'] ?? null;
             $athleteId = $recipient['athlete_id'] ?? null;
 
-            // Check suppression list
-            if ($this->isSuppressed($recipientEmail, $clubProfileId)) {
+            // Check suppression list (scope-aware: club-wide vs this send's teams)
+            if ($this->isSuppressed($recipientEmail, $clubProfileId, $teamIds)) {
                 $skipped++;
                 $skippedDetails[] = [
                     'email' => $recipientEmail,
@@ -444,13 +448,9 @@ class EmailSendService {
      * @param int    $clubProfileId
      * @return bool
      */
-    private function isSuppressed($email, $clubProfileId) {
-        $stmt = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM email_suppressions
-             WHERE email = ? AND club_profile_id = ? AND channel = ?'
-        );
-        $stmt->execute([$email, $clubProfileId, 'email']);
-        return (int) $stmt->fetchColumn() > 0;
+    private function isSuppressed($email, $clubProfileId, array $teamIds = []) {
+        // Scope-aware — see lib/suppression.php (te_email_suppressed).
+        return te_email_suppressed($this->pdo, $email, (int) $clubProfileId, $teamIds);
     }
 
     /**
