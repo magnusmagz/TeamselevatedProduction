@@ -152,6 +152,8 @@ Split-pay generalized to unauthenticated payers. **The differentiator feature.**
 - [ ] Copy review (Maggie): non-tax-deductible disclaimer + club-as-recipient language present on page and receipt.
 - [ ] Mobile: page is share-target friendly (Open Graph tags, renders in in-app browsers — this link lives in group texts and Facebook).
 
+**Follow-up (logged 2026-07-06, shipped without):** per-link share previews. The contribution page is a CRA SPA, so iMessage/Facebook previews show the generic app card, not the child's campaign. Fix = a small server-side rendering step for `/contribute/:token` only — e.g. a Netlify Edge Function (or backend route) that serves crawlers an HTML shell with per-link `og:title` ("Help send Jamie to camp"), `og:description` (progress), and a generated `og:image` progress card. Low effort, high share-conversion value; schedule with Phase 4 polish.
+
 ---
 
 ## Phase 5 — ACH, saved payment methods, autopay installments · ~2–3 wk
