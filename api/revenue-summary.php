@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -31,6 +32,9 @@ try {
 
     $league_id = $_GET['league_id'] ?? null;
     $club_id = $_GET['club_id'] ?? null;
+
+    // Scope: caller must be able to access the requested league/club.
+    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'club' => $club_id]);
 
     // Build WHERE clause based on scope
     $where_clause = '1=1';

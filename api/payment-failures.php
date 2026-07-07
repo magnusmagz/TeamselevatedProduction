@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -40,6 +41,9 @@ try {
             if (!$league_id) {
                 throw new Exception('league_id is required');
             }
+
+            // Scope: caller must be able to access the requested league.
+            te_assert_financial_scope($auth, $pdo, ['league' => $league_id]);
 
             $whereClause = "p.league_id = :league_id AND pt.status = 'failed'";
             if ($status === 'pending') {

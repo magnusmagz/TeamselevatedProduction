@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -38,6 +39,11 @@ try {
             $guardian_id = $_GET['guardian_id'] ?? null;
             $league_id = $_GET['league_id'] ?? null;
             $status = $_GET['status'] ?? null;
+
+            // Scope: a league/athlete-filtered list must be within the caller's clubs.
+            if ($league_id !== null || $athlete_id !== null) {
+                te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'athlete' => $athlete_id]);
+            }
 
             $whereClauses = [];
             $params = [];
@@ -157,6 +163,9 @@ try {
                 throw new Exception('Invoice ID is required');
             }
 
+            // Scope: caller must be able to access the invoice's club.
+            te_assert_financial_scope($auth, $pdo, ['invoice' => $invoice_id]);
+
             $query = "
                 SELECT
                     i.*,
@@ -216,6 +225,9 @@ try {
             $athlete_payment_id = $data['athlete_payment_id'] ?? null;
             $athlete_id = $data['athlete_id'] ?? null;
             $league_id = $data['league_id'] ?? null;
+
+            // Scope: caller must be able to access the payment/athlete/league's club.
+            te_assert_financial_scope($auth, $pdo, ['payment' => $athlete_payment_id, 'athlete' => $athlete_id, 'league' => $league_id]);
 
             if ($athlete_payment_id) {
                 // Create from existing athlete_payment
@@ -364,6 +376,9 @@ try {
                 throw new Exception('Invoice ID is required');
             }
 
+            // Scope: caller must be able to access the invoice's club.
+            te_assert_financial_scope($auth, $pdo, ['invoice' => $invoice_id]);
+
             $stmt = $pdo->prepare("
                 UPDATE invoices
                 SET status = CASE WHEN status = 'sent' THEN 'viewed' ELSE status END,
@@ -389,6 +404,9 @@ try {
             if (!$invoice_id) {
                 throw new Exception('Invoice ID is required');
             }
+
+            // Scope: caller must be able to access the invoice's club.
+            te_assert_financial_scope($auth, $pdo, ['invoice' => $invoice_id]);
 
             // Get invoice details
             $stmt = $pdo->prepare("

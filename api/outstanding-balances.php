@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -34,6 +35,9 @@ try {
     $team_id = $_GET['team_id'] ?? null;
     $sort_by = $_GET['sort_by'] ?? 'amount'; // amount, days_overdue, name
     $sort_order = $_GET['sort_order'] ?? 'DESC';
+
+    // Scope: caller must be able to access the requested league/program/team.
+    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'program' => $program_id, 'team' => $team_id]);
 
     // Validate sort order
     $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';

@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -37,6 +38,9 @@ try {
     $date_to = $_GET['date_to'] ?? null;
     $payment_type = $_GET['payment_type'] ?? null;
     $export_format = $_GET['export'] ?? null;
+
+    // Scope: caller must be able to access the requested league/program.
+    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'program' => $program_id]);
 
     if (!$league_id) {
         throw new Exception('league_id is required');
