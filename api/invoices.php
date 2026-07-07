@@ -564,6 +564,12 @@ try {
             throw new Exception('Unknown action: ' . $action);
     }
 
+} catch (PDOException $e) {
+    // Never leak SQLSTATE/schema details to clients (e.g. type errors from a
+    // malformed id used to surface raw "invalid input syntax for type integer").
+    error_log('invoices.php database error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to load invoice data']);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
