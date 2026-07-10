@@ -21,6 +21,10 @@ try {
     exit();
 }
 
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+$auth = AuthMiddleware::requireAuth();
+$accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin (all clubs)
+
 $method = $_SERVER['REQUEST_METHOD'];
 $request_uri = $_SERVER['REQUEST_URI'];
 $path_parts = parse_url($request_uri);
@@ -46,6 +50,12 @@ try {
                 $stmt->execute([$venue_id]);
                 $venue = $stmt->fetch(PDO::FETCH_ASSOC);
 
+                if ($venue && !$auth->canAccessClub((int)($venue['club_id'] ?? 0))) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Not authorized for this facility']);
+                    break;
+                }
+
                 if ($venue) {
                     // Get fields for this venue
                     $stmt = $connection->prepare("
@@ -59,16 +69,24 @@ try {
 
                 echo json_encode($venue);
             } else {
-                // Get all venues
+                // Get all venues — scoped to the caller's clubs (super admins see all).
+                $scopeSql = '';
+                $scopeParams = [];
+                if ($accessibleClubIds !== null) {
+                    if (empty($accessibleClubIds)) { echo json_encode([]); break; }
+                    $scopeSql = 'WHERE v.club_id IN (' . implode(',', array_fill(0, count($accessibleClubIds), '?')) . ')';
+                    $scopeParams = $accessibleClubIds;
+                }
                 $stmt = $connection->prepare("
                     SELECT v.*,
                            COUNT(f.id) as field_count
                     FROM venues v
                     LEFT JOIN fields f ON v.id = f.venue_id
+                    $scopeSql
                     GROUP BY v.id, v.name, v.address, v.city, v.state, v.zip_code, v.phone, v.email, v.website, v.notes, v.active, v.created_at, v.updated_at, v.map_url, v.venue_type, v.parking_type, v.parking_paid, v.parking_notes, v.has_lights, v.lights_notes, v.is_accessible, v.accessibility_notes, v.has_bathrooms, v.bathroom_count, v.has_concessions, v.concessions_notes, v.seating_type, v.seating_capacity, v.entry_cost, v.entry_cost_amount, v.payment_methods, v.venue_photos, v.maintenance_contact_name, v.maintenance_contact_phone, v.maintenance_contact_email, v.emergency_contact_name, v.emergency_contact_phone, v.emergency_contact_email, v.billing_contact_name, v.billing_contact_phone, v.billing_contact_email, v.gm_contact_name, v.gm_contact_phone, v.gm_contact_email
                     ORDER BY v.name
                 ");
-                $stmt->execute();
+                $stmt->execute($scopeParams);
                 $venues = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 echo json_encode($venues);
             }
@@ -76,6 +94,24 @@ try {
 
         case 'POST':
             $data = json_decode(file_get_contents("php://input"), true);
+
+            // Owning club: an explicit club the caller can access, or (for a
+            // single-club admin) their own. Super admins must name one.
+            $requestedClub = $data['club_profile_id'] ?? $data['club_id'] ?? null;
+            if ($requestedClub !== null) {
+                $venueClubId = (int)$requestedClub;
+                if (!$auth->canAccessClub($venueClubId)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Not authorized for that club']);
+                    break;
+                }
+            } elseif (is_array($accessibleClubIds) && count($accessibleClubIds) === 1) {
+                $venueClubId = (int)$accessibleClubIds[0];
+            } else {
+                http_response_code(400);
+                echo json_encode(['error' => 'club_profile_id is required']);
+                break;
+            }
 
             // Begin transaction
             $connection->beginTransaction();
@@ -98,9 +134,9 @@ try {
                         gm_contact_name, gm_contact_phone, gm_contact_email,
                         notes, gate_code, latitude, longitude,
                         medical_coordinator_name, medical_coordinator_phone, medical_coordinator_email,
-                        medical_station_notes)
+                        medical_station_notes, club_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
                     $data['name'],
@@ -148,6 +184,7 @@ try {
                     $data['medical_coordinator_phone'] ?? null,
                     $data['medical_coordinator_email'] ?? null,
                     $data['medical_station_notes']     ?? null,
+                    $venueClubId,
                 ]);
 
                 $venue_id = $connection->lastInsertId();
@@ -191,6 +228,16 @@ try {
         case 'PUT':
             if (!$venue_id) {
                 throw new Exception('Venue ID required for update');
+            }
+
+            // Scope: caller must own the facility's club.
+            $own = $connection->prepare("SELECT club_id FROM venues WHERE id = ?");
+            $own->execute([$venue_id]);
+            $venueClub = $own->fetchColumn();
+            if ($venueClub === false || !$auth->canAccessClub((int)$venueClub)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this facility']);
+                break;
             }
 
             $data = json_decode(file_get_contents("php://input"), true);
@@ -308,6 +355,16 @@ try {
         case 'DELETE':
             if (!$venue_id) {
                 throw new Exception('Venue ID required for deletion');
+            }
+
+            // Scope: caller must own the facility's club.
+            $own = $connection->prepare("SELECT club_id FROM venues WHERE id = ?");
+            $own->execute([$venue_id]);
+            $venueClub = $own->fetchColumn();
+            if ($venueClub === false || !$auth->canAccessClub((int)$venueClub)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this facility']);
+                break;
             }
 
             $stmt = $connection->prepare("DELETE FROM venues WHERE id = ?");
