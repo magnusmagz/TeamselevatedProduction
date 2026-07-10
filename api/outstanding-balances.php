@@ -83,7 +83,7 @@ try {
             MIN(ap.due_date) as earliest_due_date,
             CASE
                 WHEN MIN(ap.due_date) IS NOT NULL AND MIN(ap.due_date) < CURRENT_DATE
-                THEN EXTRACT(DAY FROM CURRENT_DATE - MIN(ap.due_date)::date)
+                THEN (CURRENT_DATE - MIN(ap.due_date)::date)
                 ELSE 0
             END as days_overdue,
             bool_or(ap.due_date < CURRENT_DATE) as has_overdue,

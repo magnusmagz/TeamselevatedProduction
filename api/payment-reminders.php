@@ -41,7 +41,7 @@ try {
             te_assert_financial_admin($auth, $pdo, ['league' => $league_id]);
 
             $whereClauses = [
-                'p.league_id = :league_id',
+                'p.club_id = :league_id',
                 "ap.status IN ('pending', 'partial')",
                 'ap.amount_remaining > 0'
             ];
@@ -239,7 +239,7 @@ Teams Elevated
                 SELECT ap.id
                 FROM athlete_payments ap
                 JOIN programs p ON ap.program_id = p.id
-                WHERE p.league_id = :league_id
+                WHERE p.club_id = :league_id
                 AND ap.status IN ('pending', 'partial')
                 AND ap.amount_remaining > 0
                 AND ap.due_date IS NOT NULL
