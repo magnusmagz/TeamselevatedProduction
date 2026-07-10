@@ -20,6 +20,13 @@ try {
     exit;
 }
 
+// This legacy gateway is redundant with registration/programs-api.php and has no
+// frontend caller, but it is directly reachable — require auth so it can't be used
+// for anonymous program CRUD across clubs.
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+$auth = AuthMiddleware::requireAuth();
+$accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
