@@ -374,7 +374,7 @@ class TournamentNotificationService {
             $perRecipientCtx = $this->buildPerRecipientCtx($ctx, $recipient, $actorUserId);
 
             $subject = $this->mergeFieldService->resolveVariables($tpl['subject'] ?? '', $perRecipientCtx);
-            $html    = $this->mergeFieldService->resolveVariables($tpl['html_output'] ?? '', $perRecipientCtx);
+            $html    = $this->mergeFieldService->resolveVariables($tpl['html_output'] ?? '', $perRecipientCtx, true);
             $body    = $this->mergeFieldService->resolveVariables(
                 $tpl['body_text'] ?? strip_tags($html),
                 $perRecipientCtx

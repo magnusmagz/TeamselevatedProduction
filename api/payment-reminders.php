@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -36,8 +37,11 @@ try {
                 throw new Exception('league_id is required');
             }
 
+            // Admin-only, scoped to the caller's club.
+            te_assert_financial_admin($auth, $pdo, ['league' => $league_id]);
+
             $whereClauses = [
-                'p.league_id = :league_id',
+                'p.club_id = :league_id',
                 "ap.status IN ('pending', 'partial')",
                 'ap.amount_remaining > 0'
             ];
@@ -65,11 +69,11 @@ try {
                     ap.amount_paid,
                     ap.amount_remaining,
                     CASE
-                        WHEN ap.due_date < CURRENT_DATE THEN CURRENT_DATE - ap.due_date
+                        WHEN ap.due_date < CURRENT_DATE THEN CURRENT_DATE - ap.due_date::date
                         ELSE 0
                     END as days_overdue,
                     CASE
-                        WHEN ap.due_date >= CURRENT_DATE THEN ap.due_date - CURRENT_DATE
+                        WHEN ap.due_date >= CURRENT_DATE THEN ap.due_date::date - CURRENT_DATE
                         ELSE 0
                     END as days_until_due,
                     a.first_name as athlete_first,
@@ -121,6 +125,9 @@ try {
             if (!$paymentId) {
                 throw new Exception('payment_id is required');
             }
+
+            // Admin-only, scoped to the payment's club.
+            te_assert_financial_admin($auth, $pdo, ['payment' => $paymentId]);
 
             // Get payment details
             $stmt = $pdo->prepare("
@@ -220,6 +227,9 @@ Teams Elevated
                 throw new Exception('league_id is required');
             }
 
+            // Admin-only, scoped to the caller's club.
+            te_assert_financial_admin($auth, $pdo, ['league' => $leagueId]);
+
             // Get payments needing reminders (not sent in last 3 days)
             $whereType = $batchType === 'overdue'
                 ? "ap.due_date < CURRENT_DATE"
@@ -229,7 +239,7 @@ Teams Elevated
                 SELECT ap.id
                 FROM athlete_payments ap
                 JOIN programs p ON ap.program_id = p.id
-                WHERE p.league_id = :league_id
+                WHERE p.club_id = :league_id
                 AND ap.status IN ('pending', 'partial')
                 AND ap.amount_remaining > 0
                 AND ap.due_date IS NOT NULL
@@ -297,6 +307,9 @@ Teams Elevated
             if (!$paymentId) {
                 throw new Exception('payment_id is required');
             }
+
+            // Admin-only, scoped to the payment's club.
+            te_assert_financial_admin($auth, $pdo, ['payment' => $paymentId]);
 
             $stmt = $pdo->prepare("
                 SELECT *

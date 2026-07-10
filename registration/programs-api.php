@@ -46,8 +46,13 @@ try {
     switch ($method) {
         case 'GET':
             if ($path === 'list') {
-                // Get all programs for a club
-                $club_id = $_GET['club_id'] ?? 1; // Default to club 1 for now
+                // Scope to a club the caller can access (default to their own org).
+                $club_id = $_GET['club_id'] ?? $auth->getOrgId();
+                if (empty($club_id) || !$auth->canAccessClub((int)$club_id)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Forbidden: no access to this club']);
+                    exit();
+                }
                 $stmt = $connection->prepare("
                     SELECT p.*,
                            v.name as venue_name,
@@ -79,6 +84,12 @@ try {
                 ");
                 $stmt->execute([$program_id]);
                 $program = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($program && !$auth->canAccessClub((int)$program['club_id'])) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Forbidden: no access to this program']);
+                    exit();
+                }
 
                 if ($program) {
                     // Get form fields

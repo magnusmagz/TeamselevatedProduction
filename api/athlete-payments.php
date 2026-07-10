@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -31,6 +32,9 @@ try {
 
     $athlete_id = $_GET['athlete_id'] ?? null;
     $payment_id = $_GET['payment_id'] ?? null;
+
+    // Scope: caller must be able to access the payment's / athlete's club.
+    te_assert_financial_scope($auth, $pdo, ['payment' => $payment_id, 'athlete' => $athlete_id]);
 
     // If payment_id is provided, return just that payment
     if ($payment_id) {

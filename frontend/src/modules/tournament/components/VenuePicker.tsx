@@ -34,7 +34,7 @@ const VenuePicker: React.FC<Props> = ({ value, onChange, className, disabled }) 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const res = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       if (!res.ok) throw new Error('Failed to load venues');
       const data = await res.json();
       // The endpoint returns a bare array of venue rows.
@@ -57,7 +57,7 @@ const VenuePicker: React.FC<Props> = ({ value, onChange, className, disabled }) 
     setShowManage(false);
     const prevMaxId = venues.reduce((m, v) => Math.max(m, v.id), 0);
     try {
-      const res = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const res = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const data = await res.json();
       const list: VenueSummary[] = Array.isArray(data) ? data : [];
       setVenues(list);

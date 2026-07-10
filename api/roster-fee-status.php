@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -34,6 +35,9 @@ try {
     $league_id = $_GET['league_id'] ?? null;
     $club_id = $_GET['club_id'] ?? null;
     $status_filter = $_GET['status'] ?? null; // paid, partial, unpaid, all
+
+    // Scope: caller must be able to access the requested program/team/league/club.
+    te_assert_financial_admin($auth, $pdo, ['program' => $program_id, 'team' => $team_id, 'league' => $league_id, 'club' => $club_id]);
 
     // Build query based on grouping
     if ($program_id) {
@@ -143,7 +147,7 @@ try {
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
-            WHERE (a.league_id = :league_id OR p.league_id = :league_id)
+            WHERE (a.club_id = :league_id OR p.club_id = :league_id)
             AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email

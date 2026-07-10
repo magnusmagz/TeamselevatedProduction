@@ -14,9 +14,13 @@ class MergeFieldService {
      * Resolve all {{variable}} placeholders in text
      * @param string $text - subject or body with {{placeholders}}
      * @param array $context - keys: athlete_id, guardian_id, user_id (sender), event_id, team_id, club_profile_id
+     * @param bool $escapeHtml - when true, HTML-escape merge VALUES before substituting.
+     *        Pass true when resolving into an HTML body (so a name/team/etc. containing
+     *        markup can't inject script into the email or its in-app preview). Leave
+     *        false for plain-text subjects and text bodies (which aren't rendered as HTML).
      * @return string - text with variables resolved
      */
-    public function resolveVariables($text, $context) {
+    public function resolveVariables($text, $context, $escapeHtml = false) {
         // First check if there are any variables to resolve
         if (strpos($text, '{{') === false) return $text;
 
@@ -75,7 +79,14 @@ class MergeFieldService {
 
         // Replace all found variables, leave unresolved ones as-is
         foreach ($replacements as $key => $value) {
-            $text = str_replace('{{' . $key . '}}', $value ?? '', $text);
+            $replacement = $value ?? '';
+            // XSS guard: escape merge VALUES going into an HTML body so attacker-
+            // controlled data (e.g. an athlete/guardian name set to "<img onerror=...>")
+            // renders as inert text instead of executing in the email or its preview.
+            if ($escapeHtml) {
+                $replacement = htmlspecialchars($replacement, ENT_QUOTES, 'UTF-8');
+            }
+            $text = str_replace('{{' . $key . '}}', $replacement, $text);
         }
 
         return $text;

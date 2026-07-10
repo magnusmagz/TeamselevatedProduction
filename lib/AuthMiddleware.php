@@ -55,6 +55,41 @@ class AuthMiddleware {
     }
 
     /**
+     * SEC-11: re-derive roles/clubs from the DATABASE on each request, reusing the
+     * exact context builder that login uses (JWT::buildOrganizationalContext — which
+     * covers admins, parents AND coaches derived from team membership). The token
+     * still proves identity; authorization is always live. This makes access
+     * revocation (user_club_access active=false via the club profile, or removal
+     * from a team) take effect on the user's very NEXT request instead of lingering
+     * until the 24h JWT expires.
+     *
+     * Preserves the token's selected active-context club when it's still valid.
+     * If the DB is unreachable, keeps the token's roles (it was already
+     * signature-verified) so a transient DB blip doesn't fail every request.
+     */
+    private function refreshRolesFromDb() {
+        if (!$this->userId) {
+            return;
+        }
+        try {
+            require_once __DIR__ . '/../config/database.php';
+            $db = Database::getInstance()->getConnection();
+            $tokenActive = $this->payload->active_context ?? null;
+            $scopeId   = is_object($tokenActive) ? ($tokenActive->scope_id ?? null) : null;
+            $scopeType = is_object($tokenActive) ? ($tokenActive->scope_type ?? null) : null;
+
+            $ctx = JWT::buildOrganizationalContext($db, $this->userId, $scopeId, $scopeType);
+            $this->systemRole    = $ctx['system_role'] ?? 'user';
+            $this->orgId         = $ctx['org_id'] ?? null;
+            $this->orgType       = $ctx['org_type'] ?? null;
+            $this->roles         = $ctx['roles'] ?? [];
+            $this->activeContext = $ctx['active_context'] ?? null;
+        } catch (Exception $e) {
+            error_log("AuthMiddleware: role refresh failed, keeping token roles: " . $e->getMessage());
+        }
+    }
+
+    /**
      * Check if user is a super admin
      *
      * @return bool
@@ -259,6 +294,10 @@ class AuthMiddleware {
             echo json_encode(['error' => 'Invalid or expired token']);
             exit;
         }
+
+        // SEC-11: re-derive roles/clubs from the DB so a revocation takes effect on
+        // the next request instead of lingering until the 24h JWT expires.
+        $middleware->refreshRolesFromDb();
 
         return $middleware;
     }

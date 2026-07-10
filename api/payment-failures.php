@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -41,7 +42,10 @@ try {
                 throw new Exception('league_id is required');
             }
 
-            $whereClause = "p.league_id = :league_id AND pt.status = 'failed'";
+            // Scope: caller must be able to access the requested league.
+            te_assert_financial_admin($auth, $pdo, ['league' => $league_id]);
+
+            $whereClause = "p.club_id = :league_id AND pt.status = 'failed'";
             if ($status === 'pending') {
                 $whereClause .= " AND (pt.resolved_at IS NULL)";
             } elseif ($status === 'resolved') {
@@ -95,7 +99,7 @@ try {
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
                 JOIN programs p ON ap.program_id = p.id
-                WHERE p.league_id = :league_id AND pt.status = 'failed'
+                WHERE p.club_id = :league_id AND pt.status = 'failed'
             ");
             $summaryStmt->execute(['league_id' => $league_id]);
             $summary = $summaryStmt->fetch(PDO::FETCH_ASSOC);
@@ -135,12 +139,12 @@ try {
                     g.first_name as guardian_first,
                     pi.name as item_name,
                     p.name as program_name,
-                    l.contact_email as league_email
+                    l.email as league_email
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
                 JOIN athletes a ON ap.athlete_id = a.id
                 JOIN programs p ON ap.program_id = p.id
-                JOIN leagues l ON p.league_id = l.id
+                JOIN club_profile l ON p.club_id = l.id
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
