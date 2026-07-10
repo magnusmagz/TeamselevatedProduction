@@ -197,7 +197,7 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
             ];
             // Resolve subject and body per recipient
             $r['_resolved_subject']   = $mergeFieldService->resolveVariables($subject, $context);
-            $r['_resolved_html_body'] = $mergeFieldService->resolveVariables($htmlBody, $context);
+            $r['_resolved_html_body'] = $mergeFieldService->resolveVariables($htmlBody, $context, true);
             $r['_resolved_body']      = $body ? $mergeFieldService->resolveVariables($body, $context) : null;
         }
         unset($r);
@@ -431,7 +431,7 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
                     'club_profile_id' => $clubProfileId,
                 ];
                 $resolvedSubject  = $mergeFieldService->resolveVariables($subject, $context);
-                $resolvedHtmlBody = $mergeFieldService->resolveVariables($htmlBody, $context);
+                $resolvedHtmlBody = $mergeFieldService->resolveVariables($htmlBody, $context, true);
                 $resolvedBody     = $body ? $mergeFieldService->resolveVariables($body, $context) : null;
 
                 $result = $emailService->queueEmail([
@@ -1017,7 +1017,7 @@ function handlePreviewEmail($auth, $connection, $mergeFieldService) {
     if ($teamId)  { $context['team_id']  = $teamId; }
 
     $previewSubject = $mergeFieldService->resolveVariables((string)$subject, $context);
-    $previewHtml    = $mergeFieldService->resolveVariables((string)$bodyHtml, $context);
+    $previewHtml    = $mergeFieldService->resolveVariables((string)$bodyHtml, $context, true);
 
     echo json_encode([
         'success'         => true,

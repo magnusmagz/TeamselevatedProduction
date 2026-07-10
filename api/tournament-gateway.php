@@ -3048,7 +3048,7 @@ function renderTournamentDeclinePreview(PDO $db, int $regId): ?array {
             'club_profile_id' => $clubId,
         ];
         $subject  = $mergeFields->resolveVariables($tpl['subject'] ?? '', $mergeCtx);
-        $htmlBody = $mergeFields->resolveVariables($tpl['html_output'] ?? '', $mergeCtx);
+        $htmlBody = $mergeFields->resolveVariables($tpl['html_output'] ?? '', $mergeCtx, true);
         $body     = $mergeFields->resolveVariables($tpl['body_text'] ?? strip_tags($htmlBody), $mergeCtx);
         $templateId = (int) $tpl['id'];
     } else {
