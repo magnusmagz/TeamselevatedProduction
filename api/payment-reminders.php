@@ -69,11 +69,11 @@ try {
                     ap.amount_paid,
                     ap.amount_remaining,
                     CASE
-                        WHEN ap.due_date < CURRENT_DATE THEN CURRENT_DATE - ap.due_date
+                        WHEN ap.due_date < CURRENT_DATE THEN CURRENT_DATE - ap.due_date::date
                         ELSE 0
                     END as days_overdue,
                     CASE
-                        WHEN ap.due_date >= CURRENT_DATE THEN ap.due_date - CURRENT_DATE
+                        WHEN ap.due_date >= CURRENT_DATE THEN ap.due_date::date - CURRENT_DATE
                         ELSE 0
                     END as days_until_due,
                     a.first_name as athlete_first,
