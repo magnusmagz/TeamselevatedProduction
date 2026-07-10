@@ -40,7 +40,7 @@ try {
     $export_format = $_GET['export'] ?? null;
 
     // Scope: caller must be able to access the requested league/program.
-    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'program' => $program_id]);
+    te_assert_financial_admin($auth, $pdo, ['league' => $league_id, 'program' => $program_id]);
 
     if (!$league_id) {
         throw new Exception('league_id is required');

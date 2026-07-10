@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -35,6 +36,9 @@ try {
             if (!$league_id) {
                 throw new Exception('league_id is required');
             }
+
+            // Admin-only, scoped to the caller's club.
+            te_assert_financial_admin($auth, $pdo, ['league' => $league_id]);
 
             $query = "
                 SELECT
@@ -162,9 +166,9 @@ try {
             $scopeStmt = $pdo->prepare("SELECT club_id FROM athletes WHERE id = :aid");
             $scopeStmt->execute(['aid' => $athletePayment['athlete_id']]);
             $athleteClubId = (int)$scopeStmt->fetchColumn();
-            if (!$auth->canAccessClub($athleteClubId)) {
+            if (!$auth->hasRole('club_admin', $athleteClubId, 'club')) {
                 http_response_code(403);
-                echo json_encode(['error' => 'Not authorized for this athlete payment']);
+                echo json_encode(['error' => 'Admin access required to apply a payment plan']);
                 exit;
             }
 

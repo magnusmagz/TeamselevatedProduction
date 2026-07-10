@@ -37,7 +37,7 @@ try {
     $status_filter = $_GET['status'] ?? null; // paid, partial, unpaid, all
 
     // Scope: caller must be able to access the requested program/team/league/club.
-    te_assert_financial_scope($auth, $pdo, ['program' => $program_id, 'team' => $team_id, 'league' => $league_id, 'club' => $club_id]);
+    te_assert_financial_admin($auth, $pdo, ['program' => $program_id, 'team' => $team_id, 'league' => $league_id, 'club' => $club_id]);
 
     // Build query based on grouping
     if ($program_id) {

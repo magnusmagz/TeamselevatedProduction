@@ -43,7 +43,7 @@ try {
             }
 
             // Scope: caller must be able to access the requested league.
-            te_assert_financial_scope($auth, $pdo, ['league' => $league_id]);
+            te_assert_financial_admin($auth, $pdo, ['league' => $league_id]);
 
             $whereClause = "p.league_id = :league_id AND pt.status = 'failed'";
             if ($status === 'pending') {

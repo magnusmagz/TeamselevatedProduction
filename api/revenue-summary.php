@@ -34,7 +34,7 @@ try {
     $club_id = $_GET['club_id'] ?? null;
 
     // Scope: caller must be able to access the requested league/club.
-    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'club' => $club_id]);
+    te_assert_financial_admin($auth, $pdo, ['league' => $league_id, 'club' => $club_id]);
 
     // Build WHERE clause based on scope
     $where_clause = '1=1';

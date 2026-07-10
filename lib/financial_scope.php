@@ -74,3 +74,33 @@ function te_assert_financial_scope(AuthMiddleware $auth, PDO $pdo, array $ids): 
         exit;
     }
 }
+
+/**
+ * Stronger than te_assert_financial_scope: requires an ADMIN-level role
+ * (club_admin) for every scoping club — not merely access. Coaches, parents,
+ * and volunteers have club access but must NOT reach admin financial tools
+ * (revenue, transaction reports, outstanding balances, payment management).
+ * Super admins pass. Exits 403 otherwise; a non-super-admin with no scoping id
+ * is denied (an unscoped financial report can't be authorized).
+ */
+function te_assert_financial_admin(AuthMiddleware $auth, PDO $pdo, array $ids): void {
+    if ($auth->isSuperAdmin()) return;
+
+    $checked = 0;
+    foreach ($ids as $type => $id) {
+        if ($id === null || $id === '' || $id === false) continue;
+        $checked++;
+        $clubId = te_club_for($pdo, $type, $id);
+        if ($clubId === null || !$auth->hasRole('club_admin', $clubId, 'club')) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required for financial data']);
+            exit;
+        }
+    }
+
+    if ($checked === 0) {
+        http_response_code(403);
+        echo json_encode(['error' => 'A league_id or club_id within your admin scope is required']);
+        exit;
+    }
+}

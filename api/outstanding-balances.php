@@ -37,7 +37,7 @@ try {
     $sort_order = $_GET['sort_order'] ?? 'DESC';
 
     // Scope: caller must be able to access the requested league/program/team.
-    te_assert_financial_scope($auth, $pdo, ['league' => $league_id, 'program' => $program_id, 'team' => $team_id]);
+    te_assert_financial_admin($auth, $pdo, ['league' => $league_id, 'program' => $program_id, 'team' => $team_id]);
 
     // Validate sort order
     $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
