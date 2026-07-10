@@ -76,13 +76,13 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const venueData = await response.json();
 
       // Fetch fields for each venue
       const venuesWithFields = await Promise.all(
         venueData.map(async (venue: Venue) => {
-          const fieldResponse = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
+          const fieldResponse = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
           const venueDetails = await fieldResponse.json();
           return venueDetails;
         })

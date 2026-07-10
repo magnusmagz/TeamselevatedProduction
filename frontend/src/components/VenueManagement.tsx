@@ -145,7 +145,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const data = await response.json();
       setVenues(data);
     } catch (error) {
@@ -185,7 +185,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
   const handleEditVenue = async (venue: Venue) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venue.id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const data = await response.json();
       setSelectedVenue(data);
       setFormData(data);
@@ -202,7 +202,8 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
     try {
       const response = await fetch(`${API_URL}/legacy/venues-gateway.php?id=${venueId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
       });
 
       if (response.ok) {
@@ -352,7 +353,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
 
       const response = await fetch(url, {
         method: selectedVenue ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
         body: JSON.stringify(dataToSend)
       });
 

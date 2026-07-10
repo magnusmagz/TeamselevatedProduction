@@ -346,7 +346,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
   const fetchVenues = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`);
+      const response = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const data = await response.json();
       // Endpoint returns a bare JSON array of venues (not {venues:[...]}).
       // Parse defensively in case the shape ever changes.
