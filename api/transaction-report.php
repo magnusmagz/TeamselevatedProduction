@@ -47,7 +47,7 @@ try {
     }
 
     // Build query with filters
-    $whereClauses = ['p.league_id = :league_id'];
+    $whereClauses = ['p.club_id = :league_id'];
     $params = ['league_id' => $league_id];
 
     if ($program_id) {

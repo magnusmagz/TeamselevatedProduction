@@ -41,7 +41,7 @@ try {
     $params = [];
 
     if ($league_id) {
-        $where_clause .= ' AND a.league_id = :league_id';
+        $where_clause .= ' AND a.club_id = :league_id';
         $params['league_id'] = $league_id;
     }
     if ($club_id) {

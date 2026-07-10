@@ -147,7 +147,7 @@ try {
             LEFT JOIN guardians g ON ag.guardian_id = g.id
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
-            WHERE (a.league_id = :league_id OR p.league_id = :league_id)
+            WHERE (a.club_id = :league_id OR p.club_id = :league_id)
             AND a.active_status = true
             GROUP BY a.id, a.first_name, a.last_name, a.date_of_birth,
                      g.first_name, g.last_name, g.email

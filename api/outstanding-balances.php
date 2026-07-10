@@ -47,7 +47,7 @@ try {
     $params = [];
 
     if ($league_id) {
-        $where_conditions[] = 'a.league_id = :league_id';
+        $where_conditions[] = 'a.club_id = :league_id';
         $params['league_id'] = $league_id;
     }
     if ($program_id) {
