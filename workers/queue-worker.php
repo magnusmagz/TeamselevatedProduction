@@ -32,6 +32,9 @@ $queues = ['email_queue', 'sms_queue', 'import_queue', 'calendar_sync_queue'];
 // Graceful shutdown via signals (SIGTERM from Heroku dyno manager)
 $running = true;
 
+// Throttle (unix seconds) for the orphaned-import-job reconciliation sweep below.
+$lastImportSweep = 0;
+
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
 
@@ -51,6 +54,29 @@ while ($running) {
         // Sweep retry queues — move any due jobs back to their main queues
         foreach ($queues as $q) {
             $queue->sweepRetries($q);
+        }
+
+        // Recover orphaned import jobs: rows enqueued to Redis but lost before a
+        // worker consumed them (e.g. a worker/Redis restart between the upload and
+        // processing) would otherwise sit in 'queued' forever. Re-drive any that are
+        // still 'queued' after 90s. Single worker + processJob claiming the row
+        // ('processing') makes this safe from double-processing. Throttled to 1/min.
+        if (time() - $lastImportSweep > 60) {
+            $lastImportSweep = time();
+            try {
+                $stuck = $db->query(
+                    "SELECT id FROM import_jobs
+                     WHERE status = 'queued' AND started_at IS NULL
+                       AND created_at < NOW() - INTERVAL '90 seconds'
+                     ORDER BY id LIMIT 20"
+                )->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($stuck as $stuckId) {
+                    echo "[Worker] Recovering orphaned import job {$stuckId}\n";
+                    $importProcessor->processJob(['job_id' => (int) $stuckId]);
+                }
+            } catch (Exception $e) {
+                error_log("[Worker] import reconciliation error: " . $e->getMessage());
+            }
         }
 
         // Block-pop from both queues (2 second timeout so we can check $running)
