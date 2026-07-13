@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
+import ClubPaymentsSettings from '../components/ClubPaymentsSettings';
 import ImportTilesGrid from '../components/ImportTilesGrid';
 import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
@@ -36,7 +37,12 @@ const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const { updateTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'info' | 'branding' | 'documents' | 'users' | 'imports'>('info');
+  type ProfileTab = 'info' | 'branding' | 'documents' | 'users' | 'payments' | 'imports';
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
+    // Stripe onboarding return/refresh URLs land on /club-profile?tab=payments
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return tab === 'payments' ? 'payments' : 'info';
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<ClubProfile>({
@@ -163,6 +169,16 @@ const ClubProfilePage: React.FC = () => {
               }`}
             >
               User Management
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'payments'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Payments
             </button>
             <button
               onClick={() => setActiveTab('imports')}
@@ -471,6 +487,10 @@ const ClubProfilePage: React.FC = () => {
 
             {activeTab === 'users' && (
               <ClubUserManagement />
+            )}
+
+            {activeTab === 'payments' && (
+              <ClubPaymentsSettings />
             )}
 
             {activeTab === 'imports' && (

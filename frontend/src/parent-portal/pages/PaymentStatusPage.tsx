@@ -24,6 +24,16 @@ interface InvoiceLineItem {
   line_total: number;
 }
 
+interface InvoicePayment {
+  transaction_id: number;
+  payer_name: string;
+  amount: number;
+  payment_method: string;
+  status: string;
+  refunded: boolean;
+  date: string;
+}
+
 interface InvoiceDetail {
   id: number;
   invoice_number?: string;
@@ -46,9 +56,20 @@ export const PaymentStatusPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'paid'>('outstanding');
 
+  // Return leg of hosted Stripe Checkout (?checkout=success|cancelled). The
+  // webhook applies the payment, which can lag the redirect by a few seconds —
+  // refreshTick re-runs the invoice fetch a few times so balances catch up.
+  const checkoutReturn = new URLSearchParams(window.location.search).get('checkout');
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Invoice detail (line items) — lazily fetched per invoice on expand (PAR-16).
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailById, setDetailById] = useState<Record<number, InvoiceDetail>>({});
+  // Who-paid-what ledger per invoice (split payments) — lazy, same trigger.
+  const [paymentsById, setPaymentsById] = useState<Record<number, InvoicePayment[]>>({});
+
+  // Contribution-link sharing (Phase 4): invoice id -> share state.
+  const [shareById, setShareById] = useState<Record<number, { url?: string; copied?: boolean; loading?: boolean; error?: string }>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
@@ -56,7 +77,9 @@ export const PaymentStatusPage: React.FC = () => {
     const fetchInvoices = async () => {
       if (!user) return;
 
-      setLoading(true);
+      if (refreshTick === 0) {
+        setLoading(true); // re-polls refresh silently, no full-page spinner
+      }
       setError(null);
 
       try {
@@ -95,7 +118,50 @@ export const PaymentStatusPage: React.FC = () => {
     };
 
     fetchInvoices();
-  }, [API_URL, user]);
+  }, [API_URL, user, refreshTick]);
+
+  useEffect(() => {
+    if (checkoutReturn !== 'success') return;
+    const timers = [3000, 8000, 15000].map((ms) =>
+      setTimeout(() => setRefreshTick((t) => t + 1), ms)
+    );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Create (or reuse) the invoice's contribution link and copy it for sharing.
+  const shareLink = async (invoice: Invoice) => {
+    setShareById((prev) => ({ ...prev, [invoice.id]: { loading: true } }));
+    try {
+      const token = localStorage.getItem('auth_token');
+      const firstName = invoice.athlete_name.split(' ')[0] || 'Our athlete';
+      const res = await fetch(`${API_URL}/api/contribution-links.php?action=create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          invoice_id: invoice.id,
+          display_name: `${firstName} — ${invoice.description}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.link?.share_url) {
+        throw new Error(data.error || 'Could not create the link');
+      }
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(data.link.share_url);
+        copied = true;
+      } catch {
+        // clipboard can be unavailable (http / permissions) — still show the URL
+      }
+      setShareById((prev) => ({ ...prev, [invoice.id]: { url: data.link.share_url, copied } }));
+    } catch (err) {
+      setShareById((prev) => ({
+        ...prev,
+        [invoice.id]: { error: err instanceof Error ? err.message : 'Could not create the link' },
+      }));
+    }
+  };
 
   // Toggle the line-item detail panel for an invoice; fetch it on first expand.
   const toggleDetail = async (invoiceId: number) => {
@@ -106,6 +172,26 @@ export const PaymentStatusPage: React.FC = () => {
 
     setExpandedId(invoiceId);
     setDetailError(null);
+
+    // Payment history loads alongside the line items; failures stay silent —
+    // the ledger is supplementary to the invoice detail.
+    if (!paymentsById[invoiceId]) {
+      (async () => {
+        try {
+          const token = localStorage.getItem('auth_token');
+          const res = await fetch(
+            `${API_URL}/api/invoice-payments.php?invoice_id=${invoiceId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const data = await res.json();
+          if (data.success && Array.isArray(data.payments)) {
+            setPaymentsById((prev) => ({ ...prev, [invoiceId]: data.payments }));
+          }
+        } catch {
+          // supplementary data — ignore
+        }
+      })();
+    }
 
     // Already loaded — reuse cached detail.
     if (detailById[invoiceId]) {
@@ -196,6 +282,17 @@ export const PaymentStatusPage: React.FC = () => {
       <ParentHeader title="Payments" showBack />
 
       <div className="pt-14 pb-4">
+        {checkoutReturn === 'success' && (
+          <div className="mx-4 mt-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            Payment received — thank you! Balances update automatically within a few seconds.
+          </div>
+        )}
+        {checkoutReturn === 'cancelled' && (
+          <div className="mx-4 mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            Checkout was cancelled — no payment was made.
+          </div>
+        )}
+
         {/* Summary Card */}
         <div className="bg-brand-primary text-white px-4 py-6">
           <p className="text-sm opacity-80">Total Outstanding</p>
@@ -393,7 +490,58 @@ export const PaymentStatusPage: React.FC = () => {
                             )}
                           </tfoot>
                         </table>
+
+                        {(paymentsById[invoice.id]?.length ?? 0) > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-2">
+                              Payment history
+                            </p>
+                            <ul className="space-y-1.5">
+                              {paymentsById[invoice.id].map((p) => (
+                                <li key={p.transaction_id} className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-700">
+                                    {p.payer_name}
+                                    <span className="text-gray-400"> · {formatDate(p.date)}</span>
+                                    {p.refunded && (
+                                      <span className="ml-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5">
+                                        refunded
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className={`font-medium ${p.refunded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                    ${p.amount.toFixed(2)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {invoice.status !== 'paid' && (
+                  <div className="mt-3">
+                    {shareById[invoice.id]?.url ? (
+                      <div className="mb-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-700 break-all">
+                        {shareById[invoice.id].copied && (
+                          <span className="block font-medium text-green-700 mb-1">Link copied — paste it into a text or email!</span>
+                        )}
+                        {shareById[invoice.id].url}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => shareLink(invoice)}
+                        disabled={shareById[invoice.id]?.loading}
+                        className="mb-2 block w-full text-center py-2 border border-brand-primary text-brand-primary rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {shareById[invoice.id]?.loading ? 'Creating link…' : 'Share with family & friends'}
+                      </button>
+                    )}
+                    {shareById[invoice.id]?.error && (
+                      <p className="mb-2 text-xs text-red-600">{shareById[invoice.id].error}</p>
                     )}
                   </div>
                 )}
@@ -401,7 +549,7 @@ export const PaymentStatusPage: React.FC = () => {
                 {invoice.status !== 'paid' && (
                   <Link
                     to={`/parent/pay/${invoice.id}`}
-                    className="mt-3 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
+                    className="mt-0 block w-full text-center py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover transition-colors"
                   >
                     Pay Now
                   </Link>

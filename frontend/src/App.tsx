@@ -62,6 +62,7 @@ import { TeamDetailPage } from './pages/TeamDetailPage';
 import TeamCalendarPage from './pages/TeamCalendarPage';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 // Fundraiser Campaign pages
+import { ContributePage } from './pages/ContributePage';
 import { FundraiserCampaign } from './pages/FundraiserCampaign';
 import { DonationSuccess } from './pages/DonationSuccess';
 import { FundraiserCampaignsList } from './pages/FundraiserCampaignsList';
@@ -985,7 +986,8 @@ function AppContent() {
 
           {/* Real payment page - public, fetches invoice by ID */}
           <Route path="/pay/:invoiceId" element={<PaymentPage />} />
-          <Route path="/contribute/:invoiceId" element={<PaymentPage />} />
+          {/* Contribution link - public, token-based (Phase 4) */}
+          <Route path="/contribute/:token" element={<ContributePage />} />
 
           {/* Fundraiser Campaign routes - public */}
           <Route path="/donate/:clubSlug/campaign/:campaignSlug" element={<FundraiserCampaign />} />

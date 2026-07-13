@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../lib/StubPaymentProcessor.php';
+require_once __DIR__ . '/../lib/PaymentProcessorFactory.php';
 
 // Check if demo mode is enabled
 $demoMode = Env::get('PAYMENT_MODE', 'demo') === 'demo';
@@ -29,7 +29,7 @@ if (!$demoMode) {
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
-$processor = new StubPaymentProcessor();
+$processor = PaymentProcessorFactory::create();
 
 try {
     $db = Database::getInstance();

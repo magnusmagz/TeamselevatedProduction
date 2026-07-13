@@ -8,6 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     'TeamsElevated\\Tests\\' => array($baseDir . '/tests/php'),
     'TeamsElevated\\' => array($baseDir . '/src'),
+    'Stripe\\' => array($vendorDir . '/stripe/stripe-php/lib'),
     'Predis\\' => array($vendorDir . '/predis/predis/src'),
     'PhpParser\\' => array($vendorDir . '/nikic/php-parser/lib/PhpParser'),
     'PHPMailer\\PHPMailer\\' => array($vendorDir . '/phpmailer/phpmailer/src'),

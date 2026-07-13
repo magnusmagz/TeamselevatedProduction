@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 require_once '../config/database.php';
-require_once '../lib/StubPaymentProcessor.php';
+require_once '../lib/PaymentProcessorFactory.php';
 require_once '../lib/AuthMiddleware.php';
 require_once '../lib/Email.php';
 
@@ -89,7 +89,7 @@ try {
             }
 
             // Process payment
-            $processor = new StubPaymentProcessor();
+            $processor = PaymentProcessorFactory::create();
             $paymentResult = $processor->processPayment($amount, $data['payment_method']);
 
             // Create donation record

@@ -159,8 +159,8 @@ try {
                 $accessibleAthletes = $athleteStmt->fetchAll(PDO::FETCH_ASSOC);
             }
 
-            if ($isCoach && $activeContext) {
-                // Get athletes from coach's teams
+            if ($isCoach) {
+                // Get athletes from coach's teams (query is already scoped to this user)
                 $teamAthleteStmt = $pdo->prepare("
                     SELECT DISTINCT a.id, a.first_name, a.last_name
                     FROM athletes a

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParentHeader } from '../components/ParentHeader';
 
@@ -24,7 +24,6 @@ interface PaymentMethod {
 
 export const MakePaymentPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -73,7 +72,6 @@ export const MakePaymentPage: React.FC = () => {
       if (!user) return;
 
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
 
       try {
         const outstanding = await fetchInvoices();
@@ -85,20 +83,9 @@ export const MakePaymentPage: React.FC = () => {
           setSelectedInvoices(outstanding.map((inv: Invoice) => inv.id));
         }
 
-        // Fetch payment methods
-        const methodsRes = await fetch(
-          `${API_URL}/api/payment-methods.php?action=list`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const methodsData = await methodsRes.json();
-
-        if (methodsData.success && methodsData.methods) {
-          setPaymentMethods(methodsData.methods);
-          const defaultMethod = methodsData.methods.find((m: PaymentMethod) => m.isDefault);
-          if (defaultMethod) {
-            setSelectedPaymentMethod(defaultMethod.id);
-          }
-        }
+        // Saved payment methods intentionally not fetched — the endpoint ships with
+        // the Stripe integration (Phase 5, docs/payments-stripe-implementation-plan.md).
+        // paymentMethods stays empty and the method selector stays hidden until then.
       } catch (err) {
         setError('Failed to load payment information');
       } finally {
@@ -139,7 +126,10 @@ export const MakePaymentPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/api/payments.php`, {
+      // Hosted Stripe Checkout: this endpoint validates ownership + balance and
+      // returns a stripe.com URL. The webhook — not the redirect back — is what
+      // marks invoices paid, so PaymentStatusPage re-polls after returning.
+      const response = await fetch(`${API_URL}/api/checkout-sessions.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,31 +138,21 @@ export const MakePaymentPage: React.FC = () => {
         body: JSON.stringify({
           invoice_ids: selectedInvoices,
           amount: payableAmount,
-          payment_method_id: selectedPaymentMethod,
+          return_context: 'parent',
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        // Refetch fresh balances so the UI reflects the recorded payment
-        // before leaving the page (PAR-17). If everything is now paid off,
-        // the selection clears and the "All Paid Up!" empty state shows.
-        const remaining = await fetchInvoices();
-        setSelectedInvoices((prev) =>
-          prev.filter((id) => remaining.some((inv) => inv.id === id))
-        );
-        navigate('/parent/payments', {
-          state: { message: 'Payment successful!' }
-        });
-      } else {
-        setError(data.error || 'Payment failed');
+      if (response.ok && data.url) {
+        window.location.href = data.url;
+        return; // keep the button disabled while the browser navigates away
       }
+      setError(data.error || 'Could not start payment');
     } catch (err) {
       setError('Payment processing failed. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   if (loading) {

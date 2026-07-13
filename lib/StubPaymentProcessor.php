@@ -1,11 +1,17 @@
 <?php
 /**
  * Stub Payment Processor for Demo Mode
- * Simulates Maverick Payments API without real charges
+ * Simulates a payment gateway without real charges
  */
 
-class StubPaymentProcessor {
+require_once __DIR__ . '/PaymentProcessorInterface.php';
+
+class StubPaymentProcessor implements PaymentProcessorInterface {
     private $demoMode = true;
+
+    public function getName(): string {
+        return 'stub';
+    }
 
     // Test card numbers for different scenarios
     private $testCards = [
