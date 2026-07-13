@@ -29,8 +29,18 @@ $auth = AuthMiddleware::requireAuth();
 $activeContext = $auth->getActiveContext();
 $clubId = null;
 
-if ($activeContext && $activeContext->scope_type === 'club') {
-    $clubId = $activeContext->scope_id;
+// getActiveContext() may return a stdClass (from the JWT payload) OR an
+// associative array (after AuthMiddleware's SEC-11 per-request DB refresh via
+// JWT::buildOrganizationalContext, which returns array-shaped roles). Reading
+// an array with object syntax (->scope_type) silently yields null, which is
+// what made every club-profile GET/PUT 400 with "No active club context"
+// after SEC-11 landed. Read scope defensively — same pattern as teams-gateway.
+if ($activeContext) {
+    $scopeType = is_object($activeContext) ? ($activeContext->scope_type ?? null) : ($activeContext['scope_type'] ?? null);
+    $scopeId   = is_object($activeContext) ? ($activeContext->scope_id ?? null)   : ($activeContext['scope_id'] ?? null);
+    if ($scopeType === 'club') {
+        $clubId = $scopeId;
+    }
 }
 
 if (!$clubId) {
