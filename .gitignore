@@ -29,3 +29,6 @@ backend/.env
 
 # Local Netlify folder
 .netlify
+
+# PHP dependencies — installed by composer during the Heroku build (heroku/php)
+/vendor/
