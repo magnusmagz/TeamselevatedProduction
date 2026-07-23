@@ -5,14 +5,16 @@ require_once __DIR__ . '/ImportStrategy.php';
  * FacilityImportStrategy — imports venues + fields from a family-row CSV.
  *
  * One CSV row = one field + inline venue info. If the venue (matched by
- * name, case-insensitive) doesn't exist, it's auto-created from the row's
- * venue_* columns. If it does exist, we reuse it and only create a new
- * field underneath.
+ * name, case-insensitive) doesn't exist WITHIN THE IMPORTING CLUB, it's
+ * auto-created from the row's venue_* columns. If it does exist, we reuse
+ * it and only create a new field underneath.
  *
- * Venues are GLOBAL in this schema — they are not scoped to a club.
- * Any club admin who imports a venue creates a row all clubs can see.
- * This mirrors the existing venues table design (no club_id column).
- * The import_jobs row still records club_profile_id for audit purposes.
+ * Venues are scoped to a club via venues.club_id, and the read path
+ * (legacy/venues-gateway.php) filters `WHERE v.club_id IN (accessible)`.
+ * We therefore stamp club_id from the import context on every venue we
+ * create, and scope the reuse lookup by club_id — otherwise imported
+ * venues are orphaned (club_id NULL) and invisible in the UI, and a name
+ * collision could silently reuse another club's (invisible) venue.
  */
 
 class FacilityImportStrategy extends ImportStrategy {
@@ -96,6 +98,7 @@ class FacilityImportStrategy extends ImportStrategy {
     public function processRow(array $row, array $mapping, array $context): string {
         /** @var PDO $pdo */
         $pdo = $context['pdo'];
+        $clubId = (int) $context['club_id'];
 
         $venueName = $this->field($row, $mapping, 'venue_name');
         $fieldName = $this->field($row, $mapping, 'field_name');
@@ -111,7 +114,7 @@ class FacilityImportStrategy extends ImportStrategy {
 
         $pdo->beginTransaction();
         try {
-            $venueId = $this->findOrCreateVenue($pdo, $venueName, $row, $mapping);
+            $venueId = $this->findOrCreateVenue($pdo, $clubId, $venueName, $row, $mapping);
             $outcome = $this->findOrCreateField($pdo, $venueId, $fieldName, $surfaceType, $row, $mapping);
             $pdo->commit();
             return $outcome;
@@ -123,21 +126,24 @@ class FacilityImportStrategy extends ImportStrategy {
 
     // ─────────────────────────────────────────────────────────────
 
-    private function findOrCreateVenue(PDO $pdo, string $venueName, array $row, array $mapping): int {
-        // Case-insensitive match on venue name — venues are global, one per name.
-        $stmt = $pdo->prepare('SELECT id FROM venues WHERE LOWER(name) = LOWER(:name) LIMIT 1');
-        $stmt->execute(['name' => $venueName]);
+    private function findOrCreateVenue(PDO $pdo, int $clubId, string $venueName, array $row, array $mapping): int {
+        // Case-insensitive match on venue name, scoped to the importing club —
+        // one venue per name PER CLUB. A different club may legitimately have a
+        // venue of the same name, and it lives in a scope this club can't see.
+        $stmt = $pdo->prepare('SELECT id FROM venues WHERE club_id = :club AND LOWER(name) = LOWER(:name) LIMIT 1');
+        $stmt->execute(['club' => $clubId, 'name' => $venueName]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($existing) return (int) $existing['id'];
 
         $insert = $pdo->prepare('
             INSERT INTO venues
-                (name, address, city, state, zip_code, phone, venue_type, notes, has_lights, active)
+                (club_id, name, address, city, state, zip_code, phone, venue_type, notes, has_lights, active)
             VALUES
-                (:name, :address, :city, :state, :zip, :phone, :type, :notes, :lights, true)
+                (:club, :name, :address, :city, :state, :zip, :phone, :type, :notes, :lights, true)
             RETURNING id
         ');
         $insert->execute([
+            'club'    => $clubId,
             'name'    => $venueName,
             'address' => $this->strOrNull($this->field($row, $mapping, 'venue_address')),
             'city'    => $this->strOrNull($this->field($row, $mapping, 'venue_city')),
