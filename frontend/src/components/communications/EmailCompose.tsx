@@ -30,9 +30,9 @@ interface EmailTemplate {
   id: number;
   name: string;
   subject: string;
-  body_html: string;
-  variables: string[];
-  requires_event: boolean;
+  body_html?: string;
+  variables?: string[];
+  requires_event?: boolean;
 }
 
 interface EventOption {
@@ -108,7 +108,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
       setSelectedTemplate(preselectedTemplate);
       setComposeMode('template');
       setSubject(preselectedTemplate.subject);
-      setBodyHtml(preselectedTemplate.body_html);
+      setBodyHtml(preselectedTemplate.body_html ?? '');
     }
   }, [preselectedTemplate]);
 
@@ -167,7 +167,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
     setSelectedTemplate(template || null);
     if (template) {
       setSubject(template.subject);
-      setBodyHtml(template.body_html);
+      setBodyHtml(template.body_html ?? '');
       setSelectedEvent(null);
     }
   };
@@ -481,11 +481,11 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
               )}
 
               {/* Template variable hints */}
-              {selectedTemplate && selectedTemplate.variables.length > 0 && (
+              {selectedTemplate && (selectedTemplate.variables?.length ?? 0) > 0 && (
                 <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
                   <p className="text-xs font-medium text-blue-700 mb-1">Template Variables</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedTemplate.variables.map((v) => (
+                    {(selectedTemplate.variables ?? []).map((v) => (
                       <code
                         key={v}
                         className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded"

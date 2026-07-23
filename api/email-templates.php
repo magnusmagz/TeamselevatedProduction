@@ -44,7 +44,7 @@ try {
 
             $channel = $_GET['channel'] ?? null;
 
-            $sql = "SELECT id, club_profile_id, name, subject, body_text, channel,
+            $sql = "SELECT id, club_profile_id, name, subject, body_text, html_output, channel,
                            category, scope, team_visibility, is_active, cloned_from,
                            created_by, updated_by, created_at, updated_at
                     FROM email_templates
@@ -62,10 +62,20 @@ try {
             $stmt->execute($params);
             $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Parse JSON fields
+            // Parse JSON fields + shape for the compose UI, which expects
+            // `body_html`, a `variables` array, and a `requires_event` flag
+            // (none are stored columns — derive them from the template body).
+            $eventVars = ['event_name', 'event_date', 'event_time', 'location', 'team_name'];
             foreach ($templates as &$t) {
                 $t['team_visibility'] = json_decode($t['team_visibility'], true) ?: [];
                 $t['is_active'] = (bool)$t['is_active'];
+                $t['body_html'] = $t['html_output'] ?? '';
+                $vars = [];
+                if (preg_match_all('/\{\{\s*(\w+)\s*\}\}/', ($t['subject'] ?? '') . ' ' . $t['body_html'], $m)) {
+                    $vars = array_values(array_unique($m[1]));
+                }
+                $t['variables'] = $vars;
+                $t['requires_event'] = count(array_intersect($vars, $eventVars)) > 0;
             }
             unset($t);
 
