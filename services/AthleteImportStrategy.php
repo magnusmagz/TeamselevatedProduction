@@ -121,7 +121,7 @@ class AthleteImportStrategy extends ImportStrategy {
         if ($athleteDob === null) {
             throw new RuntimeException("Invalid athlete_dob '{$athleteDobRaw}' — use YYYY-MM-DD, MM/DD/YYYY, or a date like 'May 25, 2015'");
         }
-        // Gender is optional (blank -> "Prefer not to say"); common variants normalized.
+        // Gender is optional (blank -> NULL / empty); common variants normalized.
         $athleteGender = $this->normalizeGender($this->field($row, $mapping, 'athlete_gender'));
 
         $pdo->beginTransaction();
@@ -189,7 +189,7 @@ class AthleteImportStrategy extends ImportStrategy {
         string $firstName,
         string $lastName,
         string $dob,
-        string $gender,
+        ?string $gender,
         ?int $gradeLevel,
         ?string $school,
         int $clubId,
@@ -324,25 +324,26 @@ class AthleteImportStrategy extends ImportStrategy {
     }
 
     /**
-     * Map a free-text gender to one of the four allowed values. Blank or
-     * unrecognized -> "Prefer not to say" (gender is optional; never fail a row).
+     * Map a free-text gender to one of the allowed values, or NULL. Gender is
+     * optional: a blank or unrecognized value is stored as NULL (empty) rather
+     * than defaulting to a value — never fails a row. Recognized variants
+     * (M/F/Boy/Girl/…) normalize to the canonical enum value.
      */
-    private function normalizeGender(string $raw): string {
+    private function normalizeGender(string $raw): ?string {
         $s = strtolower(trim($raw));
-        if ($s === '') return 'Prefer not to say';
+        if ($s === '') return null; // blank stays empty — supported
         $map = [
             'm' => 'Male', 'male' => 'Male', 'boy' => 'Male', 'b' => 'Male',
             'f' => 'Female', 'female' => 'Female', 'girl' => 'Female', 'g' => 'Female',
             'nb' => 'Non-binary', 'non-binary' => 'Non-binary', 'nonbinary' => 'Non-binary',
             'other' => 'Non-binary', 'x' => 'Non-binary',
             'prefer not to say' => 'Prefer not to say', 'prefernottosay' => 'Prefer not to say',
-            'na' => 'Prefer not to say', 'n/a' => 'Prefer not to say',
         ];
         if (isset($map[$s])) return $map[$s];
         foreach (self::$ALLOWED_GENDERS as $g) {
             if (strtolower($g) === $s) return $g;
         }
-        return 'Prefer not to say';
+        return null; // unrecognized -> leave empty rather than force a value
     }
 
     /**
