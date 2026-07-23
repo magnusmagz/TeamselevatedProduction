@@ -4,6 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
+# PHP dependencies — installed by composer during the Heroku build (heroku/php)
+/vendor/
 
 # testing
 /coverage
@@ -24,6 +26,9 @@ yarn-debug.log*
 yarn-error.log*
 .env
 backend/.env
+
+# Local Netlify folder
+.netlify
 
 # PHP dependencies — installed by composer during the Heroku build (heroku/php)
 /vendor/
