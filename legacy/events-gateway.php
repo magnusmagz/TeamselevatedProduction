@@ -172,6 +172,12 @@ try {
                     $params[] = $_GET['status'];
                 }
 
+                // Scope to the caller's club(s). Without this the calendar leaked
+                // every club's events (super admins still see all).
+                $clubScope = $auth->getClubScopeWhereClause('e.club_id');
+                $whereClause .= ' ' . $clubScope['where'];
+                $params = array_merge($params, $clubScope['params']);
+
                 $stmt = $pdo->prepare("
                     SELECT DISTINCT e.*,
                            p.name as program_name,
