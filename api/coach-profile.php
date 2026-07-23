@@ -117,11 +117,17 @@ if ($method === 'GET') {
                 u.created_at
             FROM users u
             WHERE u.id = :coach_id
-            AND (u.role = 'coach' OR u.id IN (
-                SELECT DISTINCT primary_coach_id
-                FROM teams
-                WHERE primary_coach_id IS NOT NULL
-            ))
+            AND (
+                u.role = 'coach'
+                OR EXISTS (
+                    SELECT 1 FROM user_club_access uca
+                    WHERE uca.user_id = u.id AND uca.active = true AND uca.role = 'coach'
+                )
+                OR EXISTS (
+                    SELECT 1 FROM teams t
+                    WHERE t.primary_coach_id = u.id AND t.deleted_at IS NULL
+                )
+            )
         ");
         $stmt->execute(['coach_id' => $coachId]);
         $coach = $stmt->fetch(PDO::FETCH_ASSOC);
