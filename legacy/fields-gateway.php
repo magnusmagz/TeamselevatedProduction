@@ -21,8 +21,22 @@ try {
     exit();
 }
 
+// Fields are scoped to the caller's clubs via their venue's club_id. Without
+// this, the home-field dropdown leaked every club's fields (cross-club pollution).
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+$auth = AuthMiddleware::requireAuth();
+$accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin (all clubs)
+
 try {
-    // Get all fields with their venue information
+    $scopeSql = '';
+    $params = [];
+    if ($accessibleClubIds !== null) {
+        if (empty($accessibleClubIds)) { echo json_encode([]); exit(); }
+        $scopeSql = 'AND v.club_id IN (' . implode(',', array_fill(0, count($accessibleClubIds), '?')) . ')';
+        $params = $accessibleClubIds;
+    }
+
+    // Get the caller's active fields with their venue information
     $stmt = $connection->prepare("
         SELECT f.id,
                CONCAT(v.name, ' - ', f.name) as name,
@@ -36,9 +50,10 @@ try {
         FROM fields f
         JOIN venues v ON f.venue_id = v.id
         WHERE f.active = true
+        $scopeSql
         ORDER BY v.name, f.name
     ");
-    $stmt->execute();
+    $stmt->execute($params);
     $fields = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode($fields);

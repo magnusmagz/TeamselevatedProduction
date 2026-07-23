@@ -99,7 +99,9 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
       // Fetch fields
       try {
-        const fieldsRes = await fetch(`${API_URL}/legacy/fields-gateway.php`);
+        const fieldsRes = await fetch(`${API_URL}/legacy/fields-gateway.php`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
         if (fieldsRes.ok) {
           const fieldsData = await fieldsRes.json();
           setFields(fieldsData || []);
