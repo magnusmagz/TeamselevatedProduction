@@ -30,7 +30,6 @@ class AthleteImportStrategy extends ImportStrategy {
             'athlete_first_name',
             'athlete_last_name',
             'athlete_dob',
-            'athlete_gender',
             'guardian1_first_name',
             'guardian1_last_name',
             'guardian1_email',
@@ -40,6 +39,7 @@ class AthleteImportStrategy extends ImportStrategy {
 
     public function getOptionalFields(): array {
         return [
+            'athlete_gender',
             'athlete_grade_level',
             'athlete_school',
             'guardian1_relationship',
@@ -56,9 +56,9 @@ class AthleteImportStrategy extends ImportStrategy {
         return [
             'athlete_first_name'     => 'Athlete First Name',
             'athlete_last_name'      => 'Athlete Last Name',
-            'athlete_dob'            => 'Athlete Date of Birth (YYYY-MM-DD)',
-            'athlete_gender'         => 'Athlete Gender (Male/Female/Non-binary/Prefer not to say)',
-            'athlete_grade_level'    => 'Grade Level',
+            'athlete_dob'            => 'Athlete Date of Birth (YYYY-MM-DD, MM/DD/YYYY, or "May 25, 2015")',
+            'athlete_gender'         => 'Athlete Gender (optional — Male/Female/Non-binary/Prefer not to say)',
+            'athlete_grade_level'    => 'Grade Level (number, "6th", "Kindergarten", or "Pre-K")',
             'athlete_school'         => 'School',
             'guardian1_first_name'   => 'Guardian 1 First Name',
             'guardian1_last_name'    => 'Guardian 1 Last Name',
@@ -105,18 +105,24 @@ class AthleteImportStrategy extends ImportStrategy {
 
         $athleteFirst  = $this->field($row, $mapping, 'athlete_first_name');
         $athleteLast   = $this->field($row, $mapping, 'athlete_last_name');
-        $athleteDob    = $this->field($row, $mapping, 'athlete_dob');
-        $athleteGender = $this->field($row, $mapping, 'athlete_gender');
+        $athleteDobRaw = $this->field($row, $mapping, 'athlete_dob');
 
-        if ($athleteFirst === '' || $athleteLast === '' || $athleteDob === '') {
+        // Fully-blank rows are a common trailing artifact of registration-platform
+        // (e.g. GotSport) CSV exports — skip silently instead of erroring on each.
+        if ($athleteFirst === '' && $athleteLast === '' && $athleteDobRaw === '') {
+            return 'skipped';
+        }
+        if ($athleteFirst === '' || $athleteLast === '' || $athleteDobRaw === '') {
             throw new RuntimeException('Missing athlete first_name, last_name, or dob');
         }
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $athleteDob)) {
-            throw new RuntimeException("Invalid athlete_dob '{$athleteDob}' — must be YYYY-MM-DD");
+
+        // DOB: accept common human formats (GotSport exports "May 25, 2015").
+        $athleteDob = $this->normalizeDob($athleteDobRaw);
+        if ($athleteDob === null) {
+            throw new RuntimeException("Invalid athlete_dob '{$athleteDobRaw}' — use YYYY-MM-DD, MM/DD/YYYY, or a date like 'May 25, 2015'");
         }
-        if (!in_array($athleteGender, self::$ALLOWED_GENDERS, true)) {
-            throw new RuntimeException("Invalid athlete_gender '{$athleteGender}' — must be one of: " . implode(', ', self::$ALLOWED_GENDERS));
-        }
+        // Gender is optional (blank -> "Prefer not to say"); common variants normalized.
+        $athleteGender = $this->normalizeGender($this->field($row, $mapping, 'athlete_gender'));
 
         $pdo->beginTransaction();
         try {
@@ -126,7 +132,7 @@ class AthleteImportStrategy extends ImportStrategy {
                 $athleteLast,
                 $athleteDob,
                 $athleteGender,
-                $this->intOrNull($this->field($row, $mapping, 'athlete_grade_level')),
+                $this->normalizeGrade($this->field($row, $mapping, 'athlete_grade_level')),
                 $this->strOrNull($this->field($row, $mapping, 'athlete_school')),
                 $clubId,
                 $createdBy
@@ -135,25 +141,29 @@ class AthleteImportStrategy extends ImportStrategy {
             $rowOutcome = $athleteResult['outcome'];
 
             for ($n = 1; $n <= 2; $n++) {
-                $gFirst = $this->field($row, $mapping, "guardian{$n}_first_name");
-                $gLast  = $this->field($row, $mapping, "guardian{$n}_last_name");
-                $gEmail = $this->field($row, $mapping, "guardian{$n}_email");
-                if ($gFirst === '' && $gLast === '' && $gEmail === '') continue;
-                if ($gFirst === '' || $gLast === '' || $gEmail === '') {
-                    throw new RuntimeException("guardian{$n} requires first_name, last_name, and email");
+                $gFirst  = $this->field($row, $mapping, "guardian{$n}_first_name");
+                $gLast   = $this->field($row, $mapping, "guardian{$n}_last_name");
+                $gEmail  = $this->field($row, $mapping, "guardian{$n}_email");
+                $gMobile = $this->field($row, $mapping, "guardian{$n}_mobile");
+
+                // Absent guardian block — nothing at all in it.
+                if ($gFirst === '' && $gLast === '' && $gEmail === '' && $gMobile === '') continue;
+
+                // A name is required (first/last are NOT NULL) but EMAIL IS OPTIONAL:
+                // GotSport lists co-parents with a phone and no email. Keep them —
+                // stored with an empty email, deduped by (email, first, last).
+                if ($gFirst === '' || $gLast === '') {
+                    throw new RuntimeException("guardian{$n} needs a first and last name");
                 }
 
                 $guardianId = $this->upsertGuardian($pdo, [
                     'first_name'   => $gFirst,
                     'last_name'    => $gLast,
                     'email'        => $gEmail,
-                    'mobile_phone' => $this->field($row, $mapping, "guardian{$n}_mobile"),
+                    'mobile_phone' => $gMobile,
                 ]);
 
-                $relationship = $this->field($row, $mapping, "guardian{$n}_relationship");
-                if ($relationship === '' || !in_array($relationship, self::$ALLOWED_RELATIONSHIPS, true)) {
-                    $relationship = 'Guardian';
-                }
+                $relationship = $this->normalizeRelationship($this->field($row, $mapping, "guardian{$n}_relationship"));
                 $primaryRaw = $this->field($row, $mapping, "guardian{$n}_is_primary");
                 $isPrimary  = $primaryRaw !== '' ? $this->parseBool($primaryRaw) : ($n === 1);
 
@@ -279,5 +289,99 @@ class AthleteImportStrategy extends ImportStrategy {
             INSERT INTO team_members (team_id, athlete_id, role, status, join_date)
             VALUES (:t, :a, 'player', 'active', CURRENT_DATE)
         ")->execute(['t' => $teamId, 'a' => $athleteId]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Normalizers — tolerant of real-world (GotSport) export formats.
+
+    /**
+     * Parse a date of birth in any common human format and return it as
+     * YYYY-MM-DD, or null if it can't be understood. Slash formats are read
+     * US-style (month first). Rejects overflow dates (e.g. 13/40/2020).
+     */
+    private function normalizeDob(string $raw): ?string {
+        $raw = trim($raw);
+        if ($raw === '') return null;
+        $formats = [
+            'Y-m-d', 'Y/m/d',
+            'n/j/Y', 'm/d/Y', 'n-j-Y', 'm-d-Y',
+            'M j, Y', 'F j, Y', 'M j Y', 'F j Y',
+            'j M Y', 'j F Y', 'j-M-Y', 'j-F-Y',
+        ];
+        foreach ($formats as $fmt) {
+            $dt = DateTime::createFromFormat('!' . $fmt, $raw);
+            if ($dt === false) continue;
+            $errors = DateTime::getLastErrors();
+            $clean = ($errors === false)
+                || ((($errors['warning_count'] ?? 0) === 0) && (($errors['error_count'] ?? 0) === 0));
+            if (!$clean) continue;
+            $year = (int) $dt->format('Y');
+            if ($year >= 1900 && $year <= 2100) {
+                return $dt->format('Y-m-d');
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Map a free-text gender to one of the four allowed values. Blank or
+     * unrecognized -> "Prefer not to say" (gender is optional; never fail a row).
+     */
+    private function normalizeGender(string $raw): string {
+        $s = strtolower(trim($raw));
+        if ($s === '') return 'Prefer not to say';
+        $map = [
+            'm' => 'Male', 'male' => 'Male', 'boy' => 'Male', 'b' => 'Male',
+            'f' => 'Female', 'female' => 'Female', 'girl' => 'Female', 'g' => 'Female',
+            'nb' => 'Non-binary', 'non-binary' => 'Non-binary', 'nonbinary' => 'Non-binary',
+            'other' => 'Non-binary', 'x' => 'Non-binary',
+            'prefer not to say' => 'Prefer not to say', 'prefernottosay' => 'Prefer not to say',
+            'na' => 'Prefer not to say', 'n/a' => 'Prefer not to say',
+        ];
+        if (isset($map[$s])) return $map[$s];
+        foreach (self::$ALLOWED_GENDERS as $g) {
+            if (strtolower($g) === $s) return $g;
+        }
+        return 'Prefer not to say';
+    }
+
+    /**
+     * Convert a grade level (number, ordinal like "6th", or text like
+     * "Kindergarten"/"Pre-K") to the integer grade_level column.
+     * Pre-K = -1, Kindergarten = 0, grades 1-12 = 1..12, unknown = null.
+     */
+    private function normalizeGrade(string $raw): ?int {
+        $s = strtolower(trim($raw));
+        if ($s === '') return null;
+        if (in_array($s, ['prek', 'pre-k', 'pre k', 'pk', 'preschool'], true)) return -1;
+        if (in_array($s, ['k', 'kg', 'kinder', 'kindergarten'], true)) return 0;
+        if (preg_match('/(\d{1,2})/', $s, $m)) {
+            $n = (int) $m[1];
+            if ($n >= 1 && $n <= 12) return $n;
+        }
+        return null;
+    }
+
+    /**
+     * Map a free-text relationship to one of the allowed values. Unknown or
+     * blank -> "Guardian" (the safe default).
+     */
+    private function normalizeRelationship(string $raw): string {
+        $s = strtolower(trim($raw));
+        if ($s === '') return 'Guardian';
+        $map = [
+            'parent' => 'Parent', 'mother' => 'Parent', 'father' => 'Parent',
+            'mom' => 'Parent', 'dad' => 'Parent', 'mum' => 'Parent',
+            'guardian' => 'Guardian', 'legal guardian' => 'Guardian',
+            'grandparent' => 'Guardian', 'grandmother' => 'Guardian', 'grandfather' => 'Guardian',
+            'grandma' => 'Guardian', 'grandpa' => 'Guardian', 'aunt' => 'Guardian', 'uncle' => 'Guardian',
+            'emergency contact' => 'Emergency Contact', 'emergency' => 'Emergency Contact',
+            'other' => 'Other',
+        ];
+        if (isset($map[$s])) return $map[$s];
+        foreach (self::$ALLOWED_RELATIONSHIPS as $r) {
+            if (strtolower($r) === $s) return $r;
+        }
+        return 'Guardian';
     }
 }
