@@ -149,11 +149,13 @@ class AthleteImportStrategy extends ImportStrategy {
                 // Absent guardian block — nothing at all in it.
                 if ($gFirst === '' && $gLast === '' && $gEmail === '' && $gMobile === '') continue;
 
-                // A name is required (first/last are NOT NULL) but EMAIL IS OPTIONAL:
-                // GotSport lists co-parents with a phone and no email. Keep them —
-                // stored with an empty email, deduped by (email, first, last).
+                // Both names are required to store a guardian (first/last are NOT
+                // NULL); EMAIL is optional (co-parents often have a phone, no email —
+                // kept, deduped by name). If a name part is missing — e.g. a lone
+                // second phone with no name — skip just this contact and still import
+                // the athlete + primary guardian, rather than failing the whole row.
                 if ($gFirst === '' || $gLast === '') {
-                    throw new RuntimeException("guardian{$n} needs a first and last name");
+                    continue;
                 }
 
                 $guardianId = $this->upsertGuardian($pdo, [
