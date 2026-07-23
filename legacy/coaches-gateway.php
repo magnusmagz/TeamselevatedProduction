@@ -185,8 +185,27 @@ try {
                 exit();
             }
 
-            // Verify coach exists
-            $stmt = $connection->prepare("SELECT id FROM users WHERE id = ? AND role = 'coach'");
+            // Verify the target is a coach by the AUTHORITATIVE definition — a
+            // user_club_access 'coach' role or a team's primary coach — NOT
+            // users.role, which the 'available' list also ignores. Checking
+            // users.role='coach' here 404'd coaches whose role lives only in
+            // user_club_access (e.g. club admins who coach, or coaches imported
+            // with users.role='parent'). Tenant scope is enforced separately below.
+            $stmt = $connection->prepare("
+                SELECT 1 FROM users u
+                WHERE u.id = ?
+                  AND (
+                    EXISTS (
+                        SELECT 1 FROM user_club_access uca
+                        WHERE uca.user_id = u.id AND uca.active = true AND uca.role = 'coach'
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM teams t
+                        WHERE t.primary_coach_id = u.id AND t.deleted_at IS NULL
+                    )
+                  )
+                LIMIT 1
+            ");
             $stmt->execute([$coachId]);
             if (!$stmt->fetch()) {
                 http_response_code(404);
