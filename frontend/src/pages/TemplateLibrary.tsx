@@ -16,14 +16,26 @@ interface EmailTemplate {
   created_at: string;
 }
 
-const CATEGORIES = ['All', 'General', 'Marketing', 'Transactional', 'Newsletter'] as const;
+// The 10 template tags, in display order. `slug` is what's stored in
+// email_templates.category; `label`/`color` drive the UI.
+const CATEGORY_META: { slug: string; label: string; color: string }[] = [
+  { slug: 'tournament', label: 'Tournament', color: 'bg-red-100 text-red-700' },
+  { slug: 'game_day', label: 'Game Day', color: 'bg-orange-100 text-orange-700' },
+  { slug: 'registration', label: 'Registration & Welcome', color: 'bg-blue-100 text-blue-700' },
+  { slug: 'schedule', label: 'Schedule & Weather', color: 'bg-cyan-100 text-cyan-700' },
+  { slug: 'team_events', label: 'Team Events', color: 'bg-purple-100 text-purple-700' },
+  { slug: 'community', label: 'Community & Fundraising', color: 'bg-pink-100 text-pink-700' },
+  { slug: 'awards', label: 'Awards & Milestones', color: 'bg-amber-100 text-amber-800' },
+  { slug: 'health', label: 'Health & Wellness', color: 'bg-green-100 text-green-700' },
+  { slug: 'season', label: 'Season & Offseason', color: 'bg-teal-100 text-teal-700' },
+  { slug: 'holidays', label: 'Holidays', color: 'bg-indigo-100 text-indigo-700' },
+];
+const OTHER_META = { slug: 'other', label: 'Other', color: 'bg-gray-100 text-gray-700' };
 
-const categoryColors: Record<string, string> = {
-  general: 'bg-gray-100 text-gray-700',
-  marketing: 'bg-blue-100 text-blue-700',
-  transactional: 'bg-green-100 text-green-700',
-  newsletter: 'bg-purple-100 text-purple-700',
-};
+const categoryLabel = (slug: string): string =>
+  CATEGORY_META.find((c) => c.slug === (slug || '').toLowerCase())?.label ?? OTHER_META.label;
+const categoryColor = (slug: string): string =>
+  CATEGORY_META.find((c) => c.slug === (slug || '').toLowerCase())?.color ?? OTHER_META.color;
 
 const TemplateLibrary: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -134,6 +146,23 @@ const TemplateLibrary: React.FC = () => {
       categoryFilter === 'All' || t.category.toLowerCase() === categoryFilter.toLowerCase();
     return matchesTab && matchesSearch && matchesCategory;
   });
+
+  // Group the filtered templates by category, in CATEGORY_META order, with any
+  // uncategorized templates collected under "Other" at the end.
+  const groupedTemplates = (() => {
+    const buckets = new Map<string, EmailTemplate[]>();
+    filteredTemplates.forEach((t) => {
+      const slug = CATEGORY_META.some((c) => c.slug === (t.category || '').toLowerCase())
+        ? t.category.toLowerCase()
+        : OTHER_META.slug;
+      if (!buckets.has(slug)) buckets.set(slug, []);
+      buckets.get(slug)!.push(t);
+    });
+    return [...CATEGORY_META, OTHER_META]
+      .filter((c) => buckets.has(c.slug))
+      .map((c) => ({ ...c, items: buckets.get(c.slug)! }));
+  })();
+  const listTemplates = groupedTemplates.flatMap((g) => g.items);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -290,9 +319,10 @@ const TemplateLibrary: React.FC = () => {
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none bg-white"
         >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat === 'All' ? 'All Categories' : cat}
+          <option value="All">All Categories</option>
+          {CATEGORY_META.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.label}
             </option>
           ))}
         </select>
@@ -364,87 +394,97 @@ const TemplateLibrary: React.FC = () => {
         </div>
       )}
 
-      {/* Grid view */}
+      {/* Grid view — grouped by category */}
       {viewMode === 'grid' && filteredTemplates.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTemplates.map((template) => (
-            <div
-              key={template.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{template.name}</h3>
-                {!template.is_active && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full ml-2 whitespace-nowrap">
-                    Inactive
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mb-3 line-clamp-1">{template.subject}</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    categoryColors[template.category.toLowerCase()] || categoryColors.general
-                  }`}
-                >
-                  {template.category}
+        <div className="space-y-8">
+          {groupedTemplates.map((group) => (
+            <section key={group.slug}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${group.color}`}>
+                  {group.label}
                 </span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    template.scope === 'club'
-                      ? 'bg-brand-primary bg-opacity-10 text-brand-primary'
-                      : 'bg-orange-100 text-orange-700'
-                  }`}
-                >
-                  {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
-                </span>
+                <span className="text-xs text-gray-400">{group.items.length}</span>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Updated {formatDate(template.updated_at)}</p>
-              <div className="flex gap-2 border-t border-gray-100 pt-3">
-                {canEditTemplate(template) && (
-                  <button
-                    onClick={() => handleEditTemplate(template)}
-                    className="text-xs text-brand-primary hover:underline font-medium"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {group.items.map((template) => (
+                  <div
+                    key={template.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
                   >
-                    Edit
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDuplicate(template.id)}
-                  disabled={duplicating === template.id}
-                  className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
-                >
-                  {duplicating === template.id ? 'Duplicating...' : 'Duplicate'}
-                </button>
-                {canDeleteTemplate(template) && (
-                  <>
-                    {deleteConfirmId === template.id ? (
-                      <div className="flex gap-1 ml-auto">
-                        <button
-                          onClick={() => handleDelete(template.id)}
-                          className="text-xs text-red-600 hover:underline font-medium"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="text-xs text-gray-400 hover:underline font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirmId(template.id)}
-                        className="text-xs text-red-500 hover:underline font-medium ml-auto"
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{template.name}</h3>
+                      {!template.is_active && (
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full ml-2 whitespace-nowrap">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 mb-3 line-clamp-1">{template.subject}</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(template.category)}`}
                       >
-                        Delete
+                        {categoryLabel(template.category)}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          template.scope === 'club'
+                            ? 'bg-brand-primary bg-opacity-10 text-brand-primary'
+                            : 'bg-orange-100 text-orange-700'
+                        }`}
+                      >
+                        {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-3">Updated {formatDate(template.updated_at)}</p>
+                    <div className="flex gap-2 border-t border-gray-100 pt-3">
+                      {canEditTemplate(template) && (
+                        <button
+                          onClick={() => handleEditTemplate(template)}
+                          className="text-xs text-brand-primary hover:underline font-medium"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDuplicate(template.id)}
+                        disabled={duplicating === template.id}
+                        className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
+                      >
+                        {duplicating === template.id ? 'Duplicating...' : 'Duplicate'}
                       </button>
-                    )}
-                  </>
-                )}
+                      {canDeleteTemplate(template) && (
+                        <>
+                          {deleteConfirmId === template.id ? (
+                            <div className="flex gap-1 ml-auto">
+                              <button
+                                onClick={() => handleDelete(template.id)}
+                                className="text-xs text-red-600 hover:underline font-medium"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="text-xs text-gray-400 hover:underline font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirmId(template.id)}
+                              className="text-xs text-red-500 hover:underline font-medium ml-auto"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}
@@ -477,7 +517,7 @@ const TemplateLibrary: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredTemplates.map((template) => (
+                {listTemplates.map((template) => (
                   <tr key={template.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -494,11 +534,9 @@ const TemplateLibrary: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          categoryColors[template.category.toLowerCase()] || categoryColors.general
-                        }`}
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(template.category)}`}
                       >
-                        {template.category}
+                        {categoryLabel(template.category)}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
