@@ -270,9 +270,104 @@ try {
                 'message' => 'Coach updated successfully'
             ]);
             break;
+
+        // ─── Team staff (assistant coaches / managers) ───────────────────
+        // Stored as team_members rows with role assistant_coach|team_manager,
+        // which is what the rest of the app reads for team staff access.
+
+        case 'team-staff': {
+            $teamId = (int)($_GET['team_id'] ?? 0);
+            if (!$teamId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'team_id is required']);
+                exit();
+            }
+            coachesGw_assertTeamAccess($connection, $accessibleClubs, $teamId);
+
+            $stmt = $connection->prepare("
+                SELECT tm.user_id, tm.role, u.first_name, u.last_name, u.email
+                FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE tm.team_id = ?
+                  AND tm.role IN ('assistant_coach', 'team_manager')
+                  AND (tm.status IS NULL OR tm.status = 'active')
+                ORDER BY tm.role, u.last_name, u.first_name
+            ");
+            $stmt->execute([$teamId]);
+            echo json_encode(['success' => true, 'staff' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+            break;
+        }
+
+        case 'assign-staff': {
+            $data = json_decode(file_get_contents('php://input'), true) ?: [];
+            $teamId = (int)($data['team_id'] ?? 0);
+            $userId = (int)($data['user_id'] ?? 0);
+            $role   = $data['role'] ?? '';
+            if (!$teamId || !$userId || !in_array($role, ['assistant_coach', 'team_manager'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'team_id, user_id and a valid role are required']);
+                exit();
+            }
+            coachesGw_assertTeamAccess($connection, $accessibleClubs, $teamId);
+
+            // Re-activate an existing row rather than duplicating it.
+            $chk = $connection->prepare("SELECT id FROM team_members WHERE team_id = ? AND user_id = ? AND role = ? LIMIT 1");
+            $chk->execute([$teamId, $userId, $role]);
+            $existing = $chk->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                $connection->prepare("UPDATE team_members SET status = 'active', leave_date = NULL WHERE id = ?")
+                           ->execute([$existing['id']]);
+            } else {
+                $connection->prepare("
+                    INSERT INTO team_members (team_id, user_id, role, status, join_date)
+                    VALUES (?, ?, ?, 'active', CURRENT_DATE)
+                ")->execute([$teamId, $userId, $role]);
+            }
+            echo json_encode(['success' => true]);
+            break;
+        }
+
+        case 'unassign-staff': {
+            $data = json_decode(file_get_contents('php://input'), true) ?: [];
+            $teamId = (int)($data['team_id'] ?? 0);
+            $userId = (int)($data['user_id'] ?? 0);
+            $role   = $data['role'] ?? '';
+            if (!$teamId || !$userId || !in_array($role, ['assistant_coach', 'team_manager'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'team_id, user_id and a valid role are required']);
+                exit();
+            }
+            coachesGw_assertTeamAccess($connection, $accessibleClubs, $teamId);
+
+            $connection->prepare("DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND role = ?")
+                       ->execute([$teamId, $userId, $role]);
+            echo json_encode(['success' => true]);
+            break;
+        }
     }
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
+}
+
+/**
+ * Tenant guard for team-staff actions: the team must live in one of the
+ * caller's clubs (super admins pass $accessibleClubs === null and bypass).
+ */
+function coachesGw_assertTeamAccess(PDO $connection, $accessibleClubs, int $teamId): void {
+    $stmt = $connection->prepare("SELECT club_id FROM teams WHERE id = ? AND deleted_at IS NULL");
+    $stmt->execute([$teamId]);
+    $team = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$team) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Team not found']);
+        exit();
+    }
+    if ($accessibleClubs !== null &&
+        !in_array((int)$team['club_id'], array_map('intval', $accessibleClubs), true)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Access denied to this team']);
+        exit();
+    }
 }
 ?>
