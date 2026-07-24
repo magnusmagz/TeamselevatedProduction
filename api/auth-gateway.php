@@ -78,6 +78,10 @@ try {
             handleSendParentInvite($db, $input);
             break;
 
+        case 'parent-portal-status':
+            handleParentPortalStatus($db, $input);
+            break;
+
         case 'switch-context':
             handleSwitchContext($db, $input);
             break;
@@ -823,6 +827,66 @@ function handleSendParentInvite($db, $input) {
         'status' => $inv['status'],
         'email' => $inv['email']
     ]);
+}
+
+/**
+ * Read-only portal status for each guardian of an athlete, for the Guardian
+ * Manager / athlete-profile invite UI. Mirrors ParentInvite's definition:
+ *   active      = a users row for the email has a password_hash set
+ *   invited     = an unused, unexpired ':parent_invite' token exists
+ *   not_invited = neither
+ *   no_email    = guardian has no email (can't be invited)
+ */
+function handleParentPortalStatus($db, $input) {
+    require_once __DIR__ . '/../lib/AuthMiddleware.php';
+    $auth = AuthMiddleware::requireAuth();
+
+    $athleteId = (int)($input['athlete_id'] ?? 0);
+    $clubId = (int)($input['club_id'] ?? 0);
+    if (!$athleteId || !$clubId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'athlete_id and club_id are required']);
+        return;
+    }
+    if (!$auth->canAccessClub($clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'You do not have access to this club']);
+        return;
+    }
+
+    $stmt = $db->prepare("
+        SELECT g.id AS guardian_id, g.email,
+               CASE
+                   WHEN u.password_hash IS NOT NULL AND u.password_hash <> '' THEN 'active'
+                   WHEN EXISTS (
+                       SELECT 1 FROM magic_link_tokens t
+                       WHERE t.email = lower(btrim(g.email)) || ':parent_invite'
+                         AND t.used_at IS NULL AND t.expires_at > NOW()
+                   ) THEN 'invited'
+                   ELSE 'not_invited'
+               END AS status,
+               (
+                   SELECT max(t2.created_at) FROM magic_link_tokens t2
+                   WHERE t2.email = lower(btrim(g.email)) || ':parent_invite'
+               ) AS invited_at
+        FROM athlete_guardians ag
+        JOIN guardians g ON g.id = ag.guardian_id
+        LEFT JOIN users u ON lower(u.email) = lower(btrim(g.email))
+        WHERE ag.athlete_id = ?
+    ");
+    $stmt->execute([$athleteId]);
+
+    $statuses = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $email = trim((string)($r['email'] ?? ''));
+        $statuses[] = [
+            'guardian_id' => (int)$r['guardian_id'],
+            'status'      => $email === '' ? 'no_email' : $r['status'],
+            'invited_at'  => $r['invited_at'],
+        ];
+    }
+
+    echo json_encode(['success' => true, 'statuses' => $statuses]);
 }
 
 /**
