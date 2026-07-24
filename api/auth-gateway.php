@@ -82,6 +82,10 @@ try {
             handleParentPortalStatus($db, $input);
             break;
 
+        case 'club-parents':
+            handleClubParents($db, $input);
+            break;
+
         case 'switch-context':
             handleSwitchContext($db, $input);
             break;
@@ -887,6 +891,68 @@ function handleParentPortalStatus($db, $input) {
     }
 
     echo json_encode(['success' => true, 'statuses' => $statuses]);
+}
+
+/**
+ * Club-wide parents roster with portal status — powers the Parents page
+ * (see the athlete-scoped handleParentPortalStatus for the status definitions).
+ * One row per guardian linked to any athlete in the club, with their athletes.
+ */
+function handleClubParents($db, $input) {
+    require_once __DIR__ . '/../lib/AuthMiddleware.php';
+    $auth = AuthMiddleware::requireAuth();
+
+    $clubId = (int)($input['club_id'] ?? 0);
+    if (!$clubId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'club_id is required']);
+        return;
+    }
+    if (!$auth->canAccessClub($clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'You do not have access to this club']);
+        return;
+    }
+
+    $stmt = $db->prepare("
+        SELECT g.id AS guardian_id, g.first_name, g.last_name, g.email, g.mobile_phone,
+               string_agg(DISTINCT a.first_name || ' ' || a.last_name, ', ') AS athletes,
+               CASE
+                   WHEN u.password_hash IS NOT NULL AND u.password_hash <> '' THEN 'active'
+                   WHEN EXISTS (
+                       SELECT 1 FROM magic_link_tokens t
+                       WHERE t.email = lower(btrim(g.email)) || ':parent_invite'
+                         AND t.used_at IS NULL AND t.expires_at > NOW()
+                   ) THEN 'invited'
+                   ELSE 'not_invited'
+               END AS status,
+               min(a.id) AS any_athlete_id
+        FROM guardians g
+        JOIN athlete_guardians ag ON ag.guardian_id = g.id
+        JOIN athletes a ON a.id = ag.athlete_id
+        LEFT JOIN users u ON lower(u.email) = lower(btrim(g.email))
+        WHERE a.club_id = ?
+        GROUP BY g.id, u.password_hash
+        ORDER BY g.last_name, g.first_name
+    ");
+    $stmt->execute([$clubId]);
+
+    $parents = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $email = trim((string)($r['email'] ?? ''));
+        $parents[] = [
+            'guardian_id'  => (int)$r['guardian_id'],
+            'first_name'   => $r['first_name'],
+            'last_name'    => $r['last_name'],
+            'email'        => $email,
+            'mobile_phone' => $r['mobile_phone'],
+            'athletes'     => $r['athletes'],
+            'athlete_id'   => (int)$r['any_athlete_id'],
+            'status'       => $email === '' ? 'no_email' : $r['status'],
+        ];
+    }
+
+    echo json_encode(['success' => true, 'parents' => $parents]);
 }
 
 /**
