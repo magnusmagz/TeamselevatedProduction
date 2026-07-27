@@ -171,20 +171,37 @@ interface EventItemProps {
     title: string;
     date: string;
     time?: string;
+    start_time?: string;
     type?: string;
     location?: string;
   };
 }
 
+// Parse "YYYY-MM-DD" as a LOCAL date. new Date("YYYY-MM-DD") is UTC midnight,
+// which renders the previous day/weekday for users behind UTC (all US zones) —
+// the bug that made this list disagree with the schedule view.
+const parseLocalDate = (dateStr: string) => {
+  const [y, m, d] = (dateStr || '').split('T')[0].split('-').map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+};
+
+// 12-hour time, matching the schedule/RSVP views.
+const formatEventTime = (time?: string) => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
 export const EventItem: React.FC<EventItemProps> = ({ event }) => {
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+  const formatDate = (dateStr: string) =>
+    parseLocalDate(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     });
-  };
 
   return (
     <Link
@@ -193,16 +210,16 @@ export const EventItem: React.FC<EventItemProps> = ({ event }) => {
     >
       <div className="flex-shrink-0 w-12 text-center">
         <p className="text-xs text-gray-500 uppercase">
-          {new Date(event.date).toLocaleDateString('en-US', { weekday: 'short' })}
+          {parseLocalDate(event.date).toLocaleDateString('en-US', { weekday: 'short' })}
         </p>
         <p className="text-lg font-bold text-brand-primary">
-          {new Date(event.date).getDate()}
+          {parseLocalDate(event.date).getDate()}
         </p>
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900 truncate">{event.title}</p>
         <div className="flex items-center gap-2 text-sm text-gray-500">
-          {event.time && <span>{event.time}</span>}
+          {(event.start_time || event.time) && <span>{formatEventTime(event.start_time || event.time)}</span>}
           {event.location && (
             <>
               <span>·</span>
