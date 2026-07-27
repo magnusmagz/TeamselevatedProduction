@@ -16,6 +16,7 @@ class CalendarInviteService {
     private $config;
     private $mailer;
     private $testMode = false;
+    private $brandCache = [];
     private $mockMailer = null;
 
     public function __construct($pdo, $testMode = false) {
@@ -324,6 +325,10 @@ HTML;
      * the first dates (capped — the ICS carries the full schedule).
      */
     private function generateSeriesHTMLBody($event, $series, $recipient = null) {
+        $brand = $this->getClubBranding($event['club_id'] ?? null);
+        $bgColor = $brand['color'];
+        $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
+        $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
         $timeStr = '';
         if (!empty($event['start_time'])) {
             $timeStr = date('g:i A', strtotime($event['start_time']));
@@ -349,12 +354,11 @@ HTML;
         if ($timeStr) {
             $detailRows .= "<p><strong>Time:</strong> {$timeStr}</p>";
         }
-        if ($location) {
-            $detailRows .= "<p><strong>Location:</strong> {$location}</p>";
+        $venueLine = $this->venueLineHtml($event, $bgColor);
+        if ($venueLine === '' && $location) {
+            $venueLine = "<p><strong>Location:</strong> " . htmlspecialchars($location, ENT_QUOTES) . "</p>";
         }
-        if (!empty($event['team_names'])) {
-            $detailRows .= "<p><strong>Teams:</strong> {$event['team_names']}</p>";
-        }
+        $detailRows .= $venueLine;
         if (!empty($event['description'])) {
             $detailRows .= "<p><strong>Details:</strong> {$event['description']}</p>";
         }
@@ -366,28 +370,27 @@ HTML;
             . '<a href="' . htmlspecialchars($appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? ''), ENT_QUOTES) . '" style="color:#12443e;">Manage RSVP in the app &rarr;</a>'
             . ' &nbsp;·&nbsp; The full recurring schedule is attached for your calendar.</p>';
 
+        $footer = $this->footerCHtml($brand);
         return <<<HTML
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
     <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
-            <h1 style="margin: 0;">You're Invited!</h1>
+        <div style="background-color: {$bgColor}; color: white; padding: 20px; text-align: center;">
+            <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
+            <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">You're invited</p>
         </div>
         <div style="padding: 30px;">
-            <h2>{$event['name']}</h2>
-            <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+            <h2>{$eTitle}</h2>
+            <div style="background-color: #f8f9fa; border-left: 4px solid {$bgColor}; padding: 15px; margin: 20px 0;">
                 {$detailRows}
             </div>
             <p><strong>Dates:</strong></p>
             <ul>{$dateItems}</ul>
             {$rsvpButton}
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-            <p>Sent by Teams Elevated</p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-        </div>
+        {$footer}
     </div>
 </body>
 </html>
@@ -635,6 +638,80 @@ HTML;
             . '<p style="font-size:12px; color:#666; margin-top:10px;">One tap &mdash; no login needed. You can change it anytime.</p></div>';
     }
 
+    /** Club branding for emails (name, color, contact, socials). Cached per club. */
+    private function getClubBranding($clubId) {
+        $clubId = (int) $clubId;
+        if (array_key_exists($clubId, $this->brandCache)) return $this->brandCache[$clubId];
+        $brand = ['name' => 'Your Club', 'color' => '#12443e', 'email' => '', 'website' => '', 'fb' => '', 'ig' => ''];
+        try {
+            if ($clubId) {
+                $stmt = $this->pdo->prepare("SELECT name, primary_color, email, website, social_facebook, social_instagram FROM club_profile WHERE id = ?");
+                $stmt->execute([$clubId]);
+                $c = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($c) {
+                    if (!empty($c['name'])) $brand['name'] = $c['name'];
+                    if (!empty($c['primary_color']) && preg_match('/^#?[0-9a-fA-F]{6}$/', $c['primary_color'])) {
+                        $brand['color'] = (substr($c['primary_color'], 0, 1) === '#' ? '' : '#') . $c['primary_color'];
+                    }
+                    $brand['email'] = $c['email'] ?? '';
+                    $brand['website'] = $c['website'] ?? '';
+                    $brand['fb'] = $c['social_facebook'] ?? '';
+                    $brand['ig'] = $c['social_instagram'] ?? '';
+                }
+            }
+        } catch (Exception $e) { /* fall back to defaults */ }
+        $this->brandCache[$clubId] = $brand;
+        return $brand;
+    }
+
+    /** Social + website as text links (email clients don't render inline SVG). */
+    private function socialLinksHtml($brand) {
+        $links = [];
+        $mk = fn($url, $label) => '<a href="' . htmlspecialchars($url, ENT_QUOTES) . '" style="color:#ffffff;text-decoration:underline;">' . $label . '</a>';
+        if (!empty($brand['fb'])) $links[] = $mk($brand['fb'], 'Facebook');
+        if (!empty($brand['ig'])) $links[] = $mk($brand['ig'], 'Instagram');
+        if (!empty($brand['website'])) $links[] = $mk($brand['website'], 'Website');
+        return $links ? '<p style="margin:12px 0 8px;font-size:13px;">' . implode(' &nbsp;&middot;&nbsp; ', $links) . '</p>' : '';
+    }
+
+    /** Footer C — the club-colored band with contact, socials and manage link. */
+    private function footerCHtml($brand) {
+        $color = $brand['color'];
+        $club = htmlspecialchars($brand['name'], ENT_QUOTES);
+        $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
+        $contact = !empty($brand['email'])
+            ? '<div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">' . htmlspecialchars($brand['email'], ENT_QUOTES) . '</div>'
+            : '';
+        return '<div style="background-color:' . $color . ';color:#ffffff;padding:24px;text-align:center;">'
+            . '<div style="font-weight:800;font-size:15px;">' . $club . '</div>'
+            . $contact
+            . $this->socialLinksHtml($brand)
+            . '<div style="margin-top:4px;"><a href="' . htmlspecialchars($appUrl . '/parent', ENT_QUOTES) . '" style="color:rgba(255,255,255,.85);text-decoration:underline;font-size:12px;">Manage notifications</a></div>'
+            . '<div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.55);">Powered by Teams Elevated</div>'
+            . '</div>';
+    }
+
+    /** Location line with the venue name, address and a Google Maps link. */
+    private function venueLineHtml($event, $accentColor) {
+        if (empty($event['venue_name'])) return '';
+        $venue = htmlspecialchars($event['venue_name'], ENT_QUOTES);
+        $addr = trim((string) ($event['venue_address'] ?? ''));
+        $mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' . urlencode(trim($event['venue_name'] . ' ' . $addr));
+        $link = 'color:' . $accentColor . ';text-decoration:underline;';
+        if ($addr !== '') {
+            return "<p><strong>Location:</strong> {$venue}<br><a href=\"{$mapsUrl}\" style=\"{$link}\">"
+                . htmlspecialchars($addr, ENT_QUOTES) . " &middot; Open in Google Maps &rarr;</a></p>";
+        }
+        return "<p><strong>Location:</strong> {$venue} &middot; <a href=\"{$mapsUrl}\" style=\"{$link}\">Open in Google Maps &rarr;</a></p>";
+    }
+
+    /** Prefix the event name with its team ("Tigers" + "Team Practice"), de-duped. */
+    private function eventDisplayTitle($event) {
+        $team = trim((string) ($event['team_names'] ?? ''));
+        $name = (string) ($event['name'] ?? 'Event');
+        return ($team !== '' && stripos($name, $team) === false) ? ($team . ' ' . $name) : $name;
+    }
+
     private function generateHTMLBody($event, $type = 'new', $recipient = null) {
         $eventDate = date('l, F j, Y', strtotime($event['event_date']));
         $eventTime = '';
@@ -646,8 +723,11 @@ HTML;
             }
         }
 
-        $title = $type === 'update' ? 'Event Updated' : ($type === 'cancel' ? 'Event Cancelled' : 'You\'re Invited!');
-        $bgColor = $type === 'cancel' ? '#dc3545' : ($type === 'update' ? '#ffc107' : '#28a745');
+        $brand = $this->getClubBranding($event['club_id'] ?? null);
+        $bgColor = $type === 'cancel' ? '#b91c1c' : $brand['color'];
+        $subtitle = $type === 'update' ? 'Event updated' : ($type === 'cancel' ? 'Event cancelled' : "You're invited");
+        $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
+        $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -666,10 +746,11 @@ HTML;
 <body>
     <div class="container">
         <div class="header">
-            <h1>{$title}</h1>
+            <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
+            <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">{$subtitle}</p>
         </div>
         <div class="content">
-            <h2>{$event['name']}</h2>
+            <h2>{$eTitle}</h2>
             <div class="event-details">
                 <p><strong>Date:</strong> {$eventDate}</p>
 HTML;
@@ -678,13 +759,7 @@ HTML;
             $html .= "<p><strong>Time:</strong> {$eventTime}</p>";
         }
 
-        if (!empty($event['venue_name'])) {
-            $html .= "<p><strong>Location:</strong> {$event['venue_name']}</p>";
-        }
-
-        if (!empty($event['team_names'])) {
-            $html .= "<p><strong>Teams:</strong> {$event['team_names']}</p>";
-        }
+        $html .= $this->venueLineHtml($event, $bgColor);
 
         if (!empty($event['description'])) {
             $html .= "<p><strong>Details:</strong> {$event['description']}</p>";
@@ -709,12 +784,10 @@ HTML;
             $html .= "<p><strong>This event has been cancelled.</strong> It will be removed from your calendar automatically.</p>";
         }
 
+        $footer = $this->footerCHtml($brand);
         $html .= <<<HTML
         </div>
-        <div class="footer">
-            <p>Sent by Teams Elevated</p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-        </div>
+        {$footer}
     </div>
 </body>
 </html>
