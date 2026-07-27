@@ -107,7 +107,7 @@ class CalendarInviteService {
         $subject = "Invitation: {$event['name']} @ {$eventDate}";
 
         // Set HTML body
-        $htmlBody = $this->generateHTMLBody($event, 'new');
+        $htmlBody = $this->generateHTMLBody($event, 'new', $recipient);
 
         // Handle test mode
         if ($this->testMode) {
@@ -177,10 +177,10 @@ class CalendarInviteService {
 
         $ical = $this->generateCalendarInvite($event, $series['calendar_uid'], 'REQUEST', 0, $series['rrule']);
         $subject = "Invitation: {$event['name']} — {$series['label']}";
-        $htmlBody = $this->generateSeriesHTMLBody($event, $series);
 
         foreach ($recipients as $recipient) {
             try {
+                $htmlBody = $this->generateSeriesHTMLBody($event, $series, $recipient);
                 if ($this->testMode) {
                     $result = $this->mockMailer->send($recipient['email'], $subject, $htmlBody, $ical, 'invite');
                     if (!$result['success']) {
@@ -323,7 +323,7 @@ HTML;
      * Invite email body for a recurring series: the rule, time, place, and
      * the first dates (capped — the ICS carries the full schedule).
      */
-    private function generateSeriesHTMLBody($event, $series) {
+    private function generateSeriesHTMLBody($event, $series, $recipient = null) {
         $timeStr = '';
         if (!empty($event['start_time'])) {
             $timeStr = date('g:i A', strtotime($event['start_time']));
@@ -360,13 +360,11 @@ HTML;
         }
 
         $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
-        $rsvpUrl = $appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? '');
-        $rsvpButton = '<div style="text-align:center; margin:24px 0;">'
-            . '<a href="' . htmlspecialchars($rsvpUrl, ENT_QUOTES) . '" '
-            . 'style="display:inline-block; background-color:#28a745; color:#ffffff; text-decoration:none; '
-            . 'padding:13px 30px; border-radius:6px; font-weight:bold; font-size:15px;">RSVP in the app</a>'
-            . '<p style="font-size:12px; color:#666; margin-top:10px;">'
-            . 'Tap to RSVP for these practices. The full recurring schedule is also attached for your calendar.</p></div>';
+        $quick = $this->rsvpQuickButtons($event, $recipient);
+        $rsvpButton = ($quick ?: '')
+            . '<p style="text-align:center; font-size:13px; margin-top:4px;">'
+            . '<a href="' . htmlspecialchars($appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? ''), ENT_QUOTES) . '" style="color:#12443e;">Manage RSVP in the app &rarr;</a>'
+            . ' &nbsp;·&nbsp; The full recurring schedule is attached for your calendar.</p>';
 
         return <<<HTML
 <!DOCTYPE html>
@@ -435,7 +433,7 @@ HTML;
 
         // Set HTML body
         $this->mailer->isHTML(true);
-        $this->mailer->Body = $this->generateHTMLBody($event, 'update');
+        $this->mailer->Body = $this->generateHTMLBody($event, 'update', $recipient);
 
         // Add calendar data
         $this->mailer->AltBody = $ical;
@@ -607,7 +605,37 @@ HTML;
     /**
      * Generate HTML body for the email
      */
-    private function generateHTMLBody($event, $type = 'new') {
+    /**
+     * One-click RSVP buttons (Yes / Maybe / No) for an invite email. Each links
+     * to the public api/event-rsvp.php with a signed token for this recipient —
+     * writes straight into the RSVP system, no login. Returns '' if we can't
+     * identify the recipient (e.g. coaches, or no event id).
+     */
+    private function rsvpQuickButtons($event, $recipient) {
+        if (empty($recipient) || empty($event['id'])) return '';
+        require_once __DIR__ . '/../lib/RsvpToken.php';
+        $type = $recipient['type'] ?? '';
+        if ($type === 'guardian' && !empty($recipient['id'])) {
+            $payload = ['e' => (int)$event['id'], 'g' => (int)$recipient['id']];
+        } elseif ($type === 'athlete' && !empty($recipient['id'])) {
+            $payload = ['e' => (int)$event['id'], 'a' => (int)$recipient['id']];
+        } else {
+            return '';
+        }
+        $token = RsvpToken::make($payload);
+        $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
+        $link = function ($r) use ($base, $token) {
+            return htmlspecialchars($base . '/api/event-rsvp.php?token=' . urlencode($token) . '&r=' . $r, ENT_QUOTES);
+        };
+        return '<div style="text-align:center; margin:24px 0;">'
+            . '<p style="margin:0 0 12px; font-weight:bold;">Can they make it?</p>'
+            . '<a href="' . $link('yes') . '" style="display:inline-block; background:#28a745; color:#fff; text-decoration:none; padding:12px 22px; border-radius:6px; font-weight:bold; margin:4px;">&#10003; Yes</a>'
+            . '<a href="' . $link('maybe') . '" style="display:inline-block; background:#e0a800; color:#fff; text-decoration:none; padding:12px 22px; border-radius:6px; font-weight:bold; margin:4px;">Maybe</a>'
+            . '<a href="' . $link('no') . '" style="display:inline-block; background:#dc3545; color:#fff; text-decoration:none; padding:12px 22px; border-radius:6px; font-weight:bold; margin:4px;">&#10007; No</a>'
+            . '<p style="font-size:12px; color:#666; margin-top:10px;">One tap &mdash; no login needed. You can change it anytime.</p></div>';
+    }
+
+    private function generateHTMLBody($event, $type = 'new', $recipient = null) {
         $eventDate = date('l, F j, Y', strtotime($event['event_date']));
         $eventTime = '';
 
@@ -668,19 +696,15 @@ HTML;
 HTML;
 
         $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
-        $rsvpUrl = $appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? '');
-        $rsvpButton = '<div style="text-align:center; margin:24px 0;">'
-            . '<a href="' . htmlspecialchars($rsvpUrl, ENT_QUOTES) . '" '
-            . 'style="display:inline-block; background-color:#28a745; color:#ffffff; text-decoration:none; '
-            . 'padding:13px 30px; border-radius:6px; font-weight:bold; font-size:15px;">RSVP for this event</a>'
-            . '<p style="font-size:12px; color:#666; margin-top:10px;">'
-            . 'Tap to let the coach know if your athlete is attending. The event is also attached so you can add it to your calendar.</p></div>';
+        $quick = $this->rsvpQuickButtons($event, $recipient);
+        $manageLink = '<p style="text-align:center; font-size:13px; margin-top:4px;">'
+            . '<a href="' . htmlspecialchars($appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? ''), ENT_QUOTES) . '" style="color:#12443e;">Manage RSVP in the app &rarr;</a></p>';
 
         if ($type === 'new') {
-            $html .= $rsvpButton;
+            $html .= $quick . ($quick ? $manageLink : '');
         } elseif ($type === 'update') {
-            $html .= "<p><strong>This event has been updated.</strong> Your calendar will update automatically — please re-confirm your RSVP below.</p>";
-            $html .= $rsvpButton;
+            $html .= "<p><strong>This event has been updated.</strong> Your calendar will update automatically — please re-confirm below.</p>";
+            $html .= $quick . ($quick ? $manageLink : '');
         } elseif ($type === 'cancel') {
             $html .= "<p><strong>This event has been cancelled.</strong> It will be removed from your calendar automatically.</p>";
         }
