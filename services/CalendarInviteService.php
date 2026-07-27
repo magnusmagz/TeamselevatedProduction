@@ -359,6 +359,15 @@ HTML;
             $detailRows .= "<p><strong>Details:</strong> {$event['description']}</p>";
         }
 
+        $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
+        $rsvpUrl = $appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? '');
+        $rsvpButton = '<div style="text-align:center; margin:24px 0;">'
+            . '<a href="' . htmlspecialchars($rsvpUrl, ENT_QUOTES) . '" '
+            . 'style="display:inline-block; background-color:#28a745; color:#ffffff; text-decoration:none; '
+            . 'padding:13px 30px; border-radius:6px; font-weight:bold; font-size:15px;">RSVP in the app</a>'
+            . '<p style="font-size:12px; color:#666; margin-top:10px;">'
+            . 'Tap to RSVP for these practices. The full recurring schedule is also attached for your calendar.</p></div>';
+
         return <<<HTML
 <!DOCTYPE html>
 <html>
@@ -375,7 +384,7 @@ HTML;
             </div>
             <p><strong>Dates:</strong></p>
             <ul>{$dateItems}</ul>
-            <p>Accepting this invitation adds the full recurring schedule to your calendar.</p>
+            {$rsvpButton}
         </div>
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
             <p>Sent by Teams Elevated</p>
@@ -658,10 +667,20 @@ HTML;
 
 HTML;
 
+        $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
+        $rsvpUrl = $appUrl . '/parent/schedule/rsvp/' . ($event['id'] ?? '');
+        $rsvpButton = '<div style="text-align:center; margin:24px 0;">'
+            . '<a href="' . htmlspecialchars($rsvpUrl, ENT_QUOTES) . '" '
+            . 'style="display:inline-block; background-color:#28a745; color:#ffffff; text-decoration:none; '
+            . 'padding:13px 30px; border-radius:6px; font-weight:bold; font-size:15px;">RSVP for this event</a>'
+            . '<p style="font-size:12px; color:#666; margin-top:10px;">'
+            . 'Tap to let the coach know if your athlete is attending. The event is also attached so you can add it to your calendar.</p></div>';
+
         if ($type === 'new') {
-            $html .= "<p>This event has been added to your calendar. Please accept or decline the invitation in your calendar application.</p>";
+            $html .= $rsvpButton;
         } elseif ($type === 'update') {
-            $html .= "<p><strong>This event has been updated.</strong> Your calendar will be automatically updated with the new details.</p>";
+            $html .= "<p><strong>This event has been updated.</strong> Your calendar will update automatically — please re-confirm your RSVP below.</p>";
+            $html .= $rsvpButton;
         } elseif ($type === 'cancel') {
             $html .= "<p><strong>This event has been cancelled.</strong> It will be removed from your calendar automatically.</p>";
         }
