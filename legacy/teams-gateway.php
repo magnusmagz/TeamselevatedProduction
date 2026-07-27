@@ -234,14 +234,32 @@ try {
         case 'POST':
             $data = json_decode(file_get_contents("php://input"), true);
 
-            // Determine club_id from active context
+            // Determine the owning club. getActiveContext() can be an ARRAY or an
+            // object depending on the auth path (the role-refresh path returns an
+            // array) — read both. Without this, new teams were created with a NULL
+            // club_id and became unscoped. Fall back to an explicit club the caller
+            // can access, or their sole club.
             $clubId = null;
-
-            // Get active context from auth
             $activeContext = $auth->getActiveContext();
+            $ctxScopeType = is_array($activeContext)
+                ? ($activeContext['scope_type'] ?? null)
+                : ($activeContext->scope_type ?? null);
+            $ctxScopeId = is_array($activeContext)
+                ? ($activeContext['scope_id'] ?? null)
+                : ($activeContext->scope_id ?? null);
+            if ($ctxScopeType === 'club' && $ctxScopeId) {
+                $clubId = (int) $ctxScopeId;
+            }
 
-            if ($activeContext && $activeContext->scope_type === 'club') {
-                $clubId = $activeContext->scope_id;
+            $accessibleClubs = $auth->getAccessibleClubIds(); // null = super admin
+            if (!$clubId) {
+                $requested = $data['club_id'] ?? $data['club_profile_id'] ?? null;
+                if ($requested && ($accessibleClubs === null ||
+                        in_array((int)$requested, array_map('intval', $accessibleClubs), true))) {
+                    $clubId = (int) $requested;
+                } elseif (is_array($accessibleClubs) && count($accessibleClubs) === 1) {
+                    $clubId = (int) $accessibleClubs[0];
+                }
             }
 
             // Check if user can create teams
