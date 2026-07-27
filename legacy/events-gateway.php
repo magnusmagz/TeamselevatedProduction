@@ -328,7 +328,7 @@ try {
                                 LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                                 LEFT JOIN teams t ON et.team_id = t.id
                                 WHERE e.id = ?
-                                GROUP BY e.id
+                                GROUP BY e.id, v.id
                             ");
                             $eventStmt->execute([$eventId]);
                             $firstEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);
@@ -373,7 +373,7 @@ try {
                             LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                             LEFT JOIN teams t ON et.team_id = t.id
                             WHERE e.id = ?
-                            GROUP BY e.id
+                            GROUP BY e.id, v.id
                         ");
                         $eventStmt->execute([$eventId]);
                         $fullEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);
@@ -554,7 +554,7 @@ try {
                                         LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                                         LEFT JOIN teams t ON et.team_id = t.id
                                         WHERE e.id = ?
-                                        GROUP BY e.id
+                                        GROUP BY e.id, v.id
                                     ");
                                     $eventStmt->execute([$_GET['id']]);
                                     $updatedEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);
