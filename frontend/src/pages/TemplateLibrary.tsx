@@ -16,19 +16,22 @@ interface EmailTemplate {
   created_at: string;
 }
 
-// The 10 template tags, in display order. `slug` is what's stored in
+// The 10 template tags, in display order — this array drives BOTH the tag-cluster
+// chip order and the order of the grouped sections below it. Ordered by how often
+// a club reaches for them: onboarding first, then the week-to-week rhythm, with
+// tournament last since only some clubs run them. `slug` is what's stored in
 // email_templates.category; `label`/`color` drive the UI.
 const CATEGORY_META: { slug: string; label: string; color: string }[] = [
-  { slug: 'tournament', label: 'Tournament', color: 'bg-red-100 text-red-700' },
-  { slug: 'game_day', label: 'Game Day', color: 'bg-orange-100 text-orange-700' },
   { slug: 'registration', label: 'Registration & Welcome', color: 'bg-blue-100 text-blue-700' },
   { slug: 'schedule', label: 'Schedule & Weather', color: 'bg-cyan-100 text-cyan-700' },
   { slug: 'team_events', label: 'Team Events', color: 'bg-purple-100 text-purple-700' },
+  { slug: 'game_day', label: 'Game Day', color: 'bg-orange-100 text-orange-700' },
   { slug: 'community', label: 'Community & Fundraising', color: 'bg-pink-100 text-pink-700' },
   { slug: 'awards', label: 'Awards & Milestones', color: 'bg-amber-100 text-amber-800' },
   { slug: 'health', label: 'Health & Wellness', color: 'bg-green-100 text-green-700' },
   { slug: 'season', label: 'Season & Offseason', color: 'bg-teal-100 text-teal-700' },
   { slug: 'holidays', label: 'Holidays', color: 'bg-indigo-100 text-indigo-700' },
+  { slug: 'tournament', label: 'Tournament', color: 'bg-red-100 text-red-700' },
 ];
 const OTHER_META = { slug: 'other', label: 'Other', color: 'bg-gray-100 text-gray-700' };
 
@@ -478,7 +481,7 @@ const TemplateLibrary: React.FC = () => {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           template.scope === 'club'
-                            ? 'bg-brand-primary bg-opacity-10 text-brand-primary'
+                            ? 'bg-brand-light text-brand-primary'
                             : 'bg-orange-100 text-orange-700'
                         }`}
                       >
@@ -592,7 +595,7 @@ const TemplateLibrary: React.FC = () => {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           template.scope === 'club'
-                            ? 'bg-brand-primary bg-opacity-10 text-brand-primary'
+                            ? 'bg-brand-light text-brand-primary'
                             : 'bg-orange-100 text-orange-700'
                         }`}
                       >
