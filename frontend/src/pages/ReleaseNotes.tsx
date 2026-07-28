@@ -29,7 +29,7 @@ const ReleaseNotes: React.FC = () => {
       <HelpBreadcrumb items={[{ label: 'Release Notes' }]} />
 
       <h1 className="text-2xl font-bold text-brand-primary mb-2">Release Notes</h1>
-      <p className="text-gray-600 mb-8">Stay up to date with what's new in TeamsElevated.</p>
+      <p className="text-gray-600 mb-8">Stay up to date with what's new in Teams Elevated.</p>
 
       {loading && notes.length === 0 ? (
         <div className="text-center text-brand-primary py-12">Loading...</div>

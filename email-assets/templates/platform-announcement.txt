@@ -2,7 +2,7 @@ A NEW HOME FOR CLUB COMMUNICATION
 
 Hi there,
 
-{{club_name}} has selected TeamsElevated as our team management and
+{{club_name}} has selected Teams Elevated as our team management and
 communication platform. Schedules, rosters, club news, and the emails and
 texts you get from us will now all run through one place -- and every family
 gets a free portal account.
@@ -10,7 +10,7 @@ gets a free portal account.
 
 WHAT THIS MEANS FOR YOU
 
-* Club and team messages will arrive from TeamsElevated, sent on behalf of
+* Club and team messages will arrive from Teams Elevated, sent on behalf of
   {{club_name}}.
 * Practices, games, and team events come to you as calendar invites that
   update themselves when something changes.
@@ -19,7 +19,7 @@ WHAT THIS MEANS FOR YOU
 
 WATCH YOUR INBOX
 
-Over the next few days you'll receive an invitation from TeamsElevated to set
+Over the next few days you'll receive an invitation from Teams Elevated to set
 up your account. It takes about two minutes. If you don't see it, check your
 spam or promotions folder and add the sender to your contacts so future club
 messages reach you.
@@ -43,4 +43,4 @@ just reply to this email and we'll help.
 
 -- The {{club_name}} staff
 
-Powered by TeamsElevated
+Powered by Teams Elevated

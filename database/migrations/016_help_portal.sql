@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_help_articles_search
 
 -- Seed initial categories
 INSERT INTO help_categories (name, slug, description, icon, sort_order, role_tag) VALUES
-    ('Getting Started', 'getting-started', 'Learn the basics of TeamsElevated', 'rocket', 1, NULL),
+    ('Getting Started', 'getting-started', 'Learn the basics of Teams Elevated', 'rocket', 1, NULL),
     ('For Admins', 'for-admins', 'Club administration guides', 'shield', 2, 'admin'),
     ('For Coaches', 'for-coaches', 'Coaching tools and workflows', 'whistle', 3, 'coach'),
     ('For Parents', 'for-parents', 'Parent portal guides', 'users', 4, 'parent'),
