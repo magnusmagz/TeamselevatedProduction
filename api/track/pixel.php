@@ -19,8 +19,11 @@ $trackingId = $_GET['trackingId'] ?? null;
 if ($trackingId) {
     try {
         // Look up communication_log by tracking_id
+        // communication_log has no contact_id column — selecting it threw
+        // SQLSTATE 42703, which the catch below swallowed while still returning
+        // the GIF, so every open silently went unrecorded.
         $stmt = $connection->prepare(
-            "SELECT id, contact_id
+            "SELECT id
              FROM communication_log
              WHERE tracking_id = :tracking_id
              LIMIT 1"
@@ -30,7 +33,6 @@ if ($trackingId) {
 
         if ($logRecord) {
             $logId = $logRecord['id'];
-            $contactId = $logRecord['contact_id'];
 
             // Update open counts on communication_log
             $stmt = $connection->prepare(
@@ -48,12 +50,12 @@ if ($trackingId) {
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
             $stmt = $connection->prepare(
-                "INSERT INTO email_events (communication_log_id, contact_id, event_type, event_data, ip_address, user_agent, occurred_at, created_at)
-                 VALUES (:log_id, :contact_id, 'open', :event_data, :ip_address, :user_agent, NOW(), NOW())"
+                // email_events has neither contact_id nor created_at.
+                "INSERT INTO email_events (communication_log_id, event_type, event_data, ip_address, user_agent, occurred_at)
+                 VALUES (:log_id, 'open', :event_data, :ip_address, :user_agent, NOW())"
             );
             $stmt->execute([
                 ':log_id' => $logId,
-                ':contact_id' => $contactId,
                 ':event_data' => json_encode([
                     'source' => 'tracking_pixel',
                     'ip' => $ipAddress,

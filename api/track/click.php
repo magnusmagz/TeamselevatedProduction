@@ -48,11 +48,16 @@ if ($linkId) {
             );
             $stmt->execute([':id' => $emailLinkId]);
 
-            // Look up parent communication_log for contact_id and to update its click count
+            // Look up the parent communication_log to update its click count
             $logRecord = null;
             if ($communicationLogId) {
+                // communication_log has no contact_id column — selecting it threw
+                // SQLSTATE 42703, caught below. The redirect and the email_links
+                // increment above already happened, so clicks looked fine to the
+                // recipient while communication_log.clicked_at and the
+                // email_events row — what the reporting UI reads — never landed.
                 $stmt = $connection->prepare(
-                    "SELECT id, contact_id
+                    "SELECT id
                      FROM communication_log
                      WHERE id = :id
                      LIMIT 1"
@@ -77,12 +82,12 @@ if ($linkId) {
                 $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
                 $stmt = $connection->prepare(
-                    "INSERT INTO email_events (communication_log_id, contact_id, event_type, event_data, ip_address, user_agent, occurred_at, created_at)
-                     VALUES (:log_id, :contact_id, 'click', :event_data, :ip_address, :user_agent, NOW(), NOW())"
+                    // email_events has neither contact_id nor created_at.
+                    "INSERT INTO email_events (communication_log_id, event_type, event_data, ip_address, user_agent, occurred_at)
+                     VALUES (:log_id, 'click', :event_data, :ip_address, :user_agent, NOW())"
                 );
                 $stmt->execute([
                     ':log_id' => $logRecord['id'],
-                    ':contact_id' => $logRecord['contact_id'],
                     ':event_data' => json_encode([
                         'url' => $originalUrl,
                         'link_id' => $linkId,

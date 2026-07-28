@@ -32,7 +32,10 @@ if (!$messageSid || !$messageStatus) {
 try {
     // Look up communication_log by twilio_message_sid
     $stmt = $connection->prepare(
-        "SELECT id, contact_id, club_profile_id, status
+        // communication_log has no contact_id column — selecting it threw
+        // SQLSTATE 42703, so no Twilio delivery status or STOP opt-out was ever
+        // recorded (on top of the callback URL pointing at the frontend).
+        "SELECT id, club_profile_id, status
          FROM communication_log
          WHERE twilio_message_sid = :sid
          LIMIT 1"
@@ -47,7 +50,7 @@ try {
     }
 
     $logId = $logRecord['id'];
-    $contactId = $logRecord['contact_id'];
+    $contactId = null; // no such column; recipient is identified by communication_log_id
     $clubProfileId = $logRecord['club_profile_id'];
     $currentStatus = $logRecord['status'];
 
@@ -125,18 +128,18 @@ try {
         // Also insert into email_suppressions for the suppression list
         if ($clubProfileId) {
             $stmt = $connection->prepare(
-                "INSERT INTO email_suppressions (contact_id, club_profile_id, email, phone, channel, reason, suppressed_at, created_at)
-                 VALUES (:contact_id, :club_profile_id, NULL, :phone, 'sms', 'twilio_stop', NOW(), NOW())
+                // email_suppressions has neither contact_id nor suppressed_at.
+                "INSERT INTO email_suppressions (club_profile_id, email, phone, channel, reason, created_at)
+                 VALUES (:club_profile_id, NULL, :phone, 'sms', 'twilio_stop', NOW())
                  ON CONFLICT DO NOTHING"
             );
             $stmt->execute([
-                ':contact_id' => $contactId,
                 ':club_profile_id' => $clubProfileId,
                 ':phone' => $to,
             ]);
         }
 
-        error_log("Twilio STOP opt-out recorded for phone={$to}, contact_id={$contactId}");
+        error_log("Twilio STOP opt-out recorded for phone={$to}, communication_log_id={$logId}");
     }
 
 } catch (Exception $e) {

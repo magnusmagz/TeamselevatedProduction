@@ -50,7 +50,7 @@ foreach ($events as $event) {
 
         if ($sgMessageId) {
             $stmt = $connection->prepare(
-                "SELECT id, contact_id, club_profile_id, status, open_count, click_count
+                "SELECT id, club_profile_id, status, open_count, click_count
                  FROM communication_log
                  WHERE sendgrid_message_id = :sg_id
                  LIMIT 1"
@@ -61,7 +61,7 @@ foreach ($events as $event) {
 
         if (!$logRecord && $trackingId) {
             $stmt = $connection->prepare(
-                "SELECT id, contact_id, club_profile_id, status, open_count, click_count
+                "SELECT id, club_profile_id, status, open_count, click_count
                  FROM communication_log
                  WHERE tracking_id = :tracking_id
                  LIMIT 1"
@@ -76,7 +76,11 @@ foreach ($events as $event) {
         }
 
         $logId = $logRecord['id'];
-        $contactId = $logRecord['contact_id'];
+        // communication_log has no contact_id column. Selecting it threw
+        // SQLSTATE 42703 and killed the whole event batch, so no SendGrid event
+        // ever reached email_events. Kept as null so the helper signatures below
+        // stay unchanged; the recipient is identified by communication_log_id.
+        $contactId = null;
         $clubProfileId = $logRecord['club_profile_id'];
         $timestamp = isset($event['timestamp']) ? date('Y-m-d H:i:s', $event['timestamp']) : date('Y-m-d H:i:s');
 
@@ -227,12 +231,12 @@ echo json_encode(['status' => 'ok', 'processed' => count($events)]);
 function insertEmailEvent(PDO $connection, int $logId, ?int $contactId, string $eventType, string $timestamp, array $eventData): void
 {
     $stmt = $connection->prepare(
-        "INSERT INTO email_events (communication_log_id, contact_id, event_type, event_data, ip_address, user_agent, occurred_at, created_at)
-         VALUES (:log_id, :contact_id, :event_type, :event_data, :ip_address, :user_agent, :occurred_at, NOW())"
+        // email_events has neither contact_id nor created_at.
+        "INSERT INTO email_events (communication_log_id, event_type, event_data, ip_address, user_agent, occurred_at)
+         VALUES (:log_id, :event_type, :event_data, :ip_address, :user_agent, :occurred_at)"
     );
     $stmt->execute([
         ':log_id' => $logId,
-        ':contact_id' => $contactId,
         ':event_type' => $eventType,
         ':event_data' => json_encode($eventData),
         ':ip_address' => $eventData['ip'] ?? null,
@@ -247,12 +251,12 @@ function insertEmailEvent(PDO $connection, int $logId, ?int $contactId, string $
 function insertSuppression(PDO $connection, ?int $contactId, int $clubProfileId, ?string $email, ?string $phone, string $channel, string $reason): void
 {
     $stmt = $connection->prepare(
-        "INSERT INTO email_suppressions (contact_id, club_profile_id, email, phone, channel, reason, suppressed_at, created_at)
-         VALUES (:contact_id, :club_profile_id, :email, :phone, :channel, :reason, NOW(), NOW())
+        // email_suppressions has neither contact_id nor suppressed_at.
+        "INSERT INTO email_suppressions (club_profile_id, email, phone, channel, reason, created_at)
+         VALUES (:club_profile_id, :email, :phone, :channel, :reason, NOW())
          ON CONFLICT DO NOTHING"
     );
     $stmt->execute([
-        ':contact_id' => $contactId,
         ':club_profile_id' => $clubProfileId,
         ':email' => $email,
         ':phone' => $phone,
