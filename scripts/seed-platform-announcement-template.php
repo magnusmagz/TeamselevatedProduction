@@ -37,7 +37,7 @@
 require_once __DIR__ . '/../config/database.php';
 
 const TEMPLATE_NAME = 'Club platform announcement';
-const TEMPLATE_SUBJECT = '{{club_name}} is moving to TeamsElevated';
+const TEMPLATE_SUBJECT = '{{club_name}} is moving to Teams Elevated';
 const TEMPLATE_CATEGORY = 'registration'; // "Registration & Welcome" in the 10-tag taxonomy
 
 const BRAND = '#1A3C5E';  // -> club primary, via applyBrandColors()
@@ -180,7 +180,7 @@ $rows = [
         $textBlock(
             '<h1 style="margin:0 0 16px 0;font-size:24px;line-height:125%;color:' . BRAND . ';font-weight:800;">A new home for club communication</h1>'
             . '<p style="' . $p . '">Hi there,</p>'
-            . '<p style="' . $p . '">{{club_name}} has selected <strong>TeamsElevated</strong> as our team management and '
+            . '<p style="' . $p . '">{{club_name}} has selected <strong>Teams Elevated</strong> as our team management and '
             . 'communication platform. Schedules, rosters, club news, and the emails and texts you get from us will now all '
             . 'run through one place &mdash; and every family gets a free portal account.</p>',
             '30px 30px 0px'
@@ -194,7 +194,7 @@ $rows = [
         $textBlock(
             '<h2 style="' . $h2 . '">What this means for you</h2>'
             . '<ul style="margin:0;padding-left:20px;">'
-            . '<li style="' . $li . '">Club and team messages will arrive from TeamsElevated, sent on behalf of {{club_name}}.</li>'
+            . '<li style="' . $li . '">Club and team messages will arrive from Teams Elevated, sent on behalf of {{club_name}}.</li>'
             . '<li style="' . $li . '">Practices, games, and team events come to you as calendar invites that update themselves when something changes.</li>'
             . '<li style="' . $li . '">You get a free portal account. There is no cost and no subscription.</li>'
             . '</ul>',
@@ -207,7 +207,7 @@ $rows = [
         $textBlock(
             '<div style="font-size:15px;font-weight:700;color:' . BRAND . ';margin-bottom:6px;">Watch your inbox</div>'
             . '<div style="font-size:14px;line-height:160%;color:#444444;">Over the next few days you&rsquo;ll receive an '
-            . 'invitation from <strong>TeamsElevated</strong> to set up your account. It takes about two minutes. If you '
+            . 'invitation from <strong>Teams Elevated</strong> to set up your account. It takes about two minutes. If you '
             . 'don&rsquo;t see it, check your spam or promotions folder and add the sender to your contacts so future club '
             . 'messages reach you.</div>',
             '16px 18px'
@@ -258,7 +258,7 @@ $rows = [
     $row([
         $textBlock(
             '<div style="text-align:center;color:#ffffff;font-weight:800;font-size:15px;">{{club_name}}</div>'
-            . '<div style="text-align:center;margin-top:10px;font-size:11px;color:#c3cdd6;">Powered by TeamsElevated</div>',
+            . '<div style="text-align:center;margin-top:10px;font-size:11px;color:#c3cdd6;">Powered by Teams Elevated</div>',
             '24px'
         ),
     ], BRAND),
@@ -287,7 +287,7 @@ $design = [
             'fontFamily' => ['label' => 'Arial', 'value' => 'arial,helvetica,sans-serif'],
             'textColor' => '#333333',
             'backgroundColor' => '#f4f4f4',
-            'preheaderText' => 'Watch for an invitation from TeamsElevated to set up your free portal account.',
+            'preheaderText' => 'Watch for an invitation from Teams Elevated to set up your free portal account.',
             'linkStyle' => [
                 'body' => true,
                 'linkColor' => BRAND,

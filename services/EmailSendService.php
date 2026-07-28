@@ -212,7 +212,14 @@ class EmailSendService {
         }
 
         $senderName = trim($senderInfo['first_name'] . ' ' . $senderInfo['last_name']);
-        $appUrl = Env::get('APP_URL', 'https://teamselevated-backend.herokuapp.com');
+        // BACKEND_URL, not APP_URL. Everything built here — the open pixel, the
+        // click redirector, the unsubscribe page — is served by THIS PHP app.
+        // APP_URL is the Netlify frontend, whose SPA catch-all returns index.html
+        // with a 200 for any unknown path, so those links silently resolved to the
+        // app shell: opens never recorded, clicks never recorded AND the recipient
+        // never reached the link target, and unsubscribe links did nothing.
+        // APP_URL stays correct for user-facing destinations (e.g. /parent).
+        $appUrl = Env::get('BACKEND_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com');
         $unsubscribeUrl = $appUrl . '/unsubscribe?token=' . $this->generateUnsubscribeToken(
             $logRecord['id'],
             $logRecord['recipient_email'],
@@ -301,7 +308,14 @@ class EmailSendService {
      * @return string Processed HTML
      */
     public function processHtml($html, $trackingId, $communicationLogId, $clubProfileId) {
-        $appUrl = Env::get('APP_URL', 'https://teamselevated-backend.herokuapp.com');
+        // BACKEND_URL, not APP_URL. Everything built here — the open pixel, the
+        // click redirector, the unsubscribe page — is served by THIS PHP app.
+        // APP_URL is the Netlify frontend, whose SPA catch-all returns index.html
+        // with a 200 for any unknown path, so those links silently resolved to the
+        // app shell: opens never recorded, clicks never recorded AND the recipient
+        // never reached the link target, and unsubscribe links did nothing.
+        // APP_URL stays correct for user-facing destinations (e.g. /parent).
+        $appUrl = Env::get('BACKEND_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com');
 
         // 1. Link wrapping — rewrite href attributes for click tracking
         $html = preg_replace_callback(

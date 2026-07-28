@@ -259,7 +259,10 @@ class SmsSendService {
         $accountSid = Env::get('TWILIO_ACCOUNT_SID');
         $authToken = Env::get('TWILIO_AUTH_TOKEN');
         $fromNumber = Env::get('TWILIO_FROM_NUMBER');
-        $appUrl = Env::get('APP_URL');
+        // BACKEND_URL: the Twilio StatusCallback below is handled by THIS PHP app.
+        // APP_URL is the Netlify frontend, whose SPA catch-all swallows unknown
+        // paths with a 200, so delivery statuses and STOP opt-outs never arrived.
+        $appUrl = Env::get('BACKEND_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com');
 
         if (!$accountSid || !$authToken || !$fromNumber) {
             throw new \Exception('Twilio credentials are not configured');
