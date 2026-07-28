@@ -10,19 +10,28 @@
  * rather than inserting a duplicate, so it is safe to run after editing the
  * source files in email-assets/templates/.
  *
- * Source of truth is the two files on disk:
- *   email-assets/templates/platform-announcement.html  -> html_output
- *   email-assets/templates/platform-announcement.txt   -> body_text
+ * ---------------------------------------------------------------------------
+ * Two representations, on purpose
+ * ---------------------------------------------------------------------------
+ * html_output  — the hand-authored document in email-assets/templates/, sent
+ *                as-is when a club uses the template WITHOUT opening the editor.
+ *                Its brand colours are merge-tag fallback pairs
+ *                ("color:#1A3C5E;color:{{club_primary_color}};") so the club's
+ *                real colour is resolved by MergeFieldService at send time.
  *
- * design_json wraps the card in a single Unlayer custom-HTML block. That matters:
- * TemplateEditor only calls loadDesign() when design_json is present, so a template
- * seeded without one opens on a blank canvas and saving would wipe html_output.
- * One block also round-trips the markup faithfully — Unlayer re-exports it inside
- * its own document wrapper on save.
+ * design_json  — NATIVE Unlayer blocks (text / divider), not one lump of custom
+ *                HTML, so a club admin editing the template gets the rich-text
+ *                editor on every paragraph instead of a code box. Colours here
+ *                are the flat #1A3C5E / #C9A96E placeholders that
+ *                TemplateEditor's applyBrandColors() rewrites to the club's
+ *                brand colours when the design loads.
  *
- * Colours are the platform-template placeholders documented in TemplateEditor
- * (#1A3C5E -> club primary, #C9A96E -> club accent); applyBrandColors() swaps them
- * for the club's real brand colours when the template is opened in the editor.
+ * The two stay consistent in content. They differ only in how colour reaches the
+ * page, because each path resolves it differently: merge tags cannot be used in
+ * design_json (Unlayer would treat them as invalid CSS on the canvas), and
+ * applyBrandColors never touches html_output. Editing a platform template clones
+ * it to club scope first (see TemplateLibrary handleEdit), so a save bakes that
+ * club's real colours into the clone and leaves this platform original intact.
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -30,6 +39,9 @@ require_once __DIR__ . '/../config/database.php';
 const TEMPLATE_NAME = 'Club platform announcement';
 const TEMPLATE_SUBJECT = '{{club_name}} is moving to TeamsElevated';
 const TEMPLATE_CATEGORY = 'registration'; // "Registration & Welcome" in the 10-tag taxonomy
+
+const BRAND = '#1A3C5E';  // -> club primary, via applyBrandColors()
+const ACCENT = '#C9A96E'; // -> club accent,  via applyBrandColors()
 
 $dryRun = in_array('--dry-run', $argv, true);
 
@@ -46,62 +58,243 @@ foreach ([$htmlPath, $textPath] as $p) {
 $html = file_get_contents($htmlPath);
 $text = file_get_contents($textPath);
 
-// Unlayer renders inside its own document, so the design block carries the body
-// fragment while html_output keeps the full standalone document used for sending.
-if (!preg_match('#<body[^>]*>(.*)</body>#is', $html, $m)) {
-    fwrite(STDERR, "could not extract <body> from {$htmlPath}\n");
-    exit(1);
-}
-$fragment = trim($m[1]);
+// ---------------------------------------------------------------------------
+// Unlayer block builders
+// ---------------------------------------------------------------------------
+$counters = ['row' => 0, 'col' => 0, 'text' => 0, 'divider' => 0];
 
-$design = [
-    'counters' => ['u_row' => 1, 'u_column' => 1, 'u_content_html' => 1],
-    'body' => [
-        'id' => 'announcement_body',
-        'rows' => [[
-            'id' => 'announcement_row',
-            'cells' => [1],
-            'columns' => [[
-                'id' => 'announcement_col',
-                'contents' => [[
-                    'id' => 'announcement_html',
-                    'type' => 'html',
-                    'values' => [
-                        'html' => $fragment,
-                        'hideDesktop' => false,
-                        'displayCondition' => null,
-                        'containerPadding' => '0px',
-                        '_meta' => ['htmlID' => 'u_content_html_1', 'htmlClassNames' => 'u_content_html'],
-                        'selectable' => true, 'draggable' => true, 'duplicatable' => true,
-                        'deletable' => true, 'hideable' => true,
-                    ],
-                ]],
-                'values' => [
-                    'backgroundColor' => '',
-                    'padding' => '0px',
-                    'border' => (object) [],
-                    '_meta' => ['htmlID' => 'u_column_1', 'htmlClassNames' => 'u_column'],
-                ],
-            ]],
+$meta = function (string $kind) use (&$counters): array {
+    $counters[$kind]++;
+    $slug = $kind === 'col' ? 'column' : ($kind === 'row' ? 'row' : 'content_' . $kind);
+    return ['htmlID' => "u_{$slug}_{$counters[$kind]}", 'htmlClassNames' => "u_{$slug}"];
+};
+
+$flags = [
+    'selectable' => true, 'draggable' => true, 'duplicatable' => true,
+    'deletable' => true, 'hideable' => true,
+];
+
+/** A native rich-text block — this is what makes the copy editable in the builder. */
+$textBlock = function (string $html, string $padding = '10px 30px') use ($meta, $flags): array {
+    return [
+        'id' => 'txt_' . substr(md5($html), 0, 10),
+        'type' => 'text',
+        'values' => array_merge($flags, [
+            'containerPadding' => $padding,
+            'anchor' => '',
+            'fontSize' => '15px',
+            'textAlign' => 'left',
+            'lineHeight' => '160%',
+            'linkStyle' => [
+                'inherit' => false,
+                'linkColor' => BRAND,
+                'linkHoverColor' => BRAND,
+                'linkUnderline' => true,
+                'linkHoverUnderline' => true,
+            ],
+            'hideDesktop' => false,
+            'displayCondition' => null,
+            '_meta' => $meta('text'),
+            'text' => $html,
+        ]),
+    ];
+};
+
+/** The short accent rule under the intro. */
+$dividerBlock = function () use ($meta, $flags): array {
+    return [
+        'id' => 'div_accent',
+        'type' => 'divider',
+        'values' => array_merge($flags, [
+            'width' => '48px',
+            'border' => [
+                'borderTopWidth' => '3px',
+                'borderTopStyle' => 'solid',
+                'borderTopColor' => ACCENT,
+            ],
+            'textAlign' => 'left',
+            'containerPadding' => '14px 30px',
+            'anchor' => '',
+            'hideDesktop' => false,
+            'displayCondition' => null,
+            '_meta' => $meta('divider'),
+        ]),
+    ];
+};
+
+/**
+ * One full-width row. $bg paints the band (header/footer/callout); $colBorder
+ * carries the callout's left accent bar, which lives on the column in Unlayer.
+ */
+$row = function (array $contents, string $bg = '', array $colBorder = []) use ($meta, $flags): array {
+    return [
+        'id' => 'row_' . substr(md5(json_encode($contents) . $bg), 0, 10),
+        'cells' => [1],
+        'columns' => [[
+            'id' => 'col_' . substr(md5(json_encode($contents) . $bg), 0, 10),
+            'contents' => $contents,
             'values' => [
-                'displayCondition' => null,
-                'columns' => false,
                 'backgroundColor' => '',
-                'columnsBackgroundColor' => '',
                 'padding' => '0px',
-                'hideDesktop' => false,
-                '_meta' => ['htmlID' => 'u_row_1', 'htmlClassNames' => 'u_row'],
-                'selectable' => true, 'draggable' => true, 'duplicatable' => true,
-                'deletable' => true, 'hideable' => true,
+                'border' => (object) $colBorder,
+                'borderRadius' => '0px',
+                '_meta' => $meta('col'),
             ],
         ]],
+        'values' => array_merge($flags, [
+            'displayCondition' => null,
+            'columns' => false,
+            'backgroundColor' => $bg,
+            'columnsBackgroundColor' => '',
+            'backgroundImage' => [
+                'url' => '', 'fullWidth' => true, 'repeat' => 'no-repeat',
+                'size' => 'custom', 'position' => 'center',
+            ],
+            'padding' => '0px',
+            'anchor' => '',
+            'hideDesktop' => false,
+            '_meta' => $meta('row'),
+        ]),
+    ];
+};
+
+// ---------------------------------------------------------------------------
+// The email, as editable blocks
+// ---------------------------------------------------------------------------
+$p = 'margin:0 0 14px 0;font-size:15px;line-height:160%;color:#333333;';
+$li = 'margin:0 0 8px 0;font-size:15px;line-height:160%;color:#333333;';
+$h2 = 'margin:0 0 10px 0;font-size:17px;line-height:130%;color:' . BRAND . ';font-weight:700;';
+
+$rows = [
+    // Header band — club name + kicker, on the brand colour.
+    $row([
+        $textBlock(
+            '<div style="color:#ffffff;font-weight:800;font-size:16px;letter-spacing:.02em;line-height:120%;">{{club_name}}</div>'
+            . '<div style="color:#dbe3ea;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">Club announcement</div>',
+            '18px 24px'
+        ),
+    ], BRAND),
+
+    // Headline + intro.
+    $row([
+        $textBlock(
+            '<h1 style="margin:0 0 16px 0;font-size:24px;line-height:125%;color:' . BRAND . ';font-weight:800;">A new home for club communication</h1>'
+            . '<p style="' . $p . '">Hi there,</p>'
+            . '<p style="' . $p . '">{{club_name}} has selected <strong>TeamsElevated</strong> as our team management and '
+            . 'communication platform. Schedules, rosters, club news, and the emails and texts you get from us will now all '
+            . 'run through one place &mdash; and every family gets a free portal account.</p>',
+            '30px 30px 0px'
+        ),
+    ]),
+
+    $row([$dividerBlock()]),
+
+    // What this means for you.
+    $row([
+        $textBlock(
+            '<h2 style="' . $h2 . '">What this means for you</h2>'
+            . '<ul style="margin:0;padding-left:20px;">'
+            . '<li style="' . $li . '">Club and team messages will arrive from TeamsElevated, sent on behalf of {{club_name}}.</li>'
+            . '<li style="' . $li . '">Practices, games, and team events come to you as calendar invites that update themselves when something changes.</li>'
+            . '<li style="' . $li . '">You get a free portal account. There is no cost and no subscription.</li>'
+            . '</ul>',
+            '10px 30px 20px'
+        ),
+    ]),
+
+    // "Watch your inbox" callout — tinted band with a left accent bar.
+    $row([
+        $textBlock(
+            '<div style="font-size:15px;font-weight:700;color:' . BRAND . ';margin-bottom:6px;">Watch your inbox</div>'
+            . '<div style="font-size:14px;line-height:160%;color:#444444;">Over the next few days you&rsquo;ll receive an '
+            . 'invitation from <strong>TeamsElevated</strong> to set up your account. It takes about two minutes. If you '
+            . 'don&rsquo;t see it, check your spam or promotions folder and add the sender to your contacts so future club '
+            . 'messages reach you.</div>',
+            '16px 18px'
+        ),
+    ], '#f7f9fb', [
+        'borderLeftWidth' => '4px',
+        'borderLeftStyle' => 'solid',
+        'borderLeftColor' => BRAND,
+    ]),
+
+    // What's in the portal.
+    $row([
+        $textBlock(
+            '<h2 style="' . $h2 . 'margin-top:8px;">What&rsquo;s in your free portal</h2>'
+            . '<ul style="margin:0;padding-left:20px;">'
+            . '<li style="' . $li . '">Your athlete&rsquo;s full schedule, in one calendar you can sync to your phone</li>'
+            . '<li style="' . $li . '">RSVP to practices, games, and team events</li>'
+            . '<li style="' . $li . '">Team rosters and how to reach your coach</li>'
+            . '<li style="' . $li . '">Club announcements, plus a history of everything we&rsquo;ve sent you</li>'
+            . '<li style="' . $li . '">Forms, documents, and registration details in one place</li>'
+            . '</ul>',
+            '20px 30px 10px'
+        ),
+    ]),
+
+    // Crew vocabulary note.
+    $row([
+        $textBlock(
+            '<div style="font-size:14px;line-height:160%;color:#555555;"><strong style="color:' . BRAND . ';">One bit of '
+            . 'vocabulary:</strong> in the portal, the adults connected to an athlete are called that athlete&rsquo;s '
+            . '<strong>Crew</strong>. If you see &ldquo;Crew&rdquo; next to your athlete&rsquo;s name, that&rsquo;s you.</div>',
+            '14px 16px'
+        ),
+    ], '#fbfaf7'),
+
+    // Sign-off.
+    $row([
+        $textBlock(
+            '<p style="' . $p . '">Thanks for being part of {{club_name}}. If you have questions in the meantime, just '
+            . 'reply to this email and we&rsquo;ll help.</p>'
+            . '<p style="margin:0;font-size:15px;line-height:160%;color:#333333;">&mdash; The {{club_name}} staff</p>',
+            '20px 30px 24px'
+        ),
+    ]),
+
+    // Footer band. No unsubscribe link — EmailSendService::processHtml() appends
+    // the compliant one (and the tracking pixel) at send time.
+    $row([
+        $textBlock(
+            '<div style="text-align:center;color:#ffffff;font-weight:800;font-size:15px;">{{club_name}}</div>'
+            . '<div style="text-align:center;margin-top:10px;font-size:11px;color:#c3cdd6;">Powered by TeamsElevated</div>',
+            '24px'
+        ),
+    ], BRAND),
+];
+
+$design = [
+    'counters' => [
+        'u_row' => $counters['row'],
+        'u_column' => $counters['col'],
+        'u_content_text' => $counters['text'],
+        'u_content_divider' => $counters['divider'],
+    ],
+    'body' => [
+        'id' => 'announcement_body',
+        'rows' => $rows,
         'headers' => [],
         'footers' => [],
         'values' => [
-            'backgroundColor' => '#f4f4f4',
+            'popupPosition' => 'center',
+            'popupWidth' => '600px',
+            'popupHeight' => 'auto',
+            'borderRadius' => '10px',
+            'contentAlign' => 'center',
+            'contentVerticalAlign' => 'center',
             'contentWidth' => '600px',
             'fontFamily' => ['label' => 'Arial', 'value' => 'arial,helvetica,sans-serif'],
             'textColor' => '#333333',
+            'backgroundColor' => '#f4f4f4',
+            'preheaderText' => 'Watch for an invitation from TeamsElevated to set up your free portal account.',
+            'linkStyle' => [
+                'body' => true,
+                'linkColor' => BRAND,
+                'linkHoverColor' => BRAND,
+                'linkUnderline' => true,
+                'linkHoverUnderline' => true,
+            ],
             '_meta' => ['htmlID' => 'u_body', 'htmlClassNames' => 'u_body'],
         ],
     ],
@@ -114,11 +307,19 @@ if ($designJson === false) {
     exit(1);
 }
 
+// Print the generated design to stdout for inspection / structural checks.
+if (in_array('--dump-design', $argv, true)) {
+    echo $designJson, "\n";
+    exit(0);
+}
+
 if ($dryRun) {
     printf(
-        "DRY RUN — would upsert platform template %s\n  subject: %s\n  category: %s\n  html: %d bytes\n  text: %d bytes\n  design_json: %d bytes\n",
+        "DRY RUN — would upsert platform template %s\n  subject: %s\n  category: %s\n  html: %d bytes\n  text: %d bytes\n"
+        . "  design_json: %d bytes\n  blocks: %d rows, %d text, %d divider (all natively editable)\n",
         json_encode(TEMPLATE_NAME), TEMPLATE_SUBJECT, TEMPLATE_CATEGORY,
-        strlen($html), strlen($text), strlen($designJson)
+        strlen($html), strlen($text), strlen($designJson),
+        $counters['row'], $counters['text'], $counters['divider']
     );
     exit(0);
 }
