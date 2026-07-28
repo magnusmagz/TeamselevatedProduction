@@ -285,12 +285,11 @@ function handleSearch($connection, $auth, $userId) {
                a.id as athlete_id, a.first_name as athlete_first_name, a.last_name as athlete_last_name,
                t.id as team_id, t.name as team_name
         FROM guardians g
-        JOIN athlete_guardians ag ON g.id = ag.guardian_id AND ag.active_status = TRUE
+        JOIN athlete_guardians ag ON g.id = ag.guardian_id
         JOIN athletes a ON ag.athlete_id = a.id
         JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
         JOIN teams t ON tm.team_id = t.id AND t.club_id = ?
         WHERE (g.first_name ILIKE ? OR g.last_name ILIKE ? OR g.email ILIKE ? OR g.mobile_phone LIKE ?)
-          AND ag.receives_communications = TRUE
         {$guardianTeamFilterSql}
         LIMIT 20
     ";
@@ -600,12 +599,11 @@ function handleResolveGroup($connection, $auth, $userId) {
                    a.id as athlete_id, a.first_name as athlete_first_name, a.last_name as athlete_last_name,
                    t.id as team_id, t.name as team_name
             FROM guardians g
-            JOIN athlete_guardians ag ON g.id = ag.guardian_id AND ag.active_status = TRUE
+            JOIN athlete_guardians ag ON g.id = ag.guardian_id
             JOIN athletes a ON ag.athlete_id = a.id
             JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
             JOIN teams t ON tm.team_id = t.id
             WHERE tm.team_id IN ({$teamPlaceholders}) AND t.club_id = ?
-              AND ag.receives_communications = TRUE
         ";
         $stmt = $connection->prepare($sql);
         $stmt->execute(array_merge($teamIds, [$clubProfileId]));
