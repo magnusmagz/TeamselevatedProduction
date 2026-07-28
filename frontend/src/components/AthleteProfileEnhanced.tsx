@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatGrade } from '../utils/grade';
 import { ageGroup } from '../utils/ageGroup';
 import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
@@ -106,6 +107,77 @@ const AthleteProfileEnhanced: React.FC = () => {
   const [showEmailCompose, setShowEmailCompose] = useState(false);
   const [showSmsCompose, setShowSmsCompose] = useState(false);
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
+
+  // Parent-portal invite status per guardian (Option B).
+  const [portalStatuses, setPortalStatuses] = useState<Record<number, string>>({});
+  const [invitingGuardian, setInvitingGuardian] = useState<number | null>(null);
+
+  const fetchPortalStatuses = async () => {
+    if (!athleteId || !currentClubId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/auth-gateway.php?action=parent-portal-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        body: JSON.stringify({ athlete_id: parseInt(athleteId), club_id: currentClubId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const map: Record<number, string> = {};
+        (data.statuses || []).forEach((s: any) => { map[s.guardian_id] = s.status; });
+        setPortalStatuses(map);
+      }
+    } catch { /* status is non-critical */ }
+  };
+
+  useEffect(() => { fetchPortalStatuses(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [athleteId, currentClubId]);
+
+  const handleInviteGuardian = async (guardian: any) => {
+    if (!guardian.id || !currentClubId) return;
+    setInvitingGuardian(guardian.id);
+    try {
+      const res = await fetch(`${API_URL}/api/auth-gateway.php?action=send-parent-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        body: JSON.stringify({ guardian_id: guardian.id, club_id: currentClubId, athlete_id: athleteId ? parseInt(athleteId) : undefined }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.status === 'already_active' ? 'That parent already has an account.' : `Invite sent to ${data.email}`);
+        await fetchPortalStatuses();
+      } else {
+        alert(data.error || 'Could not send invite.');
+      }
+    } catch {
+      alert('Could not send invite.');
+    } finally {
+      setInvitingGuardian(null);
+    }
+  };
+
+  const guardianPortalChip = (guardian: any) => {
+    if (!guardian.id) return null;
+    const st = guardian.email?.trim() ? (portalStatuses[guardian.id] || 'not_invited') : 'no_email';
+    const map: Record<string, { label: string; cls: string }> = {
+      active: { label: 'Portal active', cls: 'bg-green-100 text-green-700' },
+      invited: { label: 'Invited', cls: 'bg-amber-100 text-amber-800' },
+      not_invited: { label: 'Not invited', cls: 'bg-gray-100 text-gray-600' },
+      no_email: { label: 'No email', cls: 'bg-gray-100 text-gray-500' },
+    };
+    const m = map[st] || map.not_invited;
+    return <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${m.cls}`}>{m.label}</span>;
+  };
+
+  const guardianInviteButton = (guardian: any) => {
+    if (!guardian.id || !guardian.email?.trim()) return null;
+    const st = portalStatuses[guardian.id] || 'not_invited';
+    if (st === 'active') return null;
+    const busy = invitingGuardian === guardian.id;
+    const label = busy ? 'Sending…' : st === 'invited' ? 'Resend invite' : 'Invite to portal';
+    const cls = st === 'invited'
+      ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
+      : 'bg-brand-primary text-white rounded-md px-2.5 py-1 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50';
+    return <button onClick={() => handleInviteGuardian(guardian)} disabled={busy} className={cls}>{label}</button>;
+  };
   const [editingField, setEditingField] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showPlayerCard, setShowPlayerCard] = useState(false);
@@ -562,7 +634,7 @@ const AthleteProfileEnhanced: React.FC = () => {
             </div>
             <div className="flex justify-between py-2 border-b border-gray-200">
               <span className="font-medium">Grade</span>
-              <span>{athlete.grade_level || 'Not specified'}</span>
+              <span>{formatGrade(athlete.grade_level) || 'Not specified'}</span>
             </div>
             <div className="flex justify-between py-2">
               <span className="font-medium">Email</span>
@@ -587,7 +659,7 @@ const AthleteProfileEnhanced: React.FC = () => {
             </div>
 
             <div>
-              <div className="font-bold mb-3">Guardians</div>
+              <div className="font-bold mb-3">{athlete.first_name}'s Crew</div>
               <div className="space-y-3">
                 {athlete.guardians.map((guardian) => (
                   <div key={guardian.id} className="border border-gray-300 p-3">
@@ -595,9 +667,12 @@ const AthleteProfileEnhanced: React.FC = () => {
                       <span className="font-medium">
                         {guardian.first_name} {guardian.last_name}
                       </span>
-                      <span className="text-xs px-2 py-1 bg-gray-100">
-                        {guardian.is_primary_contact ? 'PRIMARY' : (guardian.relationship_type || 'GUARDIAN').toUpperCase()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {guardianPortalChip(guardian)}
+                        <span className="text-xs px-2 py-1 bg-gray-100">
+                          {guardian.is_primary_contact ? 'PRIMARY' : (guardian.relationship_type || 'GUARDIAN').toUpperCase()}
+                        </span>
+                      </div>
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
                       <button
@@ -623,6 +698,9 @@ const AthleteProfileEnhanced: React.FC = () => {
                       {guardian.can_authorize_medical ? '✓ Medical' : '✗ Medical'} |
                       {guardian.can_pickup ? ' ✓ Pickup' : ' ✗ Pickup'} |
                       {guardian.financial_responsible ? ' ✓ Financial' : ' ✗ Financial'}
+                    </div>
+                    <div className="mt-2">
+                      {guardianInviteButton(guardian)}
                     </div>
                   </div>
                 ))}
@@ -687,7 +765,7 @@ const AthleteProfileEnhanced: React.FC = () => {
                   </div>
                   <div className="flex justify-between border-b border-gray-200 py-1">
                     <span className="font-medium">Grade</span>
-                    <span>{athlete.grade_level || 'Not specified'}</span>
+                    <span>{formatGrade(athlete.grade_level) || 'Not specified'}</span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="font-medium">Email</span>

@@ -133,7 +133,9 @@ const TemplateLibrary: React.FC = () => {
     }
   };
 
-  const filteredTemplates = templates.filter((t) => {
+  // Tab + search scope (everything except the category filter) — drives both
+  // the tag cluster counts and the final filtered list.
+  const bySearchAndTab = templates.filter((t) => {
     const matchesTab =
       activeTab === 'club'
         ? t.scope === 'club' || t.scope === 'platform'
@@ -142,10 +144,24 @@ const TemplateLibrary: React.FC = () => {
       searchQuery === '' ||
       t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      categoryFilter === 'All' || t.category.toLowerCase() === categoryFilter.toLowerCase();
-    return matchesTab && matchesSearch && matchesCategory;
+    return matchesTab && matchesSearch;
   });
+
+  const slugOf = (t: EmailTemplate) =>
+    CATEGORY_META.some((c) => c.slug === (t.category || '').toLowerCase())
+      ? t.category.toLowerCase()
+      : OTHER_META.slug;
+
+  // Per-tag counts for the cluster chips.
+  const categoryCounts: Record<string, number> = {};
+  bySearchAndTab.forEach((t) => {
+    const slug = slugOf(t);
+    categoryCounts[slug] = (categoryCounts[slug] || 0) + 1;
+  });
+
+  const filteredTemplates = bySearchAndTab.filter(
+    (t) => categoryFilter === 'All' || slugOf(t) === categoryFilter
+  );
 
   // Group the filtered templates by category, in CATEGORY_META order, with any
   // uncategorized templates collected under "Other" at the end.
@@ -287,6 +303,53 @@ const TemplateLibrary: React.FC = () => {
         </button>
       </div>
 
+      {/* Tag cluster — click a tag to view that group, or All to view everything */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <button
+          onClick={() => setCategoryFilter('All')}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            categoryFilter === 'All'
+              ? 'bg-brand-primary text-white shadow-sm'
+              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          All Templates
+          <span className={categoryFilter === 'All' ? 'text-white/70' : 'text-gray-400'}>
+            {bySearchAndTab.length}
+          </span>
+        </button>
+        {CATEGORY_META.map((c) => {
+          const count = categoryCounts[c.slug] || 0;
+          if (!count) return null;
+          const active = categoryFilter === c.slug;
+          return (
+            <button
+              key={c.slug}
+              onClick={() => setCategoryFilter(active ? 'All' : c.slug)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${c.color} ${
+                active ? 'ring-2 ring-offset-1 ring-gray-500' : 'opacity-80 hover:opacity-100'
+              }`}
+            >
+              {c.label}
+              <span className="opacity-60">{count}</span>
+            </button>
+          );
+        })}
+        {categoryCounts[OTHER_META.slug] ? (
+          <button
+            onClick={() =>
+              setCategoryFilter(categoryFilter === OTHER_META.slug ? 'All' : OTHER_META.slug)
+            }
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${OTHER_META.color} ${
+              categoryFilter === OTHER_META.slug ? 'ring-2 ring-offset-1 ring-gray-500' : 'opacity-80 hover:opacity-100'
+            }`}
+          >
+            {OTHER_META.label}
+            <span className="opacity-60">{categoryCounts[OTHER_META.slug]}</span>
+          </button>
+        ) : null}
+      </div>
+
       {/* Filters row */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         {/* Search */}
@@ -312,20 +375,6 @@ const TemplateLibrary: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
           />
         </div>
-
-        {/* Category filter */}
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none bg-white"
-        >
-          <option value="All">All Categories</option>
-          {CATEGORY_META.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              {c.label}
-            </option>
-          ))}
-        </select>
 
         {/* View toggle */}
         <div className="flex border border-brand-secondary rounded-md overflow-hidden">

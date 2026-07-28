@@ -42,6 +42,101 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
     end_date: ''
   });
 
+  // Coaching staff: assistant coaches / team managers, stored as team_members rows.
+  const STAFF_ROLES = [
+    { role: 'assistant_coach', label: 'Assistant Coaches', one: 'assistant coach' },
+    { role: 'team_manager', label: 'Team Managers', one: 'team manager' },
+  ];
+  const [staff, setStaff] = useState<any[]>([]);
+  const [staffBusy, setStaffBusy] = useState(false);
+  const [showCoachForm, setShowCoachForm] = useState(false);
+  const [coachFormData, setCoachFormData] = useState({ first_name: '', last_name: '', email: '', role: 'assistant_coach' });
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+  });
+
+  const fetchStaff = async () => {
+    if (!team?.id) return;
+    try {
+      const res = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=team-staff&team_id=${team.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) setStaff(data.staff || []);
+    } catch (error) {
+      console.error('Error fetching team staff:', error);
+    }
+  };
+
+  const assignStaff = async (userId: number, role: string) => {
+    if (!team?.id || !userId) return;
+    setStaffBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=assign-staff`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ team_id: team.id, user_id: userId, role }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || 'Could not add staff member');
+      await fetchStaff();
+    } catch {
+      alert('Could not add staff member');
+    } finally {
+      setStaffBusy(false);
+    }
+  };
+
+  const unassignStaff = async (userId: number, role: string) => {
+    if (!team?.id) return;
+    setStaffBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=unassign-staff`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ team_id: team.id, user_id: userId, role }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || 'Could not remove staff member');
+      await fetchStaff();
+    } catch {
+      alert('Could not remove staff member');
+    } finally {
+      setStaffBusy(false);
+    }
+  };
+
+  const handleCreateCoach = async () => {
+    const { first_name, last_name, email, role } = coachFormData;
+    if (!first_name.trim() || !last_name.trim() || !email.trim()) {
+      alert('First name, last name and email are required');
+      return;
+    }
+    setStaffBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=create`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ first_name, last_name, email }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await fetchDropdownData();
+        if (data.id) await assignStaff(Number(data.id), role);
+        setCoachFormData({ first_name: '', last_name: '', email: '', role: 'assistant_coach' });
+        setShowCoachForm(false);
+      } else {
+        alert(data.error || 'Failed to create coach');
+      }
+    } catch {
+      alert('Failed to create coach');
+    } finally {
+      setStaffBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (team) {
       setFormData({
@@ -66,6 +161,8 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
       });
     }
     fetchDropdownData();
+    fetchStaff();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team]);
 
   const fetchDropdownData = async () => {
@@ -431,25 +528,6 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                 )}
               </div>
 
-              {/* Primary Coach */}
-              <div>
-                <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                  Primary Coach
-                </label>
-                <select
-                  className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                  value={formData.primary_coach_id}
-                  onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
-                >
-                  <option value="">No coach assigned</option>
-                  {coaches.map(coach => (
-                    <option key={coach.id} value={coach.id}>
-                      {coach.first_name} {coach.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Home Field */}
               <div>
                 <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
@@ -482,6 +560,159 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   min="1"
                   max="50"
                 />
+              </div>
+
+              {/* Coaching Staff */}
+              <div className="md:col-span-2 mt-4">
+                <h3 className="text-sm font-bold text-brand-primary uppercase tracking-wide mb-1">Coaching Staff</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Assistant coaches and managers get staff access to this team.
+                </p>
+
+                {/* Primary Coach lives on the team record, so it saves with the form. */}
+                <div className="mb-4">
+                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                    Primary Coach
+                  </label>
+                  <select
+                    className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                    value={formData.primary_coach_id}
+                    onChange={(e) => setFormData({ ...formData, primary_coach_id: e.target.value })}
+                  >
+                    <option value="">No coach assigned</option>
+                    {coaches.map(coach => (
+                      <option key={coach.id} value={coach.id}>
+                        {coach.first_name} {coach.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Saved when you {team ? 'update' : 'create'} the team. Assistant coaches and managers save immediately.
+                  </p>
+                </div>
+
+                {!team?.id ? (
+                  <p className="text-sm text-gray-500 italic">
+                    Save the team first, then you can add assistant coaches and managers.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {STAFF_ROLES.map(({ role, label, one }) => {
+                      const assigned = staff.filter((s) => s.role === role);
+                      const assignedIds = assigned.map((s) => Number(s.user_id));
+                      const options = coaches.filter((c) => !assignedIds.includes(Number(c.id)));
+                      return (
+                        <div key={role}>
+                          <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                            {label}
+                          </label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {assigned.length === 0 && (
+                              <span className="text-sm text-gray-400">None assigned</span>
+                            )}
+                            {assigned.map((s) => (
+                              <span
+                                key={`${role}-${s.user_id}`}
+                                className="inline-flex items-center gap-2 bg-brand-light text-brand-primary border border-brand-secondary rounded-full px-3 py-1 text-sm"
+                              >
+                                {s.first_name} {s.last_name}
+                                <button
+                                  type="button"
+                                  onClick={() => unassignStaff(Number(s.user_id), role)}
+                                  disabled={staffBusy}
+                                  aria-label={`Remove ${s.first_name} ${s.last_name}`}
+                                  className="font-bold hover:text-red-600 disabled:opacity-50"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                          <select
+                            value=""
+                            disabled={staffBusy}
+                            onChange={(e) => { if (e.target.value) assignStaff(Number(e.target.value), role); }}
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent disabled:opacity-50"
+                          >
+                            <option value="">+ Add {one}…</option>
+                            {options.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.first_name} {c.last_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCoachForm(!showCoachForm)}
+                      className="text-brand-primary hover:underline text-sm"
+                    >
+                      + Create new coach
+                    </button>
+
+                    {showCoachForm && (
+                      <div className="border border-brand-secondary rounded-md p-4 bg-gray-50">
+                        <h4 className="text-sm font-semibold text-brand-primary mb-3 uppercase">Create New Coach</h4>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              placeholder="First name *"
+                              value={coachFormData.first_name}
+                              onChange={(e) => setCoachFormData({ ...coachFormData, first_name: e.target.value })}
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Last name *"
+                              value={coachFormData.last_name}
+                              onChange={(e) => setCoachFormData({ ...coachFormData, last_name: e.target.value })}
+                              className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
+                            />
+                          </div>
+                          <input
+                            type="email"
+                            placeholder="Email *"
+                            value={coachFormData.email}
+                            onChange={(e) => setCoachFormData({ ...coachFormData, email: e.target.value })}
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
+                          />
+                          <select
+                            value={coachFormData.role}
+                            onChange={(e) => setCoachFormData({ ...coachFormData, role: e.target.value })}
+                            className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 focus:outline-none focus:border-brand-accent text-sm"
+                          >
+                            <option value="assistant_coach">Add to this team as Assistant Coach</option>
+                            <option value="team_manager">Add to this team as Team Manager</option>
+                          </select>
+                          <div className="flex justify-end space-x-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCoachForm(false);
+                                setCoachFormData({ first_name: '', last_name: '', email: '', role: 'assistant_coach' });
+                              }}
+                              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCreateCoach}
+                              disabled={staffBusy}
+                              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary-hover font-semibold uppercase text-sm disabled:opacity-50"
+                            >
+                              {staffBusy ? 'Saving…' : 'Save Coach'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Social Media Section */}

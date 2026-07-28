@@ -5,6 +5,12 @@ import { useOrg } from '../contexts/OrgContext';
 import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor';
 import { useTheme } from '../contexts/ThemeContext';
 
+// Compose modal is loaded on demand (same pattern as CommunicationLog/History):
+// keeps it out of the editor's initial chunk and avoids eager-import init issues.
+const EmailCompose = React.lazy(() =>
+  import('../components/communications/EmailCompose').then((m) => ({ default: m.EmailCompose }))
+);
+
 interface EmailTemplate {
   id: number;
   name: string;
@@ -80,6 +86,17 @@ const TemplateEditor: React.FC = () => {
   const [showTeamVisibility, setShowTeamVisibility] = useState(false);
   const [showMergeTags, setShowMergeTags] = useState(false);
   const [mergeTagNotice, setMergeTagNotice] = useState<string | null>(null);
+
+  // Send-from-editor: open the Compose modal preloaded with this template.
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeTemplate, setComposeTemplate] = useState<{
+    id: number;
+    name: string;
+    subject: string;
+    body_html: string;
+    variables: string[];
+    requires_event: boolean;
+  } | null>(null);
 
   // Tracks the subject <input> and the caret position within it, so a merge tag
   // can be inserted at the cursor when the subject field is the active target.
@@ -483,6 +500,47 @@ const TemplateEditor: React.FC = () => {
     });
   };
 
+  // Send this template: export the current HTML and open the Compose modal
+  // preloaded with it, so the user picks recipients and sends from there.
+  const handleSendClick = () => {
+    const editor = getEditor();
+    if (!editor || !editorReady.current) {
+      setError('Editor is not ready.');
+      return;
+    }
+    if (!clubProfileId) {
+      setError('No active club — cannot send.');
+      return;
+    }
+    if (!subject.trim()) {
+      setError('Add a subject line before sending.');
+      return;
+    }
+
+    editor.exportHtml((data: { html: string }) => {
+      const html = data.html;
+      // Derive template variables from the subject + body, and flag whether an
+      // event is needed — mirrors the /api/email-templates enrichment so the
+      // Compose modal shows variable hints and the event picker when relevant.
+      const found = new Set<string>();
+      const re = /\{\{\s*(\w+)\s*\}\}/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(`${subject} ${html}`)) !== null) found.add(m[1]);
+      const variables = Array.from(found);
+      const eventVars = ['event_name', 'event_date', 'event_time', 'location', 'team_name'];
+
+      setComposeTemplate({
+        id: isNew ? 0 : parseInt(id as string, 10),
+        name: templateName || 'Untitled template',
+        subject,
+        body_html: html,
+        variables,
+        requires_event: variables.some((v) => eventVars.includes(v)),
+      });
+      setShowCompose(true);
+    });
+  };
+
   const handleBack = () => {
     if (hasUnsavedChanges.current) {
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
@@ -628,6 +686,17 @@ const TemplateEditor: React.FC = () => {
             className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
           >
             Preview
+          </button>
+          <button
+            onClick={handleSendClick}
+            disabled={!editorIsReady || !clubProfileId}
+            title="Send this template to recipients"
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            Send
           </button>
           <button
             onClick={handleSave}
@@ -1049,6 +1118,18 @@ const TemplateEditor: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send: Compose modal preloaded with this template (lazy-loaded) */}
+      {showCompose && clubProfileId && composeTemplate && (
+        <React.Suspense fallback={null}>
+          <EmailCompose
+            isOpen={showCompose}
+            onClose={() => setShowCompose(false)}
+            clubProfileId={clubProfileId}
+            preselectedTemplate={composeTemplate}
+          />
+        </React.Suspense>
       )}
     </div>
   );

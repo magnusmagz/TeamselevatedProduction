@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ageGroup, ageInYears } from '../utils/ageGroup';
+import { formatGrade, GRADE_OPTIONS as GRADE_LEVEL_OPTIONS } from '../utils/grade';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
 import EmailCompose from './communications/EmailCompose';
@@ -307,6 +308,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
       {showGuardianManagement && selectedAthleteForGuardians && (
         <GuardianManagement
           athleteId={selectedAthleteForGuardians.id}
+          athleteName={selectedAthleteForGuardians.first_name}
           guardians={selectedAthleteForGuardians.guardians || []}
           onUpdate={() => {
             handleManageGuardians({ id: selectedAthleteForGuardians.id } as Athlete);
@@ -362,9 +364,11 @@ export const AthleteListContent: React.FC<{
 
   // Per-column sort + filter for the athlete table.
   type ColKey = 'name' | 'age' | 'grade' | 'gender' | 'team' | 'guardian' | 'contact';
-  const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
-    value: String(i + 1),
-    label: `Grade ${i + 1}`,
+  // Pre-K / K / 1st … 12th — filter values are the stored integer as a string
+  // (matched against athlete.grade_level.toString()).
+  const GRADE_OPTIONS = GRADE_LEVEL_OPTIONS.map((o) => ({
+    value: String(o.value),
+    label: o.label,
   }));
   // Columns with `options` render an exact-match dropdown filter; the rest a substring text filter.
   const COLUMNS: { key: ColKey; label: string; options?: { value: string; label: string }[] }[] = [
@@ -579,7 +583,7 @@ export const AthleteListContent: React.FC<{
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                     <div className="text-sm text-brand-primary">
-                      {athlete.grade_level != null ? `Grade ${athlete.grade_level}` : 'Not set'}
+                      {athlete.grade_level != null ? formatGrade(athlete.grade_level) : 'Not set'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">

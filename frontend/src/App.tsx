@@ -79,6 +79,7 @@ import PlayerCards from './pages/PlayerCards';
 // Communications & Email
 import CommunicationLog from './pages/CommunicationLog';
 import TemplateLibrary from './pages/TemplateLibrary';
+import CrewRoster from './pages/CrewRoster';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
 import DataImport from './pages/DataImport';
@@ -255,6 +256,7 @@ function AppContent() {
   const peopleLinks = isAdmin
     ? [
         { to: '/athletes', label: 'Athletes' },
+        { to: '/crew', label: 'Crew' },
         { to: '/coaches', label: 'Coaches' },
         { to: '/volunteers', label: 'Volunteers' },
       ]
@@ -839,6 +841,11 @@ function AppContent() {
           <Route path="/communications" element={
             <ProtectedRoute>
               <CommunicationLog />
+            </ProtectedRoute>
+          } />
+          <Route path="/crew" element={
+            <ProtectedRoute>
+              <CrewRoster />
             </ProtectedRoute>
           } />
           <Route path="/email-templates" element={
