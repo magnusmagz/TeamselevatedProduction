@@ -327,9 +327,8 @@ HTML;
     private function generateSeriesHTMLBody($event, $series, $recipient = null) {
         $brand = $this->getClubBranding($event['club_id'] ?? null);
         $bgColor = $brand['color'];
-        $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
         $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
-        $logoHtml = $this->logoChipHtml($brand);
+        $headerHtml = $this->brandedHeaderHtml($brand, "You're invited", $bgColor);
         $timeStr = '';
         if (!empty($event['start_time'])) {
             $timeStr = date('g:i A', strtotime($event['start_time']));
@@ -378,11 +377,7 @@ HTML;
 <head><meta charset="UTF-8"></head>
 <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
     <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="background-color: {$bgColor}; color: white; padding: 20px; text-align: center;">
-            {$logoHtml}
-            <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
-            <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">You're invited</p>
-        </div>
+        {$headerHtml}
         <div style="padding: 30px;">
             <h2>{$eTitle}</h2>
             <div style="background-color: #f8f9fa; border-left: 4px solid {$bgColor}; padding: 15px; margin: 20px 0;">
@@ -681,9 +676,9 @@ HTML;
     }
 
     /**
-     * Club logo on a white chip so any logo (transparent, dark, or light-bg)
-     * reads on the club-colored header band. Returns '' when the club has no
-     * cached email PNG, so the header falls back to the club-name text alone.
+     * Club logo on a small white chip so any logo (transparent, dark, or
+     * light-bg) reads on the club-colored header band. Returns '' when the club
+     * has no cached email PNG.
      */
     private function logoChipHtml($brand) {
         if (empty($brand['logo']) || empty($brand['logo_w']) || empty($brand['logo_h'])) return '';
@@ -691,35 +686,80 @@ HTML;
         $alt = htmlspecialchars($brand['name'] . ' logo', ENT_QUOTES);
         $w = (int) $brand['logo_w'];
         $h = (int) $brand['logo_h'];
-        return '<div style="display:inline-block;background:#ffffff;border-radius:10px;padding:8px 14px;margin:0 0 12px;line-height:0;">'
+        return '<span style="display:inline-block;background:#ffffff;border-radius:9px;padding:6px 10px;line-height:0;">'
             . '<img src="' . $src . '" alt="' . $alt . '" width="' . $w . '" height="' . $h . '" '
             . 'style="display:block;border:0;width:' . $w . 'px;height:' . $h . 'px;">'
+            . '</span>';
+    }
+
+    /**
+     * Branded email header: horizontal lockup of the club logo (left, on a white
+     * chip) and the club name + subtitle (right), left-aligned on the club-color
+     * band — matching the approved mockup. Table-based so Outlook keeps the logo
+     * and name on one row (it ignores flexbox). Falls back to name+subtitle alone
+     * when the club has no logo.
+     */
+    private function brandedHeaderHtml($brand, $subtitle, $bgColor) {
+        $club = htmlspecialchars($brand['name'], ENT_QUOTES);
+        $sub = htmlspecialchars($subtitle, ENT_QUOTES);
+        $logo = $this->logoChipHtml($brand);
+        $logoCell = $logo !== '' ? '<td style="vertical-align:middle;padding-right:14px;">' . $logo . '</td>' : '';
+        return '<div style="background-color:' . $bgColor . ';padding:18px 24px;">'
+            . '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>'
+            . $logoCell
+            . '<td style="vertical-align:middle;">'
+            . '<div style="color:#ffffff;font-weight:800;font-size:16px;letter-spacing:.02em;line-height:1.2;">' . $club . '</div>'
+            . '<div style="color:rgba(255,255,255,.72);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">' . $sub . '</div>'
+            . '</td>'
+            . '</tr></table>'
             . '</div>';
     }
 
-    /** Social + website as text links (email clients don't render inline SVG). */
-    private function socialLinksHtml($brand) {
-        $links = [];
-        $mk = fn($url, $label) => '<a href="' . htmlspecialchars($url, ENT_QUOTES) . '" style="color:#ffffff;text-decoration:underline;">' . $label . '</a>';
-        if (!empty($brand['fb'])) $links[] = $mk($brand['fb'], 'Facebook');
-        if (!empty($brand['ig'])) $links[] = $mk($brand['ig'], 'Instagram');
-        if (!empty($brand['website'])) $links[] = $mk($brand['website'], 'Website');
-        return $links ? '<p style="margin:12px 0 8px;font-size:13px;">' . implode(' &nbsp;&middot;&nbsp; ', $links) . '</p>' : '';
+    /**
+     * Social + website as hosted PNG icon buttons (email clients don't render
+     * inline SVG, so we serve pre-rasterized white glyphs on bordered circles
+     * from /email-assets/social/). Only shows a platform the club has a URL for.
+     */
+    private function socialIconsHtml($brand) {
+        $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
+        $mk = function ($url, $file, $label) use ($base) {
+            $u = htmlspecialchars($url, ENT_QUOTES);
+            $src = $base . '/email-assets/social/' . $file;
+            return '<a href="' . $u . '" style="text-decoration:none;display:inline-block;margin:0 5px;">'
+                . '<img src="' . $src . '" width="34" height="34" alt="' . $label . '" '
+                . 'style="display:inline-block;border:0;width:34px;height:34px;"></a>';
+        };
+        $items = [];
+        if (!empty($brand['fb'])) $items[] = $mk($brand['fb'], 'facebook.png', 'Facebook');
+        if (!empty($brand['ig'])) $items[] = $mk($brand['ig'], 'instagram.png', 'Instagram');
+        if (!empty($brand['website'])) $items[] = $mk($brand['website'], 'globe.png', 'Website');
+        return $items ? '<div style="margin:14px 0 8px;">' . implode('', $items) . '</div>' : '';
     }
 
-    /** Footer C — the club-colored band with contact, socials and manage link. */
+    /** Footer C — the club-colored band with logo, contact, social icons and manage link. */
     private function footerCHtml($brand) {
         $color = $brand['color'];
         $club = htmlspecialchars($brand['name'], ENT_QUOTES);
         $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
         $contact = !empty($brand['email'])
-            ? '<div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;">' . htmlspecialchars($brand['email'], ENT_QUOTES) . '</div>'
+            ? '<div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:4px;">' . htmlspecialchars($brand['email'], ENT_QUOTES) . '</div>'
             : '';
+        // small logo chip atop the footer, matching the mockup's footer C
+        $logoTop = '';
+        if (!empty($brand['logo']) && !empty($brand['logo_w']) && !empty($brand['logo_h'])) {
+            $fh = 26;
+            $fw = (int) round($brand['logo_w'] * $fh / max(1, (int) $brand['logo_h']));
+            $src = htmlspecialchars($brand['logo'], ENT_QUOTES);
+            $logoTop = '<div style="margin-bottom:8px;"><span style="display:inline-block;background:#ffffff;border-radius:7px;padding:5px 8px;line-height:0;">'
+                . '<img src="' . $src . '" width="' . $fw . '" height="' . $fh . '" alt="" '
+                . 'style="display:block;border:0;width:' . $fw . 'px;height:' . $fh . 'px;"></span></div>';
+        }
         return '<div style="background-color:' . $color . ';color:#ffffff;padding:24px;text-align:center;">'
+            . $logoTop
             . '<div style="font-weight:800;font-size:15px;">' . $club . '</div>'
             . $contact
-            . $this->socialLinksHtml($brand)
-            . '<div style="margin-top:4px;"><a href="' . htmlspecialchars($appUrl . '/parent', ENT_QUOTES) . '" style="color:rgba(255,255,255,.85);text-decoration:underline;font-size:12px;">Manage notifications</a></div>'
+            . $this->socialIconsHtml($brand)
+            . '<div style="margin-top:6px;"><a href="' . htmlspecialchars($appUrl . '/parent', ENT_QUOTES) . '" style="color:rgba(255,255,255,.85);text-decoration:underline;font-size:12px;">Manage notifications</a></div>'
             . '<div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.55);">Powered by Teams Elevated</div>'
             . '</div>';
     }
@@ -759,9 +799,8 @@ HTML;
         $brand = $this->getClubBranding($event['club_id'] ?? null);
         $bgColor = $type === 'cancel' ? '#b91c1c' : $brand['color'];
         $subtitle = $type === 'update' ? 'Event updated' : ($type === 'cancel' ? 'Event cancelled' : "You're invited");
-        $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
         $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
-        $logoHtml = $this->logoChipHtml($brand);
+        $headerHtml = $this->brandedHeaderHtml($brand, $subtitle, $bgColor);
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -779,11 +818,7 @@ HTML;
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            {$logoHtml}
-            <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
-            <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">{$subtitle}</p>
-        </div>
+        {$headerHtml}
         <div class="content">
             <h2>{$eTitle}</h2>
             <div class="event-details">
