@@ -148,7 +148,7 @@ const CrewRoster: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Crew</h1>
-          <p className="text-sm text-gray-500 mt-1">Parents, guardians &amp; family across your club</p>
+          <p className="text-sm text-gray-500 mt-1">Crew &amp; family across your club</p>
         </div>
         <button
           onClick={inviteAll}

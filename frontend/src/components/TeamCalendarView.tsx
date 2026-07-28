@@ -1576,7 +1576,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
                 <p className="text-sm text-gray-600 mt-2">
                   {!selectedEvent
-                    ? 'Calendar invites will be sent to all athletes, guardians, and coaches associated with the selected teams.'
+                    ? 'Calendar invites will be sent to all athletes, crew, and coaches associated with the selected teams.'
                     : 'Update notifications will be sent to everyone who received the original invite.'}
                 </p>
               </div>

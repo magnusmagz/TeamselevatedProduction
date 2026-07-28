@@ -280,7 +280,7 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                         </div>
                       </div>
                       <div className="mt-3 pt-3 border-t text-sm">
-                        <span className="text-gray-400">Guardian:</span>{' '}
+                        <span className="text-gray-400">Crew:</span>{' '}
                         <span className="text-gray-700">
                           {reg.form_data.guardian_first} {reg.form_data.guardian_last}
                         </span>

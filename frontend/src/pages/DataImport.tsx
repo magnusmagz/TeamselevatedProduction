@@ -54,7 +54,7 @@ const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
 };
 
 const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
-  athletes: 'Upload a CSV with one row per athlete. Each row can include up to two guardians.',
+  athletes: 'Upload a CSV with one row per athlete. Each row can include up to two crew members.',
   facilities: 'Upload a CSV with one row per field or court. Each row can include inline venue info — venues are auto-created by name if they don\'t already exist.',
   volunteers: 'Upload a CSV with one row per volunteer assignment. Each row references a team by name, so one file can span multiple teams in your club. Users without accounts will be created (login disabled until they claim it).',
   coaches: 'Upload a CSV with one row per coach. Creates a user account if needed and grants the coach role on your club. Team assignments are not handled here — assign coaches to specific teams from the team management UI after they\'re imported.',

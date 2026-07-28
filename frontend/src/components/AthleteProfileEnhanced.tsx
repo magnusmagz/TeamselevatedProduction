@@ -774,9 +774,9 @@ const AthleteProfileEnhanced: React.FC = () => {
                 </div>
               </div>
               <div>
-                <div className="text-sm font-bold uppercase tracking-wide mb-3">Guardians</div>
+                <div className="text-sm font-bold uppercase tracking-wide mb-3">Crew</div>
                 {athlete.guardians.length === 0 ? (
-                  <div className="text-sm text-gray-500">No guardians on file</div>
+                  <div className="text-sm text-gray-500">No crew on file</div>
                 ) : (
                   <div className="space-y-2">
                     {athlete.guardians.map((g) => (

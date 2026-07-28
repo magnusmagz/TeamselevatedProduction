@@ -310,7 +310,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
   const groupOrder = ['athlete', 'guardian', 'coach'];
   const groupLabels: Record<string, string> = {
     athlete: 'Athletes',
-    guardian: 'Parents / Guardians',
+    guardian: 'Crew',
     coach: 'Coaches',
   };
 
@@ -479,7 +479,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                       {group.group_type === 'special'
                         ? 'Group'
-                        : `${group.athlete_count || 0} athletes, ${group.guardian_count || 0} parents`}
+                        : `${group.athlete_count || 0} athletes, ${group.guardian_count || 0} crew`}
                     </span>
                   </button>
                 );
@@ -621,7 +621,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                     ) : (
                       <>
                         <div>{group.athlete_count} athletes</div>
-                        <div>{group.guardian_count} parents</div>
+                        <div>{group.guardian_count} crew</div>
                       </>
                     )}
                   </div>

@@ -392,7 +392,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         <div className="p-6">
           {/* Step Indicator */}
           <div className="flex justify-between mb-8">
-            {['Athlete Info', 'Guardian Info', 'Emergency & Medical'].map((step, index) => (
+            {['Athlete Info', 'Crew Info', 'Emergency & Medical'].map((step, index) => (
               <div
                 key={index}
                 className={`flex-1 text-center py-2 border border-brand-secondary rounded-md ${
@@ -600,16 +600,16 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
               </div>
             )}
 
-            {/* Step 2: Guardian Information */}
+            {/* Step 2: Crew Information */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                <h4 className="text-lg font-semibold text-brand-primary uppercase">Guardian Information</h4>
+                <h4 className="text-lg font-semibold text-brand-primary uppercase">Crew Information</h4>
 
                 {(formData.guardians || []).map((guardian, gi) => (
                   <div key={gi} className="space-y-4 border border-brand-secondary rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-brand-primary uppercase">
-                        {gi === 0 ? 'Primary Parent / Guardian' : `Parent / Guardian ${gi + 1}`}
+                        {gi === 0 ? 'Primary Crew Member' : `Crew Member ${gi + 1}`}
                       </span>
                       {(formData.guardians?.length || 0) > 1 && (
                         <button
@@ -715,7 +715,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   onClick={addGuardian}
                   className="w-full border-2 border-dashed border-brand-secondary text-brand-primary rounded-lg px-4 py-3 text-sm font-medium hover:border-brand-accent hover:bg-brand-secondary/10 transition-colors"
                 >
-                  + Add another parent / guardian
+                  + Add another crew member
                 </button>
               </div>
             )}

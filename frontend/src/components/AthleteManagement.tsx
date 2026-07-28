@@ -385,7 +385,7 @@ export const AthleteListContent: React.FC<{
       ],
     },
     { key: 'team', label: 'Team' },
-    { key: 'guardian', label: 'Primary Guardian' },
+    { key: 'guardian', label: 'Primary Crew' },
     { key: 'contact', label: 'Contact' },
   ];
   const [sortKey, setSortKey] = useState<ColKey | null>(null);

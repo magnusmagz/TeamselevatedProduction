@@ -12,7 +12,7 @@ const TILES: EntityTile[] = [
   {
     slug: 'athletes',
     name: 'Athletes',
-    description: 'One row per athlete with up to two guardians. Supports shared household emails.',
+    description: 'One row per athlete with up to two crew members. Supports shared household emails.',
     enabled: true,
   },
   {

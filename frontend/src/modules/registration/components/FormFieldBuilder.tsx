@@ -98,7 +98,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       {
         tempId: '6',
         field_name: 'guardian_first',
-        field_label: 'Guardian First',
+        field_label: 'Crew First',
         field_type: 'text',
         required: true,
         section: 'parent_info',
@@ -107,7 +107,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       {
         tempId: '7',
         field_name: 'guardian_last',
-        field_label: 'Guardian Last',
+        field_label: 'Crew Last',
         field_type: 'text',
         required: true,
         section: 'parent_info',
@@ -116,7 +116,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
       {
         tempId: '8',
         field_name: 'guardian_email',
-        field_label: 'Guardian Email',
+        field_label: 'Crew Email',
         field_type: 'email',
         required: true,
         section: 'parent_info',

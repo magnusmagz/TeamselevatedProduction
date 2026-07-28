@@ -271,7 +271,7 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
             {/* Guardian */}
             {guardian && (
               <div className="mt-4">
-                <div className="text-gray-500 font-medium uppercase text-xs mb-2">Parent / Guardian</div>
+                <div className="text-gray-500 font-medium uppercase text-xs mb-2">Crew</div>
                 <div className="bg-brand-secondary p-3">
                   <div className="font-medium text-brand-primary">{guardian.first_name} {guardian.last_name}</div>
                   {guardian.relationship_type && <div className="text-gray-600 text-xs capitalize">{guardian.relationship_type}</div>}

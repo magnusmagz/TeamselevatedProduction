@@ -190,7 +190,7 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
                     value={formData.participant_type || 'athlete'}
                     onChange={(e) => setFormData({ ...formData, participant_type: e.target.value as any })}
                   >
-                    <option value="athlete">Athlete (with guardian)</option>
+                    <option value="athlete">Athlete (with crew)</option>
                     <option value="coach">Coach</option>
                     <option value="adult">Adult</option>
                   </select>

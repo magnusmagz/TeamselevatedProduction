@@ -157,7 +157,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
       );
 
       if (response.ok) {
-        alert('Guardian added successfully!');
+        alert('Crew member added successfully!');
         setShowAddForm(false);
         setFormData({
           first_name: '',
@@ -176,16 +176,16 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
         onUpdate();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to add guardian');
+        alert(error.error || 'Failed to add crew member');
       }
     } catch (error) {
       console.error('Error adding guardian:', error);
-      alert('Failed to add guardian');
+      alert('Failed to add crew member');
     }
   };
 
   const handleRemoveGuardian = async (guardianId: number) => {
-    if (!window.confirm('Are you sure you want to remove this guardian?')) return;
+    if (!window.confirm('Are you sure you want to remove this crew member?')) return;
 
     try {
       const response = await fetch(
@@ -197,14 +197,14 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
       );
 
       if (response.ok) {
-        alert('Guardian removed successfully!');
+        alert('Crew member removed successfully!');
         onUpdate();
       } else {
-        alert('Failed to remove guardian');
+        alert('Failed to remove crew member');
       }
     } catch (error) {
       console.error('Error removing guardian:', error);
-      alert('Failed to remove guardian');
+      alert('Failed to remove crew member');
     }
   };
 
@@ -220,15 +220,15 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
       );
 
       if (response.ok) {
-        alert('Guardian permissions updated!');
+        alert('Crew permissions updated!');
         setEditingGuardian(null);
         onUpdate();
       } else {
-        alert('Failed to update guardian');
+        alert('Failed to update crew member');
       }
     } catch (error) {
       console.error('Error updating guardian:', error);
-      alert('Failed to update guardian');
+      alert('Failed to update crew member');
     }
   };
 
@@ -250,7 +250,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h4 className="text-lg font-semibold text-brand-primary">Crew</h4>
-                <p className="text-xs text-gray-500">Parents, guardians &amp; family</p>
+                <p className="text-xs text-gray-500">Crew &amp; family</p>
               </div>
               <button
                 onClick={() => setShowAddForm(true)}
@@ -261,7 +261,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
             </div>
 
             {guardians.length === 0 ? (
-              <p className="text-gray-600">No guardians added yet.</p>
+              <p className="text-gray-600">No crew added yet.</p>
             ) : (
               <div className="space-y-4">
                 {/* Group guardians by email */}
@@ -467,10 +467,10 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
             )}
           </div>
 
-          {/* Add Guardian Form */}
+          {/* Add Crew Member Form */}
           {showAddForm && (
             <div className="bg-white border border-brand-secondary rounded-md p-6">
-              <h4 className="text-lg font-semibold text-brand-primary mb-4">Add New Guardian</h4>
+              <h4 className="text-lg font-semibold text-brand-primary mb-4">Add Crew Member</h4>
               <form onSubmit={handleAddGuardian}>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
@@ -629,7 +629,7 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                     type="submit"
                     className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
                   >
-                    Add Guardian
+                    Add Crew Member
                   </button>
                 </div>
               </form>

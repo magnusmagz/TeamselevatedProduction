@@ -12,8 +12,8 @@ const CATEGORIES = ['General', 'Game Day', 'Practice', 'Administrative'];
 const MERGE_FIELDS = [
   { key: 'athlete_first_name', label: 'Athlete First Name' },
   { key: 'athlete_last_name', label: 'Athlete Last Name' },
-  { key: 'guardian_first_name', label: 'Guardian First Name' },
-  { key: 'guardian_last_name', label: 'Guardian Last Name' },
+  { key: 'guardian_first_name', label: 'Crew First Name' },
+  { key: 'guardian_last_name', label: 'Crew Last Name' },
   { key: 'team_name', label: 'Team Name' },
   { key: 'club_name', label: 'Club Name' },
   { key: 'event_name', label: 'Event Name' },

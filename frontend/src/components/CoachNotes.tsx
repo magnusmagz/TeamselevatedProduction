@@ -251,7 +251,7 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
                   onChange={(e) => setVisibility(e.target.value)}
                   className="text-brand-primary"
                 />
-                <span className="text-gray-700">Share with Parents</span>
+                <span className="text-gray-700">Share with Crew</span>
               </label>
             </div>
           </div>
