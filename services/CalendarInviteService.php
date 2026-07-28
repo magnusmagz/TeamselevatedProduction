@@ -741,9 +741,6 @@ HTML;
         $color = $brand['color'];
         $club = htmlspecialchars($brand['name'], ENT_QUOTES);
         $appUrl = rtrim(getenv('APP_URL') ?: 'https://teams-elevated.netlify.app', '/');
-        $contact = !empty($brand['email'])
-            ? '<div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:4px;">' . htmlspecialchars($brand['email'], ENT_QUOTES) . '</div>'
-            : '';
         // small logo chip atop the footer, matching the mockup's footer C
         $logoTop = '';
         if (!empty($brand['logo']) && !empty($brand['logo_w']) && !empty($brand['logo_h'])) {
@@ -757,7 +754,6 @@ HTML;
         return '<div style="background-color:' . $color . ';color:#ffffff;padding:24px;text-align:center;">'
             . $logoTop
             . '<div style="font-weight:800;font-size:15px;">' . $club . '</div>'
-            . $contact
             . $this->socialIconsHtml($brand)
             . '<div style="margin-top:6px;"><a href="' . htmlspecialchars($appUrl . '/parent', ENT_QUOTES) . '" style="color:rgba(255,255,255,.85);text-decoration:underline;font-size:12px;">Manage notifications</a></div>'
             . '<div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.55);">Powered by Teams Elevated</div>'
