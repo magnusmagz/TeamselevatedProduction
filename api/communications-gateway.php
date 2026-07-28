@@ -185,8 +185,12 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
         return;
     }
 
-    // If template + event, resolve merge fields per recipient
-    if ($templateId && $eventId) {
+    // Resolve merge fields per recipient whenever there is anything to resolve.
+    // Deliberately NOT gated on $eventId: event-less templates (welcome notes,
+    // club announcements) carry {{club_name}} and friends, and used to send with
+    // the raw placeholders intact. MergeFieldService only loads a data source the
+    // text actually references, so a null event_id costs nothing here.
+    if ($templateId || strpos((string)$subject . (string)$htmlBody, '{{') !== false) {
         foreach ($recipients as &$r) {
             $context = [
                 'event_id'        => $eventId,
@@ -420,8 +424,10 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     $totalSkipped = 0;
 
     if ($channel === 'email') {
-        // If template + event, resolve merge fields per recipient
-        if ($templateId && $eventId) {
+        // Resolve merge fields per recipient whenever there is anything to resolve.
+        // See the note on the same guard in the direct-send path above — event-less
+        // templates must merge too, or {{club_name}} ships literally.
+        if ($templateId || strpos((string)$subject . (string)$htmlBody, '{{') !== false) {
             foreach ($recipients as $recipient) {
                 $context = [
                     'event_id'        => $eventId,

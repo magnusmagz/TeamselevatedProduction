@@ -1,0 +1,46 @@
+A NEW HOME FOR CLUB COMMUNICATION
+
+Hi there,
+
+{{club_name}} has selected TeamsElevated as our team management and
+communication platform. Schedules, rosters, club news, and the emails and
+texts you get from us will now all run through one place -- and every family
+gets a free portal account.
+
+
+WHAT THIS MEANS FOR YOU
+
+* Club and team messages will arrive from TeamsElevated, sent on behalf of
+  {{club_name}}.
+* Practices, games, and team events come to you as calendar invites that
+  update themselves when something changes.
+* You get a free portal account. There is no cost and no subscription.
+
+
+WATCH YOUR INBOX
+
+Over the next few days you'll receive an invitation from TeamsElevated to set
+up your account. It takes about two minutes. If you don't see it, check your
+spam or promotions folder and add the sender to your contacts so future club
+messages reach you.
+
+
+WHAT'S IN YOUR FREE PORTAL
+
+* Your athlete's full schedule, in one calendar you can sync to your phone
+* RSVP to practices, games, and team events
+* Team rosters and how to reach your coach
+* Club announcements, plus a history of everything we've sent you
+* Forms, documents, and registration details in one place
+
+
+One bit of vocabulary: in the portal, the adults connected to an athlete are
+called that athlete's Crew. If you see "Crew" next to your athlete's name,
+that's you.
+
+Thanks for being part of {{club_name}}. If you have questions in the meantime,
+just reply to this email and we'll help.
+
+-- The {{club_name}} staff
+
+Powered by TeamsElevated

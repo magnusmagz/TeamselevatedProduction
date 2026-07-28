@@ -105,6 +105,8 @@ class MergeFieldService {
             ['key' => 'guardian_full_name', 'label' => 'Parent/Guardian Full Name', 'group' => 'Parent'],
             ['key' => 'team_name', 'label' => 'Team Name', 'group' => 'Team'],
             ['key' => 'club_name', 'label' => 'Club Name', 'group' => 'Club'],
+            ['key' => 'club_primary_color', 'label' => 'Club Primary Color (hex)', 'group' => 'Club'],
+            ['key' => 'club_secondary_color', 'label' => 'Club Secondary Color (hex)', 'group' => 'Club'],
             ['key' => 'event_name', 'label' => 'Event Name', 'group' => 'Event'],
             ['key' => 'event_date', 'label' => 'Event Date', 'group' => 'Event'],
             ['key' => 'event_time', 'label' => 'Event Time', 'group' => 'Event'],
@@ -360,10 +362,28 @@ class MergeFieldService {
 
         $data = [
             'club_name' => $clubName,
+            // Brand colours so a template can paint its header/footer bands in the
+            // club's own colours at send time. Always resolve to a valid hex —
+            // an empty value would emit "background-color:;" and drop the band.
+            'club_primary_color'   => $this->normalizeHexColor($row['primary_color'] ?? null, '#12443E'),
+            'club_secondary_color' => $this->normalizeHexColor($row['secondary_color'] ?? null, '#C9A96E'),
         ];
 
         $this->cache[$key] = $data;
         return $data;
+    }
+
+    /**
+     * Coerce a stored colour to a usable 6-digit hex, falling back when the club
+     * has none or has something unparseable. Mirrors the validation in
+     * CalendarInviteService::getClubBranding() so both email paths agree.
+     */
+    private function normalizeHexColor($value, $fallback) {
+        $value = trim((string) $value);
+        if ($value === '' || !preg_match('/^#?[0-9a-fA-F]{6}$/', $value)) {
+            return $fallback;
+        }
+        return (substr($value, 0, 1) === '#' ? '' : '#') . $value;
     }
 
     private function loadTournamentData($tournamentId) {

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club platform announcement</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+
+<!--
+  Brand colours are declared twice on purpose:
+
+      color:#1A3C5E;color:{{club_primary_color}};
+
+  The second declaration wins once MergeFieldService resolves it at send time, so
+  the email arrives in the club's own primary colour. Where it is NOT resolved —
+  the Unlayer editor canvas, a raw file preview — the merge tag is invalid CSS,
+  browsers discard it, and the #1A3C5E placeholder stands. That placeholder is
+  also what TemplateEditor's applyBrandColors() swaps for the club's brand colour
+  on the editor canvas, so both paths land in the right place.
+
+  #C9A96E (the accent rule and bullets) is intentionally left fixed — a warm gold
+  reads well against almost any club primary, and mapping it to a club's secondary
+  risks an accent that disappears into the header band.
+-->
+
+<!-- Preheader: shows in the inbox preview line, hidden in the body. -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;height:0;width:0;">
+  Watch for an invitation from TeamsElevated to set up your free portal account.
+</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:20px 12px;">
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+
+    <!-- Header band. Mirrors brandedHeaderHtml(): club name + uppercase subtitle,
+         left-aligned on the club-colour band. No logo chip — a platform template
+         can't know the club's logo URL, and the name-only lockup is the same
+         fallback CalendarInviteService uses. -->
+    <tr><td style="background-color:#1A3C5E;background-color:{{club_primary_color}};padding:18px 24px;">
+      <div style="color:#ffffff;font-weight:800;font-size:16px;letter-spacing:.02em;line-height:1.2;">{{club_name}}</div>
+      <div style="color:rgba(255,255,255,.72);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">Club announcement</div>
+    </td></tr>
+
+    <tr><td style="padding:30px 30px 8px 30px;">
+
+      <h1 style="margin:0 0 18px 0;font-size:24px;line-height:1.25;font-weight:800;color:#1A3C5E;color:{{club_primary_color}};">
+        A new home for club communication
+      </h1>
+
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">
+        Hi there,
+      </p>
+
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">
+        {{club_name}} has selected <strong>TeamsElevated</strong> as our team management and
+        communication platform. Schedules, rosters, club news, and the emails and texts you get
+        from us will now all run through one place — and every family gets a free portal account.
+      </p>
+
+      <!-- Accent rule -->
+      <div style="height:3px;width:48px;background-color:#C9A96E;margin:24px 0;"></div>
+
+      <h2 style="margin:0 0 12px 0;font-size:17px;line-height:1.3;font-weight:700;color:#1A3C5E;color:{{club_primary_color}};">
+        What this means for you
+      </h2>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;">
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            Club and team messages will arrive from TeamsElevated, sent on behalf of {{club_name}}.
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            Practices, games, and team events come to you as calendar invites that update themselves
+            when something changes.
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;">
+            You get a free portal account. There is no cost and no subscription.
+          </td>
+        </tr>
+      </table>
+
+      <!-- Callout: the real action for this email is "expect the invite", so there is
+           deliberately no CTA button here — the invitation link doesn't exist yet. -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="background-color:#f7f9fb;border-left:4px solid #1A3C5E;border-left:4px solid {{club_primary_color}};margin:0 0 26px 0;">
+        <tr><td style="padding:16px 18px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;color:#1A3C5E;color:{{club_primary_color}};">Watch your inbox</div>
+          <div style="font-size:14px;line-height:1.6;color:#444444;">
+            Over the next few days you'll receive an invitation from <strong>TeamsElevated</strong>
+            to set up your account. It takes about two minutes. If you don't see it, check your spam
+            or promotions folder and add the sender to your contacts so future club messages reach you.
+          </div>
+        </td></tr>
+      </table>
+
+      <h2 style="margin:0 0 12px 0;font-size:17px;line-height:1.3;font-weight:700;color:#1A3C5E;color:{{club_primary_color}};">
+        What's in your free portal
+      </h2>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;">
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            Your athlete's full schedule, in one calendar you can sync to your phone
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            RSVP to practices, games, and team events
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            Team rosters and how to reach your coach
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;padding-bottom:8px;">
+            Club announcements, plus a history of everything we've sent you
+          </td>
+        </tr>
+        <tr>
+          <td width="18" valign="top" style="font-size:15px;line-height:1.6;color:#C9A96E;font-weight:700;">&bull;</td>
+          <td style="font-size:15px;line-height:1.6;color:#333333;">
+            Forms, documents, and registration details in one place
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 22px 0;font-size:14px;line-height:1.6;color:#555555;background-color:#fbfaf7;border:1px solid #eee6d6;border-radius:6px;padding:14px 16px;">
+        <strong style="color:#1A3C5E;color:{{club_primary_color}};">One bit of vocabulary:</strong> in the portal, the adults
+        connected to an athlete are called that athlete's <strong>Crew</strong>. If you see "Crew"
+        next to your athlete's name, that's you.
+      </p>
+
+      <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:#333333;">
+        Thanks for being part of {{club_name}}. If you have questions in the meantime, just reply
+        to this email and we'll help.
+      </p>
+
+      <p style="margin:0 0 4px 0;font-size:15px;line-height:1.6;color:#333333;">
+        &mdash; The {{club_name}} staff
+      </p>
+
+    </td></tr>
+
+    <!-- Footer band. Mirrors footerCHtml(). No unsubscribe link here on purpose:
+         EmailSendService::processHtml() appends the compliant unsubscribe footer
+         (and the open-tracking pixel) before </body> at send time. -->
+    <tr><td style="background-color:#1A3C5E;background-color:{{club_primary_color}};color:#ffffff;padding:24px;text-align:center;">
+      <div style="font-weight:800;font-size:15px;">{{club_name}}</div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.55);">Powered by TeamsElevated</div>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+
+</body>
+</html>
