@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatGrade } from '../utils/grade';
 import { useParams, Link } from 'react-router-dom';
 
 interface Athlete {
@@ -336,10 +337,10 @@ const AthleteProfile: React.FC = () => {
                 <span>{athlete.school_name}</span>
               </div>
             )}
-            {athlete.grade_level && (
+            {athlete.grade_level != null && (
               <div className="flex justify-between py-2 border-b border-gray-300">
                 <span className="font-medium">Grade</span>
-                <span>{athlete.grade_level}th Grade</span>
+                <span>{formatGrade(athlete.grade_level)}</span>
               </div>
             )}
             {sports.map(sport => (

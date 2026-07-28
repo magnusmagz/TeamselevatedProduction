@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatGrade } from '../utils/grade';
 import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
@@ -186,10 +187,10 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
                 <span className="text-brand-primary">{athlete.school_name}</span>
               </div>
             )}
-            {athlete.grade_level && (
+            {athlete.grade_level != null && (
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500 font-medium uppercase text-xs">Grade</span>
-                <span className="text-brand-primary">{athlete.grade_level}</span>
+                <span className="text-brand-primary">{formatGrade(athlete.grade_level)}</span>
               </div>
             )}
             {athlete.email && (

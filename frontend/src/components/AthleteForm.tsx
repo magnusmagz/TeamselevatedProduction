@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { GRADE_OPTIONS } from '../utils/grade';
+
+const emptyGuardian = (): GuardianData => ({
+  first_name: '', last_name: '', email: '', mobile_phone: '', relationship_type: 'Parent',
+});
 
 interface GuardianData {
   first_name: string;
@@ -38,7 +43,7 @@ interface AthleteFormData {
   school_name?: string;
   grade_level?: number;
   dietary_restrictions?: string[];
-  guardian?: GuardianData;
+  guardians?: GuardianData[];
   emergency_contacts?: EmergencyContact[];
   medical?: {
     // Allergies
@@ -100,13 +105,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     school_name: '',
     grade_level: undefined,
     dietary_restrictions: [],
-    guardian: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      mobile_phone: '',
-      relationship_type: 'Parent'
-    },
+    guardians: [emptyGuardian()],
     emergency_contacts: [{
       contact_name: '',
       relationship: '',
@@ -142,7 +141,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     if (athlete) {
       setFormData({
         ...athlete,
-        guardian: athlete.guardians?.[0] || formData.guardian,
+        guardians: (athlete.guardians && athlete.guardians.length > 0) ? athlete.guardians : [emptyGuardian()],
         emergency_contacts: athlete.emergency_contacts || formData.emergency_contacts,
         medical: athlete.medical || formData.medical
       });
@@ -200,14 +199,20 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     }));
   };
 
-  const handleGuardianChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      guardian: {
-        ...prev.guardian!,
-        [field]: value
-      }
-    }));
+  const handleGuardianChange = (index: number, field: string, value: any) => {
+    setFormData(prev => {
+      const guardians = [...(prev.guardians || [])];
+      guardians[index] = { ...guardians[index], [field]: value };
+      return { ...prev, guardians };
+    });
+  };
+
+  const addGuardian = () => {
+    setFormData(prev => ({ ...prev, guardians: [...(prev.guardians || []), emptyGuardian()] }));
+  };
+
+  const removeGuardian = (index: number) => {
+    setFormData(prev => ({ ...prev, guardians: (prev.guardians || []).filter((_, i) => i !== index) }));
   };
 
   const handleMedicalChange = (field: string, value: any) => {
@@ -278,7 +283,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         zip_code: formData.zip_code,
         school_name: formData.school_name,
         grade_level: formData.grade_level,
-        email: formData.guardian?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`,
+        email: formData.guardians?.[0]?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`,
         // Stamp the active club so the new athlete is visible in this club's
         // Athletes list even before any team assignment (CA-18 write side).
         club_id: currentClubId
@@ -304,17 +309,22 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         const athleteData = await response.json();
         const athleteId = athleteData.athlete_id || athleteData.id || athlete?.id;
 
-        // Save guardian information if provided
-        if (formData.guardian?.first_name && formData.guardian?.last_name && formData.guardian?.email && formData.guardian?.mobile_phone) {
+        // Save each fully-filled guardian; the first is the primary contact.
+        // guardian-gateway POST is idempotent (matches on email+first+last and
+        // updates the athlete link), so re-saving on edit won't duplicate.
+        const guardiansToSave = (formData.guardians || []).filter(
+          g => g.first_name && g.last_name && g.email && g.mobile_phone
+        );
+        for (let i = 0; i < guardiansToSave.length; i++) {
           const guardianData = {
             athlete_id: athleteId,
-            ...formData.guardian,
-            is_primary_contact: 1,
+            ...guardiansToSave[i],
+            is_primary_contact: i === 0 ? 1 : 0,
             has_legal_custody: 1,
             can_authorize_medical: 1,
             can_pickup: 1,
             receives_communications: 1,
-            financial_responsible: 1
+            financial_responsible: i === 0 ? 1 : 0
           };
 
           await fetch(`${API_URL}/legacy/guardian-gateway.php`, {
@@ -574,14 +584,16 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                         Grade Level
                       </label>
-                      <input
-                        type="number"
+                      <select
                         className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                        value={formData.grade_level}
-                        onChange={(e) => handleChange('grade_level', parseInt(e.target.value))}
-                        min="1"
-                        max="12"
-                      />
+                        value={formData.grade_level ?? ''}
+                        onChange={(e) => handleChange('grade_level', e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                      >
+                        <option value="">Select grade</option>
+                        {GRADE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -591,93 +603,120 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             {/* Step 2: Guardian Information */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                <h4 className="text-lg font-semibold text-brand-primary mb-4 uppercase">Guardian Information</h4>
+                <h4 className="text-lg font-semibold text-brand-primary uppercase">Guardian Information</h4>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Guardian First Name *
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.first_name}
-                      onChange={(e) => handleGuardianChange('first_name', e.target.value)}
-                      required
-                    />
-                  </div>
+                {(formData.guardians || []).map((guardian, gi) => (
+                  <div key={gi} className="space-y-4 border border-brand-secondary rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-brand-primary uppercase">
+                        {gi === 0 ? 'Primary Parent / Guardian' : `Parent / Guardian ${gi + 1}`}
+                      </span>
+                      {(formData.guardians?.length || 0) > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeGuardian(gi)}
+                          className="text-red-600 text-sm font-medium hover:underline"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
 
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Guardian Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.last_name}
-                      onChange={(e) => handleGuardianChange('last_name', e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          First Name {gi === 0 ? '*' : ''}
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.first_name}
+                          onChange={(e) => handleGuardianChange(gi, 'first_name', e.target.value)}
+                          required={gi === 0}
+                        />
+                      </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.email}
-                      onChange={(e) => handleGuardianChange('email', e.target.value)}
-                      required
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Last Name {gi === 0 ? '*' : ''}
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.last_name}
+                          onChange={(e) => handleGuardianChange(gi, 'last_name', e.target.value)}
+                          required={gi === 0}
+                        />
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Mobile Phone *
-                    </label>
-                    <input
-                      type="tel"
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.mobile_phone}
-                      onChange={(e) => handleGuardianChange('mobile_phone', e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Email {gi === 0 ? '*' : ''}
+                        </label>
+                        <input
+                          type="email"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.email}
+                          onChange={(e) => handleGuardianChange(gi, 'email', e.target.value)}
+                          required={gi === 0}
+                        />
+                      </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Relationship *
-                    </label>
-                    <select
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.relationship_type}
-                      onChange={(e) => handleGuardianChange('relationship_type', e.target.value)}
-                      required
-                    >
-                      <option value="Parent">Parent</option>
-                      <option value="Guardian">Guardian</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Mobile Phone {gi === 0 ? '*' : ''}
+                        </label>
+                        <input
+                          type="tel"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.mobile_phone}
+                          onChange={(e) => handleGuardianChange(gi, 'mobile_phone', e.target.value)}
+                          required={gi === 0}
+                        />
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                      Work Phone
-                    </label>
-                    <input
-                      type="tel"
-                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
-                      value={formData.guardian?.work_phone}
-                      onChange={(e) => handleGuardianChange('work_phone', e.target.value)}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Relationship {gi === 0 ? '*' : ''}
+                        </label>
+                        <select
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.relationship_type}
+                          onChange={(e) => handleGuardianChange(gi, 'relationship_type', e.target.value)}
+                          required={gi === 0}
+                        >
+                          <option value="Parent">Parent</option>
+                          <option value="Guardian">Guardian</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Work Phone
+                        </label>
+                        <input
+                          type="tel"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={guardian.work_phone || ''}
+                          onChange={(e) => handleGuardianChange(gi, 'work_phone', e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addGuardian}
+                  className="w-full border-2 border-dashed border-brand-secondary text-brand-primary rounded-lg px-4 py-3 text-sm font-medium hover:border-brand-accent hover:bg-brand-secondary/10 transition-colors"
+                >
+                  + Add another parent / guardian
+                </button>
               </div>
             )}
 
