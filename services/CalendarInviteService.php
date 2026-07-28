@@ -329,6 +329,7 @@ HTML;
         $bgColor = $brand['color'];
         $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
         $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
+        $logoHtml = $this->logoChipHtml($brand);
         $timeStr = '';
         if (!empty($event['start_time'])) {
             $timeStr = date('g:i A', strtotime($event['start_time']));
@@ -378,6 +379,7 @@ HTML;
 <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
     <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div style="background-color: {$bgColor}; color: white; padding: 20px; text-align: center;">
+            {$logoHtml}
             <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
             <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">You're invited</p>
         </div>
@@ -642,10 +644,17 @@ HTML;
     private function getClubBranding($clubId) {
         $clubId = (int) $clubId;
         if (array_key_exists($clubId, $this->brandCache)) return $this->brandCache[$clubId];
-        $brand = ['name' => 'Your Club', 'color' => '#12443e', 'email' => '', 'website' => '', 'fb' => '', 'ig' => ''];
+        $brand = ['name' => 'Your Club', 'color' => '#12443e', 'email' => '', 'website' => '', 'fb' => '', 'ig' => '',
+                  'logo' => '', 'logo_w' => 0, 'logo_h' => 0];
         try {
             if ($clubId) {
-                $stmt = $this->pdo->prepare("SELECT name, primary_color, email, website, social_facebook, social_instagram FROM club_profile WHERE id = ?");
+                // logo_v = short hash of the cached PNG so a changed logo busts the email
+                // proxy cache; computed in SQL to avoid pulling the base64 blob every send.
+                $stmt = $this->pdo->prepare(
+                    "SELECT name, primary_color, email, website, social_facebook, social_instagram,
+                            logo_w, logo_h,
+                            CASE WHEN logo_png IS NOT NULL AND logo_png <> '' THEN substr(md5(logo_png), 1, 8) END AS logo_v
+                     FROM club_profile WHERE id = ?");
                 $stmt->execute([$clubId]);
                 $c = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($c) {
@@ -657,11 +666,35 @@ HTML;
                     $brand['website'] = $c['website'] ?? '';
                     $brand['fb'] = $c['social_facebook'] ?? '';
                     $brand['ig'] = $c['social_instagram'] ?? '';
+                    if (!empty($c['logo_v']) && !empty($c['logo_w']) && !empty($c['logo_h'])) {
+                        $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
+                        $brand['logo'] = $base . '/api/club-logo.php?club_id=' . $clubId . '&v=' . $c['logo_v'];
+                        // stored at 2x for retina; display at half.
+                        $brand['logo_w'] = (int) round($c['logo_w'] / 2);
+                        $brand['logo_h'] = (int) round($c['logo_h'] / 2);
+                    }
                 }
             }
         } catch (Exception $e) { /* fall back to defaults */ }
         $this->brandCache[$clubId] = $brand;
         return $brand;
+    }
+
+    /**
+     * Club logo on a white chip so any logo (transparent, dark, or light-bg)
+     * reads on the club-colored header band. Returns '' when the club has no
+     * cached email PNG, so the header falls back to the club-name text alone.
+     */
+    private function logoChipHtml($brand) {
+        if (empty($brand['logo']) || empty($brand['logo_w']) || empty($brand['logo_h'])) return '';
+        $src = htmlspecialchars($brand['logo'], ENT_QUOTES);
+        $alt = htmlspecialchars($brand['name'] . ' logo', ENT_QUOTES);
+        $w = (int) $brand['logo_w'];
+        $h = (int) $brand['logo_h'];
+        return '<div style="display:inline-block;background:#ffffff;border-radius:10px;padding:8px 14px;margin:0 0 12px;line-height:0;">'
+            . '<img src="' . $src . '" alt="' . $alt . '" width="' . $w . '" height="' . $h . '" '
+            . 'style="display:block;border:0;width:' . $w . 'px;height:' . $h . 'px;">'
+            . '</div>';
     }
 
     /** Social + website as text links (email clients don't render inline SVG). */
@@ -728,6 +761,7 @@ HTML;
         $subtitle = $type === 'update' ? 'Event updated' : ($type === 'cancel' ? 'Event cancelled' : "You're invited");
         $eClub = htmlspecialchars($brand['name'], ENT_QUOTES);
         $eTitle = htmlspecialchars($this->eventDisplayTitle($event), ENT_QUOTES);
+        $logoHtml = $this->logoChipHtml($brand);
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -746,6 +780,7 @@ HTML;
 <body>
     <div class="container">
         <div class="header">
+            {$logoHtml}
             <p style="margin:0;font-weight:800;font-size:18px;letter-spacing:.02em;">{$eClub}</p>
             <p style="margin:4px 0 0;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.08em;">{$subtitle}</p>
         </div>
