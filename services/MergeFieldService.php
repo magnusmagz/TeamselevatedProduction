@@ -100,9 +100,11 @@ class MergeFieldService {
             ['key' => 'athlete_first_name', 'label' => 'Athlete First Name', 'group' => 'Athlete'],
             ['key' => 'athlete_last_name', 'label' => 'Athlete Last Name', 'group' => 'Athlete'],
             ['key' => 'athlete_full_name', 'label' => 'Athlete Full Name', 'group' => 'Athlete'],
-            ['key' => 'guardian_first_name', 'label' => 'Parent/Guardian First Name', 'group' => 'Parent'],
-            ['key' => 'guardian_last_name', 'label' => 'Parent/Guardian Last Name', 'group' => 'Parent'],
-            ['key' => 'guardian_full_name', 'label' => 'Parent/Guardian Full Name', 'group' => 'Parent'],
+            // Keys stay guardian_* (identifiers used across templates + resolution); only the
+            // staff-facing picker label/group is renamed to Crew.
+            ['key' => 'guardian_first_name', 'label' => 'Crew First Name', 'group' => 'Crew'],
+            ['key' => 'guardian_last_name', 'label' => 'Crew Last Name', 'group' => 'Crew'],
+            ['key' => 'guardian_full_name', 'label' => 'Crew Full Name', 'group' => 'Crew'],
             ['key' => 'team_name', 'label' => 'Team Name', 'group' => 'Team'],
             ['key' => 'club_name', 'label' => 'Club Name', 'group' => 'Club'],
             ['key' => 'club_primary_color', 'label' => 'Club Primary Color (hex)', 'group' => 'Club'],
