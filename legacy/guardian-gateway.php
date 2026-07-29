@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 
 try {
     $db = Database::getInstance();
@@ -271,6 +272,26 @@ try {
 
             if (!$id) {
                 throw new Exception('Guardian relationship ID is required');
+            }
+
+            // This endpoint required a valid token but never checked WHOSE athlete
+            // the link belonged to, so any signed-in user could unlink any guardian
+            // from any athlete in any club by guessing an id. Resolve the link's
+            // athlete and apply the same scope rule the athlete endpoints use.
+            $ownerStmt = $pdo->prepare("SELECT athlete_id FROM athlete_guardians WHERE id = ?");
+            $ownerStmt->execute([$id]);
+            $ownerAthleteId = $ownerStmt->fetchColumn();
+
+            if (!$ownerAthleteId) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Guardian relationship not found']);
+                exit;
+            }
+
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, (int) $ownerAthleteId)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
             }
 
             $stmt = $pdo->prepare("DELETE FROM athlete_guardians WHERE id = ?");

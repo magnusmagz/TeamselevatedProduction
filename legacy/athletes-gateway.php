@@ -86,6 +86,44 @@ function te_resolve_create_club_id(PDO $pdo, AuthMiddleware $auth, $requested): 
 }
 
 /**
+ * Unlink guardians the user removed on the athlete form.
+ *
+ * The form's Crew step has a Remove button, but handleSubmit only ever POSTed the
+ * guardians that remained — nothing deleted the athlete_guardians row for the one
+ * taken away, so removing a crew member and saving appeared to do nothing and the
+ * person returned on reload.
+ *
+ * The client sends the link ids (athlete_guardians.id) it still shows. Anything
+ * else attached to this athlete is unlinked. Only the LINK is deleted — the
+ * guardian record itself survives, since guardians are shared across siblings.
+ *
+ * Guardians newly added on the form have no link id yet and are POSTed to
+ * guardian-gateway after this runs, so they are unaffected.
+ *
+ * @param mixed $keepLinkIds Array of retained athlete_guardians.id values. Anything
+ *                           that is not an array means "not supplied" and no
+ *                           pruning happens — never infer removal from a missing key.
+ */
+function te_prune_guardian_links(PDO $pdo, int $athleteId, $keepLinkIds): void {
+    if (!is_array($keepLinkIds)) {
+        return;
+    }
+
+    $keep = array_values(array_filter(array_map('intval', $keepLinkIds), fn($v) => $v > 0));
+
+    if (empty($keep)) {
+        // Every crew member was removed.
+        $stmt = $pdo->prepare("DELETE FROM athlete_guardians WHERE athlete_id = ?");
+        $stmt->execute([$athleteId]);
+        return;
+    }
+
+    $ph = implode(',', array_fill(0, count($keep), '?'));
+    $stmt = $pdo->prepare("DELETE FROM athlete_guardians WHERE athlete_id = ? AND id NOT IN ($ph)");
+    $stmt->execute(array_merge([$athleteId], $keep));
+}
+
+/**
  * Replace an athlete's emergency contacts.
  *
  * The athlete form collects these on its "Emergency & Medical" step, but nothing
@@ -391,6 +429,7 @@ try {
                     }
                 }
 
+                te_prune_guardian_links($pdo, $id, $input['guardian_link_ids'] ?? null);
                 te_save_emergency_contacts($pdo, $id, $input['emergency_contacts'] ?? null);
 
                 $pdo->commit();

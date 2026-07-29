@@ -7,6 +7,10 @@ const emptyGuardian = (): GuardianData => ({
 });
 
 interface GuardianData {
+  // athlete_guardians.id — the LINK row, not the guardian. Returned by the
+  // single-athlete GET and carried through so a save can tell the gateway which
+  // crew members are still attached. Absent on rows added in the form.
+  id?: number;
   first_name: string;
   last_name: string;
   email: string;
@@ -293,7 +297,15 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         // set, so send the whole list (blank rows are ignored server-side).
         emergency_contacts: (formData.emergency_contacts || []).filter(
           c => c.contact_name?.trim()
-        )
+        ),
+        // Crew members still on the form, by athlete_guardians.id. Removing one
+        // here previously did nothing: we POSTed the survivors and never unlinked
+        // the removed row, so they reappeared on reload. The gateway unlinks any
+        // guardian attached to this athlete that isn't in this list. Newly added
+        // crew have no id yet and are created after this call, so they're safe.
+        guardian_link_ids: (formData.guardians || [])
+          .map(g => g.id)
+          .filter((id): id is number => typeof id === 'number' && id > 0)
       };
 
       if (athlete) {
