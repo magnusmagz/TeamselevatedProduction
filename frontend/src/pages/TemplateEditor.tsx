@@ -38,6 +38,135 @@ interface Team {
   name: string;
 }
 
+interface Branding {
+  club_name: string;
+  has_logo: boolean;
+  header_html: string;
+  footer_html: string;
+}
+
+/**
+ * The club logo header and footer are applied at send time by
+ * lib/EmailBranding.php — they are deliberately not part of any template, since
+ * one platform template serves every club. To make that visible while editing,
+ * they are injected into the design as display-only rows here and stripped again
+ * before the design, the exported HTML, a preview, or a send leaves this page.
+ * Nothing below is ever persisted.
+ */
+const BRAND_ROW_IDS = ['te_brand_header_row', 'te_brand_footer_row'];
+const BRAND_ROW_CLASS = 'te_brand_injected';
+
+/** Locked: not selectable, draggable, duplicatable, deletable or hideable. */
+const BRAND_ROW_FLAGS = {
+  selectable: false,
+  draggable: false,
+  duplicatable: false,
+  deletable: false,
+  hideable: false,
+};
+
+const brandRow = (rowId: string, html: string) => ({
+  id: rowId,
+  cells: [1],
+  columns: [
+    {
+      id: `${rowId}_col`,
+      contents: [
+        {
+          id: `${rowId}_content`,
+          type: 'text',
+          values: {
+            ...BRAND_ROW_FLAGS,
+            containerPadding: '0px',
+            anchor: '',
+            textAlign: 'center',
+            lineHeight: '140%',
+            hideDesktop: false,
+            displayCondition: null,
+            _meta: { htmlID: `${rowId}_content`, htmlClassNames: BRAND_ROW_CLASS },
+            text: html,
+          },
+        },
+      ],
+      values: {
+        backgroundColor: '',
+        padding: '0px',
+        border: {},
+        borderRadius: '0px',
+        _meta: { htmlID: `${rowId}_col`, htmlClassNames: BRAND_ROW_CLASS },
+      },
+    },
+  ],
+  values: {
+    ...BRAND_ROW_FLAGS,
+    displayCondition: null,
+    columns: false,
+    backgroundColor: '',
+    columnsBackgroundColor: '',
+    padding: '0px',
+    anchor: '',
+    hideDesktop: false,
+    _meta: { htmlID: rowId, htmlClassNames: BRAND_ROW_CLASS },
+  },
+});
+
+const stripBrandRows = (design: any): any => {
+  const rows = design?.body?.rows;
+  if (!Array.isArray(rows)) return design;
+  return {
+    ...design,
+    body: { ...design.body, rows: rows.filter((r: any) => !BRAND_ROW_IDS.includes(r?.id)) },
+  };
+};
+
+const injectBrandRows = (design: any, brand: Branding | null): any => {
+  if (!brand) return design;
+  const base = stripBrandRows(design);
+  const rows = Array.isArray(base?.body?.rows) ? base.body.rows : [];
+  const injected = [
+    ...(brand.header_html ? [brandRow(BRAND_ROW_IDS[0], brand.header_html)] : []),
+    ...rows,
+    ...(brand.footer_html ? [brandRow(BRAND_ROW_IDS[1], brand.footer_html)] : []),
+  ];
+  return { ...base, body: { ...base.body, rows: injected } };
+};
+
+/**
+ * Remove the injected branding from exported HTML.
+ *
+ * Marker-driven, matching EmailBranding::stripBranding() in PHP — the markers are
+ * emitted by the branding itself, so this holds whether or not Unlayer propagates
+ * our class names into the export. The DOM pass then clears the row wrapper the
+ * removal leaves empty, which regex cannot do reliably through Unlayer's nesting.
+ */
+const BRAND_MARKERS: Array<[string, string]> = [
+  ['<!--te-brand-header-->', '<!--/te-brand-header-->'],
+  ['<!--te-brand-footer-->', '<!--/te-brand-footer-->'],
+];
+
+const stripBrandHtml = (html: string): string => {
+  if (!html || !html.includes('<!--te-brand-')) return html;
+
+  let out = html;
+  BRAND_MARKERS.forEach(([open, close]) => {
+    const pattern = new RegExp(
+      `${open.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}[\\s\\S]*?${close.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`,
+      'g'
+    );
+    out = out.replace(pattern, '');
+  });
+
+  try {
+    const doc = new DOMParser().parseFromString(out, 'text/html');
+    doc.querySelectorAll(`.${BRAND_ROW_CLASS}`).forEach((el) => {
+      (el.closest('.u-row-container') || el.closest('table') || el).remove();
+    });
+    return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
+  } catch {
+    return out;
+  }
+};
+
 const CATEGORIES = ['General', 'Marketing', 'Transactional', 'Newsletter'] as const;
 
 const TemplateEditor: React.FC = () => {
@@ -77,6 +206,11 @@ const TemplateEditor: React.FC = () => {
   const [existingDesign, setExistingDesign] = useState<object | null>(null);
   const existingDesignRef = useRef<object | null>(null);
 
+  // The club's real email header/footer markup, rendered by lib/EmailBranding.php.
+  // Shown on the canvas as display-only rows; never saved (see stripBrandRows).
+  const [branding, setBranding] = useState<Branding | null>(null);
+  const brandingRef = useRef<Branding | null>(null);
+
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,11 +244,12 @@ const TemplateEditor: React.FC = () => {
     }
   }, [id]);
 
-  // Fetch teams and merge fields
+  // Fetch teams, merge fields and the club's email branding
   useEffect(() => {
     if (clubProfileId) {
       fetchTeams();
       fetchMergeFields();
+      fetchBranding();
     }
   }, [clubProfileId]);
 
@@ -208,6 +343,28 @@ const TemplateEditor: React.FC = () => {
       setTeams(Array.isArray(data) ? data : data.teams || []);
     } catch (err) {
       console.error('Error fetching teams:', err);
+    }
+  };
+
+  const fetchBranding = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/communications?action=branding&club_profile_id=${clubProfileId}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data?.header_html && !data?.footer_html) return;
+      brandingRef.current = data;
+      setBranding(data);
+    } catch (err) {
+      // Canvas simply shows the design without the branding strips.
+      console.error('Error fetching club branding:', err);
     }
   };
 
@@ -375,7 +532,9 @@ const TemplateEditor: React.FC = () => {
     // getEditor() can return the component wrapper while the Unlayer iframe is
     // still initializing (its .editor is null); never call into it then.
     if (!editor || typeof editor.loadDesign !== 'function' || !editorReady.current) return;
-    editor.loadDesign(design as any);
+    // Show the club's real send-time header/footer around the design. Injected
+    // for display only — stripped again on save, preview and send.
+    editor.loadDesign(injectBrandRows(design, brandingRef.current) as any);
     designLoaded.current = true;
     // Loading a saved design is not a user edit.
     hasUnsavedChanges.current = false;
@@ -419,6 +578,22 @@ const TemplateEditor: React.FC = () => {
     }
   }, [existingDesign, editorIsReady, loadDesignIntoEditor]);
 
+  // Branding can resolve after the canvas already has a design on it — and on a
+  // new template there is no fetch to hang the injection off at all. Re-inject
+  // from the editor's own current design so nothing already typed is lost.
+  useEffect(() => {
+    if (!branding || !editorIsReady) return;
+    const editor = getEditor();
+    if (typeof editor?.saveDesign !== 'function') return;
+    editor.saveDesign((design: any) => {
+      const alreadyInjected = design?.body?.rows?.some((r: any) => BRAND_ROW_IDS.includes(r?.id));
+      if (alreadyInjected) return;
+      const dirty = hasUnsavedChanges.current;
+      editor.loadDesign(injectBrandRows(design, branding) as any);
+      hasUnsavedChanges.current = dirty;
+    });
+  }, [branding, editorIsReady]);
+
   const handleSave = () => {
     if (!templateName.trim()) {
       setError('Please enter a template name.');
@@ -435,7 +610,10 @@ const TemplateEditor: React.FC = () => {
 
     editor.saveDesign((design: object) => {
       editor.exportHtml((data: { html: string }) => {
-        saveTemplate(design, data.html);
+        // Strip the injected branding: the stored template must stay
+        // club-agnostic, and EmailSendService::processHtml() adds the real
+        // header/footer per sending club at send time.
+        saveTemplate(stripBrandRows(design), stripBrandHtml(data.html));
       });
     });
   };
@@ -502,7 +680,9 @@ const TemplateEditor: React.FC = () => {
       // Preview through the backend, not the raw Unlayer export: the club-branded
       // header/footer (logo, colours, socials, unsubscribe) is applied at send
       // time, so previewing the bare design would show something recipients never
-      // get. Falls back to the raw export if the call fails.
+      // get. The canvas copy is stripped first — the backend adds the real one,
+      // with a live unsubscribe link, and would otherwise stack a second set.
+      const bodyHtml = stripBrandHtml(data.html);
       setPreviewHtml(data.html);
       setShowPreview(true);
       if (!clubProfileId) return;
@@ -517,7 +697,7 @@ const TemplateEditor: React.FC = () => {
           body: JSON.stringify({
             club_profile_id: clubProfileId,
             subject,
-            body_html: data.html,
+            body_html: bodyHtml,
           }),
         });
         if (!response.ok) return;
@@ -547,7 +727,8 @@ const TemplateEditor: React.FC = () => {
     }
 
     editor.exportHtml((data: { html: string }) => {
-      const html = data.html;
+      // Without the canvas branding — the send path brands it per recipient club.
+      const html = stripBrandHtml(data.html);
       // Derive template variables from the subject + body, and flag whether an
       // event is needed — mirrors the /api/email-templates enrichment so the
       // Compose modal shows variable hints and the event picker when relevant.
@@ -1055,7 +1236,9 @@ const TemplateEditor: React.FC = () => {
                       setJsonMode('export');
                       if (editorRef.current && editorReady.current) {
                         editorRef.current.saveDesign((design: object) => {
-                          setJsonInput(JSON.stringify(design, null, 2));
+                          // Without the display-only branding rows — exporting them
+                          // would re-import a copy of one club's header/footer.
+                          setJsonInput(JSON.stringify(stripBrandRows(design), null, 2));
                         });
                       }
                     }}
@@ -1117,7 +1300,10 @@ const TemplateEditor: React.FC = () => {
                         .replace(/[\u201C\u201D]/g, '"')
                         .replace(/\u00A0/g, ' ')
                         .trim();
-                      const design = applyBrandColors(JSON.parse(sanitized));
+                      const design = injectBrandRows(
+                        applyBrandColors(JSON.parse(sanitized)),
+                        brandingRef.current
+                      );
                       if (editorRef.current && editorReady.current) {
                         editorRef.current.loadDesign(design);
                         hasUnsavedChanges.current = true;

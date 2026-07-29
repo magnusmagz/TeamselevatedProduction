@@ -23,6 +23,9 @@ class EmailBranding
     /** Injected once; presence makes wrap() idempotent. */
     const HEADER_MARKER = '<!--te-brand-header-->';
     const FOOTER_MARKER = '<!--te-brand-footer-->';
+    /** Closing halves, so branding can be cut back out of a document — see stripBranding(). */
+    const HEADER_END_MARKER = '<!--/te-brand-header-->';
+    const FOOTER_END_MARKER = '<!--/te-brand-footer-->';
 
     /** Header style: club logo + name centred above the message (safe on any template). */
     const STYLE_MASTHEAD = 'masthead';
@@ -183,7 +186,8 @@ class EmailBranding
              . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;border-collapse:collapse;">'
              . '<tr><td align="center" style="text-align:center;font-family:Arial,Helvetica,sans-serif;' . $band . '">'
              . $inner
-             . '</td></tr></table></td></tr></table>';
+             . '</td></tr></table></td></tr></table>'
+             . self::HEADER_END_MARKER;
     }
 
     /** Centre a block-level <img> without relying on flex (Outlook). */
@@ -256,7 +260,8 @@ class EmailBranding
              . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;border-collapse:collapse;">'
              . '<tr><td align="center" style="text-align:center;font-family:Arial,Helvetica,sans-serif;background-color:' . $color . ';color:#ffffff;border-radius:10px;padding:22px 24px;">'
              . $inner
-             . '</td></tr></table></td></tr></table>';
+             . '</td></tr></table></td></tr></table>'
+             . self::FOOTER_END_MARKER;
     }
 
     /**
@@ -307,6 +312,41 @@ class EmailBranding
             return $html . $fragment;
         }
         return substr($html, 0, $pos) . $fragment . substr($html, $pos);
+    }
+
+    /**
+     * Remove branding blocks from a document.
+     *
+     * The template editor shows the club's real header/footer on its canvas, which
+     * means an export can carry them. Templates must stay club-agnostic, so this
+     * runs when a template is saved — a backstop that does not depend on the
+     * browser having stripped them correctly. Also removes any Unlayer row wrapper
+     * left holding nothing but a stripped block.
+     */
+    public static function stripBranding($html)
+    {
+        $html = (string) $html;
+        if ($html === '' || strpos($html, '<!--te-brand-') === false) {
+            return $html;
+        }
+
+        foreach ([[self::HEADER_MARKER, self::HEADER_END_MARKER],
+                  [self::FOOTER_MARKER, self::FOOTER_END_MARKER]] as $pair) {
+            $html = preg_replace(
+                '/' . preg_quote($pair[0], '/') . '.*?' . preg_quote($pair[1], '/') . '/s',
+                '',
+                $html
+            );
+        }
+
+        // An emptied Unlayer row wrapper renders as a stray band of padding.
+        $html = preg_replace(
+            '/<div[^>]*class="[^"]*te_brand_injected[^"]*"[^>]*>\s*<\/div>/i',
+            '',
+            $html
+        );
+
+        return $html;
     }
 
     /** Backend origin — everything branding links to is served by THIS PHP app. */

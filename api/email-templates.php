@@ -12,6 +12,30 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/EmailBranding.php';
+
+/**
+ * Drop the display-only branding rows the template editor puts on its canvas.
+ *
+ * The editor shows the club's real send-time header and footer while you work,
+ * and strips them again before saving. This is the backstop for that: a template
+ * is shared across clubs, so one club's logo must never be persisted into it, and
+ * that guarantee should not depend on browser-side DOM surgery.
+ * Mirrors BRAND_ROW_IDS in frontend/src/pages/TemplateEditor.tsx.
+ */
+function te_strip_canvas_branding($design) {
+    if (!is_array($design) || empty($design['body']['rows']) || !is_array($design['body']['rows'])) {
+        return $design;
+    }
+    $brandRowIds = ['te_brand_header_row', 'te_brand_footer_row'];
+    $design['body']['rows'] = array_values(array_filter(
+        $design['body']['rows'],
+        function ($row) use ($brandRowIds) {
+            return !in_array($row['id'] ?? '', $brandRowIds, true);
+        }
+    ));
+    return $design;
+}
 
 $auth = AuthMiddleware::requireAuth();
 $userId = $auth->getUserId();
@@ -218,8 +242,8 @@ try {
                 $clubProfileId,
                 $data['name'],
                 $data['subject'] ?? '',
-                json_encode($data['design_json'] ?? null),
-                $data['html_output'] ?? '',
+                json_encode(te_strip_canvas_branding($data['design_json'] ?? null)),
+                EmailBranding::stripBranding($data['html_output'] ?? ''),
                 $data['category'] ?? 'general',
                 isset($data['is_active']) ? ($data['is_active'] ? 'true' : 'false') : 'true',
                 $data['scope'] ?? 'club',
@@ -269,11 +293,11 @@ try {
             }
             if (isset($data['design_json'])) {
                 $updates[] = "design_json = ?::jsonb";
-                $params[] = json_encode($data['design_json']);
+                $params[] = json_encode(te_strip_canvas_branding($data['design_json']));
             }
             if (isset($data['html_output'])) {
                 $updates[] = "html_output = ?";
-                $params[] = $data['html_output'];
+                $params[] = EmailBranding::stripBranding($data['html_output']);
             }
             if (isset($data['category'])) {
                 $updates[] = "category = ?";

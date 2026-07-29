@@ -135,6 +135,16 @@ try {
             handlePreviewEmail($auth, $connection, $mergeFieldService);
             break;
 
+        // ─── CLUB BRANDING (header/footer markup) ─
+        case 'branding':
+            if ($method !== 'GET') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+                exit();
+            }
+            handleBranding($auth, $connection);
+            break;
+
         default:
             http_response_code(404);
             echo json_encode(['error' => 'Unknown action: ' . ($action ?? 'none')]);
@@ -1103,6 +1113,41 @@ function handlePreviewEmail($auth, $connection, $mergeFieldService) {
     ]);
 }
 
+
+/**
+ * branding — The club's email header and footer markup.
+ *
+ * Lets the template editor render the real branding on its canvas instead of
+ * reimplementing it in TypeScript. The editor injects these as display-only rows
+ * and strips them again before saving, so the stored template stays club-agnostic
+ * and `EmailSendService::processHtml()` remains the only thing that brands a send.
+ */
+function handleBranding($auth, $connection) {
+    $clubProfileId = (int)($_GET['club_profile_id'] ?? 0);
+    if (!$clubProfileId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'club_profile_id is required']);
+        return;
+    }
+    if (!$auth->canAccessClub($clubProfileId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Access denied to this club']);
+        return;
+    }
+
+    require_once __DIR__ . '/../lib/EmailBranding.php';
+    $brand = EmailBranding::forClub($connection, $clubProfileId);
+
+    echo json_encode([
+        'success'     => true,
+        'club_name'   => $brand['name'],
+        'has_logo'    => EmailBranding::hasLogo($brand),
+        // The unsubscribe link is inert here — a real send carries a signed
+        // per-recipient token generated at queue time.
+        'header_html' => EmailBranding::headerHtml($brand),
+        'footer_html' => EmailBranding::footerHtml($brand),
+    ]);
+}
 
 /**
  * unsubscribe — Render branded unsubscribe form (public, no auth).

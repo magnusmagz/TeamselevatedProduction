@@ -149,6 +149,55 @@ class EmailBrandingTest extends TestCase
         $this->assertStringContainsString('club-logo.php?club_id=51', $html);
     }
 
+    /**
+     * The template editor renders the club's real header/footer on its canvas, so
+     * an Unlayer export can carry them. Templates are shared across clubs, so a
+     * save must never persist one club's logo — this is the server-side backstop
+     * for the browser-side strip.
+     */
+    public function testStripBrandingRemovesBothBlocks(): void
+    {
+        $brand = $this->brandWithLogo();
+        $wrapped = EmailBranding::wrap('<p>Body copy</p>', $brand, 'https://x/unsub');
+        $stripped = EmailBranding::stripBranding($wrapped);
+
+        $this->assertStringContainsString('<p>Body copy</p>', $stripped);
+        $this->assertStringNotContainsString('club-logo.php', $stripped);
+        $this->assertStringNotContainsString('Unsubscribe', $stripped);
+        $this->assertStringNotContainsString('te-brand-', $stripped);
+    }
+
+    public function testStripBrandingAlsoClearsTheEmptiedUnlayerRowWrapper(): void
+    {
+        $brand = $this->brandWithLogo();
+        $html = '<div class="u-row-container te_brand_injected">'
+              . EmailBranding::headerHtml($brand)
+              . '</div><p>Body</p>';
+
+        $stripped = EmailBranding::stripBranding($html);
+
+        $this->assertStringNotContainsString('te_brand_injected', $stripped);
+        $this->assertStringContainsString('<p>Body</p>', $stripped);
+    }
+
+    public function testStripBrandingLeavesUnbrandedHtmlUntouched(): void
+    {
+        $html = '<html><body><p>Nothing to strip</p></body></html>';
+
+        $this->assertSame($html, EmailBranding::stripBranding($html));
+    }
+
+    /** strip(wrap(x)) === x — the editor round-trip must not erode the template. */
+    public function testWrapThenStripIsLossless(): void
+    {
+        $original = '<!DOCTYPE html><html><body style="margin:0"><p>Hi {{recipient_first_name}}</p></body></html>';
+        $round = EmailBranding::stripBranding(
+            EmailBranding::wrap($original, $this->brandWithLogo(), 'https://x/unsub')
+        );
+
+        $this->assertSame($original, $round);
+    }
+
     public function testClubNameAndUrlsAreEscaped(): void
     {
         $brand = $this->brandWithLogo();
