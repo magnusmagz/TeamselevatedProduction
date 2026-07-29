@@ -156,24 +156,7 @@ class RegistrationJerseySizeTest extends TestCase
         }
     }
 
-    /**
-     * Migration 055 hardcodes the option list as a JSON literal (SQL cannot call
-     * te_jersey_size_options()). That duplication is the drift risk, so assert the
-     * two are identical rather than trusting a comment to keep them in step.
-     */
-    public function testMigrationOptionListMatchesThePhpList(): void
-    {
-        $sql = file_get_contents(__DIR__ . '/../../database/migrations/055_registration_jersey_size_field.sql');
-        $this->assertNotFalse($sql, 'migration 055 must be readable');
-
-        preg_match('/\'(\[\"Youth.*?\])\'/s', $sql, $m);
-        $this->assertNotEmpty($m, 'could not find the options JSON literal in migration 055');
-
-        $fromMigration = json_decode($m[1], true);
-        $this->assertSame(
-            te_jersey_size_options(),
-            $fromMigration,
-            'migration 055 option labels have drifted from TE_JERSEY_SIZE_LABELS'
-        );
-    }
+    // Cross-copy drift (PHP vs TypeScript vs migrations 054/055) is covered by
+    // JerseySizeConsistencyTest; the resolver's tolerance by JerseySizeResolverTest.
+    // This class stays focused on what the registration endpoint persists.
 }

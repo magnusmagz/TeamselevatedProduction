@@ -13,7 +13,11 @@ export interface JerseySizeOption {
   value: string;
   /** Label inside its optgroup, e.g. 'Medium (10-12)'. */
   label: string;
-  /** Standalone label, e.g. 'Youth Medium (10-12)' — for read-only display. */
+  /**
+   * Standalone label, e.g. 'Youth Medium (10-12)' — for read-only display and for
+   * seeding registration-form options. Derived as `${group} ${label}` rather than
+   * written out again, so the two can never disagree.
+   */
   fullLabel: string;
   group: JerseySizeGroup;
 }
@@ -21,20 +25,25 @@ export interface JerseySizeOption {
 // Age hints are on the youth sizes only, where they map to garment sizing
 // reliably enough to help. Adult sizes deliberately carry no hint: adult fit
 // varies too much by brand and cut for a number here to be anything but wrong.
-export const JERSEY_SIZE_OPTIONS: JerseySizeOption[] = [
-  { value: 'YXS', label: 'X-Small (4-5)', fullLabel: 'Youth X-Small (4-5)', group: 'Youth' },
-  { value: 'YS', label: 'Small (6-8)', fullLabel: 'Youth Small (6-8)', group: 'Youth' },
-  { value: 'YM', label: 'Medium (10-12)', fullLabel: 'Youth Medium (10-12)', group: 'Youth' },
-  { value: 'YL', label: 'Large (14-16)', fullLabel: 'Youth Large (14-16)', group: 'Youth' },
-  { value: 'YXL', label: 'X-Large (18-20)', fullLabel: 'Youth X-Large (18-20)', group: 'Youth' },
-  { value: 'AXS', label: 'X-Small', fullLabel: 'Adult X-Small', group: 'Adult' },
-  { value: 'AS', label: 'Small', fullLabel: 'Adult Small', group: 'Adult' },
-  { value: 'AM', label: 'Medium', fullLabel: 'Adult Medium', group: 'Adult' },
-  { value: 'AL', label: 'Large', fullLabel: 'Adult Large', group: 'Adult' },
-  { value: 'AXL', label: 'X-Large', fullLabel: 'Adult X-Large', group: 'Adult' },
-  { value: 'A2XL', label: '2X-Large', fullLabel: 'Adult 2X-Large', group: 'Adult' },
-  { value: 'A3XL', label: '3X-Large', fullLabel: 'Adult 3X-Large', group: 'Adult' },
+const SIZES: { value: string; label: string; group: JerseySizeGroup }[] = [
+  { value: 'YXS', label: 'X-Small (4-5)', group: 'Youth' },
+  { value: 'YS', label: 'Small (6-8)', group: 'Youth' },
+  { value: 'YM', label: 'Medium (10-12)', group: 'Youth' },
+  { value: 'YL', label: 'Large (14-16)', group: 'Youth' },
+  { value: 'YXL', label: 'X-Large (18-20)', group: 'Youth' },
+  { value: 'AXS', label: 'X-Small', group: 'Adult' },
+  { value: 'AS', label: 'Small', group: 'Adult' },
+  { value: 'AM', label: 'Medium', group: 'Adult' },
+  { value: 'AL', label: 'Large', group: 'Adult' },
+  { value: 'AXL', label: 'X-Large', group: 'Adult' },
+  { value: 'A2XL', label: '2X-Large', group: 'Adult' },
+  { value: 'A3XL', label: '3X-Large', group: 'Adult' },
 ];
+
+export const JERSEY_SIZE_OPTIONS: JerseySizeOption[] = SIZES.map(s => ({
+  ...s,
+  fullLabel: `${s.group} ${s.label}`,
+}));
 
 export const JERSEY_SIZE_GROUPS: JerseySizeGroup[] = ['Youth', 'Adult'];
 
