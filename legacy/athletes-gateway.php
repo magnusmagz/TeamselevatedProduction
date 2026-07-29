@@ -268,7 +268,8 @@ try {
                            g.first_name as guardian_first_name, g.last_name as guardian_last_name,
                            CONCAT(g.first_name, ' ', g.last_name) as primary_guardian_name,
                            g.email as primary_guardian_email,
-                           g.mobile_phone as primary_guardian_phone
+                           g.mobile_phone as primary_guardian_phone,
+                           COALESCE(ateams.teams, '[]'::json) as teams
                     FROM athletes a
                     LEFT JOIN users u ON u.id = a.user_id AND u.role = 'player'
                     -- One row per athlete: pick a single primary guardian. A plain
@@ -283,12 +284,33 @@ try {
                         ORDER BY ag.id
                         LIMIT 1
                     ) g ON true
+                    -- Current team assignments, one JSON array per athlete. The
+                    -- roster screen needs this to tell who still needs a team;
+                    -- without it the only source was an unauthenticated,
+                    -- club-unscoped dump of every team_members row.
+                    LEFT JOIN LATERAL (
+                        SELECT json_agg(
+                                   json_build_object('id', t.id, 'name', t.name)
+                                   ORDER BY t.name
+                               ) AS teams
+                        FROM team_members tm
+                        JOIN teams t ON t.id = tm.team_id
+                        WHERE tm.athlete_id = a.id
+                    ) ateams ON true
                     WHERE a.active_status = true
                     {$filter['sql']}
                     ORDER BY a.last_name, a.first_name
                 ");
                 $stmt->execute($filter['params']);
                 $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                // PDO hands back the aggregate as a JSON string; decode it so the
+                // frontend gets a real array rather than having to re-parse.
+                foreach ($athletes as &$athleteRow) {
+                    $decodedTeams = json_decode($athleteRow['teams'] ?? '[]', true);
+                    $athleteRow['teams'] = is_array($decodedTeams) ? $decodedTeams : [];
+                }
+                unset($athleteRow);
 
                 echo json_encode(['success' => true, 'athletes' => $athletes]);
             }

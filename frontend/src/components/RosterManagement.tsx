@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { formatGrade } from '../utils/grade';
 import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
 import { Link } from 'react-router-dom';
@@ -8,6 +8,11 @@ interface Team {
   id: number;
   name: string;
   age_group?: string;
+}
+
+interface TeamRef {
+  id: number;
+  name: string;
 }
 
 interface Athlete {
@@ -25,6 +30,26 @@ interface Athlete {
   primary_position?: string;
   positions?: string[];
   jersey_number?: number;
+  // Every team this athlete is currently rostered on, from athletes-gateway.
+  teams?: TeamRef[];
+}
+
+type AvailabilityFilter = 'all' | 'unassigned' | 'assigned';
+
+const AVAILABILITY_PILLS: { key: AvailabilityFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'unassigned', label: 'Needs a team' },
+  { key: 'assigned', label: 'On a team' },
+];
+
+function matchesSearch(athlete: Athlete, query: string): boolean {
+  if (!query) return true;
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return (
+    `${athlete.first_name} ${athlete.last_name}`.toLowerCase().includes(needle) ||
+    (athlete.email || '').toLowerCase().includes(needle)
+  );
 }
 
 interface GuardianInfo {
@@ -307,6 +332,8 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
   const [addingAthleteId, setAddingAthleteId] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
+  const [search, setSearch] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
 
   const fetchRoster = async () => {
     try {
@@ -367,17 +394,55 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     filterAvailableAthletes();
   }, [allAthletes, roster]);
 
+  // Teams other than the one being edited. An athlete in availableAthletes is by
+  // definition not on this team, but filtering defensively keeps the pills honest
+  // if the roster and athlete fetches are momentarily out of sync.
+  const otherTeamsOf = useMemo(
+    () => (athlete: Athlete): TeamRef[] =>
+      (athlete.teams || []).filter(t => t.id !== team.id),
+    [team.id]
+  );
+
+  // Search first, then split by assignment — so the pill counts always describe
+  // the current search, not the whole club.
+  const searchedAthletes = useMemo(
+    () => availableAthletes.filter(a => matchesSearch(a, search)),
+    [availableAthletes, search]
+  );
+
+  const availabilityCounts = useMemo(() => {
+    const assigned = searchedAthletes.filter(a => otherTeamsOf(a).length > 0).length;
+    return {
+      all: searchedAthletes.length,
+      assigned,
+      unassigned: searchedAthletes.length - assigned,
+    };
+  }, [searchedAthletes, otherTeamsOf]);
+
+  const visibleAthletes = useMemo(() => {
+    const byAvailability = searchedAthletes.filter(a => {
+      if (availabilityFilter === 'unassigned') return otherTeamsOf(a).length === 0;
+      if (availabilityFilter === 'assigned') return otherTeamsOf(a).length > 0;
+      return true;
+    });
+    return sortAthletesByU(byAvailability, team.age_group);
+  }, [searchedAthletes, availabilityFilter, otherTeamsOf, team.age_group]);
+
   const handleRemoveAthlete = async (athleteId: number) => {
     if (!window.confirm('Are you sure you want to remove this athlete from the team?')) return;
 
     try {
       const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}&player_id=${athleteId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        }
       });
 
       if (response.ok) {
-        fetchRoster();
+        // Same as adding: the athlete's team badges change, so refetch both.
+        await Promise.all([fetchRoster(), fetchAllAthletes()]);
       }
     } catch (error) {
       console.error('Error removing athlete:', error);
@@ -389,7 +454,10 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
     try {
       const response = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
         body: JSON.stringify({
           team_id: team.id,
           player_id: athlete.id,
@@ -400,7 +468,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
       const data = await response.json();
 
       if (data.success) {
-        await fetchRoster();
+        // Refresh both sides: the roster gains a row, and the athlete's team
+        // badges/pill bucket change now that they're assigned.
+        await Promise.all([fetchRoster(), fetchAllAthletes()]);
       } else {
         console.error('Failed to add athlete:', data.error || data.message);
         alert('Failed to add athlete: ' + (data.error || data.message || 'Unknown error'));
@@ -479,8 +549,35 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
             <h3 className="text-xl font-bold text-brand-primary mb-4 uppercase tracking-wide">
               Available Athletes
             </h3>
+
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email..."
+              aria-label="Search available athletes"
+              className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary mb-3 focus:ring-brand-primary focus:border-brand-primary"
+            />
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              {AVAILABILITY_PILLS.map((pill) => (
+                <button
+                  key={pill.key}
+                  onClick={() => setAvailabilityFilter(pill.key)}
+                  aria-pressed={availabilityFilter === pill.key}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border transition-colors ${
+                    availabilityFilter === pill.key
+                      ? 'bg-brand-primary text-white border-brand-primary'
+                      : 'bg-white text-brand-primary border-brand-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  {pill.label} ({availabilityCounts[pill.key]})
+                </button>
+              ))}
+            </div>
+
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {sortAthletesByU(availableAthletes, team.age_group).map((athlete) => (
+              {visibleAthletes.map((athlete) => (
                 <div
                   key={athlete.id}
                   draggable
@@ -507,6 +604,18 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                       </div>
                     )}
                     <div className="text-sm text-gray-600">{athlete.email}</div>
+                    {otherTeamsOf(athlete).length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {otherTeamsOf(athlete).map((t) => (
+                          <span
+                            key={t.id}
+                            className="text-xs font-semibold bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full"
+                          >
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => handleAddAthlete(athlete)}
@@ -521,9 +630,11 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                   </button>
                 </div>
               ))}
-              {availableAthletes.length === 0 && (
+              {visibleAthletes.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
-                  No available athletes to add
+                  {availableAthletes.length === 0
+                    ? 'No available athletes to add'
+                    : 'No athletes match this search and filter'}
                 </div>
               )}
             </div>

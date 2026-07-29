@@ -52,25 +52,21 @@ function tpg_requireAuth() {
  * Verify the authenticated user may manage the given team's roster.
  * Allowed: super_admin, club_admin of the team's club, or a coach of the team
  * (primary_coach_id OR active assistant_coach/team_manager team_members row).
- * Exits 403 if not authorized, 404 if the team_member row is missing.
+ * Exits 403 if not authorized, 404 if the team does not exist.
  */
-function tpg_requireTeamRosterAccess($pdo, $auth, $teamMemberId) {
-    $stmt = $pdo->prepare("
-        SELECT tm.team_id, t.club_id
-        FROM team_members tm
-        JOIN teams t ON t.id = tm.team_id
-        WHERE tm.id = ?
-    ");
-    $stmt->execute([$teamMemberId]);
+function tpg_requireTeamAccess($pdo, $auth, $teamId) {
+    $teamId = (int)$teamId;
+
+    $stmt = $pdo->prepare("SELECT club_id FROM teams WHERE id = ?");
+    $stmt->execute([$teamId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$row) {
         http_response_code(404);
-        echo json_encode(['error' => 'Team member not found']);
+        echo json_encode(['error' => 'Team not found']);
         exit;
     }
 
-    $teamId = (int)$row['team_id'];
     $clubId = $row['club_id'] !== null ? (int)$row['club_id'] : null;
 
     if ($auth->isSuperAdmin()) {
@@ -89,6 +85,24 @@ function tpg_requireTeamRosterAccess($pdo, $auth, $teamMemberId) {
     http_response_code(403);
     echo json_encode(['error' => 'You do not have permission to edit this team\'s roster']);
     exit;
+}
+
+/**
+ * Same check as tpg_requireTeamAccess, resolved from a team_members row id.
+ * Exits 404 if the team_member row is missing.
+ */
+function tpg_requireTeamRosterAccess($pdo, $auth, $teamMemberId) {
+    $stmt = $pdo->prepare("SELECT team_id FROM team_members WHERE id = ?");
+    $stmt->execute([$teamMemberId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Team member not found']);
+        exit;
+    }
+
+    return tpg_requireTeamAccess($pdo, $auth, (int)$row['team_id']);
 }
 
 try {
@@ -141,7 +155,9 @@ try {
             break;
 
         case 'POST':
-            // Add player to team
+            // Add player to team — requires auth + team-roster scope.
+            $auth = tpg_requireAuth();
+
             $input = json_decode(file_get_contents('php://input'), true);
 
             $team_id = $input['team_id'] ?? null;
@@ -150,6 +166,9 @@ try {
             if (!$team_id || !$athlete_id) {
                 throw new Exception('Team ID and Athlete ID are required');
             }
+
+            // Verify the caller coaches/administers the target team.
+            tpg_requireTeamAccess($pdo, $auth, $team_id);
 
             // Check if player is already on the team
             $stmt = $pdo->prepare("SELECT id FROM team_members WHERE team_id = ? AND athlete_id = ?");
@@ -237,15 +256,19 @@ try {
             break;
 
         case 'DELETE':
-            // Remove player from team
+            // Remove player from team — requires auth + team-roster scope.
+            $auth = tpg_requireAuth();
+
             $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
             $team_id = isset($_GET['team_id']) ? (int)$_GET['team_id'] : null;
             $athlete_id = isset($_GET['player_id']) ? (int)$_GET['player_id'] : null;
 
             if ($id) {
+                tpg_requireTeamRosterAccess($pdo, $auth, $id);
                 $stmt = $pdo->prepare("DELETE FROM team_members WHERE id = ?");
                 $stmt->execute([$id]);
             } elseif ($team_id && $athlete_id) {
+                tpg_requireTeamAccess($pdo, $auth, $team_id);
                 $stmt = $pdo->prepare("DELETE FROM team_members WHERE team_id = ? AND athlete_id = ?");
                 $stmt->execute([$team_id, $athlete_id]);
             } else {

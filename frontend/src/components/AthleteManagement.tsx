@@ -122,7 +122,10 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     try {
       const response = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
         body: JSON.stringify({
           team_id: teamId,
           player_id: athleteId
