@@ -27,6 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+
+/** Bump when the Terms change so a future revision can require re-acceptance. */
+const TOS_VERSION = '1.0';
 require_once __DIR__ . '/../lib/Email.php';
 
 // Use existing MySQL database for now (will migrate to Neon later)
@@ -466,6 +469,12 @@ function handleRegister($db, $input) {
         $errors['password'] = 'Password must contain at least one number';
     }
 
+    // The ToS checkbox is enforced in the browser; enforce it here too. SignUp.tsx
+    // is the only caller of this action, so requiring it breaks nothing.
+    if (empty($input['tos_accepted'])) {
+        $errors['tos_accepted'] = 'You must accept the Terms of Service';
+    }
+
     if (empty($input['first_name'])) {
         $errors['first_name'] = 'First name is required';
     }
@@ -496,8 +505,9 @@ function handleRegister($db, $input) {
 
     // Create user
     $stmt = $db->prepare('
-        INSERT INTO users (email, password_hash, first_name, last_name, role, auth_provider, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO users (email, password_hash, first_name, last_name, role, auth_provider,
+                           tos_accepted_at, tos_version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id
     ');
     $stmt->execute([
@@ -506,10 +516,21 @@ function handleRegister($db, $input) {
         trim($input['first_name']),
         trim($input['last_name']),
         $input['role'] ?? 'parent',
-        'password'
+        'password',
+        // Stamped at the same instant as the account, from the acceptance the
+        // form has been sending and the backend has been throwing away.
+        TOS_VERSION
     ]);
     $result = $stmt->fetch();
     $userId = $result['id'];
+
+    // COPPA-COMPLIANCE.md lists user_registered as an audited action. Records the
+    // ToS version accepted so the acceptance is reconstructible from the audit
+    // trail as well as the users row.
+    AuditLogger::log($db, (int) $userId, 'user_registered', 'users', (int) $userId, [
+        'role' => $input['role'] ?? 'parent',
+        'tos_version' => TOS_VERSION,
+    ]);
 
     // Generate enhanced JWT for auto-login after registration
     $userName = trim($input['first_name'] . ' ' . $input['last_name']);

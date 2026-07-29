@@ -199,5 +199,22 @@ class SchemaConformanceTest extends TestCase
         $this->assertContains('secondary_phone', self::$schema['emergency_contacts']);
         $this->assertNotContains('contact_id', self::$schema['communication_log']);
         $this->assertNotContains('sport', self::$schema['teams']);
+        // Terms acceptance must be storable — the signup form has always sent
+        // tos_accepted and nothing recorded it (migration 053).
+        $this->assertContains('tos_accepted_at', self::$schema['users']);
+    }
+
+    /**
+     * Silent-save guard: a field the signup form sends must be read by the
+     * endpoint. This specific one was discarded for months, leaving no record
+     * that any user accepted the Terms.
+     */
+    public function testSignupRecordsTermsAcceptance(): void
+    {
+        $auth = file_get_contents(realpath(__DIR__ . '/../..') . '/api/auth-gateway.php');
+        $this->assertMatchesRegularExpression('/tos_accepted/', $auth,
+            'auth-gateway must read the tos_accepted the signup form sends');
+        $this->assertMatchesRegularExpression('/tos_accepted_at/', $auth,
+            'acceptance must be persisted, not merely validated');
     }
 }
