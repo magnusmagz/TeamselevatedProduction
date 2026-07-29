@@ -283,6 +283,9 @@ try {
                     $data['epipen_location'] ?? null
                 ]);
 
+                // Creating a health record is as auditable as changing one — this
+                // branch was missing its audit row while the update branch had one.
+                medicalAudit($pdo, $auth, 'create_medical', $athleteId);
                 echo json_encode(['success' => true, 'message' => 'Medical information created', 'id' => $pdo->lastInsertId()]);
             }
             break;
