@@ -7,6 +7,7 @@ Cors::handle();
 // Database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/registration_writes.php';
+require_once __DIR__ . '/../lib/jersey_size.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -176,6 +177,17 @@ try {
                 $athleteGender = $formData['athlete_gender'] ?? null;
                 $athleteGrade = $formData['athlete_grade'] ?? null;
 
+                // Jersey size for uniform ordering. Optional — a family that does
+                // not know the size leaves it blank, and a blank is more useful
+                // than a guess because it shows up as a gap worth chasing.
+                //
+                // The public form's generic select submits the visible label
+                // ('Youth Medium (10-12)'), so this resolves label -> code and
+                // yields NULL for blank or unrecognized input. Writing the raw
+                // value would violate athletes_jersey_size_check and roll back the
+                // whole registration. See lib/jersey_size.php.
+                $athleteJerseySize = te_normalize_jersey_size($formData['jersey_size'] ?? null);
+
                 if (!$athleteFirst || !$athleteLast || !$athleteBirthday || !$athleteGender) {
                     throw new Exception('Athlete information is required');
                 }
@@ -215,14 +227,25 @@ try {
                         WHERE id = ? AND active_status = false
                     ");
                     $reactivate->execute([$athlete_id]);
+
+                    // A returning athlete has grown since last season, so the size
+                    // they just gave us is fresher than what is on file — take it.
+                    // Guarded on non-NULL: a family leaving the (optional) field
+                    // blank must not wipe a size the club already knows.
+                    if ($athleteJerseySize !== null) {
+                        $sizeStmt = $connection->prepare(
+                            "UPDATE athletes SET jersey_size = ? WHERE id = ?"
+                        );
+                        $sizeStmt->execute([$athleteJerseySize, $athlete_id]);
+                    }
                 } else {
                     // Create athlete record (address will be collected later).
                     // Stamp club_id so future registrations can match this athlete.
                     $stmt = $connection->prepare("
                         INSERT INTO athletes (
                             first_name, last_name, date_of_birth, gender,
-                            grade_level, club_id, created_at, active_status
-                        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), TRUE)
+                            grade_level, jersey_size, club_id, created_at, active_status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), TRUE)
                     ");
                     $stmt->execute([
                         $athleteFirst,
@@ -230,6 +253,7 @@ try {
                         $athleteBirthday,
                         $athleteGender,
                         $gradeLevel,
+                        $athleteJerseySize,
                         $programClubId
                     ]);
                     $athlete_id = $connection->lastInsertId();

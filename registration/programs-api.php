@@ -7,6 +7,7 @@ Cors::handle();
 // Database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/jersey_size.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -205,7 +206,19 @@ try {
                     ['field_name' => 'guardian_first', 'field_label' => 'Guardian First', 'field_type' => 'text', 'required' => true, 'section' => 'parent_info', 'display_order' => 6, 'options' => null],
                     ['field_name' => 'guardian_last', 'field_label' => 'Guardian Last', 'field_type' => 'text', 'required' => true, 'section' => 'parent_info', 'display_order' => 7, 'options' => null],
                     ['field_name' => 'guardian_email', 'field_label' => 'Guardian Email', 'field_type' => 'email', 'required' => true, 'section' => 'parent_info', 'display_order' => 8, 'options' => null],
-                    ['field_name' => 'mobile_phone', 'field_label' => 'Mobile Phone', 'field_type' => 'tel', 'required' => true, 'section' => 'parent_info', 'display_order' => 9, 'options' => null]
+                    ['field_name' => 'mobile_phone', 'field_label' => 'Mobile Phone', 'field_type' => 'tel', 'required' => true, 'section' => 'parent_info', 'display_order' => 9, 'options' => null],
+                    // Optional by design: a family that doesn't know the size should
+                    // leave it blank rather than guess, since a blank reads as "ask
+                    // them" and a wrong guess reads as real data.
+                    //
+                    // display_order 10 rather than renumbering the guardian fields —
+                    // the fetch is ORDER BY section, display_order, so this still
+                    // renders last within athlete_info.
+                    //
+                    // Options are the human labels, because the public form's generic
+                    // select submits its label as the value; registrations-api resolves
+                    // them back to codes via te_normalize_jersey_size().
+                    ['field_name' => 'jersey_size', 'field_label' => 'Jersey Size', 'field_type' => 'select', 'required' => false, 'section' => 'athlete_info', 'display_order' => 10, 'options' => te_jersey_size_options()]
                 ];
                 $coach_fields = [
                     ['field_name' => 'coach_first', 'field_label' => 'First Name', 'field_type' => 'text', 'required' => true, 'section' => 'coach_info', 'display_order' => 1, 'options' => null],

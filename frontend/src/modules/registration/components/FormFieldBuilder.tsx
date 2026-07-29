@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FormField, FieldType, DragDropField } from '../types';
+import { JERSEY_SIZE_OPTIONS } from '../../../utils/jerseySize';
 
 interface FormFieldBuilderProps {
   programId?: number;
@@ -130,6 +131,21 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
         required: true,
         section: 'parent_info',
         display_order: 8
+      },
+      {
+        // Optional: a family that doesn't know the size should leave it blank
+        // rather than guess. Options are the human labels because the public
+        // form's generic select submits its label as the value — the backend
+        // resolves them to codes (lib/jersey_size.php). Keep these strings in
+        // sync with TE_JERSEY_SIZE_LABELS or existing forms stop resolving.
+        tempId: '10',
+        field_name: 'jersey_size',
+        field_label: 'Jersey Size',
+        field_type: 'select',
+        required: false,
+        section: 'athlete_info',
+        display_order: 9,
+        options: JERSEY_SIZE_OPTIONS.map(o => o.fullLabel)
       }
     ];
   };

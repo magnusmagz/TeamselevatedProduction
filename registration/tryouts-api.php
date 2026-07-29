@@ -9,6 +9,7 @@ function emptyToNull($val) { return (is_string($val) && trim($val) === '') ? nul
 
 // Database connection
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/jersey_size.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -245,7 +246,11 @@ function handlePost($connection, $path) {
                     ['field_name' => 'guardian_first', 'field_label' => 'Parent/Guardian First Name', 'field_type' => 'text', 'required' => true, 'section' => 'parent_info', 'display_order' => 6],
                     ['field_name' => 'guardian_last', 'field_label' => 'Parent/Guardian Last Name', 'field_type' => 'text', 'required' => true, 'section' => 'parent_info', 'display_order' => 7],
                     ['field_name' => 'guardian_email', 'field_label' => 'Email', 'field_type' => 'email', 'required' => true, 'section' => 'parent_info', 'display_order' => 8],
-                    ['field_name' => 'mobile_phone', 'field_label' => 'Phone Number', 'field_type' => 'tel', 'required' => true, 'section' => 'parent_info', 'display_order' => 9]
+                    ['field_name' => 'mobile_phone', 'field_label' => 'Phone Number', 'field_type' => 'tel', 'required' => true, 'section' => 'parent_info', 'display_order' => 9],
+                    // Optional. Collected at tryout time so an athlete who converts
+                    // to a roster spot already has a size on file. See the longer
+                    // note on the same field in programs-api.php.
+                    ['field_name' => 'jersey_size', 'field_label' => 'Jersey Size', 'field_type' => 'select', 'required' => false, 'section' => 'athlete_info', 'display_order' => 10, 'options' => te_jersey_size_options()]
                 ];
 
                 $field_stmt = $connection->prepare("
