@@ -85,6 +85,64 @@ function te_resolve_create_club_id(PDO $pdo, AuthMiddleware $auth, $requested): 
     return null;
 }
 
+/**
+ * Replace an athlete's emergency contacts.
+ *
+ * The athlete form collects these on its "Emergency & Medical" step, but nothing
+ * ever stored them: this gateway ignored the field entirely, and AthleteController
+ * (a different, unrouted path) inserted contact_name / alternate_phone /
+ * can_authorize_medical, none of which matched this table. The result was an
+ * emergency_contacts table with zero rows and a tab that silently blanked on every
+ * revisit.
+ *
+ * Replace-all rather than merge: the form always submits the full list, so rows
+ * the user deleted must disappear. Callers run inside a transaction.
+ *
+ * Accepts the form's field names and maps them to the actual columns
+ * (contact_name -> name, alternate_phone -> secondary_phone). A contact with no
+ * name is treated as an empty row and skipped, so the blank starter row the form
+ * renders never creates a record.
+ *
+ * @param array|null $contacts Null means "not supplied" — existing rows are left
+ *                             alone. An empty array means "user removed them all".
+ */
+function te_save_emergency_contacts(PDO $pdo, int $athleteId, $contacts): void {
+    if (!is_array($contacts)) {
+        return;
+    }
+
+    $del = $pdo->prepare("DELETE FROM emergency_contacts WHERE athlete_id = ?");
+    $del->execute([$athleteId]);
+
+    $ins = $pdo->prepare(
+        "INSERT INTO emergency_contacts
+            (athlete_id, name, relationship, primary_phone, secondary_phone,
+             can_authorize_medical, priority_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())"
+    );
+
+    $priority = 0;
+    foreach ($contacts as $c) {
+        if (!is_array($c)) {
+            continue;
+        }
+        $name = trim((string) ($c['name'] ?? $c['contact_name'] ?? ''));
+        if ($name === '') {
+            continue; // blank starter row
+        }
+        $priority++;
+        $ins->execute([
+            $athleteId,
+            $name,
+            trim((string) ($c['relationship'] ?? '')) ?: null,
+            trim((string) ($c['primary_phone'] ?? '')) ?: null,
+            trim((string) ($c['secondary_phone'] ?? $c['alternate_phone'] ?? '')) ?: null,
+            !empty($c['can_authorize_medical']) ? 'true' : 'false',
+            $priority,
+        ]);
+    }
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
@@ -133,6 +191,25 @@ try {
                     $guardians = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     $athlete['guardians'] = $guardians;
+
+                    // Emergency contacts, aliased back to the field names the
+                    // athlete form binds to. Without this the form re-opened
+                    // with blank rows even once the contacts were stored.
+                    $ecStmt = $pdo->prepare("
+                        SELECT id,
+                               name AS contact_name,
+                               relationship,
+                               primary_phone,
+                               secondary_phone AS alternate_phone,
+                               can_authorize_medical,
+                               priority_order
+                        FROM emergency_contacts
+                        WHERE athlete_id = ?
+                        ORDER BY priority_order
+                    ");
+                    $ecStmt->execute([$id]);
+                    $athlete['emergency_contacts'] = $ecStmt->fetchAll(PDO::FETCH_ASSOC);
+
                     echo json_encode($athlete);
                 } else {
                     http_response_code(404);
@@ -222,6 +299,7 @@ try {
             $pdo->beginTransaction();
             try {
                 $created = te_create_athlete($pdo, $input);
+                te_save_emergency_contacts($pdo, (int) $created['athlete_id'], $input['emergency_contacts'] ?? null);
                 $pdo->commit();
                 echo json_encode(['success' => true, 'athlete_id' => $created['athlete_id'], 'message' => 'Athlete created successfully']);
             } catch (Exception $e) {
@@ -312,6 +390,8 @@ try {
                         $stmt->execute($user_values);
                     }
                 }
+
+                te_save_emergency_contacts($pdo, $id, $input['emergency_contacts'] ?? null);
 
                 $pdo->commit();
                 echo json_encode(['success' => true, 'message' => 'Athlete updated successfully']);

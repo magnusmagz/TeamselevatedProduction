@@ -99,22 +99,25 @@ class AthleteController {
             // Create emergency contacts if provided
             if (!empty($data['emergency_contacts'])) {
                 foreach ($data['emergency_contacts'] as $index => $contact) {
+                    // The table's columns are name / secondary_phone — this insert
+                    // used contact_name / alternate_phone and would have thrown
+                    // SQLSTATE 42703 had it ever run. Accepts either input spelling.
                     $sql = "INSERT INTO emergency_contacts (
-                                athlete_id, contact_name, relationship, primary_phone,
-                                alternate_phone, can_authorize_medical, priority_order
+                                athlete_id, name, relationship, primary_phone,
+                                secondary_phone, can_authorize_medical, priority_order
                             ) VALUES (
-                                :athlete_id, :contact_name, :relationship, :primary_phone,
-                                :alternate_phone, :can_authorize_medical, :priority_order
+                                :athlete_id, :name, :relationship, :primary_phone,
+                                :secondary_phone, :can_authorize_medical, :priority_order
                             )";
 
                     $stmt = $this->db->prepare($sql);
                     $stmt->execute([
                         ':athlete_id' => $athleteId,
-                        ':contact_name' => $contact['contact_name'],
-                        ':relationship' => $contact['relationship'],
-                        ':primary_phone' => $contact['primary_phone'],
-                        ':alternate_phone' => $contact['alternate_phone'] ?? null,
-                        ':can_authorize_medical' => $contact['can_authorize_medical'] ?? false,
+                        ':name' => $contact['name'] ?? $contact['contact_name'] ?? null,
+                        ':relationship' => $contact['relationship'] ?? null,
+                        ':primary_phone' => $contact['primary_phone'] ?? null,
+                        ':secondary_phone' => $contact['secondary_phone'] ?? $contact['alternate_phone'] ?? null,
+                        ':can_authorize_medical' => !empty($contact['can_authorize_medical']) ? 'true' : 'false',
                         ':priority_order' => $index + 1
                     ]);
                 }

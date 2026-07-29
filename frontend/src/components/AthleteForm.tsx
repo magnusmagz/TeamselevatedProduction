@@ -286,7 +286,14 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         email: formData.guardians?.[0]?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`,
         // Stamp the active club so the new athlete is visible in this club's
         // Athletes list even before any team assignment (CA-18 write side).
-        club_id: currentClubId
+        club_id: currentClubId,
+        // Emergency contacts were collected on step 3 and then dropped here —
+        // they were never part of this payload, so nothing was ever saved and the
+        // tab blanked on every revisit. The gateway replaces the athlete's full
+        // set, so send the whole list (blank rows are ignored server-side).
+        emergency_contacts: (formData.emergency_contacts || []).filter(
+          c => c.contact_name?.trim()
+        )
       };
 
       if (athlete) {
