@@ -339,12 +339,46 @@ class EmailBranding
             );
         }
 
-        // An emptied Unlayer row wrapper renders as a stray band of padding.
-        $html = preg_replace(
-            '/<div[^>]*class="[^"]*te_brand_injected[^"]*"[^>]*>\s*<\/div>/i',
-            '',
-            $html
-        );
+        return self::dropEmptyBrandContainers($html);
+    }
+
+    /**
+     * Remove the Unlayer row wrapper left holding nothing once its branding block
+     * is gone — otherwise the export keeps a stray band of row padding.
+     *
+     * Unlayer nests the wrapper several divs deep, so the closing tag is found by
+     * counting opens and closes rather than by pattern. A container that still has
+     * real content is left alone: emptiness is the condition for removal, so this
+     * can never eat a template's own copy.
+     */
+    private static function dropEmptyBrandContainers($html)
+    {
+        $offset = 0;
+        while (preg_match(
+            '/<div\b[^>]*class="[^"]*te_brand_injected[^"]*"[^>]*>/i',
+            $html, $m, PREG_OFFSET_CAPTURE, $offset
+        )) {
+            $start = $m[0][1];
+            $cursor = $start + strlen($m[0][0]);
+            $depth = 1;
+
+            while ($depth > 0 && preg_match('/<\/?div\b[^>]*>/i', $html, $t, PREG_OFFSET_CAPTURE, $cursor)) {
+                $depth += (strpos($t[0][0], '</') === 0) ? -1 : 1;
+                $cursor = $t[0][1] + strlen($t[0][0]);
+            }
+
+            if ($depth !== 0) {
+                return $html; // unbalanced markup — leave it rather than cut blindly
+            }
+
+            $block = substr($html, $start, $cursor - $start);
+            if (trim(strip_tags($block)) === '' && stripos($block, '<img') === false) {
+                $html = substr($html, 0, $start) . substr($html, $cursor);
+                $offset = $start;
+            } else {
+                $offset = $cursor;
+            }
+        }
 
         return $html;
     }

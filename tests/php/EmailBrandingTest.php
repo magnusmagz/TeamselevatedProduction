@@ -167,17 +167,44 @@ class EmailBrandingTest extends TestCase
         $this->assertStringNotContainsString('te-brand-', $stripped);
     }
 
+    /**
+     * Unlayer nests the row wrapper several divs deep, so the emptied container
+     * has to be found by counting tags. Without this the export keeps a stray band
+     * of row padding where the branding used to be.
+     */
     public function testStripBrandingAlsoClearsTheEmptiedUnlayerRowWrapper(): void
     {
         $brand = $this->brandWithLogo();
-        $html = '<div class="u-row-container te_brand_injected">'
-              . EmailBranding::headerHtml($brand)
-              . '</div><p>Body</p>';
+        $wrapper = '<div class="u-row-container te_brand_injected" style="padding:0">'
+                 . '<div class="u-row"><div class="u-col"><div class="u_content_text">%s</div></div></div></div>';
+        $html = sprintf($wrapper, EmailBranding::headerHtml($brand))
+              . '<p>Body</p>'
+              . sprintf($wrapper, EmailBranding::footerHtml($brand, 'https://x/unsub'));
 
         $stripped = EmailBranding::stripBranding($html);
 
-        $this->assertStringNotContainsString('te_brand_injected', $stripped);
-        $this->assertStringContainsString('<p>Body</p>', $stripped);
+        $this->assertSame('<p>Body</p>', $stripped);
+    }
+
+    /** Emptiness is the condition for removal — never eat a template's own copy. */
+    public function testStripBrandingKeepsABrandContainerThatStillHasContent(): void
+    {
+        $html = '<div class="u-row-container te_brand_injected"><div class="u-row">'
+              . EmailBranding::headerHtml($this->brandWithLogo())
+              . '<p>Someone typed here</p></div></div>';
+
+        $stripped = EmailBranding::stripBranding($html);
+
+        $this->assertStringContainsString('<p>Someone typed here</p>', $stripped);
+        $this->assertStringNotContainsString('club-logo.php', $stripped);
+    }
+
+    public function testStripBrandingLeavesUnbalancedMarkupAlone(): void
+    {
+        $html = '<div class="u-row-container te_brand_injected">'
+              . EmailBranding::headerHtml($this->brandWithLogo()); // never closed
+
+        $this->assertStringContainsString('te_brand_injected', EmailBranding::stripBranding($html));
     }
 
     public function testStripBrandingLeavesUnbrandedHtmlUntouched(): void
