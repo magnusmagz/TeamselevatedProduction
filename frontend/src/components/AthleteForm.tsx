@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { GRADE_OPTIONS } from '../utils/grade';
 
@@ -141,6 +141,12 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     }
   });
 
+  // When step 3 (Emergency & Medical) was entered — see the guard in handleSubmit.
+  const step3EnteredAt = useRef<number>(0);
+  useEffect(() => {
+    if (currentStep === 3) step3EnteredAt.current = Date.now();
+  }, [currentStep]);
+
   useEffect(() => {
     if (athlete) {
       setFormData({
@@ -259,6 +265,18 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Only the final step saves. Cheap guard against any future path that
+    // submits the form from an earlier step.
+    if (currentStep !== 3) return;
+
+    // "Next" and "Update Athlete" render into the same slot with the same
+    // styling, so the moment step 3 renders the save button sits exactly where
+    // the cursor just clicked. A double-click on Next therefore saved the
+    // athlete immediately, before the user could touch the emergency fields.
+    // Ignore a submit that lands in the instant after arriving on this step;
+    // a deliberate click is always well past this window.
+    if (Date.now() - step3EnteredAt.current < 500) return;
 
     // Validate required fields
     if (!formData.first_name || !formData.last_name) {
@@ -425,7 +443,21 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             ))}
           </div>
 
-          <form onSubmit={handleSubmit}>
+          {/* Enter inside a field must not save the athlete. Step 3 is the only
+              step that renders a submit button, so from there a stray Enter while
+              typing an emergency contact submitted the whole form. Textareas keep
+              their newline behaviour. */}
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={(e) => {
+              const tag = (e.target as HTMLElement).tagName;
+              // BUTTON is exempt so a keyboard user can still press Enter on a
+              // focused Next / Update Athlete; TEXTAREA keeps its newlines.
+              if (e.key === 'Enter' && tag !== 'TEXTAREA' && tag !== 'BUTTON') {
+                e.preventDefault();
+              }
+            }}
+          >
             {/* Step 1: Athlete Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
