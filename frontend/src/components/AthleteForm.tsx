@@ -167,7 +167,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
 
   const fetchMedicalData = async (athleteId: number) => {
     try {
-      const response = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`);
+      const response = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const data = await response.json();
       if (data.success && data.medical && data.medical.exists) {
         setFormData(prev => ({
@@ -381,11 +383,36 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             weight_lbs: formData.medical.weight_lbs || null
           };
 
-          await fetch(`${API_URL}/legacy/medical-gateway.php`, {
+          // Medical data is scoped server-side now; without this header the
+          // save 401s. Response IS checked below — this call used to be
+          // fire-and-forget, which is how a failing save looked successful.
+          const medicalResponse = await fetch(`${API_URL}/legacy/medical-gateway.php`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+            },
             body: JSON.stringify(medicalData)
           });
+
+          if (!medicalResponse.ok) {
+            // Previously this response was ignored entirely, so a failing medical
+            // save still produced "saved successfully!". Say what actually
+            // happened instead of claiming a save that did not occur.
+            let detail = '';
+            try {
+              detail = (await medicalResponse.json())?.error ?? '';
+            } catch {
+              /* non-JSON error body */
+            }
+            alert(
+              `The athlete was saved, but their medical information could not be saved${
+                detail ? `: ${detail}` : '.'
+              }`
+            );
+            onSubmit();
+            return;
+          }
         }
 
         alert('Athlete saved successfully with medical information!');

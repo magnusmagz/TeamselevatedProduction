@@ -238,7 +238,9 @@ const AthleteProfileEnhanced: React.FC = () => {
         }
 
         // Fetch medical information
-        const medicalResponse = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`);
+        const medicalResponse = await fetch(`${API_URL}/legacy/medical-gateway.php?athlete_id=${athleteId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
         const medicalData = await medicalResponse.json();
 
         if (medicalData.success && medicalData.medical) {

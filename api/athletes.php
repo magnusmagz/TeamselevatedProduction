@@ -1,4 +1,6 @@
 <?php
+
+require_once __DIR__ . '/../lib/athlete_medical.php';
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -257,36 +259,11 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Insert medical record if provided
-        if (isset($data['medical']) && !empty($data['medical']['physician_name'])) {
-            $medical = $data['medical'];
-            $medicalQuery = "
-                INSERT INTO medical_records (
-                    athlete_id, physical_exam_date, physical_exam_file_url,
-                    physician_name, physician_phone, preferred_hospital,
-                    blood_type, has_asthma, has_diabetes, has_seizures,
-                    has_heart_condition
-                ) VALUES (
-                    :athlete_id, :physical_exam_date, '',
-                    :physician_name, :physician_phone, :preferred_hospital,
-                    :blood_type, :has_asthma, :has_diabetes, :has_seizures,
-                    :has_heart_condition
-                )
-            ";
-
-            $stmt = $pdo->prepare($medicalQuery);
-            $stmt->execute([
-                ':athlete_id' => $athleteId,
-                ':physical_exam_date' => date('Y-m-d'),
-                ':physician_name' => $medical['physician_name'],
-                ':physician_phone' => $medical['physician_phone'],
-                ':preferred_hospital' => $medical['preferred_hospital'] ?? null,
-                ':blood_type' => $medical['blood_type'] ?? null,
-                ':has_asthma' => $medical['has_asthma'] ?? false,
-                ':has_diabetes' => $medical['has_diabetes'] ?? false,
-                ':has_seizures' => $medical['has_seizures'] ?? false,
-                ':has_heart_condition' => $medical['has_heart_condition'] ?? false
-            ]);
+        // Insert medical record if provided.
+        // Same defect as AthleteController: these columns live on
+        // athlete_medical, not medical_records.
+        if (isset($data['medical']) && !empty($data['medical'])) {
+            te_save_athlete_medical($pdo, (int) $athleteId, $data['medical']);
         }
 
         $pdo->commit();

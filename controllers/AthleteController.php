@@ -1,4 +1,6 @@
 <?php
+
+require_once __DIR__ . '/../lib/athlete_medical.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
@@ -123,34 +125,13 @@ class AthleteController {
                 }
             }
 
-            // Create medical record if provided
+            // Create medical record if provided.
+            // Was inserting health-profile columns into medical_records, a
+            // documents/clearance table that has none of them (42703, swallowed).
+            // The profile's home is athlete_medical; the shared helper handles
+            // field mapping, boolean binding and encryption.
             if (!empty($data['medical'])) {
-                $sql = "INSERT INTO medical_records (
-                            athlete_id, physical_exam_date, physical_exam_file_url,
-                            physician_name, physician_phone, preferred_hospital,
-                            blood_type, has_asthma, has_diabetes, has_seizures,
-                            has_heart_condition
-                        ) VALUES (
-                            :athlete_id, :physical_exam_date, :physical_exam_file_url,
-                            :physician_name, :physician_phone, :preferred_hospital,
-                            :blood_type, :has_asthma, :has_diabetes, :has_seizures,
-                            :has_heart_condition
-                        )";
-
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute([
-                    ':athlete_id' => $athleteId,
-                    ':physical_exam_date' => $data['medical']['physical_exam_date'] ?? null,
-                    ':physical_exam_file_url' => $data['medical']['physical_exam_file_url'] ?? '',
-                    ':physician_name' => $data['medical']['physician_name'] ?? '',
-                    ':physician_phone' => $data['medical']['physician_phone'] ?? '',
-                    ':preferred_hospital' => $data['medical']['preferred_hospital'] ?? null,
-                    ':blood_type' => $data['medical']['blood_type'] ?? null,
-                    ':has_asthma' => $data['medical']['has_asthma'] ?? false,
-                    ':has_diabetes' => $data['medical']['has_diabetes'] ?? false,
-                    ':has_seizures' => $data['medical']['has_seizures'] ?? false,
-                    ':has_heart_condition' => $data['medical']['has_heart_condition'] ?? false
-                ]);
+                te_save_athlete_medical($this->db, (int) $athleteId, $data['medical']);
             }
 
             $this->db->commit();
