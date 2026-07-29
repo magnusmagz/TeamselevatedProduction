@@ -185,6 +185,40 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
         return;
     }
 
+    // Recipient-name personalization + household combining. {{recipient_first_name}}
+    // is the safe, always-resolvable greeting for broad sends. When the content has
+    // NO per-person tags ({{athlete_}}/{{guardian_}}), collapse shared-email households
+    // to ONE send with the names combined ("John & Jane"); person-specific content
+    // stays one-email-per-recipient so nobody's details get merged away.
+    require_once __DIR__ . '/../lib/NameFormatter.php';
+    $combineHousehold = !preg_match('/\{\{(athlete_|guardian_)/', (string)$subject . (string)$htmlBody . (string)$body);
+    if ($combineHousehold) {
+        $byEmail = [];
+        foreach ($recipients as $r) {
+            $email = strtolower(trim((string)($r['email'] ?? '')));
+            if ($email === '') continue; // no-email recipients can't be mailed
+            if (!isset($byEmail[$email])) { $byEmail[$email] = $r; $byEmail[$email]['_people'] = []; }
+            $nm = trim((string)($r['name'] ?? ''));
+            if ($nm !== '') $byEmail[$email]['_people'][mb_strtolower($nm)] = NameFormatter::splitName($nm);
+        }
+        $recipients = [];
+        foreach ($byEmail as $r) {
+            $people = array_values($r['_people']);
+            $r['recipient_first_name'] = NameFormatter::combineFirstNames(array_column($people, 'first'));
+            $r['recipient_name']       = NameFormatter::combineFullNames($people);
+            if ($r['recipient_name'] !== '') $r['name'] = $r['recipient_name']; // combined To: display
+            unset($r['_people']);
+            $recipients[] = $r;
+        }
+    } else {
+        foreach ($recipients as &$rr) {
+            $person = NameFormatter::splitName(trim((string)($rr['name'] ?? '')));
+            $rr['recipient_first_name'] = NameFormatter::combineFirstNames([$person['first']]);
+            $rr['recipient_name']       = NameFormatter::combineFullNames([$person]);
+        }
+        unset($rr);
+    }
+
     // Resolve merge fields per recipient whenever there is anything to resolve.
     // Deliberately NOT gated on $eventId: event-less templates (welcome notes,
     // club announcements) carry {{club_name}} and friends, and used to send with
@@ -193,11 +227,13 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
     if ($templateId || strpos((string)$subject . (string)$htmlBody, '{{') !== false) {
         foreach ($recipients as &$r) {
             $context = [
-                'event_id'        => $eventId,
-                'athlete_id'      => $r['athlete_id'] ?? null,
-                'guardian_id'     => ($r['type'] === 'guardian') ? ($r['id'] ?? null) : null,
-                'user_id'         => $auth->getUserId(),
-                'club_profile_id' => $clubProfileId,
+                'event_id'             => $eventId,
+                'athlete_id'           => $r['athlete_id'] ?? null,
+                'guardian_id'          => ($r['type'] === 'guardian') ? ($r['id'] ?? null) : null,
+                'user_id'              => $auth->getUserId(),
+                'club_profile_id'      => $clubProfileId,
+                'recipient_first_name' => $r['recipient_first_name'] ?? null,
+                'recipient_name'       => $r['recipient_name'] ?? null,
             ];
             // Resolve subject and body per recipient
             $r['_resolved_subject']   = $mergeFieldService->resolveVariables($subject, $context);
@@ -205,6 +241,32 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
             $r['_resolved_body']      = $body ? $mergeFieldService->resolveVariables($body, $context) : null;
         }
         unset($r);
+
+        // Safety guard: no email leaves with an unfilled {{merge_tag}}. If any
+        // resolved subject/body still contains a {{word}} placeholder, stop the
+        // WHOLE send with a clear message rather than mailing a raw tag to families
+        // (an unknown/misspelled field, e.g. a camelCase {{teamName}} the resolver
+        // doesn't know). Real values fall back gracefully; this catches authoring
+        // mistakes before they reach anyone.
+        $unresolved = [];
+        foreach ($recipients as $r) {
+            $blob = (string)($r['_resolved_subject'] ?? '') . ' '
+                  . (string)($r['_resolved_html_body'] ?? '') . ' '
+                  . (string)($r['_resolved_body'] ?? '');
+            if (preg_match_all('/\{\{[a-zA-Z0-9_]+\}\}/', $blob, $mm)) {
+                foreach ($mm[0] as $tag) $unresolved[$tag] = true;
+            }
+        }
+        unset($r);
+        if (!empty($unresolved)) {
+            http_response_code(422);
+            echo json_encode([
+                'error' => 'This email still has unfilled fields: ' . implode(', ', array_keys($unresolved))
+                         . '. Remove or fix them before sending.',
+                'unresolved_tags' => array_keys($unresolved),
+            ]);
+            return;
+        }
 
         // Queue individually with resolved content
         $totalQueued  = 0;

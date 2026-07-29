@@ -28,6 +28,9 @@ class MergeFieldService {
         $replacements = [];
 
         // Only load data for variables actually present
+        if (preg_match('/\{\{recipient_/', $text)) {
+            $replacements = array_merge($replacements, $this->loadRecipientData($context));
+        }
         if (preg_match('/\{\{athlete_/', $text)) {
             $data = $this->loadAthleteData($context['athlete_id'] ?? null);
             $replacements = array_merge($replacements, $data);
@@ -97,6 +100,10 @@ class MergeFieldService {
      */
     public static function getAvailableFields() {
         return [
+            // Whoever the email is addressed to (works club-wide; combines shared-email
+            // households into "John & Jane"). Safest personalization for a broad send.
+            ['key' => 'recipient_first_name', 'label' => 'Recipient First Name', 'group' => 'Recipient'],
+            ['key' => 'recipient_name', 'label' => 'Recipient Full Name', 'group' => 'Recipient'],
             ['key' => 'athlete_first_name', 'label' => 'Athlete First Name', 'group' => 'Athlete'],
             ['key' => 'athlete_last_name', 'label' => 'Athlete Last Name', 'group' => 'Athlete'],
             ['key' => 'athlete_full_name', 'label' => 'Athlete Full Name', 'group' => 'Athlete'],
@@ -138,6 +145,39 @@ class MergeFieldService {
     }
 
     // Private data loaders — each caches its result
+
+    /**
+     * The person the email is addressed to. Prefers a name the caller already
+     * resolved in the context (recipient_first_name / recipient_name) — that's
+     * how household combining ("John & Jane") and coach recipients arrive, since
+     * neither maps to a single guardian/athlete row. Falls back to deriving from
+     * the recipient's own guardian/athlete record. Title-cased; "there" if blank.
+     */
+    private function loadRecipientData($context) {
+        require_once __DIR__ . '/../lib/NameFormatter.php';
+
+        $first = $context['recipient_first_name'] ?? null;
+        $full  = $context['recipient_name'] ?? null;
+
+        if ($first === null && $full === null) {
+            if (!empty($context['guardian_id'])) {
+                $g = $this->loadGuardianData($context['guardian_id']);
+                $first = $g['guardian_first_name'] ?? null;
+                $full  = $g['guardian_full_name'] ?? null;
+            } elseif (!empty($context['athlete_id'])) {
+                $a = $this->loadAthleteData($context['athlete_id']);
+                $first = $a['athlete_first_name'] ?? null;
+                $full  = $a['athlete_full_name'] ?? null;
+            }
+        }
+
+        $firstClean = NameFormatter::titleCaseName((string) ($first ?? ''));
+        $fullClean  = NameFormatter::titleCaseName((string) ($full ?? ''));
+        return [
+            'recipient_first_name' => $firstClean !== '' ? $firstClean : 'there',
+            'recipient_name'       => $fullClean !== '' ? $fullClean : 'there',
+        ];
+    }
 
     private function loadAthleteData($athleteId) {
         if (!$athleteId) return [];
