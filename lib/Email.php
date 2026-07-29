@@ -97,6 +97,74 @@ class Email {
     }
 
     /**
+     * Send the parental consent confirmation email.
+     *
+     * COPPA-COMPLIANCE.md specifies a double-opt-in on consent: the guardian
+     * records consent in the app, then confirms via a link mailed to them, which
+     * is what makes the consent verifiable rather than merely asserted. This
+     * method was documented as deployed and was absent from the tree.
+     *
+     * @param string $to           Guardian email.
+     * @param string $name         Guardian name.
+     * @param string $athleteName  Athlete the consent covers.
+     * @param string $confirmLink  Tokenised confirmation URL (48-hour expiry).
+     * @return bool
+     */
+    public function sendConsentConfirmation($to, $name, $athleteName, $confirmLink) {
+        $subject = 'Please confirm your consent — Teams Elevated';
+
+        $safeName = htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8');
+        $safeAthlete = htmlspecialchars((string) $athleteName, ENT_QUOTES, 'UTF-8');
+        $safeLink = htmlspecialchars((string) $confirmLink, ENT_QUOTES, 'UTF-8');
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:20px 12px;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+    <tr><td style="background-color:#12443E;padding:18px 24px;">
+      <div style="color:#ffffff;font-weight:800;font-size:16px;">Teams Elevated</div>
+      <div style="color:#c3cdd6;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">Confirm your consent</div>
+    </td></tr>
+    <tr><td style="padding:30px;">
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">Hi {$safeName},</p>
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">
+        Thank you for providing consent for <strong>{$safeAthlete}</strong>. To complete it, please
+        confirm using the button below. We ask for this second step so your consent is verifiable,
+        as required for collecting information about a minor.
+      </p>
+      <p style="text-align:center;margin:26px 0;">
+        <a href="{$safeLink}" style="background-color:#12443E;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;display:inline-block;">Confirm consent</a>
+      </p>
+      <p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#555555;">
+        This link expires in 48 hours. You can withdraw your consent at any time from the parent portal.
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#777777;">
+        If you did not provide this consent, you can safely ignore this email and nothing will be confirmed.
+      </p>
+    </td></tr>
+    <tr><td style="background-color:#12443E;color:#ffffff;padding:20px;text-align:center;font-size:11px;">
+      Powered by Teams Elevated
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>
+HTML;
+
+        $textBody = "Hi $name,\n\n" .
+                    "Thank you for providing consent for $athleteName. To complete it, please confirm " .
+                    "using the link below. We ask for this second step so your consent is verifiable, " .
+                    "as required for collecting information about a minor.\n\n" .
+                    "$confirmLink\n\n" .
+                    "This link expires in 48 hours. You can withdraw your consent at any time from the " .
+                    "parent portal.\n\n" .
+                    "If you did not provide this consent, you can safely ignore this email.";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * Send team invitation email
      *
      * @param string $to Recipient email

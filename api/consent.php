@@ -1,0 +1,368 @@
+<?php
+/**
+ * Parental consent & right-to-erasure API.
+ *
+ * COPPA-COMPLIANCE.md documents this file as deployed (Feb 2026) with six
+ * actions. It is absent from the tree and from git history — the same loss as
+ * lib/Encryption.php and the CORS lockdown. This is a fresh implementation of
+ * that contract against the surviving `consent_records` table.
+ *
+ * Actions:
+ *   record            POST  record consent, mint a 48h token, email for confirmation
+ *   confirm-email     GET   validate the token from that email, stamp confirmation
+ *   status            GET   consent state for an athlete
+ *   list              GET   all consents for a guardian
+ *   revoke            POST  withdraw a consent
+ *   request-deletion  POST  right to erasure — purge health data, soft-delete athlete
+ *
+ * AUTH NOTE — deliberate deviation from the doc.
+ * COPPA-COMPLIANCE.md's testing guide shows `status` and `list` being called with
+ * no credentials. That would let anyone enumerate which children are registered
+ * and what was consented to, so every action here requires a valid token EXCEPT
+ * confirm-email, which is authenticated by the single-use token in the emailed
+ * link (the recipient is not logged in when they click it).
+ */
+
+header('Content-Type: application/json; charset=UTF-8');
+require_once __DIR__ . '/../lib/Cors.php';
+Cors::handle();
+
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/Email.php';
+
+const CONSENT_TOKEN_TTL_HOURS = 48;
+const CONSENT_VERSION = '1.0';
+
+try {
+    $pdo = Database::getInstance()->getConnection();
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
+    exit;
+}
+
+$action = $_GET['action'] ?? '';
+$method = $_SERVER['REQUEST_METHOD'];
+
+/** Audit every consent operation; never let auditing break the operation. */
+function consentAudit(PDO $pdo, ?int $userId, string $action, string $resourceType, ?int $resourceId, array $details = []): void
+{
+    try {
+        $stmt = $pdo->prepare(
+            'INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())'
+        );
+        $stmt->execute([
+            $userId ?: null,
+            $action,
+            $resourceType,
+            $resourceId,
+            $_SERVER['REMOTE_ADDR'] ?? null,
+            $_SERVER['HTTP_USER_AGENT'] ?? null,
+            json_encode($details),
+        ]);
+    } catch (Exception $e) {
+        error_log('consent audit failed: ' . $e->getMessage());
+    }
+}
+
+function fail(int $code, string $message): void
+{
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message]);
+    exit;
+}
+
+function body(): array
+{
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw ?: '[]', true);
+    return is_array($data) ? $data : [];
+}
+
+/**
+ * A guardian may act on their own athlete; staff may act within their scope.
+ * Anything else is refused — consent is about a specific child.
+ */
+function requireAthleteAccess(PDO $pdo, AuthMiddleware $auth, int $athleteId): void
+{
+    if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $athleteId)) {
+        fail(403, 'Access denied');
+    }
+}
+
+try {
+    switch ($action) {
+
+        // ------------------------------------------------------------------
+        case 'record': {
+            if ($method !== 'POST') fail(405, 'Method not allowed');
+            $auth = AuthMiddleware::requireAuth();
+            $d = body();
+
+            $athleteId  = (int) ($d['athlete_id'] ?? 0);
+            $guardianId = (int) ($d['guardian_id'] ?? 0);
+            $type       = trim((string) ($d['consent_type'] ?? ''));
+            $given      = !empty($d['consent_given']);
+
+            if (!$athleteId || !$guardianId || $type === '') {
+                fail(400, 'athlete_id, guardian_id and consent_type are required');
+            }
+            requireAthleteAccess($pdo, $auth, $athleteId);
+
+            // The guardian must actually be linked to this athlete, or consent
+            // could be recorded by (or against) an unrelated party.
+            $link = $pdo->prepare('SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND guardian_id = ? LIMIT 1');
+            $link->execute([$athleteId, $guardianId]);
+            if (!$link->fetchColumn()) {
+                fail(422, 'That guardian is not linked to that athlete');
+            }
+
+            $token = bin2hex(random_bytes(32));
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO consent_records
+                    (guardian_id, athlete_id, consent_type, consent_given, consented_at,
+                     ip_address, user_agent, consent_version, confirmation_token, email_sent_at)
+                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, NULL)
+                 RETURNING id'
+            );
+            $stmt->execute([
+                $guardianId, $athleteId, $type, $given ? 'true' : 'false',
+                $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null,
+                CONSENT_VERSION, $token,
+            ]);
+            $consentId = (int) $stmt->fetchColumn();
+
+            // Email the guardian to confirm. A send failure must not lose the
+            // consent record itself — it is already stored and auditable.
+            $emailed = false;
+            $g = $pdo->prepare('SELECT first_name, last_name, email FROM guardians WHERE id = ?');
+            $g->execute([$guardianId]);
+            $guardian = $g->fetch(PDO::FETCH_ASSOC);
+
+            $a = $pdo->prepare('SELECT first_name, last_name FROM athletes WHERE id = ?');
+            $a->execute([$athleteId]);
+            $athlete = $a->fetch(PDO::FETCH_ASSOC);
+
+            if ($guardian && !empty($guardian['email'])) {
+                $appUrl = rtrim(getenv('FRONTEND_URL') ?: 'https://teams-elevated.netlify.app', '/');
+                $confirmLink = $appUrl . '/consent/confirm?token=' . urlencode($token);
+                try {
+                    $mailer = new Email();
+                    $emailed = (bool) $mailer->sendConsentConfirmation(
+                        $guardian['email'],
+                        trim(($guardian['first_name'] ?? '') . ' ' . ($guardian['last_name'] ?? '')),
+                        trim(($athlete['first_name'] ?? '') . ' ' . ($athlete['last_name'] ?? '')),
+                        $confirmLink
+                    );
+                    if ($emailed) {
+                        $pdo->prepare('UPDATE consent_records SET email_sent_at = NOW() WHERE id = ?')
+                            ->execute([$consentId]);
+                    }
+                } catch (Exception $e) {
+                    error_log('consent confirmation email failed: ' . $e->getMessage());
+                }
+            }
+
+            consentAudit($pdo, (int) $auth->getUserId(), 'consent_given', 'consent_records', $consentId, [
+                'athlete_id' => $athleteId, 'guardian_id' => $guardianId,
+                'consent_type' => $type, 'emailed' => $emailed,
+            ]);
+
+            echo json_encode([
+                'success' => true,
+                'consent_id' => $consentId,
+                'confirmation_email_sent' => $emailed,
+            ]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        // Public by necessity: the guardian clicks this from their inbox while
+        // logged out. The single-use token IS the credential.
+        case 'confirm-email': {
+            $token = (string) ($_GET['token'] ?? '');
+            if ($token === '') fail(400, 'token is required');
+
+            $stmt = $pdo->prepare(
+                'SELECT id, athlete_id, guardian_id, email_confirmed_at, revoked_at, consented_at
+                 FROM consent_records WHERE confirmation_token = ? LIMIT 1'
+            );
+            $stmt->execute([$token]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Same response for "no such token" and "expired": a differing reply
+            // would let someone probe which tokens exist.
+            if (!$row) fail(400, 'This confirmation link is invalid or has expired');
+            if (!empty($row['revoked_at'])) fail(410, 'This consent has been withdrawn');
+
+            if (!empty($row['email_confirmed_at'])) {
+                echo json_encode(['success' => true, 'already_confirmed' => true]);
+                break;
+            }
+
+            $age = (time() - strtotime($row['consented_at'])) / 3600;
+            if ($age > CONSENT_TOKEN_TTL_HOURS) {
+                fail(400, 'This confirmation link is invalid or has expired');
+            }
+
+            // Clear the token on confirmation so the link is single-use.
+            $pdo->prepare('UPDATE consent_records SET email_confirmed_at = NOW(), confirmation_token = NULL WHERE id = ?')
+                ->execute([$row['id']]);
+
+            consentAudit($pdo, null, 'consent_email_confirmed', 'consent_records', (int) $row['id'], [
+                'athlete_id' => (int) $row['athlete_id'], 'guardian_id' => (int) $row['guardian_id'],
+            ]);
+
+            echo json_encode(['success' => true, 'confirmed' => true]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        case 'status': {
+            $auth = AuthMiddleware::requireAuth();
+            $athleteId = (int) ($_GET['athlete_id'] ?? 0);
+            if (!$athleteId) fail(400, 'athlete_id is required');
+            requireAthleteAccess($pdo, $auth, $athleteId);
+
+            $stmt = $pdo->prepare(
+                'SELECT id, guardian_id, consent_type, consent_given, consented_at,
+                        email_sent_at, email_confirmed_at, revoked_at, consent_version
+                 FROM consent_records WHERE athlete_id = ? ORDER BY consented_at DESC'
+            );
+            $stmt->execute([$athleteId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // "Active" means given, confirmed by email, and not withdrawn.
+            $active = array_values(array_filter($rows, fn($r) =>
+                !empty($r['consent_given']) && !empty($r['email_confirmed_at']) && empty($r['revoked_at'])
+            ));
+
+            echo json_encode([
+                'success' => true,
+                'athlete_id' => $athleteId,
+                'has_active_consent' => count($active) > 0,
+                'active_consent_types' => array_values(array_unique(array_column($active, 'consent_type'))),
+                'consents' => $rows,
+            ]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        case 'list': {
+            $auth = AuthMiddleware::requireAuth();
+            $guardianId = (int) ($_GET['guardian_id'] ?? 0);
+            if (!$guardianId) fail(400, 'guardian_id is required');
+
+            // Only list consents for athletes the caller may see, so a guardian
+            // id cannot be used to enumerate another family's records.
+            $stmt = $pdo->prepare(
+                'SELECT cr.*, a.first_name AS athlete_first_name, a.last_name AS athlete_last_name
+                 FROM consent_records cr
+                 JOIN athletes a ON a.id = cr.athlete_id
+                 WHERE cr.guardian_id = ? ORDER BY cr.consented_at DESC'
+            );
+            $stmt->execute([$guardianId]);
+            $rows = array_values(array_filter(
+                $stmt->fetchAll(PDO::FETCH_ASSOC),
+                fn($r) => AthleteScope::userCanAccessAthlete($pdo, $auth, (int) $r['athlete_id'])
+            ));
+
+            echo json_encode(['success' => true, 'guardian_id' => $guardianId, 'consents' => $rows]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        case 'revoke': {
+            if ($method !== 'POST') fail(405, 'Method not allowed');
+            $auth = AuthMiddleware::requireAuth();
+            $d = body();
+            $consentId = (int) ($d['consent_id'] ?? 0);
+            if (!$consentId) fail(400, 'consent_id is required');
+
+            $stmt = $pdo->prepare('SELECT id, athlete_id, guardian_id, revoked_at FROM consent_records WHERE id = ?');
+            $stmt->execute([$consentId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) fail(404, 'Consent record not found');
+
+            requireAthleteAccess($pdo, $auth, (int) $row['athlete_id']);
+
+            if (!empty($row['revoked_at'])) {
+                echo json_encode(['success' => true, 'already_revoked' => true]);
+                break;
+            }
+
+            $pdo->prepare('UPDATE consent_records SET revoked_at = NOW(), confirmation_token = NULL WHERE id = ?')
+                ->execute([$consentId]);
+
+            consentAudit($pdo, (int) $auth->getUserId(), 'consent_revoked', 'consent_records', $consentId, [
+                'athlete_id' => (int) $row['athlete_id'], 'guardian_id' => (int) $row['guardian_id'],
+            ]);
+
+            echo json_encode(['success' => true, 'revoked' => true]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        // Right to erasure. Destructive and irreversible for health data, so it
+        // is transactional, audited, and refuses anyone outside the athlete's scope.
+        case 'request-deletion': {
+            if ($method !== 'POST') fail(405, 'Method not allowed');
+            $auth = AuthMiddleware::requireAuth();
+            $d = body();
+            $athleteId = (int) ($d['athlete_id'] ?? 0);
+            if (!$athleteId) fail(400, 'athlete_id is required');
+
+            // Explicit confirmation, so a stray call cannot erase a child's record.
+            if (($d['confirm'] ?? null) !== true) {
+                fail(400, 'Set "confirm": true to proceed — this permanently deletes health data');
+            }
+
+            requireAthleteAccess($pdo, $auth, $athleteId);
+
+            $deleted = [];
+            $pdo->beginTransaction();
+            try {
+                // insurance_policies from the original spec does not exist in this
+                // database; skipped rather than faked.
+                foreach (['athlete_medical', 'medical_records', 'medications', 'allergies'] as $table) {
+                    $stmt = $pdo->prepare("DELETE FROM {$table} WHERE athlete_id = ?");
+                    $stmt->execute([$athleteId]);
+                    $deleted[$table] = $stmt->rowCount();
+                }
+
+                // Soft delete, per the documented flow: the athlete row is retained
+                // so historical rosters and audit references stay coherent.
+                $pdo->prepare('UPDATE athletes SET active_status = FALSE, deleted_at = NOW() WHERE id = ?')
+                    ->execute([$athleteId]);
+
+                $rev = $pdo->prepare('UPDATE consent_records SET revoked_at = NOW(), confirmation_token = NULL
+                                      WHERE athlete_id = ? AND revoked_at IS NULL');
+                $rev->execute([$athleteId]);
+                $deleted['consents_revoked'] = $rev->rowCount();
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                error_log('consent request-deletion failed: ' . $e->getMessage());
+                fail(500, 'Deletion failed; nothing was removed');
+            }
+
+            consentAudit($pdo, (int) $auth->getUserId(), 'data_deletion', 'athletes', $athleteId, $deleted);
+
+            echo json_encode(['success' => true, 'athlete_id' => $athleteId, 'deleted' => $deleted]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        default:
+            fail(400, 'Unknown action: ' . $action);
+    }
+} catch (Exception $e) {
+    error_log('consent.php error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Request failed']);
+}
