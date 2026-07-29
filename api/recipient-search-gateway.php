@@ -868,10 +868,28 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
     $suppressedCount = 0;
     $missingContactCount = 0;
 
+    // Suppressions are loaded once for the whole club rather than per recipient.
+    // The team path calls checkSuppression() inside its loop, which is fine for
+    // ~20 people; a club-wide group is 200+ and that becomes 200+ round trips to
+    // Neon — slow enough to time the request out.
+    $suppressionMap = [];
+    $stmt = $connection->prepare("
+        SELECT email, phone, channel, reason FROM email_suppressions WHERE club_profile_id = ?
+    ");
+    $stmt->execute([$clubProfileId]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
+        $key = $s['channel'] === 'email'
+            ? 'email:' . strtolower(trim((string)$s['email']))
+            : 'sms:' . trim((string)$s['phone']);
+        if (!isset($suppressionMap[$key])) {
+            $suppressionMap[$key] = $s['reason'];
+        }
+    }
+
     // Shared per-row handling: exclusions, missing contact, cross-type dedupe by
     // the actual send address, and suppression flagging.
     $add = function (array $row, string $type) use (
-        $connection, $clubProfileId, $channel, $excludeLookup,
+        $channel, $excludeLookup, $suppressionMap,
         &$recipients, &$seenKeys, &$suppressedCount, &$missingContactCount
     ) {
         if (isset($excludeLookup["{$type}:{$row['id']}"])) {
@@ -890,10 +908,18 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
         }
         $seenKeys[$dedupeKey] = true;
 
-        $suppression = checkSuppression($connection, $clubProfileId, $row['email'], $row['phone'], $channel);
+        $lookupKey = $channel === 'email'
+            ? 'email:' . strtolower(trim((string)$row['email']))
+            : 'sms:' . trim((string)$row['phone']);
+        $suppression = [
+            'suppressed' => isset($suppressionMap[$lookupKey]),
+            'suppression_reason' => $suppressionMap[$lookupKey] ?? null,
+        ];
 
+        // sms_opt_out comes back on the guardian row, so no extra query per person.
         if ($type === 'guardian' && $channel === 'sms' && !$suppression['suppressed']) {
-            if (checkGuardianSmsOptOut($connection, $row['id'])) {
+            $optOut = $row['sms_opt_out'] ?? false;
+            if ($optOut === true || $optOut === 1 || $optOut === '1' || $optOut === 't') {
                 $suppression['suppressed'] = true;
                 $suppression['suppression_reason'] = 'twilio_stop';
             }
@@ -920,7 +946,8 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
 
     // ----- Crew (guardians) — in both "all" and "all_crew" -----
     $sql = "
-        SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone AS phone
+        SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone AS phone,
+               g.sms_opt_out
         FROM guardians g
         JOIN athlete_guardians ag ON g.id = ag.guardian_id
         JOIN athletes a ON ag.athlete_id = a.id

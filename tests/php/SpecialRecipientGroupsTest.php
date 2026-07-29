@@ -189,4 +189,24 @@ class SpecialRecipientGroupsTest extends TestCase
         $res = $this->resolve('all_crew', ['guardian:4' => true]);
         $this->assertSame(['thejones@example.com'], $this->emailsOf($res));
     }
+
+    /**
+     * sms_opt_out now rides along on the guardian row instead of costing a query
+     * per person, so the STOP flag has to still be honoured on the SMS channel.
+     */
+    public function testGuardianSmsOptOutIsHonouredOnSmsChannel(): void
+    {
+        $this->pdo->exec("UPDATE guardians SET sms_opt_out = 1 WHERE id = 1");
+
+        $res = $this->resolve('all_crew', [], 'sms');
+        $byPhone = array_column($res['recipients'], null, 'phone');
+
+        $this->assertTrue($byPhone['555-0201']['suppressed'], 'STOP guardian must be flagged');
+        $this->assertSame('twilio_stop', $byPhone['555-0201']['suppression_reason']);
+
+        // On SMS every guardian has a phone, so nobody is dropped for missing contact,
+        // and Jane is a distinct number rather than a shared email.
+        $this->assertFalse($byPhone['555-0202']['suppressed']);
+        $this->assertSame(0, $res['missing_contact_count']);
+    }
 }
