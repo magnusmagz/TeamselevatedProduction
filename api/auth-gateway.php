@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/JWT.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/Email.php';
 
 // Use existing MySQL database for now (will migrate to Neon later)
@@ -382,6 +383,10 @@ function handlePasswordLogin($db, $input) {
     $user = $stmt->fetch();
 
     if (!$user) {
+        // Per COPPA-COMPLIANCE.md: login_failure is audited. No user id exists,
+        // so the attempted address goes in details — that is what makes a
+        // credential-stuffing run visible after the fact.
+        AuditLogger::log($db, null, 'login_failure', 'users', null, ['email' => $email, 'reason' => 'unknown_email']);
         http_response_code(401);
         echo json_encode(['error' => 'Invalid email or password']);
         return;
@@ -399,6 +404,7 @@ function handlePasswordLogin($db, $input) {
 
     // Verify password
     if (!password_verify($password, $user['password_hash'])) {
+        AuditLogger::log($db, (int) $user['id'], 'login_failure', 'users', (int) $user['id'], ['reason' => 'bad_password']);
         http_response_code(401);
         echo json_encode(['error' => 'Invalid email or password']);
         return;
@@ -407,6 +413,8 @@ function handlePasswordLogin($db, $input) {
     // Update last login and auth provider
     $stmt = $db->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP, auth_provider = ? WHERE id = ?');
     $stmt->execute(['password', $user['id']]);
+
+    AuditLogger::log($db, (int) $user['id'], 'login_success', 'users', (int) $user['id'], ['method' => 'password']);
 
     // Generate enhanced JWT with organizational context
     $userName = trim($user['first_name'] . ' ' . $user['last_name']);

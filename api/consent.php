@@ -31,6 +31,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 
 const CONSENT_TOKEN_TTL_HOURS = 48;
 const CONSENT_VERSION = '1.0';
@@ -52,70 +53,10 @@ try {
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-/** Audit every consent operation; never let auditing break the operation. */
+/** Thin wrapper; AuditLogger owns the never-throw contract. */
 function consentAudit(PDO $pdo, ?int $userId, string $action, string $resourceType, ?int $resourceId, array $details = []): void
 {
-    try {
-        $stmt = $pdo->prepare(
-            'INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())'
-        );
-        $stmt->execute([
-            $userId ?: null,
-            $action,
-            $resourceType,
-            $resourceId,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null,
-            json_encode($details),
-        ]);
-    } catch (Exception $e) {
-        error_log('consent audit failed: ' . $e->getMessage());
-    }
-}
-
-/**
- * Display context for the public confirmation page.
- *
- * frontend/src/pages/ConsentConfirm.tsx renders "Your consent for <athlete>'s
- * enrollment has been confirmed" with the club's name and logo. Without these the
- * page still works but falls back to generic, unbranded copy — so the endpoint
- * returns them. All optional on the client, so a failure here degrades quietly
- * rather than breaking the confirmation itself.
- */
-function consentDisplayContext(PDO $pdo, int $athleteId, int $guardianUserId): array
-{
-    $out = [];
-    try {
-        $stmt = $pdo->prepare(
-            'SELECT a.first_name AS a_first, a.last_name AS a_last, a.club_id,
-                    c.name AS club_name,
-                    CASE WHEN c.logo_png IS NOT NULL AND c.logo_png <> \'\' THEN substr(md5(c.logo_png), 1, 8) END AS logo_v
-             FROM athletes a
-             LEFT JOIN club_profile c ON c.id = a.club_id
-             WHERE a.id = ?'
-        );
-        $stmt->execute([$athleteId]);
-        if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $out['athlete_name'] = trim(($row['a_first'] ?? '') . ' ' . ($row['a_last'] ?? ''));
-            if (!empty($row['club_name'])) {
-                $out['club_name'] = $row['club_name'];
-            }
-            if (!empty($row['logo_v']) && !empty($row['club_id'])) {
-                $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
-                $out['club_logo'] = $base . '/api/club-logo.php?club_id=' . (int) $row['club_id'] . '&v=' . $row['logo_v'];
-            }
-        }
-
-        $g = $pdo->prepare('SELECT first_name, last_name FROM users WHERE id = ?');
-        $g->execute([$guardianUserId]);
-        if ($gr = $g->fetch(PDO::FETCH_ASSOC)) {
-            $out['guardian_name'] = trim(($gr['first_name'] ?? '') . ' ' . ($gr['last_name'] ?? ''));
-        }
-    } catch (Exception $e) {
-        error_log('consent display context failed: ' . $e->getMessage());
-    }
-    return $out;
+    AuditLogger::log($pdo, $userId, $action, $resourceType, $resourceId, $details);
 }
 
 function fail(int $code, string $message): void

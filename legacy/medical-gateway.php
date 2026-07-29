@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/Encryption.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 
 try {
     $db = Database::getInstance();
@@ -40,27 +41,14 @@ function medicalRequireAccess(PDO $pdo, AuthMiddleware $auth, int $athleteId): v
 }
 
 /**
- * Audit trail for health-record access, per COPPA-COMPLIANCE.md ('view_medical' /
- * 'edit_medical'). Never allowed to break the request it is recording.
+ * Audit trail for health-record access, per COPPA-COMPLIANCE.md. Thin wrapper so
+ * the call sites below stay readable; AuditLogger owns the never-throw contract.
  */
 function medicalAudit(PDO $pdo, AuthMiddleware $auth, string $action, int $athleteId): void
 {
-    try {
-        $stmt = $pdo->prepare(
-            "INSERT INTO audit_log (user_id, action, resource_type, resource_id, ip_address, user_agent, details, created_at)
-             VALUES (?, ?, 'athlete_medical', ?, ?, ?, ?, NOW())"
-        );
-        $stmt->execute([
-            (int) $auth->getUserId() ?: null,
-            $action,
-            $athleteId,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null,
-            json_encode(['athlete_id' => $athleteId]),
-        ]);
-    } catch (Exception $e) {
-        error_log('medical-gateway audit failed: ' . $e->getMessage());
-    }
+    AuditLogger::log($pdo, (int) $auth->getUserId(), $action, 'athlete_medical', $athleteId, [
+        'athlete_id' => $athleteId,
+    ]);
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
