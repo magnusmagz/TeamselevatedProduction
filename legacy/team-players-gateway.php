@@ -88,6 +88,62 @@ function tpg_requireTeamAccess($pdo, $auth, $teamId) {
 }
 
 /**
+ * Verify the authenticated user may VIEW the given team's roster.
+ *
+ * Deliberately wider than tpg_requireTeamAccess, which gates writes: a parent
+ * or player has no business editing a roster but does need to see the team
+ * they're on. Staff get in via role; everyone else gets in by having access to
+ * at least one athlete on the team, which is exactly the guardian/player case.
+ * Exits 403 if not authorized, 404 if the team does not exist.
+ */
+function tpg_requireTeamViewAccess($pdo, $auth, $teamId) {
+    $teamId = (int)$teamId;
+
+    $stmt = $pdo->prepare("SELECT club_id FROM teams WHERE id = ?");
+    $stmt->execute([$teamId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Team not found']);
+        exit;
+    }
+
+    if ($auth->isSuperAdmin()) {
+        return $teamId;
+    }
+
+    $clubId = $row['club_id'] !== null ? (int)$row['club_id'] : null;
+    if ($clubId !== null && $auth->hasRole('club_admin', $clubId, 'club')) {
+        return $teamId;
+    }
+
+    $coachTeamIds = AthleteScope::coachTeamIdsForUser($pdo, (int)$auth->getUserId());
+    if (in_array($teamId, $coachTeamIds, true)) {
+        return $teamId;
+    }
+
+    // Guardian of (or) a player on this team.
+    $accessibleIds = AthleteScope::accessibleAthleteIds($pdo, $auth);
+    if (!empty($accessibleIds)) {
+        $ph = implode(',', array_fill(0, count($accessibleIds), '?'));
+        $stmt = $pdo->prepare("
+            SELECT 1 FROM team_members
+            WHERE team_id = ? AND athlete_id IN ({$ph})
+            LIMIT 1
+        ");
+        $stmt->execute(array_merge([$teamId], array_values($accessibleIds)));
+        if ($stmt->fetchColumn()) {
+            return $teamId;
+        }
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'You do not have permission to view this team\'s roster']);
+    exit;
+}
+
+/**
  * Same check as tpg_requireTeamAccess, resolved from a team_members row id.
  * Exits 404 if the team_member row is missing.
  */
@@ -108,10 +164,19 @@ function tpg_requireTeamRosterAccess($pdo, $auth, $teamMemberId) {
 try {
     switch ($method) {
         case 'GET':
-            // Get team players
+            // Get team players — requires auth. Previously wide open: with no
+            // team_id this returned every team_members row in the database,
+            // across every club, to anyone who asked.
+            $auth = tpg_requireAuth();
+
             $team_id = isset($_GET['team_id']) ? (int)$_GET['team_id'] : null;
 
             if ($team_id) {
+                // Row shape is left untouched here (staff rows have a user_id
+                // and a NULL athlete_id, and TeamDetailPage renders them), so
+                // authorize at the team level rather than filtering rows.
+                tpg_requireTeamViewAccess($pdo, $auth, $team_id);
+
                 $stmt = $pdo->prepare("
                     SELECT tp.*,
                            COALESCE(a.first_name, u.first_name) as first_name,
@@ -133,7 +198,12 @@ try {
 
                 echo json_encode(['success' => true, 'team_members' => $team_members]);
             } else {
-                // Get all team players
+                // Every roster row the caller may see, scoped to the athletes
+                // they can access. Both callers of this branch (the athlete
+                // table's team column and the athlete profile's team list) only
+                // read athlete rows, so dropping staff rows here is harmless.
+                $filter = AthleteScope::accessibleAthleteFilter($pdo, $auth, 'tp.athlete_id');
+
                 $stmt = $pdo->prepare("
                     SELECT tp.*,
                            COALESCE(a.first_name, u.first_name) as first_name,
@@ -145,9 +215,11 @@ try {
                     LEFT JOIN athletes a ON tp.athlete_id = a.id
                     LEFT JOIN users u ON tp.user_id = u.id
                     JOIN teams t ON tp.team_id = t.id
+                    WHERE tp.athlete_id IS NOT NULL
+                    {$filter['sql']}
                     ORDER BY t.name, COALESCE(a.last_name, u.last_name), COALESCE(a.first_name, u.first_name)
                 ");
-                $stmt->execute();
+                $stmt->execute($filter['params']);
                 $team_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 echo json_encode(['success' => true, 'team_players' => $team_members]);

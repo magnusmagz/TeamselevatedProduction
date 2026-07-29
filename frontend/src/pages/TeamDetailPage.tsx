@@ -220,7 +220,9 @@ export const TeamDetailPage: React.FC = () => {
 
       // Fetch roster separately (don't let roster errors hide the team)
       try {
-        const rosterResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${teamId}`);
+        const rosterResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${teamId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
         const rosterData = await rosterResponse.json();
 
         if (rosterData.success && rosterData.team_members) {

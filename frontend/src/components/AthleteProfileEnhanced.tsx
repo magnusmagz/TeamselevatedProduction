@@ -197,7 +197,9 @@ const AthleteProfileEnhanced: React.FC = () => {
         body: JSON.stringify({ team_member_id: teamMemberId, ...updates }),
       });
       // Refresh teams data
-      const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
+      const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const teamsData = await teamsResponse.json();
       if (teamsData.success) {
         const athleteTeams = teamsData.team_players
@@ -227,7 +229,9 @@ const AthleteProfileEnhanced: React.FC = () => {
         }
 
         // Fetch team assignments
-        const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
+        const teamsResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
         const teamsData = await teamsResponse.json();
 
         if (teamsData.success) {

@@ -337,7 +337,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchRoster = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}`);
+      const response = await fetch(`${API_URL}/legacy/team-players-gateway.php?team_id=${team.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const data = await response.json();
       if (data.success && data.team_members) {
         const athletes = data.team_members.map((tm: any) => ({

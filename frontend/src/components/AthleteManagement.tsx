@@ -73,7 +73,9 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
       setAthletes(uniqueAthletes);
 
       // Fetch team-player relationships
-      const teamPlayersResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`);
+      const teamPlayersResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
       const teamPlayersData = await teamPlayersResponse.json();
 
       if (teamPlayersData.success && teamPlayersData.team_players) {
