@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../lib/suppression.php';
+require_once __DIR__ . '/../lib/EmailBranding.php';
 
 /**
  * Email Send Service
@@ -351,28 +352,16 @@ class EmailSendService {
         $pixel = '<img src="' . htmlspecialchars($appUrl . '/api/track/pixel/' . $trackingId . '.gif')
                . '" width="1" height="1" style="display:none" alt="" />';
 
-        if (stripos($html, '</body>') !== false) {
-            $html = str_ireplace('</body>', $pixel . '</body>', $html);
-        } else {
-            $html .= $pixel;
-        }
+        // Anchor on the last </body> — templates with explanatory HTML comments
+        // containing markup used to get a second pixel injected inside the comment.
+        $html = \EmailBranding::appendToBody($html, $pixel);
 
-        // 3. Unsubscribe footer
-        $unsubscribeToken = $this->generateUnsubscribeToken($communicationLogId, '', $clubProfileId);
-        // We use '' for email here since processHtml doesn't have the recipient email;
-        // the actual token in sendViaSendGrid uses the real email.
-        // For the footer, we generate a proper token per-recipient at queue time.
-        // Re-generate with a placeholder — the footer token is generated in queueEmail context
-        // where we do have the email. We'll use the communicationLogId to look it up.
-
-        // Fetch club name for branded footer
-        $clubName = 'Your Club';
-        $stmt = $this->pdo->prepare('SELECT name FROM club_profile WHERE id = ?');
-        $stmt->execute([$clubProfileId]);
-        $club = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if ($club) {
-            $clubName = htmlspecialchars($club['name']);
-        }
+        // 3. Club-branded header + footer.
+        // Templates are shared across clubs (platform scope) so they carry no club
+        // identity of their own — the sending club's logo, colour, socials and the
+        // unsubscribe link are applied here, at send time. EmailBranding::wrap is
+        // idempotent, so a body that already carries the branding markers is left
+        // alone rather than double-branded.
 
         // Fetch the recipient email from the communication log for the unsubscribe token
         $recipientEmail = '';
@@ -386,18 +375,9 @@ class EmailSendService {
         $unsubscribeToken = $this->generateUnsubscribeToken($communicationLogId, $recipientEmail, $clubProfileId);
         $unsubscribeUrl = $appUrl . '/unsubscribe?token=' . urlencode($unsubscribeToken);
 
-        $footer = '<div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#666;">'
-                . '<p>You received this email from ' . $clubName . '.</p>'
-                . '<p><a href="' . htmlspecialchars($unsubscribeUrl) . '" style="color:#12443E;">Unsubscribe</a></p>'
-                . '</div>';
+        $brand = \EmailBranding::forClub($this->pdo, $clubProfileId);
 
-        if (stripos($html, '</body>') !== false) {
-            $html = str_ireplace('</body>', $footer . '</body>', $html);
-        } else {
-            $html .= $footer;
-        }
-
-        return $html;
+        return \EmailBranding::wrap($html, $brand, $unsubscribeUrl);
     }
 
     /**

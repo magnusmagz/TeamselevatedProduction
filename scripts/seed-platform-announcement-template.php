@@ -253,15 +253,9 @@ $rows = [
         ),
     ]),
 
-    // Footer band. No unsubscribe link — EmailSendService::processHtml() appends
-    // the compliant one (and the tracking pixel) at send time.
-    $row([
-        $textBlock(
-            '<div style="text-align:center;color:#ffffff;font-weight:800;font-size:15px;">{{club_name}}</div>'
-            . '<div style="text-align:center;margin-top:10px;font-size:11px;color:#c3cdd6;">Powered by Teams Elevated</div>',
-            '24px'
-        ),
-    ], BRAND),
+    // No footer band here. lib/EmailBranding.php appends the club-branded footer —
+    // logo, club name, social icons, the compliant unsubscribe link — plus the
+    // tracking pixel, at send time. A band of our own just duplicated it.
 ];
 
 $design = [

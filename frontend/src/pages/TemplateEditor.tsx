@@ -361,6 +361,10 @@ const TemplateEditor: React.FC = () => {
     const branded = json
       .replace(/#1a3c5e/gi, colors.primary)
       .replace(/#1A3C5E/gi, colors.primary)
+      // Teams Elevated green — the seeded [Youth] designs hardcode it where the
+      // rest of the library uses the #1a3c5e palette colour. Swapped too, so a
+      // club editing one of those sees its own colour rather than ours.
+      .replace(/#12443e/gi, colors.primary)
       .replace(/#c9a96e/gi, colors.accent)
       .replace(/#C9A96E/gi, colors.accent);
     return JSON.parse(branded);
@@ -494,9 +498,34 @@ const TemplateEditor: React.FC = () => {
       return;
     }
 
-    editor.exportHtml((data: { html: string }) => {
+    editor.exportHtml(async (data: { html: string }) => {
+      // Preview through the backend, not the raw Unlayer export: the club-branded
+      // header/footer (logo, colours, socials, unsubscribe) is applied at send
+      // time, so previewing the bare design would show something recipients never
+      // get. Falls back to the raw export if the call fails.
       setPreviewHtml(data.html);
       setShowPreview(true);
+      if (!clubProfileId) return;
+      try {
+        const response = await fetch(`${API_URL}/api/communications?action=preview-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            club_profile_id: clubProfileId,
+            subject,
+            body_html: data.html,
+          }),
+        });
+        if (!response.ok) return;
+        const preview = await response.json();
+        if (preview?.preview_html) setPreviewHtml(preview.preview_html);
+      } catch {
+        // keep the raw export already showing
+      }
     });
   };
 

@@ -1087,6 +1087,15 @@ function handlePreviewEmail($auth, $connection, $mergeFieldService) {
     $previewSubject = $mergeFieldService->resolveVariables((string)$subject, $context);
     $previewHtml    = $mergeFieldService->resolveVariables((string)$bodyHtml, $context, true);
 
+    // Show the club-branded header/footer that EmailSendService::processHtml adds at
+    // send time, so the preview is what the recipient actually gets. The unsubscribe
+    // link is inert here — real sends carry a signed per-recipient token.
+    require_once __DIR__ . '/../lib/EmailBranding.php';
+    $previewHtml = EmailBranding::wrap(
+        $previewHtml,
+        EmailBranding::forClub($connection, $clubProfileId)
+    );
+
     echo json_encode([
         'success'         => true,
         'preview_subject' => $previewSubject,

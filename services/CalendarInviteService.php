@@ -641,42 +641,18 @@ HTML;
             . '<p style="font-size:12px; color:#666; margin-top:10px;">One tap &mdash; no login needed. You can change it anytime.</p></div>';
     }
 
-    /** Club branding for emails (name, color, contact, socials). Cached per club. */
+    /**
+     * Club branding for emails (name, color, logo, contact, socials).
+     *
+     * Delegates to lib/EmailBranding.php — the same brand row backs the compose /
+     * template send path, and two copies of this query is exactly how column drift
+     * gets shipped. The local cache stays so repeated invites in one run don't re-query.
+     */
     private function getClubBranding($clubId) {
         $clubId = (int) $clubId;
         if (array_key_exists($clubId, $this->brandCache)) return $this->brandCache[$clubId];
-        $brand = ['name' => 'Your Club', 'color' => '#12443e', 'email' => '', 'website' => '', 'fb' => '', 'ig' => '',
-                  'logo' => '', 'logo_w' => 0, 'logo_h' => 0];
-        try {
-            if ($clubId) {
-                // logo_v = short hash of the cached PNG so a changed logo busts the email
-                // proxy cache; computed in SQL to avoid pulling the base64 blob every send.
-                $stmt = $this->pdo->prepare(
-                    "SELECT name, primary_color, email, website, social_facebook, social_instagram,
-                            logo_w, logo_h,
-                            CASE WHEN logo_png IS NOT NULL AND logo_png <> '' THEN substr(md5(logo_png), 1, 8) END AS logo_v
-                     FROM club_profile WHERE id = ?");
-                $stmt->execute([$clubId]);
-                $c = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($c) {
-                    if (!empty($c['name'])) $brand['name'] = $c['name'];
-                    if (!empty($c['primary_color']) && preg_match('/^#?[0-9a-fA-F]{6}$/', $c['primary_color'])) {
-                        $brand['color'] = (substr($c['primary_color'], 0, 1) === '#' ? '' : '#') . $c['primary_color'];
-                    }
-                    $brand['email'] = $c['email'] ?? '';
-                    $brand['website'] = $c['website'] ?? '';
-                    $brand['fb'] = $c['social_facebook'] ?? '';
-                    $brand['ig'] = $c['social_instagram'] ?? '';
-                    if (!empty($c['logo_v']) && !empty($c['logo_w']) && !empty($c['logo_h'])) {
-                        $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
-                        $brand['logo'] = $base . '/api/club-logo.php?club_id=' . $clubId . '&v=' . $c['logo_v'];
-                        // stored at 2x for retina; display at half.
-                        $brand['logo_w'] = (int) round($c['logo_w'] / 2);
-                        $brand['logo_h'] = (int) round($c['logo_h'] / 2);
-                    }
-                }
-            }
-        } catch (Exception $e) { /* fall back to defaults */ }
+        require_once __DIR__ . '/../lib/EmailBranding.php';
+        $brand = EmailBranding::forClub($this->pdo, $clubId);
         $this->brandCache[$clubId] = $brand;
         return $brand;
     }
