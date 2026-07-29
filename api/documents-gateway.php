@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../lib/Cors.php';
+Cors::handle();
 /**
  * Documents Gateway — unified API for the documents/document_assignments/
  * document_acknowledgments schema (migration 032).
@@ -36,15 +38,8 @@
  *   - Anyone reading their own user-targeted docs.
  */
 
-header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';

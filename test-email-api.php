@@ -4,7 +4,8 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+require_once __DIR__ . '/lib/Cors.php';
+Cors::handle();
 
 require_once __DIR__ . '/services/MockMailerService.php';
 

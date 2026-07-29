@@ -4,13 +4,9 @@ ini_set('auto_prepend_file', '');
 
 // Set headers
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+require_once __DIR__ . '/../lib/Cors.php';
+Cors::handle();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
 
 // Get the action
 $action = $_GET['action'] ?? '';

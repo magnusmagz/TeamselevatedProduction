@@ -9,9 +9,8 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../lib/Cors.php';
+Cors::handle();
 header('Cache-Control: public, max-age=3600'); // Cache for 1 hour
 
 // Handle preflight OPTIONS request
