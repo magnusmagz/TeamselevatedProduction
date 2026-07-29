@@ -7,6 +7,8 @@
  * the caller's transaction and do NOT commit/rollback).
  */
 
+require_once __DIR__ . '/jersey_size.php';
+
 if (!function_exists('te_create_athlete')) {
     /**
      * Create an athlete, and (if an email is supplied) link it to a `player` user.
@@ -69,8 +71,8 @@ if (!function_exists('te_create_athlete')) {
             "INSERT INTO athletes (
                 first_name, middle_initial, last_name, preferred_name,
                 date_of_birth, gender, home_address_line1, city, state, zip_code,
-                school_name, grade_level, user_id, club_id, active_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+                school_name, grade_level, jersey_size, user_id, club_id, active_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
             RETURNING id"
         );
         $stmt->execute([
@@ -86,6 +88,10 @@ if (!function_exists('te_create_athlete')) {
             $input['zip_code'] ?? '00000',
             $input['school_name'] ?? null,
             $input['grade_level'] ?? null,
+            // Callers that don't pre-normalize still can't violate the CHECK
+            // constraint — te_normalize_jersey_size is idempotent, so running it
+            // here as well as in the gateway is safe.
+            te_normalize_jersey_size($input['jersey_size'] ?? null),
             $user_id,
             $club_id,
         ]);

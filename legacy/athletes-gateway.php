@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/athlete_writes.php';
+require_once __DIR__ . '/../lib/jersey_size.php';
 
 try {
     $db = Database::getInstance();
@@ -260,7 +261,7 @@ try {
                 $stmt = $pdo->prepare("
                     SELECT a.id, a.first_name, a.middle_initial, a.last_name, a.preferred_name,
                            a.date_of_birth, a.gender, a.school_name, a.grade_level, a.active_status,
-                           a.created_at, u.email,
+                           a.jersey_size, a.created_at, u.email,
                            g.first_name as guardian_first_name, g.last_name as guardian_last_name,
                            CONCAT(g.first_name, ' ', g.last_name) as primary_guardian_name,
                            g.email as primary_guardian_email,
@@ -348,6 +349,12 @@ try {
             // in the People -> Athletes list (write-side half of CA-18).
             $input['club_id'] = te_resolve_create_club_id($pdo, $auth, $input['club_id'] ?? null);
 
+            // Normalize before it reaches the CHECK constraint. The form sends
+            // jersey_size:'' for an athlete whose size nobody has asked for yet,
+            // and '' would fail athletes_jersey_size_check and roll back the whole
+            // create. See lib/jersey_size.php.
+            $input['jersey_size'] = te_normalize_jersey_size($input['jersey_size'] ?? null);
+
             // Create the athlete and (if an email was given) find-or-create its linked
             // player user. See lib/athlete_writes.php: athletes.id is ALWAYS sequence-
             // generated and the user link lives in athletes.user_id — never overloaded
@@ -402,13 +409,20 @@ try {
                     'city' => 'city',
                     'state' => 'state',
                     'zip_code' => 'zip_code',
-                    'photo_url' => 'photo_url'
+                    'photo_url' => 'photo_url',
+                    'jersey_size' => 'jersey_size'
                 ];
 
                 foreach ($athlete_mapping as $input_key => $db_field) {
                     if (isset($input[$input_key])) {
                         $athlete_fields[] = "$db_field = ?";
-                        $athlete_values[] = $input[$input_key];
+                        // jersey_size is CHECK-constrained, so it goes through the
+                        // whitelist rather than straight to SQL — an unknown or
+                        // empty value becomes NULL instead of raising 23514 and
+                        // silently rolling back an otherwise valid edit.
+                        $athlete_values[] = $input_key === 'jersey_size'
+                            ? te_normalize_jersey_size($input[$input_key])
+                            : $input[$input_key];
                     }
                 }
 

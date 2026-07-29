@@ -54,7 +54,14 @@ class AthleteAdminPersistenceTest extends TestCase
             CREATE TABLE athletes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 first_name TEXT, last_name TEXT, date_of_birth TEXT,
-                gender TEXT, club_id INTEGER
+                gender TEXT, club_id INTEGER,
+                -- Mirrors athletes_jersey_size_check from migration 054. The CHECK
+                -- has to be in the fixture, not just in Neon: the whole point of
+                -- the jersey_size tests below is that an empty or bogus size does
+                -- not violate it and take the athlete save down with it.
+                jersey_size TEXT CHECK (jersey_size IS NULL OR jersey_size IN (
+                    'YXS','YS','YM','YL','YXL','AXS','AS','AM','AL','AXL','A2XL','A3XL'
+                ))
             );
             CREATE TABLE guardians (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,13 +107,16 @@ class AthleteAdminPersistenceTest extends TestCase
             'last_name' => 'last_name',
             'date_of_birth' => 'date_of_birth',
             'gender' => 'gender',
+            'jersey_size' => 'jersey_size',
         ];
         $fields = [];
         $values = [];
         foreach ($mapping as $inKey => $col) {
             if (isset($input[$inKey])) {
                 $fields[] = "$col = ?";
-                $values[] = $input[$inKey];
+                $values[] = $inKey === 'jersey_size'
+                    ? te_normalize_jersey_size($input[$inKey])
+                    : $input[$inKey];
             }
         }
         $values[] = $id;
@@ -278,5 +288,90 @@ class AthleteAdminPersistenceTest extends TestCase
             "SELECT COUNT(*) AS c FROM athlete_guardians WHERE athlete_id = 1"
         )->fetch()['c'];
         $this->assertSame(1, $links);
+    }
+
+    private function jerseySizeOf(int $athleteId): ?string
+    {
+        return $this->pdo->query("SELECT jersey_size FROM athletes WHERE id = $athleteId")
+            ->fetch()['jersey_size'];
+    }
+
+    public function testJerseySizePersistsAndRereads(): void
+    {
+        $this->updateAthlete(1, ['jersey_size' => 'YM']);
+        $this->assertSame('YM', $this->jerseySizeOf(1));
+
+        // Re-sizing an athlete who outgrew their kit replaces, not appends.
+        $this->updateAthlete(1, ['jersey_size' => 'AL']);
+        $this->assertSame('AL', $this->jerseySizeOf(1));
+    }
+
+    /**
+     * The athlete form submits every field it manages on every save, so an
+     * athlete with no size on file sends jersey_size:''. Written raw that fails
+     * athletes_jersey_size_check and rolls back the entire edit — name change and
+     * all — while the UI reports success.
+     */
+    public function testEmptyJerseySizeStoresNullInsteadOfViolatingCheck(): void
+    {
+        $this->updateAthlete(1, ['first_name' => 'Samuel', 'jersey_size' => '']);
+
+        $this->assertNull($this->jerseySizeOf(1));
+        $this->assertSame('Samuel', $this->pdo->query("SELECT first_name FROM athletes WHERE id = 1")
+            ->fetch()['first_name'], 'The rest of the edit must still persist');
+    }
+
+    /** Clearing a size back to "unknown" must be possible, not one-way. */
+    public function testJerseySizeCanBeClearedOnceSet(): void
+    {
+        $this->updateAthlete(1, ['jersey_size' => 'YL']);
+        $this->assertSame('YL', $this->jerseySizeOf(1));
+
+        $this->updateAthlete(1, ['jersey_size' => '']);
+        $this->assertNull($this->jerseySizeOf(1));
+    }
+
+    /** A size the frontend never offers must not reach the CHECK constraint. */
+    public function testUnknownJerseySizeIsRejectedToNull(): void
+    {
+        $this->updateAthlete(1, ['jersey_size' => 'Large']);
+        $this->assertNull($this->jerseySizeOf(1));
+
+        // A bare 'M' is the exact ambiguity the Y/A prefix exists to prevent —
+        // it must not be silently guessed into Youth or Adult Medium.
+        $this->updateAthlete(1, ['jersey_size' => 'M']);
+        $this->assertNull($this->jerseySizeOf(1));
+    }
+
+    public function testJerseySizeIsNormalizedCaseAndVendorAliases(): void
+    {
+        $this->updateAthlete(1, ['jersey_size' => 'ym']);
+        $this->assertSame('YM', $this->jerseySizeOf(1));
+
+        // 'AXXL' is how several vendors spell 2XL; accept it rather than drop it.
+        $this->updateAthlete(1, ['jersey_size' => 'AXXL']);
+        $this->assertSame('A2XL', $this->jerseySizeOf(1));
+
+        $this->updateAthlete(1, ['jersey_size' => ' AL ']);
+        $this->assertSame('AL', $this->jerseySizeOf(1));
+    }
+
+    /** An absent key means "leave it alone", not "clear it". */
+    public function testOmittedJerseySizeLeavesExistingValueUntouched(): void
+    {
+        $this->updateAthlete(1, ['jersey_size' => 'YXL']);
+        $this->updateAthlete(1, ['first_name' => 'Sammy']);
+
+        $this->assertSame('YXL', $this->jerseySizeOf(1));
+    }
+
+    /** Every option the UI offers must satisfy the CHECK constraint. */
+    public function testEveryOfferedSizeIsStorable(): void
+    {
+        foreach (TE_JERSEY_SIZES as $size) {
+            $this->updateAthlete(1, ['jersey_size' => $size]);
+            $this->assertSame($size, $this->jerseySizeOf(1), "$size must be storable");
+        }
+        $this->assertCount(12, TE_JERSEY_SIZES);
     }
 }

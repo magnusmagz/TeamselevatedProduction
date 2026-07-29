@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { GRADE_OPTIONS } from '../utils/grade';
+import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 
 const emptyGuardian = (): GuardianData => ({
   first_name: '', last_name: '', email: '', mobile_phone: '', relationship_type: 'Parent',
@@ -46,6 +47,9 @@ interface AthleteFormData {
   country?: string;
   school_name?: string;
   grade_level?: number;
+  // Uniform jersey size, e.g. 'YM' / 'AL'. Athlete-level, not per-team: jersey
+  // *number* belongs to a team membership, size belongs to the kid.
+  jersey_size?: string;
   dietary_restrictions?: string[];
   guardians?: GuardianData[];
   emergency_contacts?: EmergencyContact[];
@@ -108,6 +112,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     country: 'USA',
     school_name: '',
     grade_level: undefined,
+    jersey_size: '',
     dietary_restrictions: [],
     guardians: [emptyGuardian()],
     emergency_contacts: [{
@@ -307,6 +312,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         zip_code: formData.zip_code,
         school_name: formData.school_name,
         grade_level: formData.grade_level,
+        // '' when no size is on file; the gateway maps that to NULL rather than
+        // letting it hit the CHECK constraint (lib/jersey_size.php).
+        jersey_size: formData.jersey_size ?? '',
         email: formData.guardians?.[0]?.email || `${formData.first_name.toLowerCase()}.${formData.last_name.toLowerCase()}@student.com`,
         // Stamp the active club so the new athlete is visible in this club's
         // Athletes list even before any team assignment (CA-18 write side).
@@ -672,6 +680,31 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                           <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                        Jersey Size
+                      </label>
+                      <select
+                        className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                        value={formData.jersey_size ?? ''}
+                        onChange={(e) => handleChange('jersey_size', e.target.value)}
+                      >
+                        <option value="">Select size</option>
+                        {JERSEY_SIZE_GROUPS.map((group) => (
+                          <optgroup key={group} label={group}>
+                            {jerseySizesInGroup(group).map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Used for uniform orders. Applies to the athlete across all teams.
+                      </p>
                     </div>
                   </div>
                 </div>

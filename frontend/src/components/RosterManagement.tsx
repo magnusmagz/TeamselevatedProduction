@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatGrade } from '../utils/grade';
 import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
+import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
 
@@ -126,6 +127,10 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
   const [guardian, setGuardian] = useState<GuardianInfo | null>(null);
   const [jerseyNumber, setJerseyNumber] = useState<string>(athlete.jersey_number?.toString() || '');
   const [position, setPosition] = useState<string>(athlete.primary_position || '');
+  // Jersey size lives on the athlete, not the team membership, so it is not in
+  // the roster payload — it comes from the single-athlete fetch below.
+  const [jerseySize, setJerseySize] = useState<string>('');
+  const [jerseySizeSaving, setJerseySizeSaving] = useState(false);
 
   useEffect(() => {
     setJerseyNumber(athlete.jersey_number?.toString() || '');
@@ -133,6 +138,9 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
   }, [athlete.id, athlete.jersey_number, athlete.primary_position]);
 
   useEffect(() => {
+    // Blank the size while the new athlete's record is in flight; otherwise the
+    // previous athlete's size shows on this athlete for a beat and looks saved.
+    setJerseySize('');
     fetch(`${apiUrl}/legacy/athletes-gateway.php?id=${athlete.id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
     })
@@ -140,6 +148,7 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
       .then(data => {
         const g = data.athlete?.guardians?.[0] || data.guardians?.[0];
         if (g) setGuardian(g);
+        setJerseySize((data.athlete?.jersey_size ?? data.jersey_size) || '');
       })
       .catch(() => {});
   }, [athlete.id, apiUrl]);
@@ -289,6 +298,51 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
                     max="99"
                     className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
                   />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Jersey Size
+                    {jerseySizeSaving && <span className="ml-2 text-gray-400">Saving…</span>}
+                  </label>
+                  <select
+                    value={jerseySize}
+                    onChange={async (e) => {
+                      const next = e.target.value;
+                      const previous = jerseySize;
+                      setJerseySize(next);
+                      setJerseySizeSaving(true);
+                      const token = localStorage.getItem('auth_token');
+                      try {
+                        // athletes-gateway, not team-players-gateway: size is an
+                        // attribute of the athlete and is shared by every team
+                        // they are on.
+                        const res = await fetch(`${apiUrl}/legacy/athletes-gateway.php?id=${athlete.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({ jersey_size: next }),
+                        });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                      } catch (err) {
+                        // Put the old value back rather than leaving a size on
+                        // screen that never reached the database.
+                        console.error('Failed to update jersey size:', err);
+                        setJerseySize(previous);
+                        alert('Could not save jersey size. Please try again.');
+                      } finally {
+                        setJerseySizeSaving(false);
+                      }
+                    }}
+                    className="w-full border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+                  >
+                    <option value="">Select size...</option>
+                    {JERSEY_SIZE_GROUPS.map(group => (
+                      <optgroup key={group} label={group}>
+                        {jerseySizesInGroup(group).map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

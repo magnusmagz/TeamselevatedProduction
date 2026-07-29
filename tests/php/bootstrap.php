@@ -10,6 +10,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../../lib/AthleteScope.php';
+require_once __DIR__ . '/../../lib/jersey_size.php';
 require_once __DIR__ . '/../../services/MergeFieldService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
 require_once __DIR__ . '/../../services/AttendanceService.php';

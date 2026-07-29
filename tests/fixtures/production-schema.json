@@ -167,6 +167,7 @@
 "photo_url",
 "school_name",
 "grade_level",
+"jersey_size",
 "current_gpa",
 "dietary_restrictions",
 "created_at",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatGrade } from '../utils/grade';
+import { formatJerseySize } from '../utils/jerseySize';
 import { ageGroup } from '../utils/ageGroup';
 import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
@@ -83,6 +84,7 @@ interface Athlete {
   email: string;
   school_name?: string;
   grade_level?: string;
+  jersey_size?: string;
   home_address_line1: string;
   home_address_line2?: string;
   city: string;
@@ -642,6 +644,10 @@ const AthleteProfileEnhanced: React.FC = () => {
               <span className="font-medium">Grade</span>
               <span>{formatGrade(athlete.grade_level) || 'Not specified'}</span>
             </div>
+            <div className="flex justify-between py-2 border-b border-gray-200">
+              <span className="font-medium">Jersey Size</span>
+              <span>{formatJerseySize(athlete.jersey_size) || 'Not specified'}</span>
+            </div>
             <div className="flex justify-between py-2">
               <span className="font-medium">Email</span>
               <span className="text-sm">{athlete.email}</span>
@@ -772,6 +778,10 @@ const AthleteProfileEnhanced: React.FC = () => {
                   <div className="flex justify-between border-b border-gray-200 py-1">
                     <span className="font-medium">Grade</span>
                     <span>{formatGrade(athlete.grade_level) || 'Not specified'}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200 py-1">
+                    <span className="font-medium">Jersey Size</span>
+                    <span>{formatJerseySize(athlete.jersey_size) || 'Not specified'}</span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="font-medium">Email</span>
