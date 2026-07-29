@@ -6,6 +6,8 @@ interface ConfirmResult {
   message?: string;
   error?: string;
   already_confirmed?: boolean;
+  /** Stable code so an expired link renders calmly, not as a system fault. */
+  reason?: 'invalid_or_expired' | string;
   athlete_name?: string;
   guardian_name?: string;
   consent_type?: string;
@@ -44,6 +46,7 @@ export default function ConsentConfirm() {
     confirmConsent();
   }, [token, API_URL]);
 
+  const isExpiredLink = result?.reason === 'invalid_or_expired';
   const clubName = result?.club_name;
   const athleteName = result?.athlete_name;
 
@@ -118,13 +121,34 @@ export default function ConsentConfirm() {
               </div>
             ) : (
               <div className="text-center">
-                <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                  <svg className="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                {/* An expired or already-used link is an ordinary event, not a
+                    fault. Showing a red X and "Something Went Wrong" for it alarms
+                    the guardian and tells them nothing about what to do next. */}
+                <div
+                  className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5 ${
+                    isExpiredLink ? 'bg-amber-100' : 'bg-red-100'
+                  }`}
+                >
+                  {isExpiredLink ? (
+                    <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
                 </div>
-                <h2 className="text-xl font-semibold text-brand-primary mb-2">Something Went Wrong</h2>
-                <p className="text-gray-600">{result?.error || 'Unable to confirm consent.'}</p>
+                <h2 className="text-xl font-semibold text-brand-primary mb-2">
+                  {isExpiredLink ? 'This link has expired' : 'Something Went Wrong'}
+                </h2>
+                <p className="text-gray-600">
+                  {isExpiredLink
+                    ? `Confirmation links are valid for 48 hours and can only be used once. Ask ${
+                        clubName || 'your club'
+                      } to resend the confirmation email${athleteName ? ` for ${athleteName}` : ''}.`
+                    : result?.error || 'Unable to confirm consent.'}
+                </p>
               </div>
             )}
           </div>

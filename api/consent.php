@@ -66,6 +66,14 @@ function fail(int $code, string $message): void
     exit;
 }
 
+/** As fail(), plus a stable code the UI can branch on. */
+function failWithReason(int $code, string $message, string $reason): void
+{
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message, 'reason' => $reason]);
+    exit;
+}
+
 function body(): array
 {
     $raw = file_get_contents('php://input');
@@ -196,8 +204,11 @@ try {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // Same response for "no such token" and "expired": a differing reply
-            // would let someone probe which tokens exist.
-            if (!$row) fail(400, 'This confirmation link is invalid or has expired');
+            // would let someone probe which tokens exist. `reason` is a stable
+            // machine-readable code so the page can show a calm "link expired"
+            // state rather than a red system-error one — an expired link is an
+            // ordinary event, not a fault.
+            if (!$row) failWithReason(400, 'This confirmation link is invalid or has expired', 'invalid_or_expired');
             if (!empty($row['revoked_at'])) fail(410, 'This consent has been withdrawn');
 
             $ctx = consentDisplayContext($pdo, (int) $row['athlete_id'], (int) $row['guardian_id'])
@@ -210,7 +221,7 @@ try {
 
             $age = (time() - strtotime($row['consented_at'])) / 3600;
             if ($age > CONSENT_TOKEN_TTL_HOURS) {
-                fail(400, 'This confirmation link is invalid or has expired');
+                failWithReason(400, 'This confirmation link is invalid or has expired', 'invalid_or_expired');
             }
 
             // Clear the token on confirmation so the link is single-use.
