@@ -345,7 +345,8 @@ HTML;
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
         .content { background: #f9f9f9; padding: 30px; }
-        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
     </style>
 </head>
@@ -358,7 +359,7 @@ HTML;
             <h2>Hi {$name},</h2>
             <p>Click the button below to sign in to Teams Elevated:</p>
             <p style="text-align: center;">
-                <a href="{$magicLink}" class="button">Sign In to Teams Elevated</a>
+                <a href="{$magicLink}" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;"><span style="color: #ffffff !important; text-decoration: none;">Sign In to Teams Elevated</span></a>
             </p>
             <p style="color: #666; font-size: 14px;">
                 This link expires in 15 minutes. If you didn't request this link, you can safely ignore this email.
@@ -391,7 +392,8 @@ HTML;
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
         .content { background: #f9f9f9; padding: 30px; }
-        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 14px; }
     </style>
@@ -406,7 +408,7 @@ HTML;
             <p>Hi {$name},</p>
             <p>We received a request to reset your password for your Teams Elevated account.</p>
             <p style="text-align: center;">
-                <a href="{$resetLink}" class="button">Reset Password</a>
+                <a href="{$resetLink}" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;"><span style="color: #ffffff !important; text-decoration: none;">Reset Password</span></a>
             </p>
             <div class="warning">
                 <strong>This link expires in 1 hour.</strong> If you didn't request this password reset, you can safely ignore this email.
@@ -443,7 +445,8 @@ HTML;
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
         .content { background: #f9f9f9; padding: 30px; }
-        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 14px; }
     </style>
@@ -459,7 +462,7 @@ HTML;
             {$athleteHtml}
             <p>You've been invited to set up your Teams Elevated parent account. Click the button below to choose a password and access the parent portal.</p>
             <p style="text-align: center;">
-                <a href="{$inviteLink}" class="button">Set Up My Account</a>
+                <a href="{$inviteLink}" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;"><span style="color: #ffffff !important; text-decoration: none;">Set Up My Account</span></a>
             </p>
             <div class="warning">
                 <strong>This link expires in 7 days.</strong> If you weren't expecting this invitation, you can safely ignore this email.
@@ -494,7 +497,8 @@ HTML;
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: linear-gradient(135deg, #12443E 0%, #12443E 100%); color: white; padding: 30px; text-align: center; }
         .content { background: #f9f9f9; padding: 30px; }
-        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
     </style>
 </head>
@@ -508,7 +512,7 @@ HTML;
             <p><strong>{$invitedBy}</strong> has invited you to join <strong>{$teamName}</strong> on Teams Elevated.</p>
             {$messageHtml}
             <p style="text-align: center;">
-                <a href="{$invitationLink}" class="button">Accept Invitation</a>
+                <a href="{$invitationLink}" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;"><span style="color: #ffffff !important; text-decoration: none;">Accept Invitation</span></a>
             </p>
             <p style="color: #666; font-size: 14px;">
                 This invitation is valid for 90 days.
@@ -692,7 +696,8 @@ RSVP;
         .event-details h3 { margin-top: 0; color: #12443E; }
         .detail-row { padding: 10px 0; border-bottom: 1px solid #eee; }
         .detail-label { font-weight: bold; color: #666; }
-        .button { display: inline-block; background: #12443E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+        .button span { color: #ffffff !important; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
     </style>
 </head>
