@@ -47,6 +47,12 @@ class CalendarInviteService {
         $this->mailer->SMTPSecure = $this->config['smtp']['encryption'] === 'tls' ? PHPMailer::ENCRYPTION_STARTTLS : PHPMailer::ENCRYPTION_SMTPS;
         $this->mailer->Port = $this->config['smtp']['port'];
 
+        // PHPMailer defaults CharSet to iso-8859-1, so UTF-8 bodies get declared as
+        // Latin-1 and every emoji, curly quote, em dash, and accented name renders as
+        // mojibake ("🎉" -> "ðŸŽ‰"). Must be set explicitly; PHPMailer only auto-upgrades
+        // to UTF-8 when the recipient ADDRESS has high bytes, which is not our case.
+        $this->mailer->CharSet = PHPMailer::CHARSET_UTF8;
+
         // Default sender
         $this->mailer->setFrom(
             $this->config['smtp']['from_email'],
