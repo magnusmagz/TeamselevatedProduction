@@ -74,6 +74,50 @@ function consentAudit(PDO $pdo, ?int $userId, string $action, string $resourceTy
     }
 }
 
+/**
+ * Display context for the public confirmation page.
+ *
+ * frontend/src/pages/ConsentConfirm.tsx renders "Your consent for <athlete>'s
+ * enrollment has been confirmed" with the club's name and logo. Without these the
+ * page still works but falls back to generic, unbranded copy — so the endpoint
+ * returns them. All optional on the client, so a failure here degrades quietly
+ * rather than breaking the confirmation itself.
+ */
+function consentDisplayContext(PDO $pdo, int $athleteId, int $guardianUserId): array
+{
+    $out = [];
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT a.first_name AS a_first, a.last_name AS a_last, a.club_id,
+                    c.name AS club_name,
+                    CASE WHEN c.logo_png IS NOT NULL AND c.logo_png <> \'\' THEN substr(md5(c.logo_png), 1, 8) END AS logo_v
+             FROM athletes a
+             LEFT JOIN club_profile c ON c.id = a.club_id
+             WHERE a.id = ?'
+        );
+        $stmt->execute([$athleteId]);
+        if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $out['athlete_name'] = trim(($row['a_first'] ?? '') . ' ' . ($row['a_last'] ?? ''));
+            if (!empty($row['club_name'])) {
+                $out['club_name'] = $row['club_name'];
+            }
+            if (!empty($row['logo_v']) && !empty($row['club_id'])) {
+                $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
+                $out['club_logo'] = $base . '/api/club-logo.php?club_id=' . (int) $row['club_id'] . '&v=' . $row['logo_v'];
+            }
+        }
+
+        $g = $pdo->prepare('SELECT first_name, last_name FROM users WHERE id = ?');
+        $g->execute([$guardianUserId]);
+        if ($gr = $g->fetch(PDO::FETCH_ASSOC)) {
+            $out['guardian_name'] = trim(($gr['first_name'] ?? '') . ' ' . ($gr['last_name'] ?? ''));
+        }
+    } catch (Exception $e) {
+        error_log('consent display context failed: ' . $e->getMessage());
+    }
+    return $out;
+}
+
 function fail(int $code, string $message): void
 {
     http_response_code($code);
@@ -204,7 +248,7 @@ try {
             if ($token === '') fail(400, 'token is required');
 
             $stmt = $pdo->prepare(
-                'SELECT id, athlete_id, guardian_id, email_confirmed_at, revoked_at, consented_at
+                'SELECT id, athlete_id, guardian_id, consent_type, email_confirmed_at, revoked_at, consented_at
                  FROM consent_records WHERE confirmation_token = ? LIMIT 1'
             );
             $stmt->execute([$token]);
@@ -215,8 +259,11 @@ try {
             if (!$row) fail(400, 'This confirmation link is invalid or has expired');
             if (!empty($row['revoked_at'])) fail(410, 'This consent has been withdrawn');
 
+            $ctx = consentDisplayContext($pdo, (int) $row['athlete_id'], (int) $row['guardian_id'])
+                 + ['consent_type' => $row['consent_type']];
+
             if (!empty($row['email_confirmed_at'])) {
-                echo json_encode(['success' => true, 'already_confirmed' => true]);
+                echo json_encode(['success' => true, 'already_confirmed' => true] + $ctx);
                 break;
             }
 
@@ -233,7 +280,7 @@ try {
                 'athlete_id' => (int) $row['athlete_id'], 'guardian_id' => (int) $row['guardian_id'],
             ]);
 
-            echo json_encode(['success' => true, 'confirmed' => true]);
+            echo json_encode(['success' => true, 'confirmed' => true] + $ctx);
             break;
         }
 
