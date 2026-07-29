@@ -555,7 +555,10 @@ function handlePost($connection, $path) {
 
                 // Add to team_members
                 $stmt = $connection->prepare("
-                    INSERT INTO team_members (team_id, user_id, athlete_id, status, joined_date)
+                    -- team_members has join_date, not joined_date. This threw 42703,
+                    -- so accepting a tryout offer never actually added the athlete
+                    -- to the team.
+                    INSERT INTO team_members (team_id, user_id, athlete_id, status, join_date)
                     VALUES (?, NULL, ?, 'active', CURRENT_DATE)
                     ON CONFLICT DO NOTHING
                 ");

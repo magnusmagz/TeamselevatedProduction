@@ -104,7 +104,8 @@ class SeasonController {
             }
 
             // Soft delete
-            $sql = "UPDATE seasons SET is_active = FALSE WHERE id = :id";
+            // seasons has a `status` column, not is_active.
+            $sql = "UPDATE seasons SET status = 'inactive' WHERE id = :id";
             $stmt = $this->db->prepare($sql);
             $result = $stmt->execute([':id' => $id]);
 
@@ -119,7 +120,7 @@ class SeasonController {
 
     public function getCurrentSeason() {
         $sql = "SELECT * FROM seasons
-                WHERE is_active = TRUE
+                WHERE status = 'active'
                 AND start_date <= CURDATE()
                 AND end_date >= CURDATE()
                 ORDER BY start_date DESC

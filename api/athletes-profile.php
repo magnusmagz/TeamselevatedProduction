@@ -51,12 +51,21 @@ try {
     $guardians = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Fetch team assignments
+    // teams has `name`, not `team_name`, and no `sport` column at all — this
+    // selected both and threw 42703, so the athlete profile's team list has been
+    // dead. Aliased to team_name because AthleteProfile.tsx reads that key.
+    // FIELD() is MySQL and Postgres rejects it; CASE is the portable equivalent.
     $teamsQuery = "
-        SELECT tm.*, t.team_name, t.sport, t.age_group, t.gender
+        SELECT tm.*, t.name AS team_name, t.age_group, t.gender
         FROM team_members tm
         INNER JOIN teams t ON tm.team_id = t.id
         WHERE tm.athlete_id = ?
-        ORDER BY FIELD(tm.team_priority, 'primary', 'secondary', 'guest'), t.team_name
+        ORDER BY CASE tm.team_priority
+                     WHEN 'primary' THEN 1
+                     WHEN 'secondary' THEN 2
+                     WHEN 'guest' THEN 3
+                     ELSE 4
+                 END, t.name
     ";
     $stmt = $pdo->prepare($teamsQuery);
     $stmt->execute([$athleteId]);

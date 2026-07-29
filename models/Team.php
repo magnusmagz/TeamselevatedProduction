@@ -118,8 +118,7 @@ class Team {
                 primary_coach_id = :primary_coach_id,
                 home_field_id = :home_field_id,
                 max_players = :max_players,
-                updated_by = :updated_by,
-                last_modified_at = NOW()
+                updated_at = NOW()
                 WHERE id = :id";
 
         $stmt = $this->db->prepare($sql);
@@ -133,7 +132,6 @@ class Team {
             ':primary_coach_id' => !empty($data['primary_coach_id']) ? $data['primary_coach_id'] : null,
             ':home_field_id' => !empty($data['home_field_id']) ? $data['home_field_id'] : null,
             ':max_players' => $data['max_players'] ?? 20,
-            ':updated_by' => $_SESSION['user_id'] ?? 1
         ]);
     }
 
@@ -269,16 +267,21 @@ class Team {
     }
 
     public function logChange($teamId, $fieldName, $oldValue, $newValue) {
-        $sql = "INSERT INTO team_audit_log (team_id, changed_by, field_name, old_value, new_value)
-                VALUES (:team_id, :changed_by, :field_name, :old_value, :new_value)";
+        // team_audit_log is the generic audit table (user_id, action, table_name,
+        // record_id, old_values, new_values) — not the per-field shape this used
+        // to assume, so every write threw 42703 and no team change was ever logged.
+        $sql = "INSERT INTO team_audit_log (user_id, action, table_name, record_id, old_values, new_values, ip_address, user_agent, created_at)
+                VALUES (:user_id, :action, 'teams', :record_id, :old_values, :new_values, :ip, :ua, NOW())";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            ':team_id' => $teamId,
-            ':changed_by' => $_SESSION['user_id'] ?? 1,
-            ':field_name' => $fieldName,
-            ':old_value' => $oldValue,
-            ':new_value' => $newValue
+            ':user_id' => $_SESSION['user_id'] ?? null,
+            ':action' => 'update_' . $fieldName,
+            ':record_id' => $teamId,
+            ':old_values' => json_encode([$fieldName => $oldValue]),
+            ':new_values' => json_encode([$fieldName => $newValue]),
+            ':ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+            ':ua' => $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
 

@@ -21,7 +21,7 @@ class AuthController {
         try {
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
-            $sql = "INSERT INTO users (email, password, first_name, last_name, phone, role)
+            $sql = "INSERT INTO users (email, password_hash, first_name, last_name, phone, role)
                     VALUES (:email, :password, :first_name, :last_name, :phone, :role)";
 
             $stmt = $this->db->prepare($sql);

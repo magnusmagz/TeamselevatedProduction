@@ -376,8 +376,12 @@ class AthleteController {
 
     public function removeGuardian($athleteId, $guardianId) {
         try {
-            $sql = "UPDATE athlete_guardians
-                    SET active_status = 0
+            // athlete_guardians has no active_status column — this UPDATE threw
+            // 42703, so "remove guardian" reported success and removed nothing.
+            // The table carries no soft-delete flag; the link row is deleted, which
+            // is what guardian-gateway and the athlete form already do. The
+            // guardian record itself survives (guardians are shared across siblings).
+            $sql = "DELETE FROM athlete_guardians
                     WHERE athlete_id = :athlete_id AND guardian_id = :guardian_id";
 
             $stmt = $this->db->prepare($sql);
