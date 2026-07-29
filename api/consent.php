@@ -35,6 +35,12 @@ require_once __DIR__ . '/../lib/Email.php';
 const CONSENT_TOKEN_TTL_HOURS = 48;
 const CONSENT_VERSION = '1.0';
 
+/**
+ * consent_records.consent_type carries a CHECK constraint. Validate here so a bad
+ * value returns a helpful 400 listing the options, rather than a raw 23514.
+ */
+const CONSENT_TYPES = ['data_collection', 'medical_data', 'emergency_treatment', 'tos_privacy'];
+
 try {
     $pdo = Database::getInstance()->getConnection();
 } catch (Exception $e) {
@@ -110,14 +116,26 @@ try {
             if (!$athleteId || !$guardianId || $type === '') {
                 fail(400, 'athlete_id, guardian_id and consent_type are required');
             }
+            if (!in_array($type, CONSENT_TYPES, true)) {
+                fail(400, 'consent_type must be one of: ' . implode(', ', CONSENT_TYPES));
+            }
             requireAthleteAccess($pdo, $auth, $athleteId);
 
-            // The guardian must actually be linked to this athlete, or consent
+            // consent_records.guardian_id is a FOREIGN KEY to users(id) — the
+            // consenting adult's ACCOUNT, not a guardians-table row. The two are
+            // linked by email (see AthleteScope::isGuardianOfAthlete), which is
+            // also how the rest of the app derives the parent role.
+            $u = $pdo->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = ?');
+            $u->execute([$guardianId]);
+            $guardianUser = $u->fetch(PDO::FETCH_ASSOC);
+            if (!$guardianUser) {
+                fail(422, 'guardian_id must be the user account of the consenting adult');
+            }
+
+            // That account must actually be a guardian of this athlete, or consent
             // could be recorded by (or against) an unrelated party.
-            $link = $pdo->prepare('SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND guardian_id = ? LIMIT 1');
-            $link->execute([$athleteId, $guardianId]);
-            if (!$link->fetchColumn()) {
-                fail(422, 'That guardian is not linked to that athlete');
+            if (!AthleteScope::isGuardianOfAthlete($pdo, (string) $guardianUser['email'], $athleteId)) {
+                fail(422, 'That user is not a guardian of that athlete');
             }
 
             $token = bin2hex(random_bytes(32));
@@ -139,9 +157,7 @@ try {
             // Email the guardian to confirm. A send failure must not lose the
             // consent record itself — it is already stored and auditable.
             $emailed = false;
-            $g = $pdo->prepare('SELECT first_name, last_name, email FROM guardians WHERE id = ?');
-            $g->execute([$guardianId]);
-            $guardian = $g->fetch(PDO::FETCH_ASSOC);
+            $guardian = $guardianUser; // users row resolved above
 
             $a = $pdo->prepare('SELECT first_name, last_name FROM athletes WHERE id = ?');
             $a->execute([$athleteId]);
@@ -254,8 +270,9 @@ try {
         // ------------------------------------------------------------------
         case 'list': {
             $auth = AuthMiddleware::requireAuth();
+            // guardian_id here is a users(id), matching the column's foreign key.
             $guardianId = (int) ($_GET['guardian_id'] ?? 0);
-            if (!$guardianId) fail(400, 'guardian_id is required');
+            if (!$guardianId) fail(400, 'guardian_id is required (the user id of the consenting adult)');
 
             // Only list consents for athletes the caller may see, so a guardian
             // id cannot be used to enumerate another family's records.
