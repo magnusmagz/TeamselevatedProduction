@@ -23,17 +23,24 @@ const SMS_SEGMENT_LENGTH = 160;
 const SMS_CONCAT_SEGMENT_LENGTH = 153;
 
 
-const MERGE_FIELDS = [
-  { key: 'athlete_first_name', label: 'Athlete First Name' },
-  { key: 'athlete_last_name', label: 'Athlete Last Name' },
-  { key: 'guardian_first_name', label: 'Crew First Name' },
-  { key: 'guardian_last_name', label: 'Crew Last Name' },
-  { key: 'team_name', label: 'Team Name' },
-  { key: 'club_name', label: 'Club Name' },
-  { key: 'event_name', label: 'Event Name' },
-  { key: 'event_date', label: 'Event Date' },
-  { key: 'event_time', label: 'Event Time' },
-  { key: 'sender_first_name', label: 'Sender First Name' },
+interface MergeField {
+  key: string;
+  label: string;
+  group?: string;
+}
+
+/**
+ * Fallback only. The real list comes from MergeFieldService::getAvailableFields()
+ * via the API — a second hardcoded copy is how this page ended up offering
+ * {{guardian_first_name}} but not {{recipient_first_name}}, the one tag that
+ * resolves for every recipient type. Same drift that gave SMS its own stale
+ * category list.
+ */
+const FALLBACK_MERGE_FIELDS: MergeField[] = [
+  { key: 'recipient_first_name', label: 'Recipient First Name', group: 'Recipient' },
+  { key: 'athlete_first_name', label: 'Athlete First Name', group: 'Athlete' },
+  { key: 'team_name', label: 'Team Name', group: 'Team' },
+  { key: 'club_name', label: 'Club Name', group: 'Club' },
 ];
 
 interface SmsTemplate {
@@ -86,6 +93,7 @@ const SmsTemplates: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeTab, setActiveTab] = useState<'club' | 'personal'>('club');
+  const [mergeFields, setMergeFields] = useState<MergeField[]>(FALLBACK_MERGE_FIELDS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Modal state
@@ -133,6 +141,24 @@ const SmsTemplates: React.FC = () => {
   useEffect(() => {
     fetchTemplates();
   }, [fetchTemplates]);
+
+  // One source of merge tags, shared with the email editor.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/email-templates.php?action=merge-fields`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const fields: MergeField[] = Array.isArray(data) ? data : data.merge_fields || [];
+        if (!cancelled && fields.length) setMergeFields(fields);
+      } catch {
+        // keep the fallback list
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const openCreateModal = () => {
     setEditingTemplate(null);
@@ -723,15 +749,28 @@ const SmsTemplates: React.FC = () => {
                     </button>
                     {mergePickerOpen && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px] z-50 max-h-60 overflow-y-auto">
-                        {MERGE_FIELDS.map((f) => (
-                          <button
-                            key={f.key}
-                            onClick={() => insertMergeField(f.key)}
-                            className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
-                          >
-                            <span className="text-gray-900">{f.label}</span>
-                            <span className="text-gray-400 ml-2 text-xs">{`{{${f.key}}}`}</span>
-                          </button>
+                        {Object.entries(
+                          mergeFields.reduce((acc, f) => {
+                            const g = f.group || 'Other';
+                            (acc[g] = acc[g] || []).push(f);
+                            return acc;
+                          }, {} as Record<string, MergeField[]>)
+                        ).map(([group, fields]) => (
+                          <div key={group}>
+                            <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider font-semibold text-gray-400">
+                              {group}
+                            </div>
+                            {fields.map((f) => (
+                              <button
+                                key={f.key}
+                                onClick={() => insertMergeField(f.key)}
+                                className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                              >
+                                <span className="text-gray-900">{f.label}</span>
+                                <span className="text-gray-400 ml-2 text-xs">{`{{${f.key}}}`}</span>
+                              </button>
+                            ))}
+                          </div>
                         ))}
                       </div>
                     )}
