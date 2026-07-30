@@ -458,7 +458,8 @@
 "last_read_at",
 "muted",
 "left_at",
-"joined_at"
+"joined_at",
+"archived_at"
 ],
 "conversations": [
 "id",

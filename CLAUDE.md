@@ -34,8 +34,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    users_tos_acceptance, athlete_jersey_size, registration_jersey_size_field,
    clear_default_player_passwords). 048–056 are applied to Neon.
    **057 is RESERVED** for `broadcast_campaigns.body` (scheduled SMS, Workstream C) — not yet
-   written. **058** is `chat_conversation_archive` on branch `feature/chat-archive`
-   (worktree `te-chat-archive/`), **not yet applied to Neon**.
+   written. **058** (`chat_conversation_archive`) is **applied to Neon 2026-07-30**.
 3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**

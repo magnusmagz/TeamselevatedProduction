@@ -32,6 +32,25 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Chat conversation archive — migration 058 applied to Neon
+`a1e1993` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30
+
+`ALTER TABLE conversation_participants ADD COLUMN archived_at TIMESTAMP` plus
+`idx_conv_participants_archived (user_id, archived_at)`. Verified after apply: column present and
+nullable, index present, **0 rows archived** — purely additive, no existing row touched.
+
+Applied BEFORE either deploy on purpose. The chat server's conversation-list query references
+`cp.archived_at`; shipping that dyno against a database without the column would have failed the
+conversation list for every user, not degraded gracefully.
+
+`tests/fixtures/production-schema.json` updated in the same commit — the snapshot is the
+authority `SchemaConformanceTest` checks against, so a migration that doesn't update it puts the
+fixture out of step with live.
+
+Durable rules (no user-facing delete in chat; per-user chat state must be UPSERTed because team
+conversations have no participant rows) are in `../CLAUDE.md` → "Chat has archive, and
+deliberately has NO delete". Design rationale in `docs/chat-archive-plan.md`.
+
 ### Crew can edit their athlete's jersey size in the parent portal
 `aa41ee4` (merged as `3d2c7b1`) · Heroku **v447** · Netlify build of `3d2c7b1` · **no migration**
 
