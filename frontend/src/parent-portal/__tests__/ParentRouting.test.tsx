@@ -87,6 +87,12 @@ jest.mock('../components/InstallPrompt', () => ({
 jest.mock('../contexts/ChatContext', () => ({
   ChatProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+// Passthrough, like ChatProvider above: the gate needs AuthContext and
+// FinancialPermissionsContext, which these layout-containment tests deliberately
+// don't stand up. Its own behavior is covered by ConsentGate.test.tsx.
+jest.mock('../components/ConsentGate', () => ({
+  ConsentGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 import { ParentPortalLayout } from '../ParentPortalLayout';
 

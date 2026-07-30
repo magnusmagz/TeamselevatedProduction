@@ -32,6 +32,60 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Parental consent actually gets recorded now — and the portal's Medical page was blank
+`3d1f2ba` (merged as `fffbf4c`) · **frontend-only** · no Heroku push, **no migration**
+
+**Prod state discovered — `consent_records` was never being written.** `AthleteForm`'s "Parental
+Consent (Required)" block was two checkboxes held in local React state: never POSTed, never stored,
+and force-set to `true` whenever anyone edited an existing athlete. They gated that form's submit
+button and nothing else. `api/consent.php` has been live and complete the whole time (verified
+responding in prod today) with **nothing ever calling `action=record`**. So the product asserted
+COPPA consent capture and stored none. Expect `consent_records` to be empty or near-empty for
+everything predating this deploy — that is the explanation, not corruption.
+
+Consent is now captured in the parent portal (`ConsentGate`), which is the only place a *parent*
+can give it — a club admin ticking "As the parent or legal guardian, I consent" was never parental
+consent regardless of storage. Design rules that must not be undone are in CLAUDE.md.
+
+**Second blank-page bug, same shape.** `MedicalInfoPage` read `allergies` / `medications` /
+`blood_type` / `insurance_*` off `api/athletes/?action=get` — i.e. off the `athletes` row, which
+has never had those columns. Every value resolved `undefined`, and the renderer *hid* empty fields,
+so it presented as a family with nothing on file rather than as a broken page. **The portal's
+Medical tab has been blank for every user for as long as it has existed.** Now reads
+`legacy/medical-gateway.php` (the only reader that decrypts the PHI) and renders "Not provided".
+
+Medical is also crew-editable now, by decision rather than inheritance — a parent is the
+authoritative source for their own child's allergies. Clinical fields (concussion history, last
+concussion, return-to-play) are withheld client-side only; noted in CLAUDE.md as a product
+boundary, not a security one.
+
+**⚠️ User-visible on next load:** every parent already in the portal meets a blocking consent
+screen. Intended, and confirmed with Maggie before pushing. It cannot be dismissed, but it does
+offer a decline path that signs out rather than trapping — consent that cannot be refused is not
+consent. Nothing is recorded on decline.
+
+Frontend-only, so Heroku was not pushed; the API this depends on was already deployed.
+
+### First real per-club SMS delivered — and a 30024 red herring
+No code change. Recorded because it looks like a regression and is not.
+
+Club 32 (Teams Elevated) got its own number `+13605164604` at 20:10:24Z. Two sends
+failed with `[30024] Numeric Sender ID Not Provisioned on Carrier` — at 65 seconds
+and ~2 minutes after the number joined the Messaging Service. The third, at ~5
+minutes, **delivered**. Nothing was changed in between.
+
+Brand `BNc61ab4e0…` was `APPROVED` and campaign `QE2c6890da…` `VERIFIED` throughout,
+and the number was correctly attached — this was purely carrier-side propagation.
+The earlier "successful" test at 19:16 was club 32 sending from the *Kansas* number
+(assigned to it 18:59, moved to club 51 at 19:58), so it never validated the new one.
+
+**Number history is now two clubs deep**, which is what made this legible:
+`sms_phone_numbers` rows 8–11 show the Kansas number moving 32 → 51 and club 32
+getting its own. Deactivating rather than deleting is why the timeline was
+reconstructable at all.
+
+Rule (wait ~5 min; never paste the shared Messaging Service SID) is in `CLAUDE.md`.
+
 ### Inbound SMS auto-reply — replies stop vanishing
 **Heroku v456** · Netlify `046f525` (carried this commit) · **no migration**
 
@@ -112,10 +166,24 @@ where rot goes unnoticed. Verified it bites: passes at 74, exits 1 at 73.
 ⚠️ **`main` is shared, so a failing lint blocks everyone's deploy.** The unblock is to fix the
 warning, not to raise the ceiling. Rules in `frontend/LINTING.md`, pointer in `CLAUDE.md`.
 
-**Two latent bugs surfaced and left alone** (fixing them is a behavior change, not this commit's
-job): `TeamCalendarView` never calls `setPractices`, so `practices` is permanently `[]`;
-`MakePaymentPage` has the same shape with `setPaymentMethods`. Both are now visibly
-`const [x] = useState(...)` instead of hiding behind an unused setter.
+**One real bug surfaced and left alone** (fixing it is a behavior change, not this commit's job):
+`TeamCalendarView` never calls `setPractices`, so the `practices` array is permanently `[]`. It is
+vestigial state from before practices moved into `calendar_events` — the grid gets them as events
+with `type='practice'` — but two pieces of UI still read the dead array and nothing else:
+
+- the **"Total Practices" stat tile** (always visible, every view) always renders **0**
+- the **Schedule view's upcoming list** always renders **"No upcoming practices scheduled"**
+
+Live data as of 2026-07-30: **337 practice events exist, 18 of them upcoming** (334/18 for club 32).
+So club 32 sees "0 Total Practices" and an empty schedule list while its month grid shows them
+correctly. The fix is to derive both from `events.filter(e => e.type === 'practice')` and delete
+the `practices` state, but that changes rendered numbers, so it wants its own commit.
+
+**Correction to an earlier claim in this entry's commit message:** `MakePaymentPage`'s unused
+`setPaymentMethods` was also called a latent bug. It is not. The code comment at
+`MakePaymentPage.tsx:86` says saved payment methods are deliberately not fetched until the Stripe
+Phase 5 endpoint ships, and the selector is hidden while the array is empty. That one is working as
+designed.
 
 Test suite identical either side of the sweep: 10 pre-existing failing suites, 33 failing /
 286 passing. `tsc --noEmit` clean.
