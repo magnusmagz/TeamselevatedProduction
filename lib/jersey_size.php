@@ -154,3 +154,42 @@ function te_normalize_jersey_size($value): ?string
 
     return in_array($code, TE_JERSEY_SIZES, true) ? $code : null;
 }
+
+/** Outcomes of te_classify_jersey_size_submission(). */
+const TE_JERSEY_SUBMISSION_SET     = 'set';     // resolved to a storable code
+const TE_JERSEY_SUBMISSION_CLEAR   = 'clear';   // deliberately blank => NULL
+const TE_JERSEY_SUBMISSION_INVALID = 'invalid'; // sent something, meant nothing
+
+/**
+ * Tell "cleared on purpose" apart from "we could not read that".
+ *
+ * te_normalize_jersey_size() answers NULL for both, and that leniency is correct
+ * where the size rides along with a larger save: the athlete form submits every
+ * field it manages, so one unreadable size must not fail an otherwise valid edit
+ * of a whole athlete record.
+ *
+ * It is the wrong default when the size IS the request — a single-field save from
+ * the parent portal, or a size column in an import. There, collapsing an
+ * unreadable value to NULL means answering "saved" to a request that stored
+ * nothing, which is the exact silent-failure shape this codebase keeps
+ * rediscovering. Callers in that position classify first and refuse INVALID.
+ *
+ * Note that an unprefixed size ('M', 'Large') classifies as INVALID rather than
+ * CLEAR: it is ambiguous between Youth and Adult, which is a thing the sender got
+ * wrong and should be told about, not an empty field.
+ *
+ * @return array{action:string, code:?string}
+ */
+function te_classify_jersey_size_submission($value): array
+{
+    if ($value === null || (is_string($value) && trim($value) === '')) {
+        return ['action' => TE_JERSEY_SUBMISSION_CLEAR, 'code' => null];
+    }
+
+    $code = te_normalize_jersey_size($value);
+    if ($code === null) {
+        return ['action' => TE_JERSEY_SUBMISSION_INVALID, 'code' => null];
+    }
+
+    return ['action' => TE_JERSEY_SUBMISSION_SET, 'code' => $code];
+}

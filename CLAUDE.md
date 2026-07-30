@@ -180,6 +180,18 @@ into shipped code — see "How the phantom columns got there" at the end of this
       Youth and Adult, so it must not be guessed. `JerseySizeConsistencyTest` locks the PHP
       and TypeScript lists (and both migrations) together; `JerseySizeResolverTest` covers
       the tolerance and the two deliberate refusals.
+    - **Crew-editable since 2026-07-30** via `api/athlete-jersey-size.php` (parent portal →
+      `JerseySizeCard` on the athlete detail page). Staff and crew write the SAME column, so
+      the two surfaces need no syncing and must not grow a second copy of the value — that is
+      why migration 054 put size on `athletes` rather than per-membership on `team_members`.
+      Authorization is `AthleteScope::userCanAccessAthlete` (club admin / coach / guardian);
+      never re-implement the guardian check inline.
+    - **On a single-field save, refuse what you cannot read.** `te_normalize_jersey_size()`
+      returns NULL both for "deliberately blank" and "unreadable", which is right when the
+      size rides along with a bigger save but wrong when the size IS the request — storing
+      NULL there reports success while saving nothing. Classify with
+      `te_classify_jersey_size_submission()` (SET / CLEAR / INVALID) and 422 the INVALID case.
+      Covered by `ParentJerseySizeUpdateTest` + `JerseySizeCard.test.tsx`.
   - `guardians` — parents/guardians (id, first_name, last_name, email, mobile_phone, sms_opt_out, etc.)
   - `athlete_guardians` — athlete↔guardian link. Real columns: **`id, athlete_id, guardian_id,
     relationship, is_primary, can_pickup, emergency_contact, created_at`**.
@@ -448,6 +460,15 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
+- [ ] **A guardian can PUT their child's whole athlete record** (found 2026-07-30, pre-existing,
+      NOT introduced by the crew jersey-size work). `legacy/athletes-gateway.php` PUT gates on
+      `AthleteScope::userCanAccessAthlete`, whose 4th branch is "guardian of the athlete" — but
+      its field whitelist covers `first_name`, `date_of_birth`, the home address, guardian links
+      and emergency contacts. Any parent-portal token can therefore rewrite those directly.
+      Blast radius is limited to their own child, but `date_of_birth` drives age-group
+      eligibility, so this is an integrity issue, not just a tidiness one. Fix: split the PUT's
+      whitelist by standing (staff = all fields, guardian = a contact-detail subset), the way
+      `api/athlete-jersey-size.php` narrows the door for one field.
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
