@@ -19,6 +19,8 @@
  *     'email' => string, 'name' => string]
  */
 
+require_once __DIR__ . '/AuditLogger.php';
+
 if (!function_exists('parentInvite_ensureUserAndToken')) {
     /**
      * Ensure a parent login exists for the guardian and mint an invite token.
@@ -69,6 +71,80 @@ if (!function_exists('parentInvite_ensureUserAndToken')) {
                 'user_id' => (int)$user['id'],
                 'email' => $email,
             ];
+        }
+
+        // 2b. RECLAIM: the row we just found may not be the guardian's at all.
+        //
+        // `users.email` is UNIQUE (users_email_key), so there can only ever be ONE
+        // account per address — and until 2026-07-30 te_create_athlete() created the
+        // athlete's linked user row using whatever email was on the athlete form.
+        // For a youth athlete that is the PARENT's email, so the child's shell
+        // account holds the parent's address and this lookup returns the child.
+        //
+        // Reusing it (what step 3's else-branch would do) means the parent sets a
+        // password on an account named after their kid, with users.role='player',
+        // that athletes.user_id still points at — one login shared by two people.
+        // Before the password cleanup this failed differently and more quietly: the
+        // shell carried a 'defaultpass' hash, so step 2 returned 'already_active'
+        // and the invite was silently never sent.
+        //
+        // Neither is recoverable by the caller, and a second row cannot be created
+        // (UNIQUE email). So repair the linkage instead: detach the athlete and
+        // rename the row to its rightful owner, the guardian.
+        //
+        // This is only reachable for a PASSWORD-LESS row — step 2 has already
+        // returned for anything anyone can actually log into — so no live account
+        // can be taken over here. Athletes lose only an auto-generated shell they
+        // never had access to; athletes.user_id is nullable and is already NULL for
+        // every athlete created without an email. The two live readers of that
+        // column (legacy/athletes-gateway.php) both LEFT JOIN it, so NULL is a
+        // shape they already handle.
+        if ($user) {
+            $stmt = $db->prepare('SELECT id FROM athletes WHERE user_id = ?');
+            $stmt->execute([(int)$user['id']]);
+            $squattedAthleteIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            if (!empty($squattedAthleteIds)) {
+                $ownTransaction = !$db->inTransaction();
+                if ($ownTransaction) {
+                    $db->beginTransaction();
+                }
+
+                try {
+                    $stmt = $db->prepare('UPDATE athletes SET user_id = NULL WHERE user_id = ?');
+                    $stmt->execute([(int)$user['id']]);
+
+                    $stmt = $db->prepare("
+                        UPDATE users
+                           SET first_name = ?, last_name = ?, role = 'parent', updated_at = NOW()
+                         WHERE id = ?
+                    ");
+                    $stmt->execute([$gFirst, $gLast, (int)$user['id']]);
+
+                    if ($ownTransaction) {
+                        $db->commit();
+                    }
+                } catch (Throwable $e) {
+                    if ($ownTransaction && $db->inTransaction()) {
+                        $db->rollBack();
+                    }
+                    throw $e;
+                }
+
+                AuditLogger::log(
+                    $db,
+                    null,
+                    'parent_invite_reclaimed_athlete_shell',
+                    'users',
+                    (int)$user['id'],
+                    [
+                        'guardian_id'          => $guardianId,
+                        'email'                => $email,
+                        'detached_athlete_ids' => array_map('intval', $squattedAthleteIds),
+                        'reason'               => 'athlete shell account held the guardian email',
+                    ]
+                );
+            }
         }
 
         // 3. No user yet -> create a parent shell account (no password).

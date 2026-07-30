@@ -360,6 +360,26 @@ string match. The cheap interim is to key `active` off an **accepted** invite
 (`magic_link_tokens.used_at IS NOT NULL`) instead of off `password_hash`. Do not "fix" this by
 adding more email-matching.
 
+### ⚠️ `users.email` is UNIQUE, so one address = one account, forever
+`users_email_key` means an email can only ever belong to ONE row. That is the constraint the whole
+identity model breaks against: when a child's auto-created shell took the parent's email (see the
+`defaultpass` entry in CHANGELOG), the parent could not be given their own account at all.
+
+`parentInvite_ensureUserAndToken()` therefore **reclaims** rather than reuses: if the row it finds
+by the guardian's email is one an athlete points at, it detaches `athletes.user_id`, renames the row
+to the guardian, sets `role='parent'`, and audits it as
+`parent_invite_reclaimed_athlete_shell`. Without that, the parent would set a password on an account
+named after their kid, with `users.role='player'`, that `athletes.user_id` still pointed at — one
+login for two people.
+
+**The safety boundary is the password check that runs first.** A row with a `password_hash` returns
+`already_active` before any repair logic, so a live account can never be renamed out from under its
+owner. `ParentInviteReclaimTest::testRowWithAPasswordIsNeverReclaimed` pins that; if it ever fails,
+the reclaim has become an account takeover. Do not move the repair above the password check.
+
+This is a mitigation, not the fix — it repairs one collision at invite time. `user_guardians` is
+what removes the collision, because identity stops depending on a unique email.
+
 ---
 
 ### ⚠️ Chat has archive, and deliberately has NO delete
