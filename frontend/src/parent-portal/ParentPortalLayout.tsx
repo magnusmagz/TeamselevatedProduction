@@ -4,6 +4,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SponsorMarquee } from './components/SponsorMarquee';
 import { ParentErrorBoundary } from './components/ParentErrorBoundary';
+import { ConsentGate } from './components/ConsentGate';
 import { ChatProvider } from './contexts/ChatContext';
 
 interface ParentPortalLayoutProps {
@@ -13,6 +14,11 @@ interface ParentPortalLayoutProps {
 export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children }) => {
   return (
     <ChatProvider>
+    {/* ConsentGate wraps the WHOLE shell, bottom nav included, so an outstanding
+        consent renders instead of the portal rather than over it — there is no
+        route around a screen that was never mounted. See ConsentGate for why it
+        still offers a decline path. */}
+    <ConsentGate>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Install prompt banner - shown at top when applicable */}
       <InstallPrompt />
@@ -40,6 +46,7 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
       {/* Bottom navigation */}
       <BottomNavigation />
     </div>
+    </ConsentGate>
     </ChatProvider>
   );
 };

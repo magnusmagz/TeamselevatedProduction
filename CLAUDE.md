@@ -335,9 +335,49 @@ Guardians get narrow, purpose-built doors instead: `api/athlete-jersey-size.php`
 `api/consent.php?action=request-deletion` for data removal. Add another one when a parent-facing
 need is real; do not widen a staff gateway to meet it.
 
+**One deliberate exception: `legacy/medical-gateway.php` writes stay on the READ predicate**, so a
+guardian can edit their own child's health record. Decided 2026-07-30, not inherited: a parent is
+the authoritative source for their own child's allergies and medications, and the parent portal now
+offers it (`MedicalInfoPage`). The *clinical* fields — concussion history, last concussion date,
+return-to-play — are withheld at the client by omitting them from the payload, because the gateway
+binds on `array_key_exists`. That is a product boundary, not a security one: a determined guardian
+could still POST them. If it needs to become a real boundary, split the field whitelist by standing
+inside the gateway, the way `staffCanManageAthlete` splits the athlete one.
+
 Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateways and asserts the
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
+
+### ⚠️ Parental consent is captured in the PARENT PORTAL, and nowhere else (2026-07-30)
+`ConsentGate` wraps `ParentPortalLayout` and records via `api/consent.php?action=record`.
+
+**Do not put a consent checkbox on a staff screen.** `AthleteForm` carried a "Parental Consent
+(Required)" block for months: two checkboxes held in local React state, never POSTed, never
+written to `consent_records`, and force-set to `true` whenever anyone edited an existing athlete.
+They gated that form's submit button and nothing else — so the product asserted COPPA consent
+capture and stored none, while `api/consent.php` sat fully implemented with nothing ever calling
+`action=record`. Beyond the storage bug, a club admin ticking "As the parent/legal guardian, I
+consent" is not parental consent in the first place. Removed 2026-07-30.
+
+Design points that are load-bearing:
+- **Per child, always.** `consent_records` is keyed (guardian_id, athlete_id, consent_type) with
+  `athlete_id NOT NULL` — consenting for one child says nothing about a sibling. The gate shows
+  the statements ONCE and writes one row per (child × type), so a parent reads it once but the
+  artifact stays per-child and a newly added sibling re-raises the gate for that child alone.
+- **`guardian_id` is a `users(id)`**, not a `guardians(id)` — it is an FK to the account. The
+  endpoint rejects a user who is not a guardian of that athlete.
+- **The gate clears on RECORDED, not VERIFIED.** `action=status` only reports
+  `has_active_consent` once `email_confirmed_at` is set (COPPA double opt-in). Blocking a parent
+  inside the portal until they leave, find an email and return would strand anyone whose mail is
+  slow or filtered, so the wall drops on the recorded row and a banner chases confirmation. Staff
+  reporting must keep the two distinguishable.
+- **Blocking, with a decline path.** It renders instead of the portal (no route around a screen
+  that never mounted) and has no dismiss — but declining explains and signs out, because consent
+  that cannot be refused is not consent (GDPR Art.4(11)). Do not "tidy" that away.
+- **A failed status read lets the parent through.** The gate is a prompt, not an access control;
+  the real enforcement is server-side. Never let a flaky read lock a family out.
+
+Guarded by `ConsentGate.test.tsx` (8 tests).
 
 ### Editing a crew member's contact details goes through the POST branch
 `legacy/guardian-gateway.php` PUT updates the **relationship** row only
@@ -668,13 +708,14 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
-- [ ] **`legacy/medical-gateway.php` writes are still gated on the READ predicate** — its
-      POST/PUT/DELETE use `userCanAccessAthlete`, so a guardian can write and delete their own
-      child's health record. Left deliberately when the athlete/guardian gateways were tightened
-      on 2026-07-30: unlike `date_of_birth`, a parent genuinely IS the authoritative source for
-      their child's allergies and medications, so this may be correct product behavior rather
-      than a hole. Decide it explicitly — there is no parent-facing UI for it today
-      (`MedicalInfoPage` is read-only), so it is currently capability without a purpose.
+- [ ] **Staff have no view of who has consented.** `ConsentGate` captures it and `consent.php`
+      can report it (`action=status` per athlete, `action=list` per guardian), but nothing
+      staff-facing reads either. A club cannot currently answer "which families still owe
+      consent" without a query. Maggie chose record-and-surface over blocking, so the surfacing
+      half is still owed: an indicator on the athlete profile and the Crew page, distinguishing
+      **recorded** (parent agreed) from **verified** (they clicked the emailed link) — that
+      distinction already exists in the data and is what COPPA's verifiable-consent standard
+      turns on.
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
