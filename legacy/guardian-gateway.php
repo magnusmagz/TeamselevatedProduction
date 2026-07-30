@@ -84,6 +84,26 @@ try {
                 throw new Exception('Athlete ID is required');
             }
 
+            // STAFF ONLY, and this handler had NO scope check at all until
+            // 2026-07-30 — it took athlete_id straight from the request body.
+            //
+            // That was a privilege-escalation chain, not just a tidiness problem:
+            // any authenticated user (a parent, a player, a volunteer — anyone
+            // with a token) could POST a guardian row carrying their OWN email
+            // against any athlete_id in any club. AthleteScope::isGuardianOfAthlete
+            // matches guardians on email, so that single request made the caller a
+            // guardian of a stranger's child, which in turn satisfies
+            // userCanAccessAthlete and unlocks that child's athlete record AND
+            // their health data through legacy/medical-gateway.php.
+            //
+            // Both callers are staff-side (AthleteForm, GuardianManagement), so
+            // requiring staff standing costs nothing.
+            if (!AthleteScope::staffCanManageAthlete($pdo, $auth, (int) $athleteId)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
             // Required fields
             $first_name = $input['first_name'] ?? null;
             $last_name = $input['last_name'] ?? null;
@@ -201,6 +221,28 @@ try {
                 throw new Exception('Guardian relationship ID is required');
             }
 
+            // STAFF ONLY. Like the POST above, this had no scope check at all —
+            // it trusted a bare athlete_guardians row id, so any authenticated
+            // user could walk ids and flip `can_pickup`, `emergency_contact` or
+            // `is_primary` on any family in any club. `can_pickup` decides who is
+            // allowed to collect a child from a session, which makes this a child
+            // safety field rather than a preference.
+            $ownerStmt = $pdo->prepare("SELECT athlete_id FROM athlete_guardians WHERE id = ?");
+            $ownerStmt->execute([$relationshipId]);
+            $ownerAthleteId = $ownerStmt->fetchColumn();
+
+            if (!$ownerAthleteId) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Guardian relationship not found']);
+                exit;
+            }
+
+            if (!AthleteScope::staffCanManageAthlete($pdo, $auth, (int) $ownerAthleteId)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
             $updateFields = [];
             $updateValues = [];
 
@@ -284,7 +326,13 @@ try {
                 exit;
             }
 
-            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, (int) $ownerAthleteId)) {
+            // STAFF ONLY. This one did check scope, but with the READ predicate,
+            // which passes guardians — so either parent in a two-guardian family
+            // could delete the OTHER parent's link to their shared child, ending
+            // that parent's access to the record with no trace beyond a missing
+            // row. Custody disputes are exactly the situation where this endpoint
+            // gets found.
+            if (!AthleteScope::staffCanManageAthlete($pdo, $auth, (int) $ownerAthleteId)) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Access denied']);
                 exit;

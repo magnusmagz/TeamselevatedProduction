@@ -299,6 +299,32 @@ Set via Heroku config vars in production. Locally, loaded from `.env` file via c
   scope before sending
 - Roles are stored in `user_club_access` table (user_id, club_profile_id, role). Role values per the live CHECK constraint: `club_admin`, `coach`, `parent`, `player`, `volunteer`, `treasurer` — the last two were undocumented here until 2026-07-29, and `volunteer` is in active use (2 rows). This table is authoritative — NOT `users.role`. Coaches are scoped to teams via `team_members` table.
 
+### ⚠️ Reading an athlete and writing one are different permissions (2026-07-30)
+`AthleteScope` exposes two predicates and they are not interchangeable:
+
+- **`userCanAccessAthlete`** — super admin / club admin of their club / coach of their team /
+  **guardian**. This is a READ gate. A parent passes it, which is correct for viewing their child.
+- **`staffCanManageAthlete`** — the same minus the guardian branch. This is the WRITE gate.
+  `userCanAccessAthlete` is defined in terms of it, so the two cannot drift.
+
+**Never gate a mutation on `userCanAccessAthlete`.** Doing so is how, until 2026-07-30, any
+parent-portal token could PUT their child's `date_of_birth` (age-group eligibility), soft-delete
+the athlete off every roster, and delete the other parent's `athlete_guardians` link. Worse,
+`legacy/guardian-gateway.php` POST/PUT had **no scope check at all** and took `athlete_id` from the
+request body — so any authenticated user could attach a guardian row carrying their own email to
+any athlete in any club, thereby becoming a guardian of a stranger's child and unlocking that
+child's record and health data through the read predicate. None of it was clickable; every caller
+is a staff screen. **The absence of a UI is not an access control** — bound what the endpoint
+accepts, not what the form happens to send.
+
+Guardians get narrow, purpose-built doors instead: `api/athlete-jersey-size.php` for a jersey size,
+`api/consent.php?action=request-deletion` for data removal. Add another one when a parent-facing
+need is real; do not widen a staff gateway to meet it.
+
+Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateways and asserts the
+write handlers call the stricter predicate — the bug was never in the predicate, it was in which
+one got called.
+
 ### ⚠️ Crew / parent-portal status is inferred, not recorded (known-weak, 2026-07-30)
 `handleClubParents` and `handleParentPortalStatus` in `api/auth-gateway.php` — which power the
 Crew page and the athlete-profile invite UI — derive portal state like this:
@@ -521,15 +547,13 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
-- [ ] **A guardian can PUT their child's whole athlete record** (found 2026-07-30, pre-existing,
-      NOT introduced by the crew jersey-size work). `legacy/athletes-gateway.php` PUT gates on
-      `AthleteScope::userCanAccessAthlete`, whose 4th branch is "guardian of the athlete" — but
-      its field whitelist covers `first_name`, `date_of_birth`, the home address, guardian links
-      and emergency contacts. Any parent-portal token can therefore rewrite those directly.
-      Blast radius is limited to their own child, but `date_of_birth` drives age-group
-      eligibility, so this is an integrity issue, not just a tidiness one. Fix: split the PUT's
-      whitelist by standing (staff = all fields, guardian = a contact-detail subset), the way
-      `api/athlete-jersey-size.php` narrows the door for one field.
+- [ ] **`legacy/medical-gateway.php` writes are still gated on the READ predicate** — its
+      POST/PUT/DELETE use `userCanAccessAthlete`, so a guardian can write and delete their own
+      child's health record. Left deliberately when the athlete/guardian gateways were tightened
+      on 2026-07-30: unlike `date_of_birth`, a parent genuinely IS the authoritative source for
+      their child's allergies and medications, so this may be correct product behavior rather
+      than a hole. Decide it explicitly — there is no parent-facing UI for it today
+      (`MedicalInfoPage` is read-only), so it is currently capability without a purpose.
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)

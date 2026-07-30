@@ -156,13 +156,51 @@ class AthleteScope {
     }
 
     /**
-     * Core authorization decision: may this authenticated user read this athlete?
+     * Does this user hold STAFF standing over the athlete — club admin of one of
+     * their clubs, a coach of one of their teams, or a super admin?
      *
-     * Order of checks (any true => allow):
-     *   1. super_admin
-     *   2. club_admin of one of the athlete's clubs
-     *   3. coach of a team the athlete is a member of
-     *   4. guardian of the athlete (email match)
+     * This is userCanAccessAthlete() minus the guardian branch, and the split is
+     * the point. "May I see this child" and "may I rewrite this child's record"
+     * are different questions, and a guardian is a legitimate yes to the first
+     * and not to the second. Reading is a superset of managing, so
+     * userCanAccessAthlete() is defined in terms of THIS rather than the two
+     * being maintained as parallel lists that can drift.
+     *
+     * Callers that mutate an athlete want this one. See the PUT and DELETE
+     * handlers in legacy/athletes-gateway.php for why.
+     *
+     * @param PDO $pdo
+     * @param AuthMiddleware $auth authenticated requester
+     * @param int $athleteId
+     * @return bool
+     */
+    public static function staffCanManageAthlete(PDO $pdo, AuthMiddleware $auth, int $athleteId): bool {
+        // 1. Super admins can manage everything.
+        if ($auth->isSuperAdmin()) {
+            return true;
+        }
+
+        // 2. Club admin of any club the athlete belongs to. athleteClubIds()
+        //    covers both team-derived clubs and the direct athletes.club_id, so a
+        //    club athlete with no team yet is still manageable by their admin.
+        foreach (self::athleteClubIds($pdo, $athleteId) as $clubId) {
+            if ($auth->hasRole('club_admin', $clubId, 'club')) {
+                return true;
+            }
+        }
+
+        // 3. Coach of a team the athlete is on.
+        $userId = (int) $auth->getUserId();
+        return $userId > 0 && self::coachesAthlete($pdo, $userId, $athleteId);
+    }
+
+    /**
+     * Core authorization decision: may this authenticated user READ this athlete?
+     *
+     * Staff standing (see staffCanManageAthlete) OR guardian of the athlete.
+     *
+     * Read access only. Do NOT reuse this to gate a write — a guardian passes it,
+     * which is correct for viewing their own child and wrong for editing them.
      *
      * @param PDO $pdo
      * @param AuthMiddleware $auth authenticated requester
@@ -170,27 +208,11 @@ class AthleteScope {
      * @return bool
      */
     public static function userCanAccessAthlete(PDO $pdo, AuthMiddleware $auth, int $athleteId): bool {
-        // 1. Super admins can access everything.
-        if ($auth->isSuperAdmin()) {
+        if (self::staffCanManageAthlete($pdo, $auth, $athleteId)) {
             return true;
         }
 
-        // 2. Club admin: allow if requester has club_admin role for any club the
-        //    athlete belongs to.
-        $clubIds = self::athleteClubIds($pdo, $athleteId);
-        foreach ($clubIds as $clubId) {
-            if ($auth->hasRole('club_admin', $clubId, 'club')) {
-                return true;
-            }
-        }
-
-        // 3. Coach: allow if requester coaches a team the athlete is on.
-        $userId = (int) $auth->getUserId();
-        if ($userId > 0 && self::coachesAthlete($pdo, $userId, $athleteId)) {
-            return true;
-        }
-
-        // 4. Guardian: allow if requester's email is a guardian of the athlete.
+        // Guardian: allow if requester's email is a guardian of the athlete.
         $payload = $auth->getPayload();
         $email = '';
         if (is_object($payload) && isset($payload->email)) {

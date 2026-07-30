@@ -379,9 +379,25 @@ try {
                 throw new Exception('Athlete ID is required');
             }
 
-            // Only those who can access the athlete may edit them (club admin of
-            // the athlete's club, a coach of one of their teams, or a guardian).
-            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $id)) {
+            // STAFF ONLY — club admin of the athlete's club, a coach of one of
+            // their teams, or a super admin.
+            //
+            // This used to gate on userCanAccessAthlete, which also passes
+            // guardians. No parent-facing screen has ever called this handler
+            // (every caller is staff-side: RosterManagement, AthleteManagement,
+            // AthleteProfileEnhanced, AthletePhotoUpload) — but the absence of a
+            // button is not an access control. The endpoint is reachable, a
+            // parent-portal login mints a token that satisfied the old check, and
+            // the field list below reaches first_name, date_of_birth, the home
+            // address, the linked users row, the guardian links and the emergency
+            // contacts. date_of_birth is the one that matters: it drives
+            // age-group eligibility, so a parent had both the means and a motive
+            // to change it.
+            //
+            // Guardians get their narrow, purpose-built doors instead:
+            // api/athlete-jersey-size.php to fix a jersey size, and
+            // api/consent.php?action=request-deletion for data removal.
+            if (!AthleteScope::staffCanManageAthlete($pdo, $auth, $id)) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Access denied']);
                 exit;
@@ -479,8 +495,17 @@ try {
                 throw new Exception('Athlete ID is required');
             }
 
-            // Only those who can access the athlete may deactivate them.
-            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, $id)) {
+            // STAFF ONLY — same reasoning as the PUT above, and this one mattered
+            // more: the old guardian-passing check let any parent deactivate
+            // their own child's athlete record, which drops them off every roster
+            // and out of every club-scoped list with nothing but a soft-delete
+            // timestamp to explain it.
+            //
+            // A guardian who genuinely wants their child's data removed has a
+            // separate, deliberate path — api/consent.php?action=request-deletion,
+            // which is what the parent portal's "Delete My Child's Data" button
+            // calls, and which records consent rather than silently flipping a flag.
+            if (!AthleteScope::staffCanManageAthlete($pdo, $auth, $id)) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Access denied']);
                 exit;
