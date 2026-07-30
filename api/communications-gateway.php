@@ -15,6 +15,7 @@
 if (defined('TE_COMMUNICATIONS_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/suppression.php';
     require_once __DIR__ . '/../lib/coach_scope.php';
+    require_once __DIR__ . '/../lib/sms_sender.php';
     return;
 }
 
@@ -28,6 +29,7 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/suppression.php';
 require_once __DIR__ . '/../lib/coach_scope.php';
+require_once __DIR__ . '/../lib/sms_sender.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/MergeFieldService.php';
@@ -162,6 +164,12 @@ try {
             http_response_code(404);
             echo json_encode(['error' => 'Unknown action: ' . ($action ?? 'none')]);
     }
+} catch (RuntimeException $e) {
+    // queueSms throws this when the club has no configured SMS sender. That is a
+    // fix-your-configuration problem, not a server fault — a 500 would send the
+    // admin to the logs instead of to Club Profile → Messaging.
+    http_response_code(400);
+    echo json_encode(['error' => $e->getMessage()]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
@@ -468,6 +476,16 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     if ($authError !== null) {
         http_response_code($authError['code']);
         echo json_encode(['error' => $authError['error']]);
+        return;
+    }
+
+    // Check the club has a sender BEFORE writing anything. queueSms would throw on
+    // this anyway, but the campaign row is created first — so refusing there would
+    // strand a broadcast_campaigns row in 'sending' that nothing ever completes,
+    // and it would show in Reporting as a send that half-happened.
+    if ($channel === 'sms' && te_resolve_sms_sender($connection, (int) $clubProfileId) === null) {
+        http_response_code(400);
+        echo json_encode(['error' => te_sms_sender_missing_message()]);
         return;
     }
 
