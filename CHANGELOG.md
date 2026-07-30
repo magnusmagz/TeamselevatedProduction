@@ -32,6 +32,31 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Crew can edit their athlete's jersey size in the parent portal
+`aa41ee4` (merged as `3d2c7b1`) · Heroku **v447** · Netlify build of `3d2c7b1` · **no migration**
+
+Uses `athletes.jersey_size` as shipped by migrations 054/055 on 2026-07-29 — nothing new in the
+schema, so there was nothing to apply to Neon.
+
+Deployed **backend first**, which is the opposite of the usual ordering note in CLAUDE.md and
+deliberate: the new Uniform card calls a brand-new endpoint, so a frontend-first deploy would have
+put a Save button in front of families that 404s until Heroku catches up. The CLAUDE.md rule
+(frontend first) is about *tightening* auth on an existing contract; this is the inverse case — new
+UI depending on new backend.
+
+**The Heroku push carried 3 commits that were not ours.** `main` was 5 ahead of `heroku/main` and
+only 2 of those were the jersey work — the broadcast-SMS session had pushed to `origin` (so Netlify
+built their `BroadcastCompose` UI) but never to Heroku. Their UI had been live in prod against an
+undeployed backend; v447 is what actually made it work. Confirmed with Maggie before pushing.
+This is the shared-`main` hazard CLAUDE.md describes, observed rather than theorized: check
+`git rev-list --left-right --count main...heroku/main` before deploying, not just `origin`.
+
+**Prod state discovered:** `heroku/main` can sit well behind `origin/main` for hours. "It's on
+origin" says Netlify built it; it says nothing about the backend.
+
+Post-deploy check: `GET /api/athlete-jersey-size.php` answers 401 unauthenticated and 401 on a
+bogus token.
+
 ### Email Reporting tiles were empty while metrics flowed in fine
 commit pending · backend-only
 
