@@ -32,6 +32,34 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Send button on the SMS template library
+`a3fe673` · **Netlify deploy `a3fe673` ready** · frontend-only · **no backend, no migration**
+
+Parity with the email template editor, which has had a Send button since the July template work.
+The SMS library previously had no way to send a template — you opened SMS Compose separately and
+re-picked it from the dropdown.
+
+`SmsCompose` gained a `preselectedTemplate` prop mirroring `EmailCompose`'s. It sets the message
+body **directly** rather than selecting a template id and waiting on the picker's fetch, so the body
+is present on first paint and survives the list returning empty (unsaved or scoped-out template) —
+that ordering is the whole reason the prop exists and is pinned by a deliberately synchronous
+assertion in `SmsCompose.test.tsx`.
+
+**Send is not admin-gated**, unlike the Edit / Duplicate / Delete buttons beside it. Coaches can
+send SMS to their own team and may *use* templates; they just cannot create or modify them (Roles &
+Permissions in CLAUDE.md). Server-side scope enforcement on the send is unchanged, so the button
+grants nothing the compose screen already didn't.
+
+No backend touched, so nothing to push to Heroku. Netlify built from the shared `main` as usual.
+
+**Repo state noted while verifying:** the frontend suite has **10 failing suites / 33 failing tests
+that are unrelated to this change** — `App`, `AthleteManagement`, `VenueManagement`,
+`TryoutCreationWizard`, `TournamentCreate`, `PaymentCheckout`, `RevenueDashboard`,
+`MakePaymentPage`, `PaymentStatusPage`, `useParentAthletes`. Confirmed pre-existing by running the
+suite with this change stashed (same 10). Also: `CI=true npx react-scripts build` fails on
+accumulated lint warnings; Netlify runs `CI=false npm run build` (netlify.toml), which is why
+deploys are unaffected. Neither is blocking, both are unowned.
+
 ### Per-club SMS sending numbers — **migration 057 applied to Neon**
 **Heroku v451** (from v450) · **Netlify deploy `ccd2705` ready** · deployed ~11:50 PT
 
