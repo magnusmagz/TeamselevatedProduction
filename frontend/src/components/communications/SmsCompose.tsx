@@ -2,6 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrgContext';
 import { RecipientSelector } from './RecipientSelector';
+import {
+  SMS_SEGMENT_LENGTH,
+  SMS_CONCAT_SEGMENT_LENGTH,
+  countSmsSegments,
+} from '../../utils/smsSegments';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -35,9 +40,6 @@ interface SmsComposeProps {
 }
 
 type SendStatus = 'idle' | 'sending' | 'success' | 'error';
-
-const SMS_SEGMENT_LENGTH = 160;
-const SMS_CONCAT_SEGMENT_LENGTH = 153; // concatenated SMS segments use 7 bytes for header
 
 interface SmsTemplate {
   id: number;
@@ -105,11 +107,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
 
   // Character and segment counting
   const charCount = message.length;
-  const segmentCount = useMemo(() => {
-    if (charCount === 0) return 0;
-    if (charCount <= SMS_SEGMENT_LENGTH) return 1;
-    return Math.ceil(charCount / SMS_CONCAT_SEGMENT_LENGTH);
-  }, [charCount]);
+  const segmentCount = useMemo(() => countSmsSegments(message), [message]);
 
   // Recipient analysis
   const activeRecipients = useMemo(

@@ -7,6 +7,17 @@
  * public (unsubscribe) actions.
  */
 
+// Tests require this file for its recipient-resolution helpers. PHP early-binds
+// top-level functions, so returning here still defines them while skipping CORS,
+// the headers, the request dispatch, and the Neon connect. Never defined in
+// production — this must stay above everything with a side effect.
+// Same pattern as api/recipient-search-gateway.php:13.
+if (defined('TE_COMMUNICATIONS_LIB_ONLY')) {
+    require_once __DIR__ . '/../lib/suppression.php';
+    require_once __DIR__ . '/../lib/coach_scope.php';
+    return;
+}
+
 require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();
 
@@ -15,6 +26,8 @@ header('Content-Type: application/json; charset=UTF-8');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/suppression.php';
+require_once __DIR__ . '/../lib/coach_scope.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/MergeFieldService.php';
@@ -413,11 +426,26 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     $templateId     = $data['template_id'] ?? null;
     $eventId        = $data['event_id'] ?? null;
     $scheduledAt    = $data['scheduled_at'] ?? null;
+    $scope          = $data['scope'] ?? 'teams';
 
-    if (!$clubProfileId || empty($teamIds) || !$body) {
+    if (!in_array($scope, ['teams', 'club'], true)) {
         http_response_code(400);
-        echo json_encode(['error' => 'club_profile_id, team_ids, and body are required']);
+        echo json_encode(['error' => "scope must be 'teams' or 'club'"]);
         return;
+    }
+
+    $isClubWide = ($scope === 'club');
+
+    if (!$clubProfileId || !$body || (!$isClubWide && empty($teamIds))) {
+        http_response_code(400);
+        echo json_encode(['error' => $isClubWide
+            ? 'club_profile_id and body are required'
+            : 'club_profile_id, team_ids, and body are required']);
+        return;
+    }
+
+    if ($isClubWide) {
+        $teamIds = [];
     }
 
     if ($channel === 'email' && (!$subject || !$htmlBody)) {
@@ -436,22 +464,11 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
         return;
     }
 
-    if (!$auth->canAccessClub($clubProfileId)) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Access denied to this club']);
+    $authError = broadcastAuthError($auth, $connection, $clubProfileId, $isClubWide, $teamIds);
+    if ($authError !== null) {
+        http_response_code($authError['code']);
+        echo json_encode(['error' => $authError['error']]);
         return;
-    }
-
-    // Coach scoping: verify coach has access to all requested teams
-    if (!$auth->hasRole('club_admin', $clubProfileId, 'club')) {
-        $coachTeamIds = getCoachTeamIds($connection, $auth->getUserId(), $clubProfileId);
-        foreach ($teamIds as $tid) {
-            if (!in_array($tid, $coachTeamIds)) {
-                http_response_code(403);
-                echo json_encode(['error' => 'You do not have access to one or more of the selected teams']);
-                return;
-            }
-        }
     }
 
     // Create broadcast_campaigns record
@@ -463,6 +480,7 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     ");
     $campaignName = ($channel === 'email' ? $subject : substr($body, 0, 80));
     $criteria = json_encode([
+        'scope'           => $scope,
         'team_ids'        => $teamIds,
         'recipient_types' => $recipientTypes,
         'exclude_ids'     => $excludeIds,
@@ -495,8 +513,10 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
         return;
     }
 
-    // Resolve all recipients from teams
-    $recipients = resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $excludeIds, $channel);
+    // Resolve all recipients
+    $recipients = resolveBroadcastRecipients(
+        $connection, $teamIds, $recipientTypes, $excludeIds, $channel, $scope, $clubProfileId
+    );
 
     // Update campaign total
     $updateStmt = $connection->prepare("UPDATE broadcast_campaigns SET total_recipients = ? WHERE id = ?");
@@ -562,6 +582,7 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
             'recipients'            => $recipients,
             'body'                  => $body,
             'broadcast_campaign_id' => $campaignId,
+            'team_ids'              => $teamIds,
         ]);
         $totalQueued  = $result['queued'];
         $totalSkipped = $result['skipped'];
@@ -598,55 +619,68 @@ function handlePreviewBroadcast($auth, $connection) {
     $teamIds        = $data['team_ids'] ?? [];
     $recipientTypes = $data['recipient_types'] ?? ['athlete', 'guardian'];
     $excludeIds     = $data['exclude_ids'] ?? [];
+    $scope          = $data['scope'] ?? 'teams';
 
-    if (!$clubProfileId || empty($teamIds)) {
+    if (!in_array($scope, ['teams', 'club'], true)) {
         http_response_code(400);
-        echo json_encode(['error' => 'club_profile_id and team_ids are required']);
+        echo json_encode(['error' => "scope must be 'teams' or 'club'"]);
         return;
     }
 
-    if (!$auth->canAccessClub($clubProfileId)) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Access denied to this club']);
+    $isClubWide = ($scope === 'club');
+
+    if (!$clubProfileId || (!$isClubWide && empty($teamIds))) {
+        http_response_code(400);
+        echo json_encode(['error' => $isClubWide
+            ? 'club_profile_id is required'
+            : 'club_profile_id and team_ids are required']);
         return;
     }
 
-    // Coach scoping
-    if (!$auth->hasRole('club_admin', $clubProfileId, 'club')) {
-        $coachTeamIds = getCoachTeamIds($connection, $auth->getUserId(), $clubProfileId);
-        foreach ($teamIds as $tid) {
-            if (!in_array($tid, $coachTeamIds)) {
-                http_response_code(403);
-                echo json_encode(['error' => 'You do not have access to one or more of the selected teams']);
-                return;
+    if ($isClubWide) {
+        $teamIds = [];
+    }
+
+    $authError = broadcastAuthError($auth, $connection, $clubProfileId, $isClubWide, $teamIds);
+    if ($authError !== null) {
+        http_response_code($authError['code']);
+        echo json_encode(['error' => $authError['error']]);
+        return;
+    }
+
+    $allRecipients = resolveBroadcastRecipients(
+        $connection, $teamIds, $recipientTypes, $excludeIds, $channel, $scope, $clubProfileId
+    );
+
+    // Count who will NOT receive this.
+    //
+    // For SMS this MUST use te_sms_skip_reason — the same predicate queueSms uses.
+    // The previous version here compared the raw column value against
+    // email_suppressions.phone (which stores E.164) and never checked
+    // guardians.sms_opt_out at all, so it under-reported suppressions twice over
+    // and promised more recipients than the send delivered.
+    $suppressed = 0;
+
+    if ($channel === 'sms') {
+        $suppressionMap = te_sms_suppression_map($connection, (int) $clubProfileId);
+        $optedOutIds    = te_sms_opted_out_guardian_ids($connection);
+
+        foreach ($allRecipients as $r) {
+            if (te_sms_skip_reason($r, $suppressionMap, $optedOutIds, $teamIds) !== null) {
+                $suppressed++;
             }
         }
-    }
-
-    $allRecipients = resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $excludeIds, $channel);
-
-    // Count suppressed
-    $suppressed = 0;
-    $contactField = ($channel === 'email') ? 'email' : 'phone';
-    foreach ($allRecipients as $r) {
-        $contact = $r[$contactField] ?? null;
-        if (!$contact) {
-            $suppressed++;
-            continue;
-        }
-        if ($channel === 'email') {
-            $checkStmt = $connection->prepare(
-                "SELECT COUNT(*) FROM email_suppressions WHERE email = ? AND club_profile_id = ? AND channel = 'email'"
-            );
-            $checkStmt->execute([$contact, $clubProfileId]);
-        } else {
-            $checkStmt = $connection->prepare(
-                "SELECT COUNT(*) FROM email_suppressions WHERE phone = ? AND club_profile_id = ? AND channel = 'sms'"
-            );
-            $checkStmt->execute([$contact, $clubProfileId]);
-        }
-        if ((int)$checkStmt->fetchColumn() > 0) {
-            $suppressed++;
+    } else {
+        foreach ($allRecipients as $r) {
+            $contact = $r['email'] ?? null;
+            if (!$contact) {
+                $suppressed++;
+                continue;
+            }
+            // Scope-aware, matching EmailSendService.
+            if (te_email_suppressed($connection, $contact, (int) $clubProfileId, $teamIds)) {
+                $suppressed++;
+            }
         }
     }
 
@@ -1467,16 +1501,8 @@ function handleProcessUnsubscribe($connection) {
 /**
  * Get team IDs that a coach has access to.
  */
-function getCoachTeamIds($connection, $userId, $clubProfileId) {
-    $stmt = $connection->prepare("
-        SELECT DISTINCT t.id FROM teams t
-        LEFT JOIN team_members tm ON t.id = tm.team_id AND tm.user_id = ?
-            AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active'
-        WHERE (t.primary_coach_id = ? OR tm.id IS NOT NULL) AND t.club_id = ?
-    ");
-    $stmt->execute([$userId, $userId, $clubProfileId]);
-    return $stmt->fetchAll(PDO::FETCH_COLUMN);
-}
+// getCoachTeamIds now lives in lib/coach_scope.php — required at the top of this
+// file, and by recipient-search-gateway.php, which used to hold its own copy.
 
 /**
  * Validate that all recipients are within the sender's permission scope.
@@ -1544,50 +1570,142 @@ function validateRecipientScope($auth, $connection, $clubProfileId, $recipients)
 }
 
 /**
- * Resolve recipients for a broadcast from team IDs and recipient types.
+ * Authorization for a broadcast, shared by send and preview.
+ *
+ * These two MUST agree. If preview is more permissive, the UI shows a recipient
+ * count for a send that then 403s; if it is stricter, a legitimate send looks
+ * impossible. Keeping one function is the only way that stays true.
+ *
+ * @return array{code: int, error: string}|null Null when the send is allowed.
  */
-function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $excludeIds, $channel) {
+function broadcastAuthError($auth, $connection, $clubProfileId, $isClubWide, array $teamIds): ?array
+{
+    if (!$auth->canAccessClub($clubProfileId)) {
+        return ['code' => 403, 'error' => 'Access denied to this club'];
+    }
+
+    if ($auth->hasRole('club_admin', $clubProfileId, 'club')) {
+        return null;
+    }
+
+    // A club-wide send reaches families a coach has no relationship with,
+    // including athletes on no roster at all. The team picker IS the coach's
+    // boundary, so widening past it is an escalation, not a bigger team send.
+    if ($isClubWide) {
+        return ['code' => 403, 'error' => 'Only club admins can send a club-wide broadcast'];
+    }
+
+    $coachTeamIds = getCoachTeamIds($connection, $auth->getUserId(), $clubProfileId);
+    foreach ($teamIds as $tid) {
+        if (!in_array($tid, $coachTeamIds)) {
+            return [
+                'code'  => 403,
+                'error' => 'You do not have access to one or more of the selected teams',
+            ];
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resolve recipients for a broadcast.
+ *
+ * Two scopes, ONE contract: $recipientTypes means exactly the same thing whether
+ * you are sending to three teams or to the whole club. That is why club-wide is
+ * implemented here rather than by routing through the `special_group` ids in
+ * recipient-search-gateway.php — those ids ('all', 'all_crew') bake the type
+ * selection into the group name and cannot express "athletes only, club-wide".
+ *
+ * ⚠️ $recipientTypes values are SINGULAR — 'athlete', 'guardian', 'coach'. The
+ * resolve-group endpoint in recipient-search-gateway.php takes the PLURAL forms.
+ * Both are correct for their own endpoint; passing the plural array here resolves
+ * zero recipients and sends nothing, with a 200 and total_recipients: 0. Locked by
+ * BroadcastRecipientResolutionTest::testPluralRecipientTypesResolveNobody.
+ *
+ * @param string   $scope         'teams' (default, uses $teamIds) or 'club'.
+ * @param int|null $clubProfileId Required when $scope is 'club'.
+ */
+function resolveBroadcastRecipients(
+    $connection,
+    $teamIds,
+    $recipientTypes,
+    $excludeIds,
+    $channel,
+    $scope = 'teams',
+    $clubProfileId = null
+) {
     $recipients = [];
-    $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
-    $contactField = ($channel === 'email') ? 'email' : 'phone';
+    $isClubWide = ($scope === 'club');
+
+    if ($isClubWide && $clubProfileId === null) {
+        throw new InvalidArgumentException('club_profile_id is required for club-wide resolution');
+    }
+    if (!$isClubWide && empty($teamIds)) {
+        return [];
+    }
+
+    $placeholders = $isClubWide ? '' : implode(',', array_fill(0, count($teamIds), '?'));
+    $scopeParams  = $isClubWide ? [$clubProfileId] : $teamIds;
+
+    // Exclusions are keyed "type:id". A bare numeric id is accepted for backward
+    // compatibility and matches ANY type — which is the pre-existing behavior, and
+    // its bug: athlete 5 and guardian 5 are different people, so an untyped
+    // exclusion of one silently drops the other. The compose UI sends typed keys.
+    $excludeLookup = [];
+    foreach ((array) $excludeIds as $ex) {
+        if (is_string($ex) && strpos($ex, ':') !== false) {
+            $excludeLookup[$ex] = true;
+        } else {
+            $excludeLookup['*:' . (int) $ex] = true;
+        }
+    }
+    $isExcluded = function ($type, $id) use ($excludeLookup) {
+        return isset($excludeLookup["{$type}:{$id}"]) || isset($excludeLookup["*:{$id}"]);
+    };
 
     // Athletes
     if (in_array('athlete', $recipientTypes)) {
-        if ($channel === 'email') {
-            $stmt = $connection->prepare("
-                SELECT DISTINCT
-                    a.id, a.first_name, a.last_name, a.email, tm.team_id
-                FROM athletes a
-                JOIN team_members tm ON a.id = tm.athlete_id
-                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = true
-                    AND a.email IS NOT NULL AND a.email != ''
-            ");
-        } else {
-            $stmt = $connection->prepare("
-                SELECT DISTINCT
-                    a.id, a.first_name, a.last_name, a.phone, tm.team_id
-                FROM athletes a
-                JOIN team_members tm ON a.id = tm.athlete_id
-                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = true
-                    AND a.phone IS NOT NULL AND a.phone != ''
-            ");
-        }
-        $stmt->execute($teamIds);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $contactCol = ($channel === 'email') ? 'a.email' : 'a.phone';
 
-        foreach ($rows as $row) {
-            if (in_array($row['id'], $excludeIds)) continue;
+        if ($isClubWide) {
+            // Club-scoped deliberately does NOT join team_members: an athlete who
+            // has registered but is not yet rostered is exactly who a club-wide
+            // announcement is for, and a team join would drop them. Mirrors
+            // resolveSpecialGroup (recipient-search-gateway.php:1042).
+            $sql = "
+                SELECT DISTINCT
+                    a.id, a.first_name, a.last_name, {$contactCol} AS contact,
+                    (SELECT tm.team_id FROM team_members tm
+                      WHERE tm.athlete_id = a.id AND tm.status = 'active'
+                      ORDER BY tm.team_id LIMIT 1) AS team_id
+                FROM athletes a
+                WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+                    AND {$contactCol} IS NOT NULL AND {$contactCol} != ''
+            ";
+        } else {
+            $sql = "
+                SELECT DISTINCT
+                    a.id, a.first_name, a.last_name, {$contactCol} AS contact, tm.team_id
+                FROM athletes a
+                JOIN team_members tm ON a.id = tm.athlete_id
+                WHERE tm.team_id IN ($placeholders) AND tm.status = 'active' AND a.active_status = true
+                    AND {$contactCol} IS NOT NULL AND {$contactCol} != ''
+            ";
+        }
+
+        $stmt = $connection->prepare($sql);
+        $stmt->execute($scopeParams);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if ($isExcluded('athlete', $row['id'])) continue;
             $r = [
                 'name'    => $row['first_name'] . ' ' . $row['last_name'],
                 'type'    => 'athlete',
                 'id'      => $row['id'],
                 'team_id' => $row['team_id'],
             ];
-            if ($channel === 'email') {
-                $r['email'] = $row['email'];
-            } else {
-                $r['phone'] = $row['phone'];
-            }
+            $r[($channel === 'email') ? 'email' : 'phone'] = $row['contact'];
             $recipients[] = $r;
         }
     }
@@ -1595,36 +1713,48 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
     // Guardians
     if (in_array('guardian', $recipientTypes)) {
         if ($channel === 'email') {
-            $stmt = $connection->prepare("
-                SELECT DISTINCT
-                    g.id, g.first_name, g.last_name, g.email, g.personal_email,
-                    ag.athlete_id, tm.team_id
-                FROM guardians g
-                JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                JOIN team_members tm ON ag.athlete_id = tm.athlete_id AND tm.status = 'active'
-                JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = true
-                WHERE tm.team_id IN ($placeholders)
-                    AND g.receive_invites = true
-                    AND (g.email IS NOT NULL AND g.email != '')
-            ");
+            // receive_invites gates email only — it is about deliverability of
+            // account/invite mail, and has never gated SMS.
+            $select = 'g.email AS contact, g.personal_email';
+            $filter = "AND g.receive_invites = true AND (g.email IS NOT NULL AND g.email != '')";
         } else {
-            $stmt = $connection->prepare("
+            $select = 'g.mobile_phone AS contact, NULL AS personal_email';
+            $filter = "AND g.mobile_phone IS NOT NULL AND g.mobile_phone != ''";
+        }
+
+        if ($isClubWide) {
+            $sql = "
                 SELECT DISTINCT
-                    g.id, g.first_name, g.last_name, g.mobile_phone AS phone,
+                    g.id, g.first_name, g.last_name, {$select},
+                    ag.athlete_id,
+                    (SELECT tm.team_id FROM team_members tm
+                      WHERE tm.athlete_id = ag.athlete_id AND tm.status = 'active'
+                      ORDER BY tm.team_id LIMIT 1) AS team_id
+                FROM guardians g
+                JOIN athlete_guardians ag ON g.id = ag.guardian_id
+                JOIN athletes a ON a.id = ag.athlete_id
+                WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+                    {$filter}
+            ";
+        } else {
+            $sql = "
+                SELECT DISTINCT
+                    g.id, g.first_name, g.last_name, {$select},
                     ag.athlete_id, tm.team_id
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 JOIN team_members tm ON ag.athlete_id = tm.athlete_id AND tm.status = 'active'
                 JOIN athletes a ON a.id = ag.athlete_id AND a.active_status = true
                 WHERE tm.team_id IN ($placeholders)
-                    AND g.mobile_phone IS NOT NULL AND g.mobile_phone != ''
-            ");
+                    {$filter}
+            ";
         }
-        $stmt->execute($teamIds);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($rows as $row) {
-            if (in_array($row['id'], $excludeIds)) continue;
+        $stmt = $connection->prepare($sql);
+        $stmt->execute($scopeParams);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if ($isExcluded('guardian', $row['id'])) continue;
             $r = [
                 'name'       => $row['first_name'] . ' ' . $row['last_name'],
                 'type'       => 'guardian',
@@ -1633,16 +1763,16 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
                 'team_id'    => $row['team_id'],
             ];
             if ($channel === 'email') {
-                $r['email'] = $row['email'];
-                // Also include personal_email if different
+                $r['email'] = $row['contact'];
                 $recipients[] = $r;
-                if (!empty($row['personal_email']) && $row['personal_email'] !== $row['email']) {
+                // A distinct personal_email is a second address for the same person.
+                if (!empty($row['personal_email']) && $row['personal_email'] !== $row['contact']) {
                     $r2 = $r;
                     $r2['email'] = $row['personal_email'];
                     $recipients[] = $r2;
                 }
             } else {
-                $r['phone'] = $row['phone'];
+                $r['phone'] = $row['contact'];
                 $recipients[] = $r;
             }
         }
@@ -1650,116 +1780,82 @@ function resolveBroadcastRecipients($connection, $teamIds, $recipientTypes, $exc
 
     // Coaches
     if (in_array('coach', $recipientTypes)) {
-        if ($channel === 'email') {
-            // Team members who are coaches/managers
-            $stmt = $connection->prepare("
+        $contactCol = ($channel === 'email') ? 'u.email' : 'u.phone';
+        $coachSqls  = [];
+
+        if ($isClubWide) {
+            // user_club_access is authoritative for club roles, NOT users.role.
+            $coachSqls[] = "
                 SELECT DISTINCT
-                    u.id, u.first_name, u.last_name, u.email, tm.team_id
-                FROM team_members tm
-                JOIN users u ON tm.user_id = u.id
-                WHERE tm.team_id IN ($placeholders)
-                    AND tm.role IN ('assistant_coach', 'team_manager')
-                    AND tm.status = 'active'
-                    AND u.email IS NOT NULL AND u.email != ''
-            ");
-            $stmt->execute($teamIds);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($rows as $row) {
-                if (in_array($row['id'], $excludeIds)) continue;
-                $recipients[] = [
-                    'email'   => $row['email'],
-                    'name'    => $row['first_name'] . ' ' . $row['last_name'],
-                    'type'    => 'coach',
-                    'id'      => $row['id'],
-                    'team_id' => $row['team_id'],
-                ];
-            }
-
-            // Primary coaches
-            $stmt = $connection->prepare("
-                SELECT DISTINCT
-                    u.id, u.first_name, u.last_name, u.email, t.id AS team_id
-                FROM teams t
-                JOIN users u ON t.primary_coach_id = u.id
-                WHERE t.id IN ($placeholders)
-                    AND u.email IS NOT NULL AND u.email != ''
-            ");
-            $stmt->execute($teamIds);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($rows as $row) {
-                if (in_array($row['id'], $excludeIds)) continue;
-                $recipients[] = [
-                    'email'   => $row['email'],
-                    'name'    => $row['first_name'] . ' ' . $row['last_name'],
-                    'type'    => 'coach',
-                    'id'      => $row['id'],
-                    'team_id' => $row['team_id'],
-                ];
-            }
+                    u.id, u.first_name, u.last_name, {$contactCol} AS contact, NULL AS team_id
+                FROM users u
+                JOIN user_club_access uca ON u.id = uca.user_id
+                WHERE uca.club_profile_id = ? AND uca.active = true
+                    AND uca.role IN ('coach', 'club_admin')
+                    AND {$contactCol} IS NOT NULL AND {$contactCol} != ''
+            ";
         } else {
-            // SMS: coaches from team_members
-            $stmt = $connection->prepare("
+            $coachSqls[] = "
                 SELECT DISTINCT
-                    u.id, u.first_name, u.last_name, u.phone, tm.team_id
+                    u.id, u.first_name, u.last_name, {$contactCol} AS contact, tm.team_id
                 FROM team_members tm
                 JOIN users u ON tm.user_id = u.id
                 WHERE tm.team_id IN ($placeholders)
                     AND tm.role IN ('assistant_coach', 'team_manager')
                     AND tm.status = 'active'
-                    AND u.phone IS NOT NULL AND u.phone != ''
-            ");
-            $stmt->execute($teamIds);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($rows as $row) {
-                if (in_array($row['id'], $excludeIds)) continue;
-                $recipients[] = [
-                    'phone'   => $row['phone'],
-                    'name'    => $row['first_name'] . ' ' . $row['last_name'],
-                    'type'    => 'coach',
-                    'id'      => $row['id'],
-                    'team_id' => $row['team_id'],
-                ];
-            }
-
-            // Primary coaches via SMS
-            $stmt = $connection->prepare("
+                    AND {$contactCol} IS NOT NULL AND {$contactCol} != ''
+            ";
+            $coachSqls[] = "
                 SELECT DISTINCT
-                    u.id, u.first_name, u.last_name, u.phone, t.id AS team_id
+                    u.id, u.first_name, u.last_name, {$contactCol} AS contact, t.id AS team_id
                 FROM teams t
                 JOIN users u ON t.primary_coach_id = u.id
                 WHERE t.id IN ($placeholders)
-                    AND u.phone IS NOT NULL AND u.phone != ''
-            ");
-            $stmt->execute($teamIds);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    AND {$contactCol} IS NOT NULL AND {$contactCol} != ''
+            ";
+        }
 
-            foreach ($rows as $row) {
-                if (in_array($row['id'], $excludeIds)) continue;
-                $recipients[] = [
-                    'phone'   => $row['phone'],
+        foreach ($coachSqls as $sql) {
+            $stmt = $connection->prepare($sql);
+            $stmt->execute($scopeParams);
+
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if ($isExcluded('coach', $row['id'])) continue;
+                $r = [
                     'name'    => $row['first_name'] . ' ' . $row['last_name'],
                     'type'    => 'coach',
                     'id'      => $row['id'],
                     'team_id' => $row['team_id'],
                 ];
+                $r[($channel === 'email') ? 'email' : 'phone'] = $row['contact'];
+                $recipients[] = $r;
             }
         }
     }
 
-    // De-duplicate by contact info
+    // De-duplicate by the address we will actually send to. SMS keys on the
+    // NORMALIZED number so "(360) 555-1234" and "3605551234" — the same person
+    // entered twice, or a guardian who is also a coach — collapse to one message
+    // instead of two. The raw-string comparison this replaces did not catch that.
     $seen = [];
     $unique = [];
     foreach ($recipients as $r) {
-        $key = ($channel === 'email')
-            ? strtolower($r['email'] ?? '')
-            : ($r['phone'] ?? '');
+        if ($channel === 'email') {
+            $key = strtolower(trim((string) ($r['email'] ?? '')));
+        } else {
+            // Fall back to the raw value when a number won't normalize, so an
+            // unusable phone still RESOLVES and gets counted and reported as
+            // skipped. Dropping it here instead would make preview say "0
+            // recipients" where the truth is "1 recipient we can't reach" —
+            // a silent drop, which is exactly what the compose UI promises not
+            // to do. te_sms_skip_reason is what actually excludes them.
+            $key = te_normalize_sms_phone($r['phone'] ?? null)
+                ?? trim((string) ($r['phone'] ?? ''));
+        }
         if ($key && !isset($seen[$key])) {
             $seen[$key] = true;
             if ($channel === 'email') {
-                $r['email'] = strtolower($r['email']);
+                $r['email'] = $key;
             }
             $unique[] = $r;
         }
