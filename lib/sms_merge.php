@@ -31,8 +31,19 @@ if (!function_exists('resolveSmsBodies')) {
             $context['guardian_id'] = (($r['type'] ?? '') === 'guardian') ? ($r['id'] ?? null) : null;
             // A phone belongs to one person, so there is no household combining here —
             // {{recipient_first_name}} resolves from that person's own record.
-            if (isset($r['name']) && $r['name'] !== '') {
-                $context['recipient_name'] = $r['name'];
+            //
+            // Supply the display name ONLY when there is no guardian/athlete row to
+            // derive from (a coach or bare user recipient). loadRecipientData()
+            // derives from the DB only when BOTH recipient keys are absent, so
+            // passing just the full name suppressed derivation and left the first
+            // name empty — every "Hi {{recipient_first_name}}" came out "Hi there".
+            // When we do supply it, supply both halves.
+            $hasIdentity = !empty($context['guardian_id']) || !empty($context['athlete_id']);
+            if (!$hasIdentity && isset($r['name']) && trim((string) $r['name']) !== '') {
+                require_once __DIR__ . '/NameFormatter.php';
+                $person = NameFormatter::splitName(trim((string) $r['name']));
+                $context['recipient_first_name'] = $person['first'];
+                $context['recipient_name'] = trim($person['first'] . ' ' . $person['last']);
             }
 
             $r['_resolved_body'] = $mergeFieldService->resolveVariables((string) $body, $context);
