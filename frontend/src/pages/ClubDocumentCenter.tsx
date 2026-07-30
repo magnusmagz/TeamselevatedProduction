@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -58,7 +57,6 @@ const DEFAULT_SLOTS: { key: string; label: string }[] = [
 ];
 
 const ClubDocumentCenter: React.FC = () => {
-  const { user } = useAuth();
   const { activeContext } = useOrg();
   const clubId = activeContext?.scope_id;
 

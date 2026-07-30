@@ -7,7 +7,6 @@ import UsersList from '../components/superadmin/UsersList';
 import UserDetails from '../components/superadmin/UserDetails';
 import AthletesList from '../components/superadmin/AthletesList';
 import { useTheme } from '../contexts/ThemeContext';
-import { generateColorPalette } from '../utils/colorExtractor';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 

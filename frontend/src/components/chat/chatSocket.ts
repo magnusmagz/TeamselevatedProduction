@@ -1,5 +1,4 @@
 import { io, Socket } from 'socket.io-client';
-import type { Conversation, ChatMessage, TypingUser, ChatUser, TeamMember } from './types';
 
 // Chat server URL
 const CHAT_SOCKET_URL = process.env.REACT_APP_CHAT_SOCKET_URL || 'https://teamselevated-chat-a1a81c3e1a90.herokuapp.com';

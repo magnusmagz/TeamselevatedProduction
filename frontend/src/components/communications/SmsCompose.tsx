@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrgContext';
 import { RecipientSelector } from './RecipientSelector';
@@ -24,13 +24,6 @@ interface Recipient {
   suppression_reason?: string;
 }
 
-interface TeamGroup {
-  id: number;
-  name: string;
-  age_group?: string;
-  athlete_count: number;
-  guardian_count: number;
-}
 
 interface SmsComposeProps {
   isOpen: boolean;
@@ -164,7 +157,6 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
     // CA-49: Always use the send-sms action for individually-resolved recipients,
     // regardless of count. send-sms accepts a `recipients` array; send-broadcast
     // expects team_ids + recipient_types and would reject this payload as malformed.
-    const isMultiple = recipientsWithPhone.length > 1;
 
     try {
       const res = await fetch(`${API_URL}/api/communications?action=send-sms`, {

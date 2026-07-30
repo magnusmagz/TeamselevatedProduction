@@ -5,8 +5,6 @@ import { generateColorPalette } from '../utils/colorExtractor';
 
 // Default forest green colors (fallback when no branding is set)
 const DEFAULT_PRIMARY = '#12443e';
-const DEFAULT_SECONDARY = '#a3ebd1';
-const DEFAULT_ACCENT = '#3fcb9a';
 
 interface ThemeColors {
   primary: string;

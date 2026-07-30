@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Program, FormField, FieldType, Venue } from '../types';
+import { Program, Venue } from '../types';
 import FormFieldBuilder from './FormFieldBuilder';
 import VenuePicker from './VenuePicker';
 import ProgramScheduleBuilder from './ProgramScheduleBuilder';
@@ -29,7 +29,6 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
     registration_fee: undefined
   });
 
-  const [formFields, setFormFields] = useState<FormField[]>([]);
   const [saving, setSaving] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
 

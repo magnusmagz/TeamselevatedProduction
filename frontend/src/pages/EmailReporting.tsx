@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -179,8 +178,7 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
 // --- Main Component ---
 
 export const EmailReporting: React.FC = () => {
-  const { user } = useAuth();
-  const { currentClubId, isClubAdmin } = useOrg();
+  const { currentClubId } = useOrg();
   const token = localStorage.getItem('auth_token');
 
   // Filters
@@ -201,7 +199,7 @@ export const EmailReporting: React.FC = () => {
   const [perEmailReport, setPerEmailReport] = useState<PerEmailReport | null>(null);
 
   // Loading states
-  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [, setLoadingTeams] = useState(true);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingVolume, setLoadingVolume] = useState(true);
   const [loadingLinks, setLoadingLinks] = useState(true);
@@ -400,7 +398,6 @@ export const EmailReporting: React.FC = () => {
       ].filter(d => d.value > 0)
     : [];
 
-  const COLORS_PIE = ['#22c55e', '#f97316', '#ef4444', '#9ca3af'];
 
   return (
     <div className="container mx-auto p-4 sm:p-6 max-w-7xl">

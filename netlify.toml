@@ -1,6 +1,10 @@
 [build]
   base = "frontend"
-  command = "CI=false npm run build"
+  # lint:ci is a ratchet, not a style gate — it fails only if the warning count
+  # goes UP. CI=false stays on the build itself: react-scripts would otherwise
+  # turn all 74 known warnings into errors and no deploy would ever succeed,
+  # which is exactly how the build stopped catching anything. See LINTING.md.
+  command = "npm run lint:ci && CI=false npm run build"
   publish = "build"
 
 [[redirects]]

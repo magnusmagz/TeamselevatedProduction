@@ -84,10 +84,10 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [attendance, setAttendance] = useState<Record<number, AttendanceRecord>>({});
-  const [summary, setSummary] = useState<AttendanceSummary>({ present: 0, absent: 0, late: 0, excused: 0, total: 0 });
-  const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
+  const [, setSummary] = useState<AttendanceSummary>({ present: 0, absent: 0, late: 0, excused: 0, total: 0 });
+  const [, setEventInfo] = useState<EventInfo | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const [initialAttendance, setInitialAttendance] = useState<Record<number, string>>({});
+  const [, setInitialAttendance] = useState<Record<number, string>>({});
 
   // Fetch attendance data
   const fetchAttendance = useCallback(async () => {

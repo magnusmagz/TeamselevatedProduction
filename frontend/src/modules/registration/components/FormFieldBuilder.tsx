@@ -28,14 +28,6 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
   ];
 
   // Sections for organizing fields
-  const sections = [
-    'athlete_info',
-    'parent_info',
-    'emergency',
-    'medical',
-    'additional',
-    'waiver'
-  ];
 
   useEffect(() => {
     // Load existing fields if editing

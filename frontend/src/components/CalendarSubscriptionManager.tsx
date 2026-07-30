@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 
 interface Subscription {
   id: number;
@@ -40,7 +39,6 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
   onClose,
   onSync,
 }) => {
-  const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);

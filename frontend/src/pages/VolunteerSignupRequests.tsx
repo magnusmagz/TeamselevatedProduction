@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -35,8 +34,7 @@ const BG_CHECK_STYLES: Record<string, { bg: string; text: string; label: string 
 };
 
 export const VolunteerSignupRequests: React.FC = () => {
-  const { user } = useAuth();
-  const { currentClubId, isClubAdmin } = useOrg();
+  const { isClubAdmin } = useOrg();
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
