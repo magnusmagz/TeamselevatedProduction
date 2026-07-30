@@ -11,6 +11,12 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
+// Lazy, like the email editor loads EmailCompose — the compose modal pulls in
+// recipient search and is dead weight for anyone only browsing templates.
+const SmsCompose = React.lazy(() =>
+  import('../components/communications/SmsCompose').then((m) => ({ default: m.SmsCompose }))
+);
+
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 const SMS_SEGMENT_LENGTH = 160;
@@ -92,6 +98,10 @@ const SmsTemplates: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [mergePickerOpen, setMergePickerOpen] = useState(false);
 
+  // Send-from-library: open SmsCompose preloaded with this template, matching
+  // the email template editor's Send button.
+  const [composeTemplate, setComposeTemplate] = useState<{ id: number; name: string; body_text: string } | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const headers: Record<string, string> = {
@@ -146,6 +156,27 @@ const SmsTemplates: React.FC = () => {
     setModalOpen(false);
     setEditingTemplate(null);
     setMergePickerOpen(false);
+  };
+
+  /**
+   * Send this template: open the SMS compose modal with the body preloaded, so
+   * the user picks recipients and sends from there. Mirrors the email template
+   * editor's Send button (TemplateEditor.handleSendClick).
+   *
+   * Deliberately NOT gated on isAdmin, unlike Edit/Duplicate/Delete: coaches can
+   * send SMS to their own team and can use templates — they just can't create or
+   * modify them. Scope is enforced server-side on the send either way.
+   */
+  const handleSendClick = (t: SmsTemplate) => {
+    if (!clubProfileId) {
+      setError('No active club — cannot send.');
+      return;
+    }
+    if (!(t.body_text || '').trim()) {
+      setError('This template has no message body to send.');
+      return;
+    }
+    setComposeTemplate({ id: t.id, name: t.name, body_text: t.body_text });
   };
 
   const handleSave = async () => {
@@ -497,6 +528,17 @@ const SmsTemplates: React.FC = () => {
                       </div>
                       <p className="text-xs text-gray-400 mb-3">Updated {formatDate(t.updated_at)}</p>
                       <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => handleSendClick(t)}
+                          disabled={!clubProfileId}
+                          title="Send this template to recipients"
+                          className="text-xs font-semibold text-brand-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                        >
+                          <svg className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                          Send
+                        </button>
                         {isAdmin && (
                           <button
                             onClick={() => openEditModal(t)}
@@ -566,6 +608,14 @@ const SmsTemplates: React.FC = () => {
                           <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(t.updated_at)}</td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <div className="flex justify-end gap-3">
+                              <button
+                                onClick={() => handleSendClick(t)}
+                                disabled={!clubProfileId}
+                                title="Send this template to recipients"
+                                className="text-xs text-brand-primary hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                              >
+                                Send
+                              </button>
                               {isAdmin && (
                                 <button onClick={() => openEditModal(t)} className="text-xs text-brand-primary hover:underline font-medium">
                                   Edit
@@ -763,6 +813,18 @@ const SmsTemplates: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send: SMS compose modal preloaded with this template (lazy-loaded) */}
+      {composeTemplate && clubProfileId && (
+        <React.Suspense fallback={null}>
+          <SmsCompose
+            isOpen={!!composeTemplate}
+            onClose={() => setComposeTemplate(null)}
+            clubProfileId={clubProfileId}
+            preselectedTemplate={composeTemplate}
+          />
+        </React.Suspense>
       )}
     </div>
   );

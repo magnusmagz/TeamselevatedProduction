@@ -37,6 +37,11 @@ interface SmsComposeProps {
   onClose: () => void;
   clubProfileId: number;
   preselectedRecipients?: Recipient[];
+  /**
+   * Open with this template's body already in the box — the "Send" button on the
+   * SMS template library. Mirrors EmailCompose's `preselectedTemplate`.
+   */
+  preselectedTemplate?: { id: number; name: string; body_text: string };
 }
 
 type SendStatus = 'idle' | 'sending' | 'success' | 'error';
@@ -53,6 +58,7 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   onClose,
   clubProfileId,
   preselectedRecipients,
+  preselectedTemplate,
 }) => {
   const { user } = useAuth();
   const { activeContext } = useOrg();
@@ -80,6 +86,18 @@ export const SmsCompose: React.FC<SmsComposeProps> = ({
   useEffect(() => {
     if (preselectedRecipients) setRecipients(preselectedRecipients);
   }, [preselectedRecipients]);
+
+  // Arriving from the template library's Send button. The body is set directly
+  // rather than by selecting an id and waiting for the picker's fetch, so the
+  // message is there the instant the modal opens. Turning the picker on as well
+  // keeps the two consistent, and lets the user swap to a different template
+  // without the box appearing to be free-form.
+  useEffect(() => {
+    if (!preselectedTemplate) return;
+    setMessage(preselectedTemplate.body_text || '');
+    setUseTemplate(true);
+    setSelectedTemplateId(preselectedTemplate.id);
+  }, [preselectedTemplate]);
 
   // Fetch SMS templates when "Use Template" is toggled on
   const orgClubId = activeContext?.scope_id || clubProfileId;

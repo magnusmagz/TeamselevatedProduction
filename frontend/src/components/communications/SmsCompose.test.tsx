@@ -139,3 +139,81 @@ describe('SmsCompose missing-phone warning (CA-48)', () => {
     expect(body.recipients[0].id).toBe(1);
   });
 });
+
+describe('SmsCompose preselectedTemplate (Send from the SMS template library)', () => {
+  beforeEach(() => {
+    (fetch as jest.Mock).mockReset();
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, templates: [] }),
+    });
+  });
+
+  const template = { id: 7, name: 'Practice Cancelled', body_text: 'Practice is cancelled tonight.' };
+
+  const renderWithTemplate = () =>
+    render(
+      <SmsCompose
+        isOpen={true}
+        onClose={jest.fn()}
+        clubProfileId={32}
+        preselectedTemplate={template}
+      />
+    );
+
+  test('the body is populated immediately, without waiting on the template fetch', () => {
+    renderWithTemplate();
+
+    // Synchronous assertion on purpose: the whole point of setting the body
+    // directly is that the message is there on first paint. If this ever needs a
+    // waitFor, the preselect has regressed into depending on the picker's fetch.
+    expect(screen.getByPlaceholderText(/Type your message/i)).toHaveValue(template.body_text);
+  });
+
+  test('the message survives the template list arriving empty', async () => {
+    renderWithTemplate();
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    // A template not present in the fetched list (unsaved, or scoped out) must
+    // not blank the box the user was handed.
+    expect(screen.getByPlaceholderText(/Type your message/i)).toHaveValue(template.body_text);
+  });
+
+  test('the preselected body is what actually gets sent', async () => {
+    // Recipients too: the library hands over a template, the user picks who it
+    // goes to in the modal. Without them there is nothing to send and the click
+    // is correctly a no-op.
+    render(
+      <SmsCompose
+        isOpen={true}
+        onClose={jest.fn()}
+        clubProfileId={32}
+        preselectedRecipients={[makeRecipient({ id: 1, phone: '5551110000' })]}
+        preselectedTemplate={template}
+      />
+    );
+
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { queued: 1, skipped: 0, skipped_details: [] } }),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Send$/i }));
+
+    await waitFor(() => {
+      const sendCall = (fetch as jest.Mock).mock.calls.find(
+        (c) => c[1] && c[1].method === 'POST'
+      );
+      expect(sendCall).toBeTruthy();
+      // The send payload's message field is `body` (see SmsCompose's
+      // send-sms fetch), not `message`.
+      expect(JSON.parse(sendCall[1].body).body).toBe(template.body_text);
+    });
+  });
+
+  test('no preselected template leaves the box empty', () => {
+    render(<SmsCompose isOpen={true} onClose={jest.fn()} clubProfileId={32} />);
+    expect(screen.getByPlaceholderText(/Type your message/i)).toHaveValue('');
+  });
+});
