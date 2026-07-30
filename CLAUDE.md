@@ -257,6 +257,18 @@ of the database. Live consequences found so far:
   joining `team_members` multiplies log rows when an athlete is on two teams or a guardian has two
   athletes, which would silently inflate every COUNT on the page.
 
+- ~~`legacy/medical-gateway.php` bound `''` into DATE columns~~ — FIXED 2026-07-30. Saving an
+  athlete who had a medical row but no physical date on file died with
+  `SQLSTATE[22007] … invalid input syntax for type date: ""`, surfacing as "medical information
+  could not be saved". `AthleteForm` initialises every medical date to `''`, and the gateway bound
+  it with `isset()` — true for `''`. **The numeric half of the same bug had been patched in the
+  browser** (the form converts `height_inches`/`weight_lbs` to null), which is exactly why the date
+  half survived: a coercion on the client only protects the caller that has it. Both writers now go
+  through `te_normalize_athlete_medical_values()` in `lib/athlete_medical.php` — empty
+  dates/numerics to null, booleans to `'true'`/`'false'`. The partial UPDATE binds on
+  `array_key_exists`, not `isset`, so clearing a date persists as NULL instead of being skipped.
+  Guarded by `tests/php/AthleteMedicalValuesTest.php`.
+
 **When you correct a column in code, correct it here in the same commit.** Fixing the code alone
 regenerates the bug the next time someone reads this file.
 

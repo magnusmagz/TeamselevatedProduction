@@ -10,6 +10,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/Encryption.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/athlete_medical.php';
 
 try {
     $db = Database::getInstance();
@@ -201,8 +202,16 @@ try {
                     'has_asthma', 'inhaler_location', 'has_epipen', 'epipen_location'
                 ];
 
+                // Normalize BEFORE binding: '' is not a DATE and not a NUMERIC, and
+                // Postgres rejects both (22007 / 22P02), aborting the whole save.
+                // See te_normalize_athlete_medical_values().
+                $data = te_normalize_athlete_medical_values($data);
+
                 foreach ($allowedFields as $field) {
-                    if (isset($data[$field])) {
+                    // array_key_exists, not isset: a field the client sent as empty
+                    // is now null, and isset(null) is false — which would silently
+                    // skip it and make "clear this date" do nothing.
+                    if (array_key_exists($field, $data)) {
                         $updateFields[] = "$field = ?";
                         $updateValues[] = $data[$field];
                     }
@@ -223,6 +232,10 @@ try {
                 medicalAudit($pdo, $auth, 'edit_medical', $athleteId);
                 echo json_encode(['success' => true, 'message' => 'Medical information updated']);
             } else {
+                // Same normalization as the update branch — an insert can carry the
+                // same empty dates/numerics.
+                $data = te_normalize_athlete_medical_values($data);
+
                 // Insert new record
                 $stmt = $pdo->prepare("
                     INSERT INTO athlete_medical (
