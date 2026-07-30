@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   CATEGORY_META,
   OTHER_META,
+  categoryColor,
   categoryLabel,
   categorySlug,
   countByCategory,
@@ -78,6 +79,8 @@ const SmsTemplates: React.FC = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState<'club' | 'personal'>('club');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -243,25 +246,37 @@ const SmsTemplates: React.FC = () => {
     return 'text-red-600';
   };
 
-  // Search first, so the chip counts reflect what the search left — same shape as
-  // the email library (TemplateLibrary.tsx), sharing one taxonomy so the two
-  // libraries cannot drift apart again.
-  const bySearch = templates.filter((t) => {
+  // Tab, then search, then category — the same order as the email library
+  // (TemplateLibrary.tsx), so the chip counts reflect what the tab and search
+  // left. Both pages share one taxonomy so they cannot drift apart again.
+  const bySearchAndTab = templates.filter((t) => {
+    const matchesTab =
+      activeTab === 'club'
+        ? t.scope === 'club' || t.scope === 'platform'
+        : t.scope === 'personal' && t.created_by === user?.id;
     const q = searchQuery.trim().toLowerCase();
-    return (
+    const matchesSearch =
       q === '' ||
       t.name.toLowerCase().includes(q) ||
-      (t.body_text || '').toLowerCase().includes(q)
-    );
+      (t.body_text || '').toLowerCase().includes(q);
+    return matchesTab && matchesSearch;
   });
 
-  const categoryCounts = countByCategory(bySearch);
+  const categoryCounts = countByCategory(bySearchAndTab);
 
-  const filteredTemplates = bySearch.filter(
+  const filteredTemplates = bySearchAndTab.filter(
     (t) => categoryFilter === 'All' || categorySlug(t.category) === categoryFilter
   );
 
   const groupedTemplates = groupByCategory(filteredTemplates);
+  const listTemplates = groupedTemplates.flatMap((g) => g.items);
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
 
   if (!clubProfileId) {
     return (
@@ -293,6 +308,66 @@ const SmsTemplates: React.FC = () => {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab('club')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'club'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Club Templates
+        </button>
+        <button
+          onClick={() => setActiveTab('personal')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'personal'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          My Templates
+        </button>
+      </div>
+
+      {/* Tag cluster — click a tag to view that group, or All to view everything */}
+      {!loading && templates.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <button
+            onClick={() => setCategoryFilter('All')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              categoryFilter === 'All'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            All Templates
+            <span className={categoryFilter === 'All' ? 'text-white/70' : 'text-gray-400'}>
+              {bySearchAndTab.length}
+            </span>
+          </button>
+          {[...CATEGORY_META, OTHER_META].map((c) => {
+            const count = categoryCounts[c.slug] || 0;
+            if (!count) return null;
+            const active = categoryFilter === c.slug;
+            return (
+              <button
+                key={c.slug}
+                onClick={() => setCategoryFilter(active ? 'All' : c.slug)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${c.color} ${
+                  active ? 'ring-2 ring-offset-1 ring-gray-500' : 'opacity-80 hover:opacity-100'
+                }`}
+              >
+                {c.label}
+                <span className="opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Filters row (matches the email Template Library) */}
       {!loading && templates.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -318,42 +393,37 @@ const SmsTemplates: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
             />
           </div>
-        </div>
-      )}
 
-      {/* Tag cluster — click a tag to view that group, or All to view everything */}
-      {!loading && templates.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-5">
-          <button
-            onClick={() => setCategoryFilter('All')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              categoryFilter === 'All'
-                ? 'bg-brand-primary text-white shadow-sm'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            All Templates
-            <span className={categoryFilter === 'All' ? 'text-white/70' : 'text-gray-400'}>
-              {bySearch.length}
-            </span>
-          </button>
-          {[...CATEGORY_META, OTHER_META].map((c) => {
-            const count = categoryCounts[c.slug] || 0;
-            if (!count) return null;
-            const active = categoryFilter === c.slug;
-            return (
-              <button
-                key={c.slug}
-                onClick={() => setCategoryFilter(active ? 'All' : c.slug)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${c.color} ${
-                  active ? 'ring-2 ring-offset-1 ring-gray-500' : 'opacity-80 hover:opacity-100'
-                }`}
-              >
-                {c.label}
-                <span className="opacity-60">{count}</span>
-              </button>
-            );
-          })}
+          {/* View toggle */}
+          <div className="flex border border-brand-secondary rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 text-sm uppercase font-semibold ${
+                viewMode === 'grid' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary hover:bg-gray-50'
+              }`}
+              title="Grid view"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 text-sm uppercase font-semibold ${
+                viewMode === 'list' ? 'bg-brand-primary text-white' : 'bg-white text-brand-primary hover:bg-gray-50'
+              }`}
+              title="List view"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -396,18 +466,15 @@ const SmsTemplates: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {groupedTemplates.map((group) => (
+          {viewMode === 'grid' && groupedTemplates.map((group) => (
             <section key={group.slug}>
               <div className="flex items-center gap-2 mb-3">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${group.color}`}>
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${group.color}`}>
                   {group.label}
                 </span>
-                <span className="text-xs text-gray-400">
-                  {group.items.length} template{group.items.length !== 1 ? 's' : ''}
-                </span>
-                <span className="flex-1 border-t border-gray-100 ml-1" />
+                <span className="text-xs text-gray-400">{group.items.length}</span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {group.items.map((t) => {
                   const bodyLen = (t.body_text || '').length;
                   const segs = getSegmentCount(bodyLen);
@@ -420,11 +487,15 @@ const SmsTemplates: React.FC = () => {
                       <p className="text-sm text-gray-500 mb-3 line-clamp-2 min-h-[2.5rem]">
                         {t.body_text ? (t.body_text.length > 80 ? t.body_text.substring(0, 80) + '...' : t.body_text) : 'No body text'}
                       </p>
-                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
-                        <span>{categoryLabel(t.category)}</span>
-                        <span>{bodyLen} chars</span>
-                        <span>{segs} segment{segs !== 1 ? 's' : ''}</span>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(t.category)}`}>
+                          {categoryLabel(t.category)}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
+                          {bodyLen} chars &middot; {segs} segment{segs !== 1 ? 's' : ''}
+                        </span>
                       </div>
+                      <p className="text-xs text-gray-400 mb-3">Updated {formatDate(t.updated_at)}</p>
                       <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                         {isAdmin && (
                           <button
@@ -457,6 +528,69 @@ const SmsTemplates: React.FC = () => {
               </div>
             </section>
           ))}
+
+          {/* List view — same columns as the email library, with the SMS length
+              column standing in for Subject. */}
+          {viewMode === 'list' && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Length</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {listTemplates.map((t) => {
+                      const bodyLen = (t.body_text || '').length;
+                      const segs = getSegmentCount(bodyLen);
+                      return (
+                        <tr key={t.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{t.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{t.body_text}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(t.category)}`}>
+                              {categoryLabel(t.category)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">{getScopeBadge(t.scope)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                            {bodyLen} chars &middot; {segs} seg{segs !== 1 ? 's' : ''}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(t.updated_at)}</td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <div className="flex justify-end gap-3">
+                              {isAdmin && (
+                                <button onClick={() => openEditModal(t)} className="text-xs text-brand-primary hover:underline font-medium">
+                                  Edit
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button onClick={() => handleDuplicate(t)} className="text-xs text-gray-600 hover:underline font-medium">
+                                  Duplicate
+                                </button>
+                              )}
+                              {isAdmin && t.scope !== 'platform' && (
+                                <button onClick={() => handleDelete(t)} className="text-xs text-red-600 hover:underline font-medium">
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
