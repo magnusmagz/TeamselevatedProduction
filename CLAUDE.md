@@ -779,6 +779,13 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
+- [ ] **Chat moderation — scheduled week of 2026-08-03.** Full plan in
+      `docs/chat-moderation-plan.md`. Report/auto-flag → admin notified → admin opens that
+      conversation with full read → removes or dismisses. Product stance set 2026-07-30: **club chat
+      carries no expectation of privacy**, which makes two things requirements rather than polish —
+      the notice ships in the chat UI before the capability, and every admin read is logged (a
+      defensibility control, not a privacy one). Admin read is **flag-gated**, not blanket browse.
+      Open decision: the co-adult rule on adult↔minor DMs (M6) — if wanted it lands first.
 - [ ] **`athlete_profiles` retention policy has no rule and has never done anything** (found
       2026-07-30 while adding the chat policies). `data_retention_policy` carries an
       `athlete_profiles` row at 1825 days, but `lib/retention_plans.php` has no entry for it, so
