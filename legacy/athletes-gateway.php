@@ -331,7 +331,6 @@ try {
             $gender = $input['gender'] ?? null;
             $school_name = $input['school_name'] ?? null;
             $grade_level = $input['grade_level'] ?? null;
-            $password = $input['password'] ?? password_hash('defaultpass', PASSWORD_DEFAULT);
 
             if (!$first_name || !$last_name) {
                 throw new Exception('First name and last name are required');

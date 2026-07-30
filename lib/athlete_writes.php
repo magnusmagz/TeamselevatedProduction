@@ -44,6 +44,20 @@ if (!function_exists('te_create_athlete')) {
 
         // Find-or-create the linked player user. Reusing an existing email is the fix
         // for the users_email_key crash — two athletes/guardians can share an email.
+        //
+        // The row is created with NO password_hash, deliberately. It used to default to
+        // password_hash('defaultpass'), which was wrong twice over:
+        //   1. Security — every athlete created with an email got a live, loginable
+        //      account whose password was a constant in this file. For a youth athlete
+        //      the email on the form is the PARENT's, so the credential sat on a real
+        //      adult's address. 31 such accounts existed in prod before 2026-07-30.
+        //   2. Correctness — the crew/parent-portal status endpoints in api/auth-gateway.php
+        //      define "active" as "a users row for this email has a password_hash", joined
+        //      on email alone. A child's auto-created account therefore made the parent
+        //      read as having accepted a portal invite they were never sent.
+        // Athletes reach the portal the same way guardians do: an invite / magic link.
+        // Leaving password_hash NULL routes them there (handlePasswordLogin returns
+        // "No password set for this account" rather than accepting a known constant).
         $user_id = null;
         if ($email) {
             $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
@@ -52,12 +66,11 @@ if (!function_exists('te_create_athlete')) {
             if ($existing) {
                 $user_id = (int) $existing['id'];
             } else {
-                $password = $input['password'] ?? password_hash('defaultpass', PASSWORD_DEFAULT);
                 $stmt = $pdo->prepare(
-                    "INSERT INTO users (first_name, last_name, email, password_hash, role)
-                     VALUES (?, ?, ?, ?, 'player') RETURNING id"
+                    "INSERT INTO users (first_name, last_name, email, role)
+                     VALUES (?, ?, ?, 'player') RETURNING id"
                 );
-                $stmt->execute([$first_name, $last_name, $email, $password]);
+                $stmt->execute([$first_name, $last_name, $email]);
                 $user_id = (int) $stmt->fetch(PDO::FETCH_ASSOC)['id'];
             }
         }
