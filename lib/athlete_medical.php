@@ -12,6 +12,51 @@
  * them subtly wrong.
  */
 
+if (!function_exists('te_normalize_athlete_medical_values')) {
+    /**
+     * Coerce a health-profile payload into values Postgres will accept.
+     *
+     * One definition of "valid value", shared by both writers — the full-row
+     * upsert below and the partial UPDATE in legacy/medical-gateway.php. They had
+     * separate, differently-wrong ideas about it: the gateway wrote `''` straight
+     * into DATE columns, so saving an athlete who had no physical date on file
+     * failed with SQLSTATE 22007 and the form reported "medical information could
+     * not be saved". The numeric half of the same bug had been patched in the
+     * browser (AthleteForm converts height/weight), which is exactly why the date
+     * half survived — a fix on the client only covers the caller that has it.
+     *
+     * - DATE columns: '' (or whitespace) -> null. Empty is "not recorded".
+     * - NUMERIC columns: '' -> null, for the same reason (SQLSTATE 22P02).
+     * - BOOLEAN columns: -> 'true'/'false' strings. PDO binds PHP false as '',
+     *   which Postgres rejects for a boolean.
+     *
+     * Keys absent from $row stay absent, so a partial update stays partial.
+     */
+    function te_normalize_athlete_medical_values(array $row): array
+    {
+        foreach (['last_physical_date', 'physical_expiry_date', 'last_concussion_date', 'return_to_play_date',
+                  'height_inches', 'weight_lbs'] as $f) {
+            if (array_key_exists($f, $row) && trim((string) $row[$f]) === '') {
+                $row[$f] = null;
+            }
+        }
+
+        foreach (['has_asthma', 'has_epipen', 'emergency_treatment_consent'] as $f) {
+            if (array_key_exists($f, $row)) {
+                $v = $row[$f];
+                // 'false' and '0' arrive as strings from form posts and are FALSE,
+                // however truthy PHP considers a non-empty string.
+                $isFalse = $v === null || $v === false || $v === 0 || $v === '0'
+                    || (is_string($v) && strcasecmp(trim($v), 'false') === 0)
+                    || (is_string($v) && trim($v) === '');
+                $row[$f] = $isFalse ? 'false' : 'true';
+            }
+        }
+
+        return $row;
+    }
+}
+
 require_once __DIR__ . '/Encryption.php';
 
 if (!function_exists('te_save_athlete_medical')) {
@@ -75,21 +120,13 @@ if (!function_exists('te_save_athlete_medical')) {
             'return_to_play_date'         => $m['return_to_play_date'] ?? null,
             'inhaler_location'            => $m['inhaler_location'] ?? null,
             'epipen_location'             => $m['epipen_location'] ?? null,
-            // 'true'/'false' strings: PDO binds PHP false as '', which Postgres
-            // rejects for a boolean column.
-            'has_asthma'                  => !empty($m['has_asthma']) ? 'true' : 'false',
-            'has_epipen'                  => !empty($m['has_epipen']) ? 'true' : 'false',
-            'emergency_treatment_consent' => array_key_exists('emergency_treatment_consent', $m)
-                ? (!empty($m['emergency_treatment_consent']) ? 'true' : 'false')
-                : 'true',
+            'has_asthma'                  => $m['has_asthma'] ?? false,
+            'has_epipen'                  => $m['has_epipen'] ?? false,
+            'emergency_treatment_consent' => $m['emergency_treatment_consent'] ?? true,
         ];
 
-        // Drop empty dates — '' is not a valid DATE and would abort the write.
-        foreach (['last_physical_date', 'physical_expiry_date', 'last_concussion_date', 'return_to_play_date'] as $d) {
-            if ($row[$d] === '') {
-                $row[$d] = null;
-            }
-        }
+        // Empty dates/numerics -> null, booleans -> 'true'/'false'.
+        $row = te_normalize_athlete_medical_values($row);
 
         $row = Encryption::encryptFields($row, Encryption::athleteMedicalFields());
 
