@@ -776,6 +776,42 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       **recorded** (parent agreed) from **verified** (they clicked the emailed link) — that
       distinction already exists in the data and is what COPPA's verifiable-consent standard
       turns on.
+- [ ] **Crew add says "already in the system" for an email that is not in the system**
+      (reported 2026-07-30, PAUSED mid-investigation — resume here, don't re-dig).
+      Case: an admin adding `jacqueline.devora@icloud.com` as crew on the Devora family
+      (athlete Sofia Devora 452, club 51; existing crew Leya Devora, guardian 463).
+
+      **Established, no need to re-check:**
+      - That email is in **zero** tables — guardians, users, invitations, magic_link_tokens.
+      - **No unique constraint on `guardians.email`** (only an index), so a crew add can
+        never fail as a duplicate email. `users.email` IS unique — so any genuine
+        "already exists" is about a USER account, not a guardian row.
+      - Athlete deletion is **soft**, and `athlete_guardians` FKs are ON DELETE CASCADE off
+        the hard row — guardians survive. So nothing was created then cleaned up; the add
+        never succeeded.
+      - Two candidate messages, different code paths:
+        `AthleteController::addGuardian` → "Guardian already linked to this athlete";
+        `CrewRoster.tsx:88` / `GuardianManagement.tsx:76` → "They already have an account."
+        (the latter is the portal invite, and `ParentInvite::send` keys off the **stored**
+        `guardians.email`, not the address just typed).
+
+      **Needed to finish:** the exact wording, which screen/button, and whether the email
+      field was filled before submitting.
+
+      **Related real bug found on the way — fix regardless of the above.**
+      `AthleteController::createOrFindGuardian` matches on `email = :email AND first_name`
+      (no last name). **25 guardians have `email = ''`** — an empty STRING, so they compare
+      equal, where NULL would not. Adding an emailless crew member whose first name matches
+      an existing emailless guardian silently returns **that other person's** id, merging two
+      unrelated humans. Live pair already present: `Juan Rocha` / `Juan Coca`. Fix: skip
+      identity-matching entirely when the email is blank, and match first+last+email like
+      `legacy/guardian-gateway.php` does.
+
+- [ ] **`/api/analytics` returns 403 for club 32** (seen in Heroku logs 2026-07-30 23:04, all
+      actions: overview, teams, campaign-performance, recent-sends, link-analytics). Noticed
+      while debugging the above; not investigated. Likely the same active-context/role family
+      as the SEC-11 regressions.
+
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
