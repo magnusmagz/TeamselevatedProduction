@@ -187,6 +187,9 @@ export const EmailReporting: React.FC = () => {
   const [customTo, setCustomTo] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
+  // SMS has no open or click event to record, so every open/click figure under
+  // this filter is structurally zero rather than genuinely zero. Hide them.
+  const smsOnly = channelFilter === 'sms';
 
   // Data
   const [teams, setTeams] = useState<Team[]>([]);
@@ -498,7 +501,7 @@ export const EmailReporting: React.FC = () => {
       {loadingOverview ? (
         <LoadingSpinner text="Loading overview..." />
       ) : overview ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className={`grid grid-cols-2 gap-4 mb-6 ${smsOnly ? 'lg:grid-cols-2' : 'lg:grid-cols-4'}`}>
           {/* Total Sent */}
           <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
             <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
@@ -538,39 +541,47 @@ export const EmailReporting: React.FC = () => {
             })()}
           </div>
 
-          {/* Open Rate */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
-            <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
-              {overview.open_rate.toFixed(1)}%
-            </p>
-            <p className="text-sm text-gray-500 mt-1">Open Rate</p>
-            <p className="text-xs text-gray-400 mt-2">email only</p>
-            {(() => {
-              const trend = getTrendIndicator(overview.open_rate, overview.prev_open_rate);
-              return (
-                <p className={`text-xs mt-1 font-medium ${trend.neutral ? 'text-gray-400' : trend.positive ? 'text-green-600' : 'text-red-500'}`}>
-                  {trend.label} vs prev period
+          {/* Open and Click are email-only by construction: the backend counts
+              them with `cl.channel = 'email'`, and SMS has no open or click event
+              to record. Filtered to SMS they render a truthful 0.0% that reads as
+              "nobody opened your texts" — worse than absent. */}
+          {!smsOnly && (
+            <>
+              {/* Open Rate */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
+                <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
+                  {overview.open_rate.toFixed(1)}%
                 </p>
-              );
-            })()}
-          </div>
+                <p className="text-sm text-gray-500 mt-1">Open Rate</p>
+                <p className="text-xs text-gray-400 mt-2">email only</p>
+                {(() => {
+                  const trend = getTrendIndicator(overview.open_rate, overview.prev_open_rate);
+                  return (
+                    <p className={`text-xs mt-1 font-medium ${trend.neutral ? 'text-gray-400' : trend.positive ? 'text-green-600' : 'text-red-500'}`}>
+                      {trend.label} vs prev period
+                    </p>
+                  );
+                })()}
+              </div>
 
-          {/* Click Rate */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
-            <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
-              {overview.click_rate.toFixed(1)}%
-            </p>
-            <p className="text-sm text-gray-500 mt-1">Click Rate</p>
-            <p className="text-xs text-gray-400 mt-2">email only</p>
-            {(() => {
-              const trend = getTrendIndicator(overview.click_rate, overview.prev_click_rate);
-              return (
-                <p className={`text-xs mt-1 font-medium ${trend.neutral ? 'text-gray-400' : trend.positive ? 'text-green-600' : 'text-red-500'}`}>
-                  {trend.label} vs prev period
+              {/* Click Rate */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
+                <p className="text-3xl sm:text-4xl font-bold text-brand-primary">
+                  {overview.click_rate.toFixed(1)}%
                 </p>
-              );
-            })()}
-          </div>
+                <p className="text-sm text-gray-500 mt-1">Click Rate</p>
+                <p className="text-xs text-gray-400 mt-2">email only</p>
+                {(() => {
+                  const trend = getTrendIndicator(overview.click_rate, overview.prev_click_rate);
+                  return (
+                    <p className={`text-xs mt-1 font-medium ${trend.neutral ? 'text-gray-400' : trend.positive ? 'text-green-600' : 'text-red-500'}`}>
+                      {trend.label} vs prev period
+                    </p>
+                  );
+                })()}
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <EmptyState message="No overview data available for the selected filters." />
@@ -668,8 +679,8 @@ export const EmailReporting: React.FC = () => {
           )}
         </div>
 
-        {/* Chart 3: Open & Click Rates Over Time */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm">
+        {/* Chart 3: Open & Click Rates Over Time — email-only, see the tiles above */}
+        <div className={`bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm ${smsOnly ? 'hidden' : ''}`}>
           <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
             Open &amp; Click Rates Over Time
           </h3>
@@ -773,8 +784,12 @@ export const EmailReporting: React.FC = () => {
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject / Preview</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Recipients</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Open Rate</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Click Rate</th>
+                    {!smsOnly && (
+                      <>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Open Rate</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Click Rate</th>
+                      </>
+                    )}
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
                   </tr>
                 </thead>
@@ -805,7 +820,8 @@ export const EmailReporting: React.FC = () => {
                         <td className="px-4 py-3 text-gray-600 text-center">
                           {send.recipient_count}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        {!smsOnly && (
+                        <><td className="px-4 py-3 text-center">
                           {send.open_rate !== null ? (
                             <span className="text-gray-700 font-medium">{send.open_rate.toFixed(1)}%</span>
                           ) : (
@@ -818,7 +834,8 @@ export const EmailReporting: React.FC = () => {
                           ) : (
                             <span className="text-gray-300">--</span>
                           )}
-                        </td>
+                        </td></>
+                        )}
                         <td className="px-4 py-3 text-center">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
