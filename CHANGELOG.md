@@ -166,10 +166,24 @@ where rot goes unnoticed. Verified it bites: passes at 74, exits 1 at 73.
 ⚠️ **`main` is shared, so a failing lint blocks everyone's deploy.** The unblock is to fix the
 warning, not to raise the ceiling. Rules in `frontend/LINTING.md`, pointer in `CLAUDE.md`.
 
-**Two latent bugs surfaced and left alone** (fixing them is a behavior change, not this commit's
-job): `TeamCalendarView` never calls `setPractices`, so `practices` is permanently `[]`;
-`MakePaymentPage` has the same shape with `setPaymentMethods`. Both are now visibly
-`const [x] = useState(...)` instead of hiding behind an unused setter.
+**One real bug surfaced and left alone** (fixing it is a behavior change, not this commit's job):
+`TeamCalendarView` never calls `setPractices`, so the `practices` array is permanently `[]`. It is
+vestigial state from before practices moved into `calendar_events` — the grid gets them as events
+with `type='practice'` — but two pieces of UI still read the dead array and nothing else:
+
+- the **"Total Practices" stat tile** (always visible, every view) always renders **0**
+- the **Schedule view's upcoming list** always renders **"No upcoming practices scheduled"**
+
+Live data as of 2026-07-30: **337 practice events exist, 18 of them upcoming** (334/18 for club 32).
+So club 32 sees "0 Total Practices" and an empty schedule list while its month grid shows them
+correctly. The fix is to derive both from `events.filter(e => e.type === 'practice')` and delete
+the `practices` state, but that changes rendered numbers, so it wants its own commit.
+
+**Correction to an earlier claim in this entry's commit message:** `MakePaymentPage`'s unused
+`setPaymentMethods` was also called a latent bug. It is not. The code comment at
+`MakePaymentPage.tsx:86` says saved payment methods are deliberately not fetched until the Stripe
+Phase 5 endpoint ships, and the selector is hidden while the array is empty. That one is working as
+designed.
 
 Test suite identical either side of the sweep: 10 pre-existing failing suites, 33 failing /
 286 passing. `tsc --noEmit` clean.
