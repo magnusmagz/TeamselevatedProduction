@@ -32,6 +32,47 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### SECURITY — athlete and guardian writes were gated on the read predicate
+`2f14a4c` (merged as `d382a8a`) · Heroku **v448** · backend-only · **no migration**
+
+Found while scoping a narrow endpoint for the crew jersey-size feature (below): every write in
+`legacy/athletes-gateway.php` and `legacy/guardian-gateway.php` gated on
+`AthleteScope::userCanAccessAthlete`, which passes guardians by design.
+
+Four handlers, in ascending order of severity:
+
+- `athletes-gateway` **PUT** — a parent-portal token could rewrite their own child's
+  `date_of_birth` (decides age-group eligibility), name and address.
+- `athletes-gateway` **DELETE** — soft-delete their own child off every roster.
+- `guardian-gateway` **DELETE** — delete the *other* parent's `athlete_guardians` link, ending that
+  parent's access with nothing but a missing row to show for it.
+- `guardian-gateway` **POST / PUT** — **no scope check at all.** `athlete_id` came straight from the
+  request body. Since `isGuardianOfAthlete` matches guardians on **email**, any authenticated user
+  (parent, player, volunteer) could attach a guardian row carrying their own address to any athlete
+  in any club, become that child's guardian, and read the record **and the health data** via
+  `legacy/medical-gateway.php`. A cross-family escalation chain, not a tidiness problem.
+
+**No evidence it was exploited — and also no check run.** Maggie opted to ship the fix without an
+abuse audit first. If that question comes back, the query is: `guardians` rows whose email is linked
+via `athlete_guardians` to athletes spanning unrelated clubs.
+
+**Why it survived:** nothing reachable by clicking. Every caller is a staff screen (`AthleteForm`,
+`GuardianManagement`, `RosterManagement`, `AthleteProfileEnhanced`, `AthletePhotoUpload`). The
+missing button was doing the job the access control should have been doing. Durable lesson in
+CLAUDE.md under "Reading an athlete and writing one are different permissions."
+
+`staffCanManageAthlete` is `userCanAccessAthlete` minus the guardian branch, and the read predicate
+is now *defined in terms of it* so the two cannot drift. Staff standing is byte-for-byte the logic
+that already gated the GET — which is the evidence it works in prod, since admins can view athletes
+today. `AthleteWriteScopeTest` covers the CA-18 unrostered-athlete path (where a subtle break would
+hide) and parses both gateways to assert the write handlers call the strict predicate. That
+source-level guard was mutation-tested: reverting one call fails it.
+
+`legacy/medical-gateway.php` writes were left on the read predicate deliberately — a parent
+plausibly *is* the authority on their child's allergies. Now an explicit open item, not an accident.
+
+Post-deploy: both gateways still answer 401 unauthenticated.
+
 ### Crew can edit their athlete's jersey size in the parent portal
 `aa41ee4` (merged as `3d2c7b1`) · Heroku **v447** · Netlify build of `3d2c7b1` · **no migration**
 
