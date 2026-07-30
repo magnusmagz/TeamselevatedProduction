@@ -171,9 +171,10 @@ Four handlers, in ascending order of severity:
   in any club, become that child's guardian, and read the record **and the health data** via
   `legacy/medical-gateway.php`. A cross-family escalation chain, not a tidiness problem.
 
-**No evidence it was exploited — and also no check run.** Maggie opted to ship the fix without an
-abuse audit first. If that question comes back, the query is: `guardians` rows whose email is linked
-via `athlete_guardians` to athletes spanning unrelated clubs.
+**Not exploited — there were no users.** Maggie confirmed the platform had no real families on it
+during the window these holes were open, which closes the question without needing a data audit.
+Corroborated independently by the SMS entry above: 5 lifetime `channel='sms'` rows, all to internal
+test numbers. Treat this as the *last* window in which "no users" is an available answer.
 
 **Why it survived:** nothing reachable by clicking. Every caller is a staff screen (`AthleteForm`,
 `GuardianManagement`, `RosterManagement`, `AthleteProfileEnhanced`, `AthletePhotoUpload`). The
