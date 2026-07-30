@@ -383,6 +383,14 @@ The recipient selection experience should feel as close to Gmail/Outlook as poss
 - ~~Free-form text only (no templates required for SMS)~~ — stale. SMS templates exist and are in
   the nav at `/sms-templates` (`SmsTemplates.tsx` → `email-templates.php?action=list&channel=sms`).
 
+### The category taxonomy is shared — `frontend/src/constants/templateCategories.ts`
+Both template libraries render the same 10 tags from that one module (chip cluster with counts,
+then sections grouped in taxonomy order with "Other" last). **Do not re-declare the list in a
+page.** SMS originally kept its own four-item list (`General` / `Game Day` / `Practice` /
+`Administrative`) while the data used the 10-tag slugs, so its filter matched almost nothing and
+its editor wrote categories no page could read back — fixed 2026-07-30. Both channels store the
+slug in `email_templates.category`; unknown values fall into "Other" rather than disappearing.
+
 ### ⚠️ `recipient_types` is SINGULAR in the broadcast API, PLURAL in the group API
 - `resolveBroadcastRecipients` (`api/communications-gateway.php`) tests
   `in_array('athlete', …)` / `'guardian'` / `'coach'`.
