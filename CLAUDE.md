@@ -140,7 +140,17 @@ sync"). Emails and SMS actually send in production.
 ---
 
 ## Codebase Conventions
-- No formal coding standard enforced (no phpcs/phpstan config), but code follows PSR-4 autoloading
+- No formal coding standard enforced on the **PHP** side (no phpcs/phpstan config), but code
+  follows PSR-4 autoloading
+- ⚠️ **The frontend has a lint ratchet, and the number only goes DOWN.** `npm run lint:ci` runs in
+  the Netlify build ahead of `CI=false npm run build`, and fails if the warning count exceeds the
+  `--max-warnings` ceiling in `frontend/package.json` (**74** as of 2026-07-30, all
+  `react-hooks/exhaustive-deps`). If your change pushes it up, fix the warning — raising the ceiling
+  to ship is a deliberate decision to undo promptly, not a routine step, and `main` is shared so a
+  failing lint blocks everyone's deploy. Rationale, scope and how to work the remaining 74 are in
+  `frontend/LINTING.md`. Do **not** "simplify" this by flipping the build to `CI=true`: that
+  promotes all 74 known warnings to errors and no deploy ever succeeds again — which is precisely
+  how the build ended up catching nothing.
 - All API routes follow the `/api/` prefix (e.g. `/api/teams`, `/api/auth/login`, `/api/coach/teams/(\d+)/roster`)
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
@@ -609,6 +619,56 @@ both sides by `BroadcastRecipientResolutionTest::testPluralRecipientTypesResolve
   row, so **only broadcasts appear in Reporting as a campaign**; the other path produces N loose
   `communication_log` rows.
 
+### Twilio error 30024 on a NEW number is not a bug — wait ~5 minutes
+`[30024] Numeric Sender ID Not Provisioned on Carrier` means the message reached
+Twilio fine and the **carrier** rejected the sender. On a freshly-purchased number
+it almost always means carrier provisioning onto the A2P 10DLC campaign hasn't
+propagated yet, not that anything is misconfigured.
+
+Observed 2026-07-30, club 32 (`+13605164604`), all three sends from the same number:
+
+| Sent after being added to the Messaging Service | Result |
+|---|---|
+| 65 seconds | ❌ 30024 |
+| ~2 minutes | ❌ 30024 |
+| **~5 minutes** | ✅ delivered |
+
+It looks exactly like a send-path bug and is not one. Before touching code, check
+the number's `date_created` on the Messaging Service and the brand/campaign status
+(`/v1/Services/{MG}/Compliance/Usa2p` — want brand `APPROVED`, campaign `VERIFIED`).
+If those are healthy, the answer is to wait and resend.
+
+⚠️ **Do NOT "fix" 30024 by putting a shared Messaging Service SID in Club Profile →
+Messaging.** `MGce1e99cb…` ("Mixed A2P Messaging Service") holds ~11 numbers spanning
+multiple clubs. Sending via a service lets Twilio pick any number in that pool, so
+one club would text families from another club's number — the exact cross-club bleed
+per-club senders exist to prevent. A per-club Messaging Service (one number, same
+approved campaign) is safe; a shared one is not.
+
+### Inbound SMS: the auto-reply has two rules that look optional and are not
+`api/webhooks/twilio-inbound.php` answers replies with a pointer to the parent
+portal and stores nothing (Tier 0 of the reply plan in `docs/broadcast-sms-scope.md`).
+
+1. **STOP / HELP and friends must get EMPTY TwiML, never the auto-reply.** Twilio
+   still forwards those to the webhook, but blocks any outbound to that number
+   afterwards — so a reply fails silently at best, and reads as ignoring an opt-out
+   at worst. Only the *bare* keyword counts; "can we stop by the field at 6?" is an
+   ordinary message. Keyword list and matching live in `TE_SMS_CARRIER_KEYWORDS`.
+2. **The reply must stay ≤160 GSM-7 characters** (it is 139). Over that and every
+   reply bills as two segments forever. And a single non-ASCII character — a curly
+   apostrophe, an em dash — forces the whole message to UCS-2, where the limit
+   collapses to **70** and the cost triples. Straight quotes and hyphens only.
+   Both are pinned by `tests/php/SmsAutoReplyTest.php`.
+
+Nothing is persisted, and the outgoing text says as much — so a database write here
+makes the product lie to families. `SmsAutoReplyTest::testNothingIsStored` fails on
+one if it appears.
+
+**A number's inbound webhook is set when it is saved** (`te_configure_twilio_inbound`,
+called from `api/sms-numbers.php`). Numbers saved before Heroku v456 have an empty
+`sms_url` and silently swallow replies — re-save them, or set `SmsUrl` via the Twilio
+API. Club 51's was fixed by hand on 2026-07-30; check any other early number.
+
 ### SMS suppression: one predicate, in `lib/suppression.php`
 `te_sms_skip_reason` is the single answer to "should this person get this text", used by both
 `SmsSendService::queueSms` and `handlePreviewBroadcast`. It checks `email_suppressions`
@@ -719,14 +779,23 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
+- [ ] **`athlete_profiles` retention policy has no rule and has never done anything** (found
+      2026-07-30 while adding the chat policies). `data_retention_policy` carries an
+      `athlete_profiles` row at 1825 days, but `lib/retention_plans.php` has no entry for it, so
+      `retention-check.php` prints `UNSUPPORTED — no rule defined`. In a report where every other
+      line reads "nothing to do", that is easy to scan past as fine. Either write the plan (what
+      counts as an expired athlete profile — presumably soft-deleted + inactive, matching the
+      health plans) or drop the policy row. A declared policy that silently does nothing is worse
+      than an absent one, because the report implies coverage that isn't there.
 - [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `docs/broadcast-sms-scope.md`.
-      Blocked on **migration 057**: `broadcast_campaigns` has no `body`/`html_body` column, so a
-      scheduled campaign stores everything about the send except what to say (the SMS body survives
-      only as `name`, truncated to 80 chars). A dispatcher alone cannot fix that. Dispatch should be
-      a throttled tick inside the already-running `workers/queue-worker.php` — **not** a new
-      scheduler process, which would hit the same cost wall that keeps `calendar-sync-scheduler`
-      and `waitlist-expiry-scheduler` switched off. The 400 guard in `handleSendBroadcast` stays
-      until that ships.
+      Needs **a new migration (060+)** adding `body`/`html_body` to `broadcast_campaigns`. *(This
+      item used to say "migration 057"; 057 was claimed by per-club SMS numbers and does NOT contain
+      those columns — 058/059 are also taken.)* Without them a scheduled campaign stores everything
+      about the send except what to say: the SMS body survives only as `name`, truncated to 80
+      chars. A dispatcher alone cannot fix that. Dispatch should be a throttled tick inside the
+      already-running `workers/queue-worker.php` — **not** a new scheduler process, which would hit
+      the same cost wall that keeps `calendar-sync-scheduler` and `waitlist-expiry-scheduler`
+      switched off. The 400 guard in `handleSendBroadcast` stays until that ships.
 - [ ] **Staff phone number on profile (Workstream D)** — roadmap P0 #1. `users.phone` exists but is
       rarely populated, so the coach branches of `resolveBroadcastRecipients` resolve near-empty.
       No migration needed; normalize through `te_normalize_sms_phone` on save.
