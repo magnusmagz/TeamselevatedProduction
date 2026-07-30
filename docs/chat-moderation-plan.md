@@ -1,0 +1,210 @@
+# Chat moderation — plan
+
+**Scheduled: week of Monday 2026-08-03.** Written 2026-07-30, after archive + retention shipped.
+
+Phase 2 of `docs/chat-archive-plan.md`, expanded well past what that document assumed. It is not
+"add a delete button" — it is a moderation system, and the sizing below reflects that.
+
+## The decision
+
+**Reported or auto-flagged message → admin notified → admin opens that conversation with full read
+→ removes or dismisses.**
+
+Maggie's stance, 2026-07-30: **club chat carries no expectation of privacy.** Club admins may read
+conversations in their club in order to act on a report. This is a deliberate product position for a
+youth sports org, not an accident of the permission model.
+
+Two consequences follow, and they are requirements, not commentary:
+
+1. **The notice lives in the chat UI, not only the ToS.** "No expectation of privacy" is only true if
+   nobody forms the expectation, and nobody forms expectations from a document they clicked through
+   in March. A persistent line in the conversation header — "Club administrators can review
+   messages" — is what makes the position true rather than merely asserted.
+2. **Admin reads are logged.** Under this stance the log is not a privacy control; it is a
+   *defensibility* control. It is how the club shows it exercised oversight when something goes
+   wrong, and how an admin shows they opened a thread because of a report rather than out of
+   curiosity. Same cheap table, better reason.
+
+**Priced-in risk:** when chat is known to be reviewable, sensitive conversations migrate to personal
+text messages — the safety surface shrinks exactly where it matters, and the record this was all
+built to preserve is the thing that leaves. Argues for the header notice reading as matter-of-fact
+rather than ominous, and it is the strongest case for M6 below.
+
+### Assumption taken (flag-gated, not blanket browse)
+Admin read opens **because a report or flag exists on that conversation**. The admin's entry point is
+the review queue; there is no conversation browser to build. This is what the decision describes, it
+is a fraction of the UI, and blanket browse can be added later without reworking any of it.
+
+If blanket browse is wanted instead, M3 grows a directory/search surface. Everything else is unchanged.
+
+---
+
+## Where the code goes
+
+Chat data is written by the **Node chat server**; the CRM is **PHP**. Splitting writes across both
+would mean two places that can soft-delete a message.
+
+- **All chat writes stay in Node** (report, remove) — so removal broadcasts a live tombstone to
+  everyone in the room instead of waiting for a reload.
+- **The review queue is a PHP page** that reads the reports table and **deep-links into the chat UI**.
+  Read-only on the PHP side.
+- The admin therefore reviews in the queue, clicks through, reads the conversation in chat, and
+  removes there. That matches "the admin goes and looks at the conversation."
+
+Migration numbers: **claim at build time**, checking `ls database/migrations/ | sort` in every
+checkout. 059 was the last applied; other sessions are numbering fast and 060+ may be taken by
+Monday.
+
+---
+
+## M1 — Removal, tombstone, audit
+
+Foundation; everything else depends on it. Writes the `chat_messages.deleted_at` that already exists
+and is already filtered by every read path.
+
+- Migration: `chat_messages.deleted_by INTEGER REFERENCES users(id)`, `removal_reason VARCHAR(40)`.
+- Socket `removeMessage` — **club_admin only**, scoped by `conversations.club_id`. Not coaches, not
+  senders removing their own words: that is the capability deliberately withheld in Phase 1, and a
+  coach is often the person you least want able to scrub themselves.
+- **No time limit.** Messenger's 10-minute window is for sender remorse. Moderation acts on a
+  complaint that arrives hours or days later.
+- Tombstone reads **"Message removed by an administrator"** — not "X deleted a message," which
+  misattributes it to the sender.
+- Audit via `lib/AuditLogger.php`: actor, message id, conversation id, reason. **Not the message
+  text.** Removal has two motives that pull opposite ways — safety (preserve for investigation) and
+  privacy (someone posted a phone number or PII). Copying the text into `audit_log` defeats the
+  second, because audit retention is 2555 days against the message's own 90. The text stays on
+  `chat_messages.message_text` for the 90-day window and then genuinely goes; that window is what
+  `chat_messages_removed` in `lib/retention_plans.php` already enforces.
+
+### The fiddly part: `deleted_at IS NULL` appears in 7 places and they want different answers
+
+| Site | Wanted |
+|---|---|
+| `loadConversationMessages` | **Return** the row, text nulled — this is the tombstone |
+| unread count | Exclude |
+| last-message preview | Exclude |
+| `markRead` `MAX(id)` | **Include** — otherwise a removed newest message leaves the badge stuck unread forever |
+
+Getting this uniformly wrong is the likely bug. Each site gets an explicit decision and a test.
+
+**Tests** (`chat-server/__tests__/moderation.test.js`, `node:test`)
+- non-admin refused; coach refused; cross-club admin refused
+- soft delete only — a `DELETE` in this path fails the test
+- audit row written; **message text absent from the audit payload**
+- tombstone returned by history; text unreadable through *every* list query
+- `markRead` includes removed messages; unread count and preview exclude them
+
+---
+
+## M2 — Reports (B)
+
+- Migration: `chat_message_reports` — id, message_id, conversation_id, reported_by, source
+  (`user` | `auto`), rule, severity, note, status (`open` | `actioned` | `dismissed`), reviewed_by,
+  reviewed_at, created_at.
+- Socket `reportMessage` — any participant of the conversation.
+- Human reports and automated flags land in the **same table and the same queue**. Admins get one
+  inbox, not two.
+- PHP `api/chat-moderation.php` — list open reports scoped to the admin's club, dismiss, and the
+  deep link. Read + status writes only; the removal itself is M1's socket.
+- Notify on new high-severity reports. Not on everything, or admins tune it out.
+
+**Tests** (`tests/php/ChatModerationQueueTest.php` + node)
+- reporter must be a participant
+- queue is club-scoped; an admin of club A never sees club B's reports
+- dismiss records reviewer and timestamp
+- duplicate reports on one message collapse rather than flooding the queue
+
+---
+
+## M3 — Admin read access (C) + access logging
+
+- `isConversationParticipant` gains an admin branch. Today `server.js:388` returns false for any
+  `direct`/`group` conversation the user is not explicitly in — that line is why admins cannot see
+  DMs, and it is what changes.
+- The branch grants access **only when an open report exists on that conversation** and the admin is
+  a club_admin of `conversations.club_id`.
+- Migration: `chat_access_log` — id, user_id, conversation_id, report_id, created_at.
+- **Every admin open writes a row.** Non-negotiable per the decision above.
+
+**Tests**
+- admin cannot open an unflagged DM (the flag-gate is the whole control)
+- admin can open a flagged one
+- an access row is written on open, with the report that justified it
+- cross-club admin refused; coach refused; ordinary participants unaffected
+- closing the report closes the access
+
+---
+
+## M4 — Auto-flag pipeline (profanity is rule #1, not the point)
+
+**Flag only. Nothing is censored.** Censoring alters what recipients see, so false positives are
+user-visible and embarrassing (the Scunthorpe problem — place names, surnames, "class", "bass",
+"assassin"), and it fights the record-keeping posture: masking at storage destroys evidence, masking
+at display creates two versions of the truth. A false-positive flag costs an admin three seconds.
+
+**Profanity is close to the least dangerous content in youth sports chat.** A coach swearing about a
+referee is a bad look. The patterns that matter carry no profanity at all. So the deliverable is the
+**pipeline**; the wordlist is the trivial part.
+
+`chat-server/lib/flags.js` — pure rule evaluation, testable without sockets or Postgres (same shape
+as `lib/archive.js`). Rules, roughly in ascending value:
+
+1. profanity — wordlist, **word-boundary matched**
+2. off-platform contact — phone numbers, email addresses, "text me at"
+3. secrecy — "don't tell", "between us", "keep this quiet"
+4. links to external messaging apps
+
+Two rules that are not negotiable:
+
+- Runs **inline in `sendMessage`**, no external call — no added latency, no new dependency.
+- **If evaluation throws, the message still sends.** Moderation must never become a way for chat to
+  break. Wrapped in try/catch with the send outside it.
+
+**Tests** (`chat-server/__tests__/flags.test.js`)
+- word boundaries hold: "Scunthorpe", "Hancock", "classic", "bass", "assassin" do **not** fire
+- phone and email patterns fire; secrecy phrases fire
+- severity mapping is stable
+- **a rule that throws does not prevent the send** — asserted directly, since this is the failure
+  mode that would take chat down
+
+---
+
+## M5 — Notice + ToS
+
+- Persistent line in the conversation header: "Club administrators can review messages."
+- ToS/privacy copy updated and re-accepted via the existing `users.tos_accepted_at` /
+  `tos_version` mechanism.
+- **Ships before M3 goes live**, not after. The capability must not precede the notice.
+- Copy is Maggie's, not mine.
+
+---
+
+## M6 — Co-adult rule on adult↔minor DMs — **DECISION PENDING**
+
+Not building until asked. Raised twice, unanswered — captured here so it is not lost.
+
+Require a parent or second adult on any coach↔athlete DM, enforced at `createConversation`.
+SafeSport-style guidance is that adult↔minor communication should not be unobserved 1:1. This is the
+one control that does not depend on anyone reviewing anything, cannot be evaded by phrasing, and
+needs no classifier. If it is wanted, it lands **before** the queue, not after — it changes which
+conversations can exist at all.
+
+---
+
+## Order
+
+M5 → M1 → M2 → M3 → M4, with M6 first if it is wanted.
+
+M5 leads because the notice must precede the capability. M1 is the foundation. M3 is deliberately
+late: admin read is the sharpest edge and should land once the queue that justifies each open
+already exists.
+
+## Deploy notes
+
+- Chat server is a **separate Heroku app**, deployed by subtree:
+  `git subtree split --prefix=chat-server -b <ref>` then push to the `chat` remote. `git push heroku`
+  does not deploy it.
+- Migration first, then chat server, then frontend — the same ordering as the archive work, and for
+  the same reason.
+- Frontend has a lint ratchet (`--max-warnings 74`); a new warning fails the shared build.
