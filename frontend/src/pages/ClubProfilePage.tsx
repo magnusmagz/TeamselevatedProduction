@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
 import ClubPaymentsSettings from '../components/ClubPaymentsSettings';
+import ClubSmsSettings from '../components/ClubSmsSettings';
 import ImportTilesGrid from '../components/ImportTilesGrid';
 import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
@@ -37,7 +38,7 @@ const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const navigate = useNavigate();
   const { updateTheme } = useTheme();
-  type ProfileTab = 'info' | 'branding' | 'documents' | 'users' | 'payments' | 'imports';
+  type ProfileTab = 'info' | 'branding' | 'documents' | 'users' | 'payments' | 'messaging' | 'imports';
   const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
     // Stripe onboarding return/refresh URLs land on /club-profile?tab=payments
     const tab = new URLSearchParams(window.location.search).get('tab');
@@ -179,6 +180,16 @@ const ClubProfilePage: React.FC = () => {
               }`}
             >
               Payments
+            </button>
+            <button
+              onClick={() => setActiveTab('messaging')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'messaging'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Messaging
             </button>
             <button
               onClick={() => setActiveTab('imports')}
@@ -491,6 +502,10 @@ const ClubProfilePage: React.FC = () => {
 
             {activeTab === 'payments' && (
               <ClubPaymentsSettings />
+            )}
+
+            {activeTab === 'messaging' && (
+              <ClubSmsSettings />
             )}
 
             {activeTab === 'imports' && (
