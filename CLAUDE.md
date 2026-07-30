@@ -508,6 +508,23 @@ page.** SMS originally kept its own four-item list (`General` / `Game Day` / `Pr
 its editor wrote categories no page could read back — fixed 2026-07-30. Both channels store the
 slug in `email_templates.category`; unknown values fall into "Other" rather than disappearing.
 
+### SMS merge tags resolve in `lib/sms_merge.php`, per recipient
+`resolveSmsBodies()` is the only place SMS merge fields are resolved, and both callers use it:
+`send-sms` and the SMS branch of `send-broadcast`. Until 2026-07-30 **neither** resolved anything
+— `send-sms` handed the raw body to the queue, and `send-broadcast` resolved only inside its
+email branch — so every one of the 55 SMS templates texted families the literal
+`{{athlete_first_name}}`.
+
+Resolution is **per recipient**, not per batch: the body differs for each person, so it rides on
+the recipient as `_resolved_body`, and `SmsSendService::queueSms()` prefers it over the shared
+`$body` for BOTH the Twilio payload and the `communication_log` row — the log has to record what
+that person actually received. An unresolved tag returns 422 and stops the whole send, matching
+`send-email`: a raw `{{tag}}` in a text cannot be unsent.
+
+`SmsCompose` sends no `event_id`, so the 3 templates using `{{event_*}}` (Season Kickoff, Game
+Day Reminder, Volunteer Reminder) will 422 until it gains an event picker like `EmailCompose`
+has. The other 52 resolve — `{{team_name}}` included, via the recipient's own roster row.
+
 ### ⚠️ `recipient_types` is SINGULAR in the broadcast API, PLURAL in the group API
 - `resolveBroadcastRecipients` (`api/communications-gateway.php`) tests
   `in_array('athlete', …)` / `'guardian'` / `'coach'`.

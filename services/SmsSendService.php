@@ -85,6 +85,12 @@ class SmsSendService {
             // that fails to normalize.
             $phone = te_normalize_sms_phone($recipient['phone'] ?? null);
 
+            // Per-recipient body, set by resolveSmsBodies() in the gateway. Merge
+            // tags resolve to different text for each person, so the body cannot be
+            // shared across the batch — and communication_log must record what that
+            // person actually received, not the template it came from.
+            $recipientBody = $recipient['_resolved_body'] ?? $body;
+
             // 4. Generate a unique tracking ID
             $trackingId = bin2hex(random_bytes(16));
 
@@ -111,7 +117,7 @@ class SmsSendService {
                 $phone,
                 $name,
                 $athleteId,
-                $body,
+                $recipientBody,
                 $trackingId,
                 $broadcastCampaignId,
                 // The number in force at SEND time, not whatever the club's row says
@@ -129,7 +135,7 @@ class SmsSendService {
                 'type' => 'send_sms',
                 'communication_log_id' => $communicationLogId,
                 'phone' => $phone,
-                'body' => $body,
+                'body' => $recipientBody,
                 'tracking_id' => $trackingId,
                 'from' => $sender['from'],
                 'messaging_service_sid' => $sender['messaging_service_sid'],
