@@ -500,6 +500,9 @@ function getSpecialGroups($connection, $clubProfileId) {
     $stmt->execute([$clubProfileId]);
     $crewCount = (int)$stmt->fetchColumn();
 
+    $neverSent = (int)portalStatusCount($connection, $clubProfileId, 'invite_never_sent');
+    $notSetUp  = (int)portalStatusCount($connection, $clubProfileId, 'invite_sent_not_setup');
+
     $allSql = "
         SELECT COUNT(*) FROM (
             SELECT DISTINCT lower(trim(a.email)) AS e
@@ -540,8 +543,71 @@ function getSpecialGroups($connection, $clubProfileId) {
             'group_type' => 'special',
             'recipient_count' => $crewCount,
             'description' => 'Every guardian in the club'
+        ],
+        [
+            'id' => 'invite_never_sent',
+            'name' => 'Invite Never Sent',
+            'group_type' => 'special',
+            'recipient_count' => $neverSent,
+            'description' => 'Crew with no portal account who have never been sent an invite'
+        ],
+        [
+            'id' => 'invite_sent_not_setup',
+            'name' => 'Invite Sent, Not Set Up',
+            'group_type' => 'special',
+            'recipient_count' => $notSetUp,
+            'description' => 'Crew who were sent a portal invite but never set up their account'
         ]
     ];
+}
+
+/**
+ * SQL predicate for a guardian's parent-portal state, matching the status
+ * definitions used by auth-gateway's handleParentPortalStatus:
+ *
+ *   set up      = a users row for the guardian's email has a password_hash
+ *   invited     = a magic_link_tokens row keyed "<email>:parent_invite" exists
+ *
+ * Both groups below exclude anyone already set up — neither is actionable
+ * otherwise. Unlike the athlete-scoped status endpoint, "invited" here does NOT
+ * require the token to be unexpired: an invite that lapsed unused is still an
+ * invite that was sent and not acted on, and those people are exactly who a
+ * follow-up is for. (Their original link is dead, so the message needs to tell
+ * them a fresh one is coming.)
+ *
+ * The two predicates partition the club's crew together with the already-set-up
+ * group, so no one is double-counted and no one is missed.
+ */
+function portalStatusPredicate($status) {
+    $setUp = "EXISTS (SELECT 1 FROM users u
+                       WHERE lower(u.email) = lower(trim(g.email))
+                         AND u.password_hash IS NOT NULL AND u.password_hash <> '')";
+    $invited = "EXISTS (SELECT 1 FROM magic_link_tokens t
+                         WHERE t.email = lower(trim(g.email)) || ':parent_invite')";
+
+    if ($status === 'invite_never_sent') {
+        return "NOT {$setUp} AND NOT {$invited}";
+    }
+    if ($status === 'invite_sent_not_setup') {
+        return "NOT {$setUp} AND {$invited}";
+    }
+    return '1=1';
+}
+
+function portalStatusCount($connection, $clubProfileId, $status) {
+    $predicate = portalStatusPredicate($status);
+    $sql = "
+        SELECT COUNT(DISTINCT lower(trim(g.email)))
+        FROM guardians g
+        JOIN athlete_guardians ag ON g.id = ag.guardian_id
+        JOIN athletes a ON ag.athlete_id = a.id
+        WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+          AND g.email IS NOT NULL AND trim(g.email) <> ''
+          AND {$predicate}
+    ";
+    $stmt = $connection->prepare($sql);
+    $stmt->execute([$clubProfileId]);
+    return (int)$stmt->fetchColumn();
 }
 
 // ============================================
@@ -589,9 +655,13 @@ function handleResolveGroup($connection, $auth, $userId) {
             echo json_encode(['success' => false, 'error' => 'Club-wide groups are available to club admins only']);
             exit();
         }
-        if (!in_array($specialGroup, ['all', 'all_crew'], true)) {
+        $validSpecialGroups = ['all', 'all_crew', 'invite_never_sent', 'invite_sent_not_setup'];
+        if (!in_array($specialGroup, $validSpecialGroups, true)) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Unknown special_group. Valid values: all, all_crew']);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Unknown special_group. Valid values: ' . implode(', ', $validSpecialGroups)
+            ]);
             exit();
         }
 
@@ -944,7 +1014,16 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
         ];
     };
 
-    // ----- Crew (guardians) — in both "all" and "all_crew" -----
+    // ----- Crew (guardians) — every group is crew-based -----
+    // The two portal groups additionally require an email: a parent-portal
+    // invite has nowhere to go without one, so an emailless guardian is not a
+    // "never invited" case to chase, just an incomplete record.
+    $crewFilter = '';
+    if (in_array($specialGroup, ['invite_never_sent', 'invite_sent_not_setup'], true)) {
+        $crewFilter = " AND g.email IS NOT NULL AND trim(g.email) <> ''
+                        AND " . portalStatusPredicate($specialGroup);
+    }
+
     $sql = "
         SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone AS phone,
                g.sms_opt_out
@@ -952,6 +1031,7 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
         JOIN athlete_guardians ag ON g.id = ag.guardian_id
         JOIN athletes a ON ag.athlete_id = a.id
         WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+        {$crewFilter}
     ";
     $stmt = $connection->prepare($sql);
     $stmt->execute([$clubProfileId]);
