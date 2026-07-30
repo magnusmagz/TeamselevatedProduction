@@ -98,6 +98,35 @@ origin" says Netlify built it; it says nothing about the backend.
 Post-deploy check: `GET /api/athlete-jersey-size.php` answers 401 unauthenticated and 401 on a
 bogus token.
 
+### Parent invites no longer land on the child's account
+backend-only · **no migration**
+
+Follow-on from the `defaultpass` cleanup below, and a prerequisite for inviting Central Kansas's
+14 uninvited crew. `users.email` is UNIQUE, so an address can only ever have one account — and those
+14 addresses were already occupied by their own child's auto-created shell.
+
+`parentInvite_ensureUserAndToken()` reused whatever row it found by email, which meant the parent
+would set a password on an account named after their kid (`users.role='player'`, still pointed at by
+`athletes.user_id`) — one login for two people. It now **reclaims** instead: detaches the athlete,
+renames the row to the guardian, sets `role='parent'`, audits it as
+`parent_invite_reclaimed_athlete_shell`.
+
+**Worth recording honestly:** clearing the passwords earlier the same day changed how this failed
+rather than causing it. Before, the shell's `defaultpass` hash made the function return
+`already_active`, so the invite was *silently never sent* — the same predicate that made the Crew
+page show those 14 as active. After, the invite would have gone out and landed on the child's
+account. Both wrong; the second is louder. Found by tracing the invite path when asked to explain
+what `user_guardians` would fix.
+
+Safety boundary: a row with a password returns `already_active` before any repair runs, so a live
+account can never be renamed out from under its owner. Guarded by `ParentInviteReclaimTest`
+(6 cases, verified to fail with the reclaim disabled).
+
+**Prod state:** the 16 club-51 guardians whose email maps to a non-their-own account are unchanged
+on disk — the repair happens lazily, at invite time, per guardian. 14 are their child's shell; the
+other 2 (Katy Ebert, Samantha Archer) are their own coach accounts, which have passwords and are
+therefore correctly left alone.
+
 ### Email Reporting tiles were empty while metrics flowed in fine
 commit pending · backend-only
 
