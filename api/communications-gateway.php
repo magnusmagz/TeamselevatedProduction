@@ -15,6 +15,7 @@
 if (defined('TE_COMMUNICATIONS_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/suppression.php';
     require_once __DIR__ . '/../lib/coach_scope.php';
+    require_once __DIR__ . '/../lib/sms_sender.php';
     return;
 }
 
@@ -28,9 +29,11 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/suppression.php';
 require_once __DIR__ . '/../lib/coach_scope.php';
+require_once __DIR__ . '/../lib/sms_sender.php';
 require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/MergeFieldService.php';
+require_once __DIR__ . '/../lib/sms_merge.php';
 
 try {
     $db = Database::getInstance();
@@ -85,7 +88,7 @@ try {
                 echo json_encode(['error' => 'Method not allowed']);
                 exit();
             }
-            handleSendSms($auth, $connection, $smsService);
+            handleSendSms($auth, $connection, $smsService, $mergeFieldService);
             break;
 
         // ─── SEND BROADCAST ──────────────────────
@@ -162,6 +165,12 @@ try {
             http_response_code(404);
             echo json_encode(['error' => 'Unknown action: ' . ($action ?? 'none')]);
     }
+} catch (RuntimeException $e) {
+    // queueSms throws this when the club has no configured SMS sender. That is a
+    // fix-your-configuration problem, not a server fault — a 500 would send the
+    // admin to the logs instead of to Club Profile → Messaging.
+    http_response_code(400);
+    echo json_encode(['error' => $e->getMessage()]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
@@ -366,7 +375,7 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
 /**
  * send-sms — Queue SMS messages for one or more recipients.
  */
-function handleSendSms($auth, $connection, $smsService) {
+function handleSendSms($auth, $connection, $smsService, $mergeFieldService) {
     $data = json_decode(file_get_contents('php://input'), true);
 
     $clubProfileId = $data['club_profile_id'] ?? null;
@@ -388,6 +397,24 @@ function handleSendSms($auth, $connection, $smsService) {
     if (!validateRecipientScope($auth, $connection, $clubProfileId, $recipients)) {
         http_response_code(403);
         echo json_encode(['error' => 'One or more recipients are outside your permission scope']);
+        return;
+    }
+
+    // Resolve merge tags per recipient before queueing.
+    [$recipients, $unresolved] = resolveSmsBodies($recipients, $body, $mergeFieldService, [
+        'user_id'         => $auth->getUserId(),
+        'club_profile_id' => $clubProfileId,
+        'event_id'        => $data['event_id'] ?? null,
+        'team_id'         => $data['team_id'] ?? null,
+    ]);
+
+    if ($unresolved) {
+        http_response_code(422);
+        echo json_encode([
+            'error' => 'This message still has unfilled fields: ' . implode(', ', $unresolved)
+                     . '. Remove or fix them before sending.',
+            'unresolved' => $unresolved,
+        ]);
         return;
     }
 
@@ -468,6 +495,16 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     if ($authError !== null) {
         http_response_code($authError['code']);
         echo json_encode(['error' => $authError['error']]);
+        return;
+    }
+
+    // Check the club has a sender BEFORE writing anything. queueSms would throw on
+    // this anyway, but the campaign row is created first — so refusing there would
+    // strand a broadcast_campaigns row in 'sending' that nothing ever completes,
+    // and it would show in Reporting as a send that half-happened.
+    if ($channel === 'sms' && te_resolve_sms_sender($connection, (int) $clubProfileId) === null) {
+        http_response_code(400);
+        echo json_encode(['error' => te_sms_sender_missing_message()]);
         return;
     }
 
@@ -575,7 +612,26 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
             $totalSkipped = $result['skipped'];
         }
     } else {
-        // SMS broadcast
+        // SMS broadcast. Same per-recipient resolution as the email branch above —
+        // this branch used to queue the raw body, so a broadcast from any SMS
+        // template texted the literal {{tags}} to the whole club at once.
+        [$recipients, $unresolvedSms] = resolveSmsBodies($recipients, $body, $mergeFieldService, [
+            'user_id'         => $auth->getUserId(),
+            'club_profile_id' => $clubProfileId,
+            'event_id'        => $eventId,
+            'team_id'         => count($teamIds) === 1 ? $teamIds[0] : null,
+        ]);
+
+        if ($unresolvedSms) {
+            http_response_code(422);
+            echo json_encode([
+                'error' => 'This message still has unfilled fields: ' . implode(', ', $unresolvedSms)
+                         . '. Remove or fix them before sending.',
+                'unresolved' => $unresolvedSms,
+            ]);
+            return;
+        }
+
         $result = $smsService->queueSms([
             'user_id'               => $auth->getUserId(),
             'club_profile_id'       => $clubProfileId,

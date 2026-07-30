@@ -131,8 +131,57 @@ try {
                 $stmt->execute([$email, $first_name, $last_name]);
                 $existingGuardian = $stmt->fetch(PDO::FETCH_ASSOC);
 
+                // Editing an existing crew member: AthleteForm carries the
+                // athlete_guardians LINK id, so prefer resolving the guardian from
+                // it. Identity matching cannot handle an edit TO the identity —
+                // changing a name or an email finds nothing, inserts a second
+                // guardian and leaves the old one attached to the athlete.
+                $linkId = $input['id'] ?? null;
+                if ($linkId) {
+                    $linkStmt = $pdo->prepare(
+                        "SELECT guardian_id FROM athlete_guardians WHERE id = ? AND athlete_id = ?"
+                    );
+                    $linkStmt->execute([$linkId, $athleteId]);
+                    $linkedGuardianId = $linkStmt->fetchColumn();
+                    if ($linkedGuardianId) {
+                        $existingGuardian = ['id' => $linkedGuardianId];
+                    }
+                }
+
                 if ($existingGuardian) {
                     $guardianId = $existingGuardian['id'];
+
+                    // Persist the submitted contact details. Until 2026-07-30 this
+                    // branch took the id and moved on, so editing a crew member's
+                    // phone, email or name did nothing at all — the request still
+                    // returned success, and NOTHING in the codebase issued an
+                    // UPDATE against guardians' contact columns. Only keys actually
+                    // present are written, so a partial payload cannot blank a
+                    // field the caller never sent.
+                    $contactFields = [
+                        'first_name', 'last_name', 'email', 'mobile_phone', 'work_phone',
+                        'home_phone', 'address_line1', 'address_line2', 'city', 'state', 'zip_code',
+                    ];
+                    $setParts = [];
+                    $setValues = [];
+                    foreach ($contactFields as $f) {
+                        if (!array_key_exists($f, $input)) {
+                            continue;
+                        }
+                        $value = is_string($input[$f]) ? trim($input[$f]) : $input[$f];
+                        // mobile_phone is NOT NULL; the required-field check above
+                        // already rejects an empty one. Other columns take null.
+                        if ($value === '' && $f !== 'mobile_phone') {
+                            $value = null;
+                        }
+                        $setParts[] = "$f = ?";
+                        $setValues[] = $value;
+                    }
+                    if ($setParts) {
+                        $setValues[] = $guardianId;
+                        $pdo->prepare('UPDATE guardians SET ' . implode(', ', $setParts) . ' WHERE id = ?')
+                            ->execute($setValues);
+                    }
                 } else {
                     // Create new guardian
                     $stmt = $pdo->prepare("

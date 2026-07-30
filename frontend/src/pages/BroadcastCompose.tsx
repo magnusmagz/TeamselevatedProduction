@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
-import {
-  SMS_SEGMENT_LENGTH,
-  SMS_CONCAT_SEGMENT_LENGTH,
-  countSmsSegments,
-} from '../utils/smsSegments';
+import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 

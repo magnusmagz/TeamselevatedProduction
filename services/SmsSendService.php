@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../lib/suppression.php';
+require_once __DIR__ . '/../lib/sms_sender.php';
 
 /**
  * SMS Send Service
@@ -42,6 +43,16 @@ class SmsSendService {
         $skipped = 0;
         $skippedDetails = [];
 
+        // Resolve the sending number BEFORE touching Redis or communication_log.
+        // No fallback to the shared TWILIO_FROM_NUMBER: carrier STOP blocks the
+        // (from-number, recipient) pair, so a shared sender makes one club's STOP
+        // silently mute every other club. Refuse loudly instead of queueing
+        // messages that would either fail at Twilio or go out as the wrong sender.
+        $sender = te_resolve_sms_sender($this->pdo, (int) $clubProfileId);
+        if ($sender === null) {
+            throw new \RuntimeException(te_sms_sender_missing_message());
+        }
+
         $redis = RedisQueue::getInstance();
 
         // Load both skip inputs ONCE for the whole batch. These used to be two
@@ -74,6 +85,12 @@ class SmsSendService {
             // that fails to normalize.
             $phone = te_normalize_sms_phone($recipient['phone'] ?? null);
 
+            // Per-recipient body, set by resolveSmsBodies() in the gateway. Merge
+            // tags resolve to different text for each person, so the body cannot be
+            // shared across the batch — and communication_log must record what that
+            // person actually received, not the template it came from.
+            $recipientBody = $recipient['_resolved_body'] ?? $body;
+
             // 4. Generate a unique tracking ID
             $trackingId = bin2hex(random_bytes(16));
 
@@ -83,12 +100,12 @@ class SmsSendService {
                     club_profile_id, user_id, channel, recipient_type,
                     recipient_id, recipient_phone, recipient_name,
                     athlete_id, body, status, tracking_id,
-                    broadcast_campaign_id, created_at
+                    broadcast_campaign_id, from_number, created_at
                 ) VALUES (
                     ?, ?, 'sms', ?,
                     ?, ?, ?,
                     ?, ?, 'queued', ?,
-                    ?, CURRENT_TIMESTAMP
+                    ?, ?, CURRENT_TIMESTAMP
                 )
                 RETURNING id
             ");
@@ -100,20 +117,28 @@ class SmsSendService {
                 $phone,
                 $name,
                 $athleteId,
-                $body,
+                $recipientBody,
                 $trackingId,
-                $broadcastCampaignId
+                $broadcastCampaignId,
+                // The number in force at SEND time, not whatever the club's row says
+                // when you read the log later. Without this a 21610 after a number
+                // change is undiagnosable.
+                $sender['phone_number'] ?? $sender['from']
             ]);
             $communicationLogId = $logStmt->fetchColumn();
 
-            // 6. Push job to Redis sms_queue
+            // 6. Push job to Redis sms_queue. The sender rides along so a job
+            // queued under one number cannot be sent under another after an admin
+            // changes it mid-flight.
             $redis->push('sms_queue', [
                 'id' => uniqid('sms_', true),
                 'type' => 'send_sms',
                 'communication_log_id' => $communicationLogId,
                 'phone' => $phone,
-                'body' => $body,
+                'body' => $recipientBody,
                 'tracking_id' => $trackingId,
+                'from' => $sender['from'],
+                'messaging_service_sid' => $sender['messaging_service_sid'],
                 'attempts' => 0,
                 'max_attempts' => 3,
                 'created_at' => time()
@@ -140,10 +165,12 @@ class SmsSendService {
         $phone = $payload['phone'];
         $body = $payload['body'];
         $trackingId = $payload['tracking_id'] ?? null;
+        $from = $payload['from'] ?? null;
+        $messagingServiceSid = $payload['messaging_service_sid'] ?? null;
 
         // 1. Fetch communication_log record
         $stmt = $this->pdo->prepare("
-            SELECT id, status, recipient_type, recipient_id
+            SELECT id, status, recipient_type, recipient_id, club_profile_id, from_number
             FROM communication_log
             WHERE id = ?
         ");
@@ -162,9 +189,25 @@ class SmsSendService {
         ");
         $updateStmt->execute([$communicationLogId]);
 
+        // Jobs queued before per-club numbers shipped have no sender in the payload.
+        // Re-resolve from the log's club rather than reaching for the old shared
+        // env var — a drained-but-not-empty queue must not become the one path that
+        // still sends as everybody.
+        if ($from === null && $messagingServiceSid === null) {
+            $sender = te_resolve_sms_sender($this->pdo, (int) $logRecord['club_profile_id']);
+            if ($sender === null) {
+                throw new \Exception(
+                    "No SMS sender configured for club {$logRecord['club_profile_id']} "
+                    . "(communication_log {$communicationLogId})"
+                );
+            }
+            $from = $sender['from'];
+            $messagingServiceSid = $sender['messaging_service_sid'];
+        }
+
         try {
             // 3. Call sendViaTwilio
-            $messageSid = $this->sendViaTwilio($phone, $body, $trackingId);
+            $messageSid = $this->sendViaTwilio($phone, $body, $trackingId, $from, $messagingServiceSid);
 
             // 4. On success: update status='sent', sent_at, twilio_message_sid
             $successStmt = $this->pdo->prepare("
@@ -225,16 +268,19 @@ class SmsSendService {
      * @return string Twilio Message SID
      * @throws \Exception On API error or non-2xx response
      */
-    public function sendViaTwilio($phone, $body, $trackingId = null) {
+    public function sendViaTwilio($phone, $body, $trackingId = null, $from = null, $messagingServiceSid = null) {
         $accountSid = Env::get('TWILIO_ACCOUNT_SID');
         $authToken = Env::get('TWILIO_AUTH_TOKEN');
-        $fromNumber = Env::get('TWILIO_FROM_NUMBER');
+        // $from is the club's configured sender, resolved upstream. The env var is
+        // only a last resort for callers that predate per-club numbers; queueSms
+        // never relies on it and refuses instead.
+        $fromNumber = $from ?: Env::get('TWILIO_FROM_NUMBER');
         // BACKEND_URL: the Twilio StatusCallback below is handled by THIS PHP app.
         // APP_URL is the Netlify frontend, whose SPA catch-all swallows unknown
         // paths with a 200, so delivery statuses and STOP opt-outs never arrived.
         $appUrl = Env::get('BACKEND_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com');
 
-        if (!$accountSid || !$authToken || !$fromNumber) {
+        if (!$accountSid || !$authToken || (!$fromNumber && !$messagingServiceSid)) {
             throw new \Exception('Twilio credentials are not configured');
         }
 
@@ -242,9 +288,16 @@ class SmsSendService {
 
         $postFields = [
             'To' => $phone,
-            'From' => $fromNumber,
             'Body' => $body,
         ];
+
+        // Twilio takes MessagingServiceSid INSTEAD OF From, never both. The service
+        // is what an A2P 10DLC campaign registers against, so it wins when set.
+        if ($messagingServiceSid) {
+            $postFields['MessagingServiceSid'] = $messagingServiceSid;
+        } else {
+            $postFields['From'] = $fromNumber;
+        }
 
         if ($appUrl) {
             $postFields['StatusCallback'] = $appUrl . '/api/webhooks/twilio-status';

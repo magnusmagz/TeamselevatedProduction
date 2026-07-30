@@ -59,6 +59,61 @@ connects to Neon at load, so a test requiring it would have hit production. The 
 each purge in a transaction and writes the `audit_log` entry **inside** it, so rows and their audit
 record commit together. `ChatRetentionPlanTest` (11 tests) locks the refusals; full PHP suite 373
 tests green after the extraction.
+### Send button on the SMS template library
+`a3fe673` · **Netlify deploy `a3fe673` ready** · frontend-only · **no backend, no migration**
+
+Parity with the email template editor, which has had a Send button since the July template work.
+The SMS library previously had no way to send a template — you opened SMS Compose separately and
+re-picked it from the dropdown.
+
+`SmsCompose` gained a `preselectedTemplate` prop mirroring `EmailCompose`'s. It sets the message
+body **directly** rather than selecting a template id and waiting on the picker's fetch, so the body
+is present on first paint and survives the list returning empty (unsaved or scoped-out template) —
+that ordering is the whole reason the prop exists and is pinned by a deliberately synchronous
+assertion in `SmsCompose.test.tsx`.
+
+**Send is not admin-gated**, unlike the Edit / Duplicate / Delete buttons beside it. Coaches can
+send SMS to their own team and may *use* templates; they just cannot create or modify them (Roles &
+Permissions in CLAUDE.md). Server-side scope enforcement on the send is unchanged, so the button
+grants nothing the compose screen already didn't.
+
+No backend touched, so nothing to push to Heroku. Netlify built from the shared `main` as usual.
+
+**Repo state noted while verifying:** the frontend suite has **10 failing suites / 33 failing tests
+that are unrelated to this change** — `App`, `AthleteManagement`, `VenueManagement`,
+`TryoutCreationWizard`, `TournamentCreate`, `PaymentCheckout`, `RevenueDashboard`,
+`MakePaymentPage`, `PaymentStatusPage`, `useParentAthletes`. Confirmed pre-existing by running the
+suite with this change stashed (same 10). Also: `CI=true npx react-scripts build` fails on
+accumulated lint warnings; Netlify runs `CI=false npm run build` (netlify.toml), which is why
+deploys are unaffected. Neither is blocking, both are unowned.
+
+### Per-club SMS sending numbers — **migration 057 applied to Neon**
+**Heroku v451** (from v450) · **Netlify deploy `ccd2705` ready** · deployed ~11:50 PT
+
+Deployed **backend first**, deliberately inverting the usual frontend-first rule. That rule exists
+for auth tightening, where the live frontend must already be sending a header the backend starts
+demanding — not the case here. Frontend-first would have put the Messaging tab in front of Maggie
+before `api/sms-numbers.php` existed on the dyno, so the tab would have errored on first click.
+Backend-first was safe *only* because SMS has no real users yet.
+
+- **Schema:** new `sms_phone_numbers` table (109 tables now, was 108) + `communication_log.from_number`.
+  Applied ~11:20 PT. Table created **empty on purpose — no backfill.**
+- **Prod state found before applying**, which is what justified skipping the backfill:
+  `communication_log` had **5** `channel='sms'` rows — all club 32, dated 2026-03-21 and 2026-04-06,
+  all to internal test numbers from `email-sms-test-plan.md` — and **0** `channel='sms'` rows in
+  `email_suppressions`. No real family has ever been texted by this platform and nobody has opted out.
+- **⚠️ SMS now refuses for all 5 clubs** until each sets a number in Club Profile → Messaging.
+  This is intended, not a regression: `te_resolve_sms_sender` has no fallback to `TWILIO_FROM_NUMBER`.
+  The lesson (why a shared sender is unsafe) is in `CLAUDE.md`.
+- **Applied twice.** The first apply had `phone_number NOT NULL`, which contradicts the API's
+  support for a Messaging-Service-only sender. Caught by verifying against Neon rather than the
+  SQLite fixture. Table was 0 rows and minutes old, so it was `DROP`ped and recreated from the
+  corrected file — `communication_log.from_number` survived via `ADD COLUMN IF NOT EXISTS`.
+  The committed 057 is the corrected version; anyone who pulled between the two applies should
+  re-run it.
+- `tests/fixtures/production-schema.json` regenerated from Neon (not hand-edited). That also picked
+  up **`conversation_participants.archived_at`**, which was already live from the chat-archive work
+  but missing from the snapshot.
 
 ### Chat conversation archive (no delete) — migration 058 + chat app v11
 `a1e1993` / `50cfe92` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30 ·

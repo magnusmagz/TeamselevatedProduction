@@ -339,6 +339,22 @@ Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateway
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
 
+### Editing a crew member's contact details goes through the POST branch
+`legacy/guardian-gateway.php` PUT updates the **relationship** row only
+(`athlete_guardians`: relationship, is_primary, can_pickup, emergency_contact). It never
+touches `guardians`. Until 2026-07-30 the POST branch didn't either — it matched an existing
+guardian on email+first+last, took the id and moved on — so **no code path anywhere could
+change a guardian's name, email or phone.** Editing a parent's phone number returned success
+and silently did nothing; the only `UPDATE guardians` statements in the tree were `sms_opt_out`
+and `last_contacted`, from the Twilio webhook and the send services.
+
+POST now writes the submitted contact fields, and resolves the guardian from the
+`athlete_guardians` **link id** that `AthleteForm` sends (`GuardianData.id`) before falling back
+to identity matching. That ordering matters: identity matching cannot handle an edit *to* the
+identity — a rename or a new email matched nothing, inserted a second guardian and left the old
+one attached to the athlete. Only keys present in the payload are written, so a partial save
+cannot blank a field it never sent. Guarded by `tests/php/GuardianContactUpdateTest.php`.
+
 ### ⚠️ Crew / parent-portal status is inferred, not recorded (known-weak, 2026-07-30)
 `handleClubParents` and `handleParentPortalStatus` in `api/auth-gateway.php` — which power the
 Crew page and the athlete-profile invite UI — derive portal state like this:
@@ -516,6 +532,23 @@ page.** SMS originally kept its own four-item list (`General` / `Game Day` / `Pr
 `Administrative`) while the data used the 10-tag slugs, so its filter matched almost nothing and
 its editor wrote categories no page could read back — fixed 2026-07-30. Both channels store the
 slug in `email_templates.category`; unknown values fall into "Other" rather than disappearing.
+
+### SMS merge tags resolve in `lib/sms_merge.php`, per recipient
+`resolveSmsBodies()` is the only place SMS merge fields are resolved, and both callers use it:
+`send-sms` and the SMS branch of `send-broadcast`. Until 2026-07-30 **neither** resolved anything
+— `send-sms` handed the raw body to the queue, and `send-broadcast` resolved only inside its
+email branch — so every one of the 55 SMS templates texted families the literal
+`{{athlete_first_name}}`.
+
+Resolution is **per recipient**, not per batch: the body differs for each person, so it rides on
+the recipient as `_resolved_body`, and `SmsSendService::queueSms()` prefers it over the shared
+`$body` for BOTH the Twilio payload and the `communication_log` row — the log has to record what
+that person actually received. An unresolved tag returns 422 and stops the whole send, matching
+`send-email`: a raw `{{tag}}` in a text cannot be unsent.
+
+`SmsCompose` sends no `event_id`, so the 3 templates using `{{event_*}}` (Season Kickoff, Game
+Day Reminder, Volunteer Reminder) will 422 until it gains an event picker like `EmailCompose`
+has. The other 52 resolve — `{{team_name}}` included, via the recipient's own roster row.
 
 ### ⚠️ `recipient_types` is SINGULAR in the broadcast API, PLURAL in the group API
 - `resolveBroadcastRecipients` (`api/communications-gateway.php`) tests
