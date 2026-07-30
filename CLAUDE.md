@@ -338,6 +338,22 @@ Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateway
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
 
+### Editing a crew member's contact details goes through the POST branch
+`legacy/guardian-gateway.php` PUT updates the **relationship** row only
+(`athlete_guardians`: relationship, is_primary, can_pickup, emergency_contact). It never
+touches `guardians`. Until 2026-07-30 the POST branch didn't either — it matched an existing
+guardian on email+first+last, took the id and moved on — so **no code path anywhere could
+change a guardian's name, email or phone.** Editing a parent's phone number returned success
+and silently did nothing; the only `UPDATE guardians` statements in the tree were `sms_opt_out`
+and `last_contacted`, from the Twilio webhook and the send services.
+
+POST now writes the submitted contact fields, and resolves the guardian from the
+`athlete_guardians` **link id** that `AthleteForm` sends (`GuardianData.id`) before falling back
+to identity matching. That ordering matters: identity matching cannot handle an edit *to* the
+identity — a rename or a new email matched nothing, inserted a second guardian and left the old
+one attached to the athlete. Only keys present in the payload are written, so a partial save
+cannot blank a field it never sent. Guarded by `tests/php/GuardianContactUpdateTest.php`.
+
 ### ⚠️ Crew / parent-portal status is inferred, not recorded (known-weak, 2026-07-30)
 `handleClubParents` and `handleParentPortalStatus` in `api/auth-gateway.php` — which power the
 Crew page and the athlete-profile invite UI — derive portal state like this:
