@@ -32,6 +32,28 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Per-club SMS sending numbers — **migration 057 applied to Neon**
+Not yet deployed to Heroku/Netlify at time of writing; the migration is live, the code is on `main`.
+
+- **Schema:** new `sms_phone_numbers` table (109 tables now, was 108) + `communication_log.from_number`.
+  Applied ~11:20 PT. Table created **empty on purpose — no backfill.**
+- **Prod state found before applying**, which is what justified skipping the backfill:
+  `communication_log` had **5** `channel='sms'` rows — all club 32, dated 2026-03-21 and 2026-04-06,
+  all to internal test numbers from `email-sms-test-plan.md` — and **0** `channel='sms'` rows in
+  `email_suppressions`. No real family has ever been texted by this platform and nobody has opted out.
+- **⚠️ SMS now refuses for all 5 clubs** until each sets a number in Club Profile → Messaging.
+  This is intended, not a regression: `te_resolve_sms_sender` has no fallback to `TWILIO_FROM_NUMBER`.
+  The lesson (why a shared sender is unsafe) is in `CLAUDE.md`.
+- **Applied twice.** The first apply had `phone_number NOT NULL`, which contradicts the API's
+  support for a Messaging-Service-only sender. Caught by verifying against Neon rather than the
+  SQLite fixture. Table was 0 rows and minutes old, so it was `DROP`ped and recreated from the
+  corrected file — `communication_log.from_number` survived via `ADD COLUMN IF NOT EXISTS`.
+  The committed 057 is the corrected version; anyone who pulled between the two applies should
+  re-run it.
+- `tests/fixtures/production-schema.json` regenerated from Neon (not hand-edited). That also picked
+  up **`conversation_participants.archived_at`**, which was already live from the chat-archive work
+  but missing from the snapshot.
+
 ### Chat conversation archive (no delete) — migration 058 + chat app v11
 `a1e1993` / `50cfe92` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30 ·
 chat app `teamselevated-chat` **v11** (subtree split `ccd4f0a`) · Netlify build of the merge to main
