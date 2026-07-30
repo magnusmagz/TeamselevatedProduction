@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFinancialPermissions } from '../../contexts/FinancialPermissionsContext';
 import { ParentHeader } from '../components/ParentHeader';
+import { JerseySizeCard } from '../components/JerseySizeCard';
 
 interface AthleteDetails {
   id: number;
@@ -12,6 +13,8 @@ interface AthleteDetails {
   photo_url?: string;
   email?: string;
   phone?: string;
+  /** Stored code ('YM'), shared with the staff-side athlete form. */
+  jersey_size?: string | null;
   home_address_line1?: string;
   city?: string;
   state?: string;
@@ -399,6 +402,18 @@ export const AthleteDetailPage: React.FC = () => {
             <span className="font-medium text-gray-900">Schedule</span>
           </Link>
         </div>
+
+        {/* Uniform — jersey size. Crew-editable: the same athletes.jersey_size
+            column staff edit on the athlete form, so whichever side saves last
+            is what both sides read. */}
+        <JerseySizeCard
+          athleteId={athlete.id}
+          jerseySize={athlete.jersey_size}
+          athleteFirstName={athlete.first_name}
+          onSaved={(size) =>
+            setAthlete((prev) => (prev ? { ...prev, jersey_size: size } : prev))
+          }
+        />
 
         {/* Upcoming Schedule for this athlete */}
         <div className="px-4 mb-4">

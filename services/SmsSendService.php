@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
+require_once __DIR__ . '/../lib/suppression.php';
 
 /**
  * SMS Send Service
@@ -23,7 +24,8 @@ class SmsSendService {
      *   club_profile_id: int,
      *   recipients: array of {phone, name, type, id, athlete_id},
      *   body: string,
-     *   broadcast_campaign_id: int|null
+     *   broadcast_campaign_id: int|null,
+     *   team_ids: int[]|null  Teams this send targets, for team-scoped opt-outs
      * }
      * @return array {queued: int, skipped: int, skipped_details: array}
      */
@@ -34,75 +36,43 @@ class SmsSendService {
         $body = $params['body'];
         $broadcastCampaignId = $params['broadcast_campaign_id'] ?? null;
 
+        $teamIds = $params['team_ids'] ?? [];
+
         $queued = 0;
         $skipped = 0;
         $skippedDetails = [];
 
         $redis = RedisQueue::getInstance();
 
+        // Load both skip inputs ONCE for the whole batch. These used to be two
+        // queries per recipient inside the loop, which a club-wide broadcast turns
+        // into 600+ round trips to Neon. te_sms_skip_reason is the same predicate
+        // handlePreviewBroadcast uses, so the count shown before sending is the
+        // count that actually sends.
+        $suppressionMap = te_sms_suppression_map($this->pdo, (int) $clubProfileId);
+        $optedOutIds    = te_sms_opted_out_guardian_ids($this->pdo);
+
         foreach ($recipients as $recipient) {
-            $phone = $recipient['phone'] ?? null;
             $name = $recipient['name'] ?? '';
             $recipientType = $recipient['type'] ?? 'user';
             $recipientId = $recipient['id'] ?? null;
             $athleteId = $recipient['athlete_id'] ?? null;
 
-            // 1. Validate and normalize phone number
-            try {
-                $phone = $this->normalizePhone($phone);
-            } catch (\Exception $e) {
+            $skip = te_sms_skip_reason($recipient, $suppressionMap, $optedOutIds, $teamIds);
+            if ($skip !== null) {
                 $skipped++;
                 $skippedDetails[] = [
-                    'name' => $name,
-                    'phone' => $recipient['phone'] ?? null,
-                    'reason' => 'invalid_phone',
-                    'detail' => $e->getMessage()
+                    'name'   => $name,
+                    'phone'  => $recipient['phone'] ?? null,
+                    'reason' => $skip['reason'],
+                    'detail' => $skip['detail'],
                 ];
                 continue;
             }
 
-            // 2. Check email_suppressions for phone + channel='sms' + club
-            $suppressionStmt = $this->pdo->prepare("
-                SELECT id, reason FROM email_suppressions
-                WHERE club_profile_id = ?
-                    AND phone = ?
-                    AND channel = 'sms'
-                LIMIT 1
-            ");
-            $suppressionStmt->execute([$clubProfileId, $phone]);
-            $suppression = $suppressionStmt->fetch(\PDO::FETCH_ASSOC);
-
-            if ($suppression) {
-                $skipped++;
-                $skippedDetails[] = [
-                    'name' => $name,
-                    'phone' => $phone,
-                    'reason' => 'suppressed',
-                    'detail' => 'SMS suppression: ' . $suppression['reason']
-                ];
-                continue;
-            }
-
-            // 3. Check guardians.sms_opt_out if recipient_type is 'guardian'
-            if ($recipientType === 'guardian' && $recipientId) {
-                $optOutStmt = $this->pdo->prepare("
-                    SELECT sms_opt_out FROM guardians
-                    WHERE id = ?
-                ");
-                $optOutStmt->execute([$recipientId]);
-                $guardian = $optOutStmt->fetch(\PDO::FETCH_ASSOC);
-
-                if ($guardian && $guardian['sms_opt_out']) {
-                    $skipped++;
-                    $skippedDetails[] = [
-                        'name' => $name,
-                        'phone' => $phone,
-                        'reason' => 'opted_out',
-                        'detail' => 'Guardian has opted out of SMS'
-                    ];
-                    continue;
-                }
-            }
+            // Guaranteed non-null: te_sms_skip_reason already rejected anything
+            // that fails to normalize.
+            $phone = te_normalize_sms_phone($recipient['phone'] ?? null);
 
             // 4. Generate a unique tracking ID
             $trackingId = bin2hex(random_bytes(16));
@@ -331,36 +301,27 @@ class SmsSendService {
      * @throws \Exception If phone number is invalid
      */
     public function normalizePhone($phone) {
-        if (empty($phone)) {
+        // The rules live in te_normalize_sms_phone (lib/suppression.php) so the
+        // sender and the suppression lookup can never disagree about what a phone
+        // number "is" — a mismatch there silently changes who gets a message.
+        // This wrapper keeps the throwing contract its existing callers rely on.
+        $normalized = te_normalize_sms_phone($phone);
+
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        if ($phone === null || trim((string) $phone) === '') {
             throw new \Exception('Phone number is empty');
         }
 
-        // Preserve leading + before stripping
-        $hasPlus = (substr(trim($phone), 0, 1) === '+');
-
-        // Strip all non-digit characters
-        $digits = preg_replace('/[^\d]/', '', $phone);
-
-        if (empty($digits)) {
+        $digits = preg_replace('/[^\d]/', '', (string) $phone);
+        if ($digits === '') {
             throw new \Exception('Phone number contains no digits');
         }
 
-        // If already had a +, it's international format — validate and return
-        if ($hasPlus) {
-            if (strlen($digits) < 10 || strlen($digits) > 15) {
-                throw new \Exception("Invalid international phone number: +{$digits}");
-            }
-            return '+' . $digits;
-        }
-
-        // 10 digits: assume US number, prepend +1
-        if (strlen($digits) === 10) {
-            return '+1' . $digits;
-        }
-
-        // 11 digits starting with 1: assume US number with country code
-        if (strlen($digits) === 11 && $digits[0] === '1') {
-            return '+' . $digits;
+        if (substr(trim((string) $phone), 0, 1) === '+') {
+            throw new \Exception("Invalid international phone number: +{$digits}");
         }
 
         throw new \Exception("Unable to normalize phone number: {$phone} ({$digits})");

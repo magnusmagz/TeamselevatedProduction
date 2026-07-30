@@ -11,6 +11,7 @@
 // headers, the request dispatch, and the Neon connect. Never defined in
 // production — this must stay above everything with a side effect.
 if (defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
+    require_once __DIR__ . '/../lib/coach_scope.php';
     return;
 }
 
@@ -21,6 +22,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/coach_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -107,16 +109,7 @@ try {
 // ============================================
 // Helper: Get coach team IDs for role scoping
 // ============================================
-function getCoachTeamIds($connection, $userId, $clubProfileId) {
-    $stmt = $connection->prepare("
-        SELECT DISTINCT t.id FROM teams t
-        LEFT JOIN team_members tm ON t.id = tm.team_id AND tm.user_id = ?
-            AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active'
-        WHERE (t.primary_coach_id = ? OR tm.id IS NOT NULL) AND t.club_id = ?
-    ");
-    $stmt->execute([$userId, $userId, $clubProfileId]);
-    return $stmt->fetchAll(PDO::FETCH_COLUMN);
-}
+// getCoachTeamIds now lives in lib/coach_scope.php, required at the top of this file.
 
 // ============================================
 // Helper: Check if user is club admin for a club
