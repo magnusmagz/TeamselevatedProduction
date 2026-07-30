@@ -55,19 +55,78 @@ having accepted a portal invite that was never sent.
   recorded." The email-match inference that produced the wrong display is **not** fixed — it was
   only starved of bad data. Two coach accounts still read `active` without a crew invite.
 
-### Made every template's merge tags resolve
-**Heroku v443, v445** · commits `e900200`, `1d20b28`
+### Event merge tags: repointed at `calendar_events`
+**Heroku v443** · commit `e900200`
 
-Repointed `MergeFieldService` at `calendar_events` (the `events` table no longer exists), rewrote
-456 camelCase tags across 61 templates, added `CONTEXT_PASSTHROUGH_KEYS` for the waitlist URLs, and
-rendered the 59 design-only templates that had no `html_output`. Details in CLAUDE.md's pending-work
-list and `MergeFieldService::getAvailableFields()`.
+`MergeFieldService` queried `FROM events`, a table that no longer exists, so all five advertised
+`{{event_*}}` tags resolved to nothing in production. Now reads `calendar_events` (`name` /
+`event_date` + `start_time` / `type`), resolves the venue through `venue_id` with a fallback to the
+free-text `location` column, and gets the team from `calendar_event_teams` (an event can have
+several — lowest `team_id` wins, deterministically). `{{event_venue_name}}` and `{{event_address}}`
+were added alongside `{{event_location}}` because the seeded copy says "Venue: X / Address: Y" and
+the combined string repeated the venue name. Verified against real Neon rows for both the venue and
+no-venue cases.
+
+**`MergeFieldServiceTest` is how this survived for months**: its SQLite fixture did
+`CREATE TABLE events` with the pre-calendar columns, so the suite stayed green against a schema
+production doesn't have. Fixture rebuilt to the live shape. The durable rule — a fixture that
+doesn't mirror `tests/fixtures/production-schema.json` is worse than no fixture — is in CLAUDE.md
+under "How the phantom columns got there."
+
+### Template merge-tag audit — 67 of 142 templates were unsendable
+**Heroku v445** · commit `1d20b28`
+
+The send-time unresolved-tag guard was 422'ing whole sends because the seeded `[Youth]` library used
+camelCase tags the resolver never knew: `{{recipientName}}` `{{playerName}}` `{{coachName}}`
+`{{teamName}}` `{{eventDate}}` `{{eventTime}}` `{{eventLocation}}` `{{venueName}}` — **456 tags
+rewritten across 61 templates**. A further 59 templates had `design_json` but no `html_output` at
+all and rendered blank; those now render.
+
+Separately, the tournament waitlist templates used `{{accept_url}}` / `{{decline_url}}` /
+`{{offer_expires_at}}` / `{{division_gender}}` / `{{venue_name}}`, which `WaitlistService` builds
+into the merge context but `resolveVariables()` never substituted — it only replaces keys its own
+loaders return. Those emails mailed a raw `{{accept_url}}` where the accept button should have
+been. Now handled by `MergeFieldService::CONTEXT_PASSTHROUGH_KEYS`, an explicit whitelist so a
+stray context key (ids, tokens) can never become a substitutable tag. `{{unsubscribe_link}}` is
+filled by `EmailSendService::processHtml()`, where the signed token exists, and is exempt from the
+guard.
+
+To re-audit: `psql` against `email_templates` plus the tag audit script. The authoritative key list
+is `MergeFieldService::getAvailableFields()` + `CONTEXT_PASSTHROUGH_KEYS`.
+
+---
+
+## 2026-07-29
+
+### Household recipient combining + `{{recipient_first_name}}`
+**Heroku v430** · commits `1cff646`, `7998958`
+
+Two guardian rows sharing an email now receive ONE email addressed to both ("Hi John & Jane") via
+`lib/NameFormatter.php`. Added `{{recipient_first_name}}` and a send-time guard that blocks any
+send containing unresolved `{{tags}}` — that guard is what later surfaced the merge-tag audit above.
 
 ---
 
 ## Earlier
 
-Entries before 2026-07-30 predate this file. Reconstruct from `git log` plus the dated notes in
-`../CLAUDE.md`; the Heroku release history (`heroku releases -a teamselevated-backend`) maps
-commits to versions back through the whole project. Migrations 001–055 are all applied to Neon per
-CLAUDE.md's parallel-session section, but the individual application dates were not recorded.
+Entries before 2026-07-29 predate this file. The following were verified built and in production
+during a code sweep on 2026-07-06 and are listed so nobody rebuilds them; exact ship dates were not
+recorded at the time.
+
+- **Email & SMS communications, end to end** — club-admin and coach-scoped sending with server-side
+  permission enforcement, Gmail-style typeahead recipient selection with chips and group
+  include/exclude, unsubscribed contacts flagged and excluded, Redis-queued async sends, full
+  `communication_log` status tracking, Communications tab on the contact profile, unsubscribe
+  landing page and token flow with preferences enforced on later sends, Twilio STOP sync,
+  per-email performance reports, summary reporting dashboard, SendGrid and Twilio webhooks.
+- **Email template library** with Unlayer editor, event variables and preview mode.
+- **Data importer** — `api/imports-gateway.php`, the per-entity import strategies, migration 017,
+  Redis `import_queue` consumed by `workers/queue-worker.php`, `DataImport.tsx`.
+- **Recurring calendar events + RRULE series invites** (2026-07-06, migrations 045/046) — design
+  and invariants in `../CALENDAR-RECURRING-EVENTS.md`.
+- **Stripe payments** (2026-07-06) — Phases 0–4 plus audit trail and treasurer reporting. Master
+  record is the `project-payment-processor-decision` auto-memory; read it before any payments work.
+
+For anything else, `git log` and `heroku releases -a teamselevated-backend` map commits to versions
+back through the whole project. Migrations 001–055 are all applied to Neon per CLAUDE.md's
+parallel-session section, but individual application dates were not recorded.
