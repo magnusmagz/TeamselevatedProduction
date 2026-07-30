@@ -32,6 +32,33 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Inbound SMS auto-reply — replies stop vanishing
+**Heroku v456** · Netlify `046f525` (carried this commit) · **no migration**
+
+Before this, no inbound webhook existed, so Twilio accepted every reply to a
+broadcast and discarded it — no record, no response. The parent who texted "Ava
+can't make practice" got silence and reasonably assumed they'd been heard.
+
+Now: an auto-reply pointing at the parent portal. **Nothing is stored**, which is
+what the outgoing message claims; `SmsAutoReplyTest` fails if the handler ever
+gains a database write.
+
+- **Wiring is automatic now** — saving a number in Club Profile → Messaging sets
+  its Twilio `SmsUrl`. Non-fatal if it fails, but surfaced in the settings UI,
+  because the failure mode is silent: families text into a void and nothing
+  records it.
+- **⚠️ Club 51's number `+1 785 465 4221` (`PNf40df1…`) was configured at 19:24,
+  BEFORE the wiring code existed**, so its `sms_url` was empty — verified against
+  the Twilio API. Set by hand via the Twilio REST API after deploying v456. Any
+  number saved before v456 has the same gap; re-saving it in the UI now fixes it.
+  A re-save *before* v456 was a no-op, since the deployed backend had no wiring code.
+- Live behaviour verified against production: an ordinary reply gets the pointer,
+  a bare `STOP` gets empty TwiML, and "can we stop by the field at 6?" still gets
+  a normal reply.
+
+Durable rules (STOP/HELP must get silence; the reply must stay one GSM-7 segment)
+are in `CLAUDE.md`.
+
 ### Chat retention policies — migration 059 applied to Neon
 migration **059_chat_retention_policy.sql** applied to Neon 2026-07-30 · backend-only · seeds 2 rows
 
@@ -59,6 +86,40 @@ connects to Neon at load, so a test requiring it would have hit production. The 
 each purge in a transaction and writes the `audit_log` entry **inside** it, so rows and their audit
 record commit together. `ChatRetentionPlanTest` (11 tests) locks the refusals; full PHP suite 373
 tests green after the extraction.
+### Frontend lint ratchet — the build catches things again
+`e3d75c1` · **Netlify deploy `e3d75c1` ready** · frontend-only · **no backend, no migration**
+
+The build had been silently toothless. `react-scripts` promotes warnings to errors under `CI=true`,
+but 116 had accumulated, so `netlify.toml` has always run `CI=false` — which promotes nothing. Two
+production bugs shipped through that gap on this day alone (the `data.stats` contract mismatch and
+the `cl.team_id` phantom column, both below).
+
+**Step 1 of 2, no behavioral risk:** removed 51 unused variables, imports and dead locals, and
+replaced an `href="#"` preview link with a `<button>` (jsx-a11y/anchor-is-valid). Unused useState
+*values* became `const [, setX]` rather than being deleted — the setter is still live.
+
+**Step 2 is deliberately not done:** the 74 remaining `react-hooks/exhaustive-deps`. Each is a
+possible stale closure needing an individual judgment call; there is no bulk fix and `--fix` won't
+touch them.
+
+**The ratchet:** `npm run lint:ci` fails above a `--max-warnings` ceiling, wired into the Netlify
+build ahead of the existing `CI=false` build. Source files only — test files carry ~191 separate
+`testing-library/*` and `import/first` errors the production build never linted, and folding them
+in would bury the number that matters. It reaches **74** vs the build's 64 because eslint lints
+files outside the bundle's module graph; that is deliberate, an unreferenced component is exactly
+where rot goes unnoticed. Verified it bites: passes at 74, exits 1 at 73.
+
+⚠️ **`main` is shared, so a failing lint blocks everyone's deploy.** The unblock is to fix the
+warning, not to raise the ceiling. Rules in `frontend/LINTING.md`, pointer in `CLAUDE.md`.
+
+**Two latent bugs surfaced and left alone** (fixing them is a behavior change, not this commit's
+job): `TeamCalendarView` never calls `setPractices`, so `practices` is permanently `[]`;
+`MakePaymentPage` has the same shape with `setPaymentMethods`. Both are now visibly
+`const [x] = useState(...)` instead of hiding behind an unused setter.
+
+Test suite identical either side of the sweep: 10 pre-existing failing suites, 33 failing /
+286 passing. `tsc --noEmit` clean.
+
 ### Send button on the SMS template library
 `a3fe673` · **Netlify deploy `a3fe673` ready** · frontend-only · **no backend, no migration**
 

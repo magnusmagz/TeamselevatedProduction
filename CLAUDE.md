@@ -140,7 +140,17 @@ sync"). Emails and SMS actually send in production.
 ---
 
 ## Codebase Conventions
-- No formal coding standard enforced (no phpcs/phpstan config), but code follows PSR-4 autoloading
+- No formal coding standard enforced on the **PHP** side (no phpcs/phpstan config), but code
+  follows PSR-4 autoloading
+- ⚠️ **The frontend has a lint ratchet, and the number only goes DOWN.** `npm run lint:ci` runs in
+  the Netlify build ahead of `CI=false npm run build`, and fails if the warning count exceeds the
+  `--max-warnings` ceiling in `frontend/package.json` (**74** as of 2026-07-30, all
+  `react-hooks/exhaustive-deps`). If your change pushes it up, fix the warning — raising the ceiling
+  to ship is a deliberate decision to undo promptly, not a routine step, and `main` is shared so a
+  failing lint blocks everyone's deploy. Rationale, scope and how to work the remaining 74 are in
+  `frontend/LINTING.md`. Do **not** "simplify" this by flipping the build to `CI=true`: that
+  promotes all 74 known warnings to errors and no deploy ever succeeds again — which is precisely
+  how the build ended up catching nothing.
 - All API routes follow the `/api/` prefix (e.g. `/api/teams`, `/api/auth/login`, `/api/coach/teams/(\d+)/roster`)
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
