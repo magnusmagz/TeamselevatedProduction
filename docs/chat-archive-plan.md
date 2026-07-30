@@ -160,7 +160,22 @@ original text; tombstone renders and cannot be read back through any list query.
 
 ---
 
-## Phase 3 — Retention
+## Phase 3 — Retention ✅ BUILT 2026-07-30 (before Phase 2, deliberately)
+
+Built ahead of Phase 2 because it carries no policy questions, and because the gap it closes exists
+today regardless of whether moderation removal ever ships. Two deviations from what is specced
+below, both deliberate:
+
+1. **`chat_messages_removed` ships `auto_delete = FALSE`, not TRUE.** All five pre-existing policies
+   are FALSE, and migration 051 states the convention outright: "flag for review, don't silently
+   destroy." With no scheduler running, `auto_delete` only decides whether a manual `--purge` may
+   act, so nothing is lost by leaving it unarmed. Flipping it is a one-line UPDATE.
+2. **Both plans needed a `before` step that this spec did not anticipate.**
+   `chat_read_receipts.last_read_message_id` is a NO ACTION FK onto `chat_messages`; a naive purge
+   raises 23503. `retentionPlans()` entries may now carry a `before` list run in the same
+   transaction, and the rules moved to `lib/retention_plans.php` to be testable at all.
+
+
 
 `scripts/retention-check.php` has plans for `athlete_medical`, `medical_records`,
 `consent_records`, `audit_logs` — **nothing for chat**. Without this, Phase 2 creates a retention

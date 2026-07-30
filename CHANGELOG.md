@@ -32,6 +32,34 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Chat retention policies — migration 059 applied to Neon
+migration **059_chat_retention_policy.sql** applied to Neon 2026-07-30 · backend-only · seeds 2 rows
+
+Chat had no retention rule at all: `scripts/retention-check.php` covered health records, consents
+and audit entries, so chat was a permanent record with nothing that ever aged it out. Seeds
+`chat_messages_removed` (90 days) and `chat_messages` (1095 days), **both `auto_delete = FALSE`**
+like all five existing policies. Nothing deletes anything until someone runs `--purge` against an
+armed policy, and none are armed.
+
+Done **before** admin moderation removal (Phase 2) at Maggie's request. `chat_messages_removed` is
+consequently inert — nothing writes `chat_messages.deleted_at` yet, so it reports zero rows. That is
+correct rather than broken, and it means the rule is in place the day removal ships.
+
+**Prod state discovered — `chat_read_receipts.last_read_message_id` is a NO ACTION FK onto
+`chat_messages`.** A naive age-based purge raises SQLSTATE 23503 and fails entirely. Rehearsed
+against live Neon inside a rolled-back transaction: planted a read receipt, ran the naive delete,
+got the 23503; then ran the same delete behind the plan's `before` statements and it succeeded
+(`UPDATE 1` receipts, `UPDATE 11` participant watermarks, `DELETE 38`), then ROLLBACK — verified
+38 messages / 0 receipts still present afterwards. The table is empty and nothing writes it (it
+predates `conversations`), which is precisely the hazard: the purge would have passed every test
+and failed the first time it mattered.
+
+Retention rules moved to `lib/retention_plans.php` so they are unit-testable — `retention-check.php`
+connects to Neon at load, so a test requiring it would have hit production. The runner now wraps
+each purge in a transaction and writes the `audit_log` entry **inside** it, so rows and their audit
+record commit together. `ChatRetentionPlanTest` (11 tests) locks the refusals; full PHP suite 373
+tests green after the extraction.
+
 ### Chat conversation archive (no delete) — migration 058 + chat app v11
 `a1e1993` / `50cfe92` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30 ·
 chat app `teamselevated-chat` **v11** (subtree split `ccd4f0a`) · Netlify build of the merge to main

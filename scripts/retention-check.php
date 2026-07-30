@@ -20,6 +20,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/retention_plans.php';
 
 $purge  = in_array('--purge', $argv, true);
 $onlyType = null;
@@ -28,53 +29,15 @@ foreach ($argv as $a) {
 }
 
 /**
- * How each policy identifies expired rows.
+ * How each policy identifies expired rows — see lib/retention_plans.php.
  *
- * Keyed by data_retention_policy.data_type. `sql` must select ids to delete;
- * `delete` removes them. Anything without an entry here is reported as
- * unsupported rather than guessed at — a wrong DELETE is unrecoverable.
- *
- * All of these are scoped to INACTIVE athletes: retention never touches a child
- * who is still with the club, regardless of how old their record is.
+ * The rules moved out of this file on 2026-07-30 so they could be unit-tested:
+ * this script connects to Neon at load, so a test that required it would have
+ * talked to the production database.
  */
 function retentionPlans(): array
 {
-    return [
-        'athlete_medical' => [
-            'label'  => 'Athlete health profiles',
-            'count'  => "SELECT count(*) FROM athlete_medical m JOIN athletes a ON a.id = m.athlete_id
-                         WHERE a.active_status = FALSE AND a.deleted_at IS NOT NULL
-                           AND a.deleted_at < NOW() - (:days || ' days')::interval",
-            'delete' => "DELETE FROM athlete_medical WHERE athlete_id IN (
-                             SELECT a.id FROM athletes a
-                             WHERE a.active_status = FALSE AND a.deleted_at IS NOT NULL
-                               AND a.deleted_at < NOW() - (:days || ' days')::interval)",
-        ],
-        'medical_records' => [
-            'label'  => 'Medical documents',
-            'count'  => "SELECT count(*) FROM medical_records m JOIN athletes a ON a.id = m.athlete_id
-                         WHERE a.active_status = FALSE AND a.deleted_at IS NOT NULL
-                           AND a.deleted_at < NOW() - (:days || ' days')::interval",
-            'delete' => "DELETE FROM medical_records WHERE athlete_id IN (
-                             SELECT a.id FROM athletes a
-                             WHERE a.active_status = FALSE AND a.deleted_at IS NOT NULL
-                               AND a.deleted_at < NOW() - (:days || ' days')::interval)",
-        ],
-        'consent_records' => [
-            'label'  => 'Revoked consents',
-            'count'  => "SELECT count(*) FROM consent_records
-                         WHERE revoked_at IS NOT NULL
-                           AND revoked_at < NOW() - (:days || ' days')::interval",
-            'delete' => "DELETE FROM consent_records
-                         WHERE revoked_at IS NOT NULL
-                           AND revoked_at < NOW() - (:days || ' days')::interval",
-        ],
-        'audit_logs' => [
-            'label'  => 'Audit log entries',
-            'count'  => "SELECT count(*) FROM audit_log WHERE created_at < NOW() - (:days || ' days')::interval",
-            'delete' => "DELETE FROM audit_log WHERE created_at < NOW() - (:days || ' days')::interval",
-        ],
-    ];
+    return te_retention_plans();
 }
 
 $db = Database::getInstance()->getConnection();
@@ -123,15 +86,34 @@ foreach ($policies as $p) {
     // Both gates: the operator asked to purge AND the policy allows it.
     if ($expired > 0 && $purge && $auto) {
         try {
+            $db->beginTransaction();
+
+            // Some rows are pointed at by other tables. chat_read_receipts has a
+            // NO ACTION foreign key onto chat_messages, so deleting a message a
+            // receipt still references raises 23503 and takes the purge with it.
+            // Clear the pointers first, inside the same transaction.
+            foreach (($plans[$type]['before'] ?? []) as $beforeSql) {
+                $pre = $db->prepare($beforeSql);
+                $pre->execute([':days' => $days]);
+            }
+
             $del = $db->prepare($plans[$type]['delete']);
             $del->execute([':days' => $days]);
             $n = $del->rowCount();
-            $totalPurged += $n;
+
+            // Inside the transaction on purpose: the file's own rule is that a
+            // retention deletion nobody can reconstruct is indistinguishable from
+            // data loss. Either the rows and their audit record both go, or
+            // neither does.
             AuditLogger::log($db, null, 'retention_purge', $type, null, [
                 'retention_days' => $days, 'rows_deleted' => $n,
             ]);
+
+            $db->commit();
+            $totalPurged += $n;
             printf("  %-22s %8d  %8d  %-11s PURGED %d\n", $type, $days, $expired, 'yes', $n);
         } catch (Exception $e) {
+            if ($db->inTransaction()) $db->rollBack();
             printf("  %-22s %8d  %8d  %-11s PURGE FAILED: %s\n", $type, $days, $expired, 'yes',
                    explode("\n", $e->getMessage())[0]);
         }
