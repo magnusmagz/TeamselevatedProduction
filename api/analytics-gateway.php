@@ -68,6 +68,10 @@ try {
             handleRecentSends($connection, $auth, $userId);
             break;
 
+        case 'teams':
+            handleTeams($connection, $auth, $userId);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Unknown action: ' . $action]);
@@ -180,13 +184,141 @@ function buildDateFilter($prefix = 'cl') {
     return ['where' => $where, 'params' => $params];
 }
 
+// ---------------------------------------------------------------------------
+// Helper: Build a team filter for communication_log.
+//
+// There is NO `communication_log.team_id` column — this used to emit
+// `AND cl.team_id = ?`, which is a hard SQL error, so picking any team in the
+// Email Reporting filter 500'd the whole overview. The recipient's team is
+// reached through the athlete: either the log row IS about an athlete, or it is
+// addressed to a guardian of one.
+//
+// Uses EXISTS rather than LEFT JOIN deliberately. Joining team_members
+// multiplies rows when an athlete is on more than one team (or a guardian has
+// more than one athlete), which would silently inflate every COUNT(*) on this
+// page. EXISTS cannot.
+// ---------------------------------------------------------------------------
+function buildTeamFilter() {
+    $teamId = $_GET['team_id'] ?? null;
+    if (!$teamId) {
+        return ['where' => '', 'params' => []];
+    }
+
+    $where = "
+        AND (
+            EXISTS (
+                SELECT 1 FROM team_members _tf_tm
+                WHERE _tf_tm.athlete_id = cl.athlete_id AND _tf_tm.team_id = ?
+            )
+            OR EXISTS (
+                SELECT 1 FROM athlete_guardians _tf_ag
+                JOIN team_members _tf_tm2 ON _tf_tm2.athlete_id = _tf_ag.athlete_id
+                WHERE _tf_ag.guardian_id = cl.recipient_id AND _tf_tm2.team_id = ?
+            )
+        )";
+
+    return ['where' => $where, 'params' => [(int)$teamId, (int)$teamId]];
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Run the overview aggregate over one date window.
+//
+// Factored out so the current window and the immediately-preceding window of
+// equal length can share one definition — the dashboard's trend arrows compare
+// the two, and they must be computed identically to mean anything.
+// ---------------------------------------------------------------------------
+function overviewAggregate($connection, $clubProfileId, $scope, $channelFilter, $channelParams, $team, $dateWhere, $dateParams) {
+    // NOTE: no `status != 'queued'` in the WHERE. Queued rows are counted
+    // separately as total_pending; excluding them wholesale is what made
+    // "pending" unreportable.
+    $sql = "
+        SELECT
+            COUNT(*) FILTER (WHERE cl.status <> 'queued')                                 as total_sent,
+            COUNT(*) FILTER (WHERE cl.status <> 'queued' AND cl.channel = 'email')        as email_sent,
+            COUNT(*) FILTER (WHERE cl.status <> 'queued' AND cl.channel = 'sms')          as sms_sent,
+            COUNT(*) FILTER (WHERE cl.status = 'delivered')                               as total_delivered,
+            COUNT(*) FILTER (WHERE cl.status = 'failed')                                  as total_failed,
+            COUNT(*) FILTER (WHERE cl.status = 'bounced')                                 as total_bounced,
+            COUNT(*) FILTER (WHERE cl.status = 'queued')                                  as total_pending,
+            COUNT(*) FILTER (WHERE cl.open_count  > 0 AND cl.channel = 'email')           as total_opened,
+            COUNT(*) FILTER (WHERE cl.click_count > 0 AND cl.channel = 'email')           as total_clicked,
+            COUNT(*) FILTER (WHERE cl.unsubscribed_at IS NOT NULL)                        as total_unsubscribed
+        FROM communication_log cl
+        {$scope['join']}
+        WHERE cl.club_profile_id = ?
+        {$scope['where']}
+        {$dateWhere}
+        {$channelFilter}
+        {$team['where']}
+    ";
+
+    $params = array_merge(
+        [$clubProfileId],
+        $scope['params'],
+        $dateParams,
+        $channelParams,
+        $team['params']
+    );
+
+    $stmt = $connection->prepare($sql);
+    $stmt->execute($params);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $totalSent = (int)($row['total_sent'] ?? 0);
+    $emailSent = (int)($row['email_sent'] ?? 0);
+
+    $stats = [
+        'total_sent'         => $totalSent,
+        'email_sent'         => $emailSent,
+        'sms_sent'           => (int)($row['sms_sent'] ?? 0),
+        'total_delivered'    => (int)($row['total_delivered'] ?? 0),
+        'total_opened'       => (int)($row['total_opened'] ?? 0),
+        'total_clicked'      => (int)($row['total_clicked'] ?? 0),
+        'total_bounced'      => (int)($row['total_bounced'] ?? 0),
+        'total_failed'       => (int)($row['total_failed'] ?? 0),
+        'total_pending'      => (int)($row['total_pending'] ?? 0),
+        'total_unsubscribed' => (int)($row['total_unsubscribed'] ?? 0),
+    ];
+
+    // Rates are percentages, 1dp. Denominators differ on purpose: delivery is a
+    // property of everything that left the building, open/click only of email.
+    $stats['delivery_rate'] = $totalSent > 0
+        ? round($stats['total_delivered'] / $totalSent * 100, 1) : 0;
+    $stats['open_rate'] = $emailSent > 0
+        ? round($stats['total_opened'] / $emailSent * 100, 1) : 0;
+    $stats['click_rate'] = $emailSent > 0
+        ? round($stats['total_clicked'] / $emailSent * 100, 1) : 0;
+    $stats['bounce_rate'] = $totalSent > 0
+        ? round($stats['total_bounced'] / $totalSent * 100, 1) : 0;
+    $stats['unsubscribe_rate'] = $totalSent > 0
+        ? round($stats['total_unsubscribed'] / $totalSent * 100, 1) : 0;
+
+    return $stats;
+}
+
 // ===========================================================================
 // ACTION: overview
+//
+// Returns the dashboard tiles under `stats`, matching the OverviewStats
+// interface in frontend/src/pages/EmailReporting.tsx.
+//
+// ⚠️ The response shape is a CONTRACT with that one file. It used to return the
+// counters flat at the top level under different names (`delivered`, `opened`,
+// `clicked`), while the frontend read `data.stats` and expected `total_*`,
+// `delivery_rate`, `total_pending` and `prev_*`. `data.stats` was therefore
+// always undefined, `overview` stayed null, and every tile on the page rendered
+// the "No overview data available" empty state — while email metrics were
+// landing in the database perfectly well. Found 2026-07-30.
+//
+// EmailReporting.test.tsx mocked the nested `stats` shape the frontend wanted,
+// so the frontend suite passed against a response the backend never produced.
+// If you change this shape, change that mock and the interface together.
 // ===========================================================================
 function handleOverview($connection, $auth, $userId) {
     $clubProfileId = requireClubProfileId($auth);
     $scope = buildCoachScope($connection, $auth, $userId, $clubProfileId);
     $dateFilter = buildDateFilter();
+    $team = buildTeamFilter();
 
     $channelFilter = '';
     $channelParams = [];
@@ -196,71 +328,89 @@ function handleOverview($connection, $auth, $userId) {
         $channelParams[] = $channel;
     }
 
-    $teamFilter = '';
-    $teamParams = [];
-    $teamId = $_GET['team_id'] ?? null;
-    if ($teamId) {
-        $teamFilter = ' AND cl.team_id = ?';
-        $teamParams[] = (int)$teamId;
-    }
-
-    $params = array_merge(
-        [$clubProfileId],
-        $scope['params'],
-        $dateFilter['params'],
-        $channelParams,
-        $teamParams
+    $stats = overviewAggregate(
+        $connection, $clubProfileId, $scope, $channelFilter, $channelParams,
+        $team, $dateFilter['where'], $dateFilter['params']
     );
 
-    $sql = "
-        SELECT
-            COUNT(*) as total_sent,
-            COUNT(*) FILTER (WHERE cl.channel = 'email') as email_sent,
-            COUNT(*) FILTER (WHERE cl.channel = 'sms') as sms_sent,
-            COUNT(*) FILTER (WHERE cl.status = 'delivered') as delivered,
-            COUNT(*) FILTER (WHERE cl.status = 'failed') as failed,
-            COUNT(*) FILTER (WHERE cl.status = 'bounced') as bounced,
-            COUNT(*) FILTER (WHERE cl.open_count > 0 AND cl.channel = 'email') as opened,
-            COUNT(*) FILTER (WHERE cl.click_count > 0 AND cl.channel = 'email') as clicked,
-            COUNT(*) FILTER (WHERE cl.unsubscribed_at IS NOT NULL) as unsubscribed
-        FROM communication_log cl
-        {$scope['join']}
-        WHERE cl.club_profile_id = ? AND cl.status != 'queued'
-        {$scope['where']}
-        {$dateFilter['where']}
-        {$channelFilter}
-        {$teamFilter}
-    ";
+    // Previous period: the window of equal length ending where this one starts,
+    // so the trend arrows compare like with like. Only computable when the
+    // caller supplied both bounds (the dashboard always does); otherwise the
+    // arrows are suppressed by reporting the same value as the current period.
+    $prev = null;
+    $dateFrom = $_GET['date_from'] ?? null;
+    $dateTo   = $_GET['date_to'] ?? null;
+    if ($dateFrom && $dateTo) {
+        try {
+            $from = new DateTimeImmutable($dateFrom);
+            $to   = new DateTimeImmutable($dateTo);
+            if ($to >= $from) {
+                // Inclusive day count, mirroring buildDateFilter's exclusive
+                // next-midnight upper bound.
+                $days = (int)$from->diff($to)->days + 1;
+                $prevTo   = $from->modify('-1 day');
+                $prevFrom = $prevTo->modify('-' . ($days - 1) . ' day');
 
-    $stmt = $connection->prepare($sql);
-    $stmt->execute($params);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $prev = overviewAggregate(
+                    $connection, $clubProfileId, $scope, $channelFilter, $channelParams, $team,
+                    " AND cl.created_at >= ? AND cl.created_at < (?::date + interval '1 day')",
+                    [$prevFrom->format('Y-m-d'), $prevTo->format('Y-m-d')]
+                );
+            }
+        } catch (Exception $e) {
+            // Unparseable dates just mean no comparison — never a failed page.
+            $prev = null;
+        }
+    }
 
-    $totalSent   = (int)$row['total_sent'];
-    $emailSent   = (int)$row['email_sent'];
-    $smsSent     = (int)$row['sms_sent'];
-    $delivered   = (int)$row['delivered'];
-    $failed      = (int)$row['failed'];
-    $bounced     = (int)$row['bounced'];
-    $opened      = (int)$row['opened'];
-    $clicked     = (int)$row['clicked'];
-    $unsubscribed = (int)$row['unsubscribed'];
+    $stats['prev_total_sent']    = $prev['total_sent']    ?? $stats['total_sent'];
+    $stats['prev_delivery_rate'] = $prev['delivery_rate'] ?? $stats['delivery_rate'];
+    $stats['prev_open_rate']     = $prev['open_rate']     ?? $stats['open_rate'];
+    $stats['prev_click_rate']    = $prev['click_rate']    ?? $stats['click_rate'];
+
+    echo json_encode(['success' => true, 'stats' => $stats]);
+}
+
+// ===========================================================================
+// ACTION: teams
+//
+// Populates the team dropdown on the Email Reporting page. The frontend has
+// always called `action=teams`; the gateway had no such case, so it answered
+// 400 "Unknown action: teams" and the filter sat permanently empty.
+//
+// Club admins get every team in the club; a coach gets only their own, which is
+// the same set buildCoachScope will let them see rows for.
+// ===========================================================================
+function handleTeams($connection, $auth, $userId) {
+    $clubProfileId = requireClubProfileId($auth);
+
+    if (isClubAdmin($auth, $clubProfileId)) {
+        $stmt = $connection->prepare("
+            SELECT id, name FROM teams
+            WHERE club_id = ? AND deleted_at IS NULL
+            ORDER BY name
+        ");
+        $stmt->execute([$clubProfileId]);
+        $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $teamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
+        if (empty($teamIds)) {
+            echo json_encode(['success' => true, 'teams' => []]);
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+        $stmt = $connection->prepare("
+            SELECT id, name FROM teams
+            WHERE id IN ($placeholders) AND deleted_at IS NULL
+            ORDER BY name
+        ");
+        $stmt->execute($teamIds);
+        $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     echo json_encode([
-        'success'          => true,
-        'total_sent'       => $totalSent,
-        'email_sent'       => $emailSent,
-        'sms_sent'         => $smsSent,
-        'delivered'        => $delivered,
-        'failed'           => $failed,
-        'bounced'          => $bounced,
-        'opened'           => $opened,
-        'clicked'          => $clicked,
-        'unsubscribed'     => $unsubscribed,
-        'open_rate'        => $emailSent > 0 ? round($opened / $emailSent * 100, 1) : 0,
-        'click_rate'       => $emailSent > 0 ? round($clicked / $emailSent * 100, 1) : 0,
-        'bounce_rate'      => $totalSent > 0 ? round($bounced / $totalSent * 100, 1) : 0,
-        'unsubscribe_rate' => $totalSent > 0 ? round($unsubscribed / $totalSent * 100, 1) : 0,
+        'success' => true,
+        'teams'   => array_map(fn($t) => ['id' => (int)$t['id'], 'name' => $t['name']], $teams),
     ]);
 }
 

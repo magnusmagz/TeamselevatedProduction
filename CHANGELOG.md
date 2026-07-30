@@ -32,6 +32,40 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Email Reporting tiles were empty while metrics flowed in fine
+commit pending · backend-only
+
+Reported as "metrics boxes are empty even though email metrics are reporting into the app." The
+data was never the problem — club 51 had 132 sends, 129 delivered, 30 opens, 1 click, and
+`email_events` held 182 rows.
+
+Three separate defects on the read path:
+
+- **Response shape mismatch.** `handleOverview` returned counters flat at the top level
+  (`delivered`, `opened`, `clicked`); `EmailReporting.tsx` reads `data.stats` and expects `total_*`,
+  `delivery_rate`, `total_pending` and four `prev_*` values. `data.stats` was always `undefined`, so
+  `overview` stayed null and **every tile rendered the empty state**. No error surfaced anywhere.
+- **Phantom column.** The team filter emitted `AND cl.team_id = ?`. `communication_log` has no
+  `team_id` — selecting any team was a hard SQL error that 500'd the overview. Now reached through
+  `athlete_id` / `athlete_guardians` → `team_members` via EXISTS (a JOIN would multiply log rows and
+  inflate every count).
+- **Missing action.** The frontend has always called `action=teams`; the gateway had no such case
+  and answered `400 Unknown action`, so the team dropdown was permanently empty.
+
+Also added, because the interface asked for them and the backend never supplied them:
+`delivery_rate`, `total_pending` (queued rows, previously excluded wholesale by a blanket
+`status != 'queued'`), and period-over-period `prev_*` values computed over the preceding window of
+equal length so the trend arrows compare like with like.
+
+**Guard:** `tests/php/AnalyticsOverviewContractTest.php` parses the `OverviewStats` interface out of
+the .tsx and asserts the gateway supplies every field, plus that the payload is nested under `stats`
+and that `cl.team_id` never returns. Verified against live Neon: club 51 now reports 132 sent /
+97.7% delivery / 22.7% open.
+
+**Note on the numbers:** delivery rate counts only rows the SendGrid webhook confirmed as
+`delivered`. Rows stuck at `sent` (226 platform-wide) were accepted by SendGrid but never got a
+delivery callback, so club-wide delivery rates can read lower than reality. Worth a look separately.
+
 ### Cleared default passwords off auto-created athlete accounts
 **Heroku v444** · commit `93e8e5d` · **migration 056 applied to Neon**
 

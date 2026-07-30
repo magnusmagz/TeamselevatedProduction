@@ -237,6 +237,13 @@ of the database. Live consequences found so far:
   reference is in `controllers/EmailController.php`, which is known-dead. The toggle does nothing.
 - `api/practices.php` and `controllers/EmailController.php` both query `events`; both are on the
   known-dead list in `SchemaConformanceTest.php`.
+- ~~`api/analytics-gateway.php` filtered on `cl.team_id`~~ — FIXED 2026-07-30. `communication_log`
+  has **no `team_id` column**, so picking any team in the Email Reporting filter was a hard SQL
+  error that 500'd the overview. The recipient's team is reached through the athlete:
+  `communication_log.athlete_id` → `team_members`, or `communication_log.recipient_id` (a guardian)
+  → `athlete_guardians` → `team_members`. `buildTeamFilter()` does this with **EXISTS, not JOIN** —
+  joining `team_members` multiplies log rows when an athlete is on two teams or a guardian has two
+  athletes, which would silently inflate every COUNT on the page.
 
 **When you correct a column in code, correct it here in the same commit.** Fixing the code alone
 regenerates the bug the next time someone reads this file.
@@ -373,7 +380,38 @@ The recipient selection experience should feel as close to Gmail/Outlook as poss
 
 ## SMS Feature Requirements
 - Staff can compose and send SMS to one or more contacts from within the CRM
-- Free-form text only (no templates required for SMS)
+- ~~Free-form text only (no templates required for SMS)~~ — stale. SMS templates exist and are in
+  the nav at `/sms-templates` (`SmsTemplates.tsx` → `email-templates.php?action=list&channel=sms`).
+
+### ⚠️ `recipient_types` is SINGULAR in the broadcast API, PLURAL in the group API
+- `resolveBroadcastRecipients` (`api/communications-gateway.php`) tests
+  `in_array('athlete', …)` / `'guardian'` / `'coach'`.
+- `resolve-group` (`api/recipient-search-gateway.php`, called by `RecipientSelector.tsx`) takes
+  `['athletes','guardians','coaches']`.
+
+Each is correct for its own endpoint. Passing the plural array to `send-broadcast` resolves **zero
+recipients and sends nothing** — HTTP 200, `total_recipients: 0`, no error anywhere. Locked from
+both sides by `BroadcastRecipientResolutionTest::testPluralRecipientTypesResolveNobody` and
+`BroadcastCompose.test.tsx`.
+
+### There are two recipient-resolution paths, and they are not interchangeable
+- **`send-sms` / `send-email`** take a `recipients` array of already-resolved people. `SmsCompose`
+  and `EmailCompose` always use these, at any count (the "CA-49" comments).
+- **`send-broadcast`** takes `scope` + `team_ids`/club + `recipient_types` and resolves server-side.
+  `BroadcastCompose.tsx` is its only caller. This is the path that writes a `broadcast_campaigns`
+  row, so **only broadcasts appear in Reporting as a campaign**; the other path produces N loose
+  `communication_log` rows.
+
+### SMS suppression: one predicate, in `lib/suppression.php`
+`te_sms_skip_reason` is the single answer to "should this person get this text", used by both
+`SmsSendService::queueSms` and `handlePreviewBroadcast`. It checks `email_suppressions`
+(`channel='sms'`, scope-aware) **and** `guardians.sms_opt_out`, on the **normalized** phone.
+- Never re-implement either half inline. Preview and send disagreeing is how a club-wide send
+  quietly reached fewer people than the UI promised (fixed 2026-07-30).
+- `email_suppressions.phone` stores **E.164**. Comparing it against a raw `mobile_phone` column
+  value matches nothing. Normalize with `te_normalize_sms_phone` on both sides.
+- Phone normalization has exactly one implementation: `te_normalize_sms_phone` (non-throwing).
+  `SmsSendService::normalizePhone` is a throwing wrapper around it.
 - Sent via Twilio, queued via Redis asynchronously
 - Delivery status stored against the contact record via Twilio status callbacks
 - Outbound only for now — inbound/replies not required in this phase
@@ -406,6 +444,21 @@ All sends (email and SMS) must be logged to a `communication_log` table includin
 ---
 
 ## Email Reporting & Performance
+
+### ⚠️ `action=overview` is a contract with exactly one file
+`api/analytics-gateway.php`'s overview response must be `{success, stats: {...}}`, and `stats` must
+carry every field of the `OverviewStats` interface in `frontend/src/pages/EmailReporting.tsx` —
+including `delivery_rate`, `total_pending` and the four `prev_*` trend values. The frontend does
+`setOverview(data.stats)`; a flat or partial response sets `overview` to `undefined` and the entire
+tile grid silently falls through to "No overview data available." That is exactly what shipped: the
+gateway returned flat keys (`delivered`, `opened`, `clicked`) for months while metrics landed in
+`communication_log` correctly, and the page just looked empty. Fixed 2026-07-30.
+
+**`EmailReporting.test.tsx` did not catch it and could not have** — it mocks the `stats` shape the
+frontend wants, so it proves only that the frontend parses what it is handed. Its four tests cover
+the per-email report and link panel, not the tiles. `tests/php/AnalyticsOverviewContractTest.php`
+now parses both files and asserts the backend supplies what the interface declares. Change the
+interface, the mock, and `overviewAggregate()` together or that test fails.
 
 ### Per-Email Report
 - Accessible from the communication log — clicking any sent email opens a detail view
@@ -451,6 +504,17 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
+- [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `BROADCAST-SMS-SCOPE.md`.
+      Blocked on **migration 057**: `broadcast_campaigns` has no `body`/`html_body` column, so a
+      scheduled campaign stores everything about the send except what to say (the SMS body survives
+      only as `name`, truncated to 80 chars). A dispatcher alone cannot fix that. Dispatch should be
+      a throttled tick inside the already-running `workers/queue-worker.php` — **not** a new
+      scheduler process, which would hit the same cost wall that keeps `calendar-sync-scheduler`
+      and `waitlist-expiry-scheduler` switched off. The 400 guard in `handleSendBroadcast` stays
+      until that ships.
+- [ ] **Staff phone number on profile (Workstream D)** — roadmap P0 #1. `users.phone` exists but is
+      rarely populated, so the coach branches of `resolveBroadcastRecipients` resolve near-empty.
+      No migration needed; normalize through `te_normalize_sms_phone` on save.
 - [ ] **Silent-failure bugs found in code verification 2026-07-06** (UI promises, backend doesn't deliver — see `TeamsElevated-Product-Roadmap.docx` Tier 1): scheduled broadcasts never dispatch; tryout "send offers" sends no notifications; invoice/receipt/reminder emails are demo stubs and registration confirmation is commented out; email signatures stored but never appended; facility contacts dropped on save; unsubscribe scope ignored at send time; volunteer direct-assignment bypasses background-check block
 
 ---
