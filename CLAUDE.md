@@ -140,7 +140,17 @@ sync"). Emails and SMS actually send in production.
 ---
 
 ## Codebase Conventions
-- No formal coding standard enforced (no phpcs/phpstan config), but code follows PSR-4 autoloading
+- No formal coding standard enforced on the **PHP** side (no phpcs/phpstan config), but code
+  follows PSR-4 autoloading
+- ⚠️ **The frontend has a lint ratchet, and the number only goes DOWN.** `npm run lint:ci` runs in
+  the Netlify build ahead of `CI=false npm run build`, and fails if the warning count exceeds the
+  `--max-warnings` ceiling in `frontend/package.json` (**74** as of 2026-07-30, all
+  `react-hooks/exhaustive-deps`). If your change pushes it up, fix the warning — raising the ceiling
+  to ship is a deliberate decision to undo promptly, not a routine step, and `main` is shared so a
+  failing lint blocks everyone's deploy. Rationale, scope and how to work the remaining 74 are in
+  `frontend/LINTING.md`. Do **not** "simplify" this by flipping the build to `CI=true`: that
+  promotes all 74 known warnings to errors and no deploy ever succeeds again — which is precisely
+  how the build ended up catching nothing.
 - All API routes follow the `/api/` prefix (e.g. `/api/teams`, `/api/auth/login`, `/api/coach/teams/(\d+)/roster`)
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
@@ -568,6 +578,30 @@ both sides by `BroadcastRecipientResolutionTest::testPluralRecipientTypesResolve
   `BroadcastCompose.tsx` is its only caller. This is the path that writes a `broadcast_campaigns`
   row, so **only broadcasts appear in Reporting as a campaign**; the other path produces N loose
   `communication_log` rows.
+
+### Inbound SMS: the auto-reply has two rules that look optional and are not
+`api/webhooks/twilio-inbound.php` answers replies with a pointer to the parent
+portal and stores nothing (Tier 0 of the reply plan in `docs/broadcast-sms-scope.md`).
+
+1. **STOP / HELP and friends must get EMPTY TwiML, never the auto-reply.** Twilio
+   still forwards those to the webhook, but blocks any outbound to that number
+   afterwards — so a reply fails silently at best, and reads as ignoring an opt-out
+   at worst. Only the *bare* keyword counts; "can we stop by the field at 6?" is an
+   ordinary message. Keyword list and matching live in `TE_SMS_CARRIER_KEYWORDS`.
+2. **The reply must stay ≤160 GSM-7 characters** (it is 139). Over that and every
+   reply bills as two segments forever. And a single non-ASCII character — a curly
+   apostrophe, an em dash — forces the whole message to UCS-2, where the limit
+   collapses to **70** and the cost triples. Straight quotes and hyphens only.
+   Both are pinned by `tests/php/SmsAutoReplyTest.php`.
+
+Nothing is persisted, and the outgoing text says as much — so a database write here
+makes the product lie to families. `SmsAutoReplyTest::testNothingIsStored` fails on
+one if it appears.
+
+**A number's inbound webhook is set when it is saved** (`te_configure_twilio_inbound`,
+called from `api/sms-numbers.php`). Numbers saved before Heroku v456 have an empty
+`sms_url` and silently swallow replies — re-save them, or set `SmsUrl` via the Twilio
+API. Club 51's was fixed by hand on 2026-07-30; check any other early number.
 
 ### SMS suppression: one predicate, in `lib/suppression.php`
 `te_sms_skip_reason` is the single answer to "should this person get this text", used by both

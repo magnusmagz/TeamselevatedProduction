@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 
 interface Coach {
@@ -18,7 +18,6 @@ interface CoachManagementProps {
 
 const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const navigate = useNavigate();
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);

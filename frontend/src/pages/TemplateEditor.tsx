@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
-import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor';
+import EmailEditor, { EmailEditorProps } from 'react-email-editor';
 import { useTheme } from '../contexts/ThemeContext';
 
 // Compose modal is loaded on demand (same pattern as CommunicationLog/History):

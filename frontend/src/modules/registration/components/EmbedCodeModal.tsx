@@ -138,13 +138,15 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
                 </div>
               ) : (
                 <div className="text-center">
-                  <a
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
+                  {/* A button, not an anchor: this is the inert preview of the
+                      embedded widget, so there is no address to navigate to.
+                      href="#" claimed to be a link and wasn't (jsx-a11y/anchor-is-valid). */}
+                  <button
+                    type="button"
                     className="inline-block bg-brand-primary text-white px-6 py-3 rounded-md no-underline font-bold uppercase"
                   >
                     Register Now
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

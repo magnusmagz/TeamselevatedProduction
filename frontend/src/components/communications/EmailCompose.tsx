@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RecipientSelector } from './RecipientSelector';
 
@@ -18,13 +18,6 @@ interface Recipient {
   suppression_reason?: string;
 }
 
-interface TeamGroup {
-  id: number;
-  name: string;
-  age_group?: string;
-  athlete_count: number;
-  guardian_count: number;
-}
 
 interface EmailTemplate {
   id: number;
@@ -87,7 +80,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
   // Send state
   const [sendCopyToSelf, setSendCopyToSelf] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
-  const [sendError, setSendError] = useState('');
+  const [, setSendError] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
 import ClubPaymentsSettings from '../components/ClubPaymentsSettings';
@@ -36,7 +36,6 @@ interface ClubProfile {
 
 const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const navigate = useNavigate();
   const { updateTheme } = useTheme();
   type ProfileTab = 'info' | 'branding' | 'documents' | 'users' | 'payments' | 'messaging' | 'imports';
   const [activeTab, setActiveTab] = useState<ProfileTab>(() => {

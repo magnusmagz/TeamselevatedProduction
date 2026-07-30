@@ -4,7 +4,7 @@ import InviteUsersForm from '../components/InviteUsersForm';
 import InvitationDashboard from '../components/InvitationDashboard';
 
 export default function Invitations() {
-  const { activeContext, currentClubId } = useOrg();
+  const { currentClubId } = useOrg();
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

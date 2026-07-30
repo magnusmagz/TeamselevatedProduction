@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import TeamList from './TeamList';
 import TeamFormWithTabs from './TeamFormWithTabs';
@@ -21,7 +20,6 @@ interface Team {
 
 const TeamManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const navigate = useNavigate();
   const { user } = useAuth();
   // Club admins (and super admins) get the create/delete affordances.
   // Coaches see the same TeamList UI but read-only on those actions —

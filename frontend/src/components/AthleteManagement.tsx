@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ageGroup, ageInYears } from '../utils/ageGroup';
 import { formatGrade, GRADE_OPTIONS as GRADE_LEVEL_OPTIONS } from '../utils/grade';
 import AthleteForm from './AthleteForm';
@@ -33,7 +33,6 @@ interface AthleteManagementProps {
 
 const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
-  const navigate = useNavigate();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
@@ -206,7 +205,6 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   };
 
   // Age-group + age come from the shared calendar-year util (utils/ageGroup).
-  const calculateUGroup = (dob: string): string | null => ageGroup(dob);
   const calculateAge = (dob: string): number | null => ageInYears(dob);
 
   const filteredAthletes = athletes.filter(athlete => {

@@ -472,7 +472,6 @@ const TournamentDetail: React.FC = () => {
       {activeTab === 'standings' && tournament.divisions && (
         <div className="space-y-6">
           {tournament.divisions.map((div) => {
-            const groupIds = (div as any).groups || [];
             return (
               <div key={div.id}>
                 <h3 className="text-md font-semibold text-gray-700 mb-3">{div.name}</h3>

@@ -87,7 +87,17 @@ export const ClubSmsSettings: React.FC = () => {
       if (!res.ok) throw new Error(data.error || 'Could not save the number');
       setState({ ...data.data, provisioned_at: new Date().toISOString(), blocked_reason: null });
       setInput('');
-      setNotice('Verified against your Twilio account. This club now sends from that number.');
+      // Saving also points the number's inbound webhook at the auto-reply. If that
+      // failed the number still sends, but replies vanish — say so rather than
+      // report a clean success.
+      if (data.data?.inbound_warning) {
+        setError(data.data.inbound_warning);
+      } else {
+        setNotice(
+          'Verified against your Twilio account. This club now sends from that number, ' +
+            'and replies get an automatic pointer to the parent portal.'
+        );
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {

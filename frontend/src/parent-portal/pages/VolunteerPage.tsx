@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrgContext';
 import { ParentHeader } from '../components/ParentHeader';
 
@@ -30,7 +29,6 @@ interface AvailableTeam {
 }
 
 export const VolunteerPage: React.FC = () => {
-  const { user } = useAuth();
   const { currentClubId } = useOrg();
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);

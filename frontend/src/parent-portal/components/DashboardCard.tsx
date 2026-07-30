@@ -20,12 +20,6 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
   className = '',
   headerAction,
 }) => {
-  const CardWrapper = to ? Link : onClick ? 'button' : 'div';
-  const wrapperProps = to
-    ? { to }
-    : onClick
-    ? { onClick, type: 'button' as const }
-    : {};
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden ${className}`}>
@@ -196,13 +190,6 @@ const formatEventTime = (time?: string) => {
 };
 
 export const EventItem: React.FC<EventItemProps> = ({ event }) => {
-  const formatDate = (dateStr: string) =>
-    parseLocalDate(dateStr).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-
   return (
     <Link
       to={`/parent/schedule/rsvp/${event.id}`}

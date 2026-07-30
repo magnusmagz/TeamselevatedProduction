@@ -44,7 +44,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
   const [endDate, setEndDate] = useState('');
   const [availability, setAvailability] = useState<{ [key: string]: TimeSlot[] }>({});
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [showAvailability, setShowAvailability] = useState(false);
 
   // Time range for the grid (3pm to 8pm)

@@ -154,7 +154,6 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
   }, [athlete.id, apiUrl]);
 
   const age = athlete.date_of_birth ? calcAge(athlete.date_of_birth) : null;
-  const initials = `${athlete.first_name[0]}${athlete.last_name[0]}`.toUpperCase();
 
   return (
     <>

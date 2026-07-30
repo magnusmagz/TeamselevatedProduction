@@ -24,7 +24,7 @@ export const DonationSuccess: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
-  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [, setEmailSubmitted] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
   // If we have the email from URL params or session, try to fetch receipt

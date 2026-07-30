@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -77,7 +76,6 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 };
 
 export const VolunteerManagement: React.FC = () => {
-  const { user } = useAuth();
   const { currentClubId, isClubAdmin } = useOrg();
   const navigate = useNavigate();
   const token = localStorage.getItem('auth_token');
