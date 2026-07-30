@@ -1,4 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  CATEGORY_META,
+  OTHER_META,
+  categoryLabel,
+  categorySlug,
+  countByCategory,
+  groupByCategory,
+} from '../constants/templateCategories';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
@@ -7,7 +15,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 const SMS_SEGMENT_LENGTH = 160;
 const SMS_CONCAT_SEGMENT_LENGTH = 153;
 
-const CATEGORIES = ['General', 'Game Day', 'Practice', 'Administrative'];
 
 const MERGE_FIELDS = [
   { key: 'athlete_first_name', label: 'Athlete First Name' },
@@ -77,7 +84,7 @@ const SmsTemplates: React.FC = () => {
   const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
   const [formName, setFormName] = useState('');
   const [formBody, setFormBody] = useState('');
-  const [formCategory, setFormCategory] = useState('General');
+  const [formCategory, setFormCategory] = useState(CATEGORY_META[0].slug);
   const [formScope, setFormScope] = useState('club');
   const [saving, setSaving] = useState(false);
   const [mergePickerOpen, setMergePickerOpen] = useState(false);
@@ -118,7 +125,7 @@ const SmsTemplates: React.FC = () => {
     setEditingTemplate(null);
     setFormName('');
     setFormBody('');
-    setFormCategory('General');
+    setFormCategory(CATEGORY_META[0].slug);
     setFormScope('club');
     setModalOpen(true);
   };
@@ -127,7 +134,7 @@ const SmsTemplates: React.FC = () => {
     setEditingTemplate(t);
     setFormName(t.name);
     setFormBody(t.body_text || '');
-    setFormCategory(t.category || 'General');
+    setFormCategory(categorySlug(t.category));
     setFormScope(t.scope);
     setModalOpen(true);
   };
@@ -156,7 +163,7 @@ const SmsTemplates: React.FC = () => {
           name: formName,
           channel: 'sms',
           body_text: formBody,
-          category: formCategory.toLowerCase().replace(' ', '_'),
+          category: formCategory,
           scope: formScope,
         }),
       });
@@ -236,24 +243,25 @@ const SmsTemplates: React.FC = () => {
     return 'text-red-600';
   };
 
-  const formatCategory = (cat: string) => {
-    if (!cat) return 'General';
-    return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  };
-
-  // Categories are stored lowercased with underscores (e.g. game_day) — compare
-  // against the display labels on normalized form.
-  const filteredTemplates = templates.filter((t) => {
+  // Search first, so the chip counts reflect what the search left — same shape as
+  // the email library (TemplateLibrary.tsx), sharing one taxonomy so the two
+  // libraries cannot drift apart again.
+  const bySearch = templates.filter((t) => {
     const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
+    return (
       q === '' ||
       t.name.toLowerCase().includes(q) ||
-      (t.body_text || '').toLowerCase().includes(q);
-    const matchesCategory =
-      categoryFilter === 'All' ||
-      formatCategory(t.category).toLowerCase() === categoryFilter.toLowerCase();
-    return matchesSearch && matchesCategory;
+      (t.body_text || '').toLowerCase().includes(q)
+    );
   });
+
+  const categoryCounts = countByCategory(bySearch);
+
+  const filteredTemplates = bySearch.filter(
+    (t) => categoryFilter === 'All' || categorySlug(t.category) === categoryFilter
+  );
+
+  const groupedTemplates = groupByCategory(filteredTemplates);
 
   if (!clubProfileId) {
     return (
@@ -310,16 +318,42 @@ const SmsTemplates: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
             />
           </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none bg-white"
+        </div>
+      )}
+
+      {/* Tag cluster — click a tag to view that group, or All to view everything */}
+      {!loading && templates.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <button
+            onClick={() => setCategoryFilter('All')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              categoryFilter === 'All'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
           >
-            <option value="All">All Categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            All Templates
+            <span className={categoryFilter === 'All' ? 'text-white/70' : 'text-gray-400'}>
+              {bySearch.length}
+            </span>
+          </button>
+          {[...CATEGORY_META, OTHER_META].map((c) => {
+            const count = categoryCounts[c.slug] || 0;
+            if (!count) return null;
+            const active = categoryFilter === c.slug;
+            return (
+              <button
+                key={c.slug}
+                onClick={() => setCategoryFilter(active ? 'All' : c.slug)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${c.color} ${
+                  active ? 'ring-2 ring-offset-1 ring-gray-500' : 'opacity-80 hover:opacity-100'
+                }`}
+              >
+                {c.label}
+                <span className="opacity-60">{count}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -361,53 +395,68 @@ const SmsTemplates: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((t) => {
-            const bodyLen = (t.body_text || '').length;
-            const segs = getSegmentCount(bodyLen);
-            return (
-              <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">{t.name}</h3>
-                  {getScopeBadge(t.scope)}
-                </div>
-                <p className="text-sm text-gray-500 mb-3 line-clamp-2 min-h-[2.5rem]">
-                  {t.body_text ? (t.body_text.length > 80 ? t.body_text.substring(0, 80) + '...' : t.body_text) : 'No body text'}
-                </p>
-                <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
-                  <span className="capitalize">{formatCategory(t.category)}</span>
-                  <span>{bodyLen} chars</span>
-                  <span>{segs} segment{segs !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                  {isAdmin && (
-                    <button
-                      onClick={() => openEditModal(t)}
-                      className="text-xs font-medium text-brand-primary hover:underline"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleDuplicate(t)}
-                      className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline"
-                    >
-                      Duplicate
-                    </button>
-                  )}
-                  {isAdmin && t.scope !== 'platform' && (
-                    <button
-                      onClick={() => handleDelete(t)}
-                      className="text-xs font-medium text-red-500 hover:text-red-700 hover:underline ml-auto"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
+        <div className="space-y-8">
+          {groupedTemplates.map((group) => (
+            <section key={group.slug}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${group.color}`}>
+                  {group.label}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {group.items.length} template{group.items.length !== 1 ? 's' : ''}
+                </span>
+                <span className="flex-1 border-t border-gray-100 ml-1" />
               </div>
-            );
-          })}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {group.items.map((t) => {
+                  const bodyLen = (t.body_text || '').length;
+                  const segs = getSegmentCount(bodyLen);
+                  return (
+                    <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1">{t.name}</h3>
+                        {getScopeBadge(t.scope)}
+                      </div>
+                      <p className="text-sm text-gray-500 mb-3 line-clamp-2 min-h-[2.5rem]">
+                        {t.body_text ? (t.body_text.length > 80 ? t.body_text.substring(0, 80) + '...' : t.body_text) : 'No body text'}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                        <span>{categoryLabel(t.category)}</span>
+                        <span>{bodyLen} chars</span>
+                        <span>{segs} segment{segs !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                        {isAdmin && (
+                          <button
+                            onClick={() => openEditModal(t)}
+                            className="text-xs font-medium text-brand-primary hover:underline"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDuplicate(t)}
+                            className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline"
+                          >
+                            Duplicate
+                          </button>
+                        )}
+                        {isAdmin && t.scope !== 'platform' && (
+                          <button
+                            onClick={() => handleDelete(t)}
+                            className="text-xs font-medium text-red-500 hover:text-red-700 hover:underline ml-auto"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
 
@@ -453,8 +502,8 @@ const SmsTemplates: React.FC = () => {
                   onChange={(e) => setFormCategory(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-colors outline-none bg-white"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  {CATEGORY_META.map((c) => (
+                    <option key={c.slug} value={c.slug}>{c.label}</option>
                   ))}
                 </select>
               </div>
