@@ -45,7 +45,8 @@ class MergeFieldServiceTest extends TestCase
         $this->pdo->exec("
             CREATE TABLE teams (
                 id INTEGER PRIMARY KEY,
-                name TEXT
+                name TEXT,
+                deleted_at TEXT
             );
             CREATE TABLE calendar_events (
                 id INTEGER PRIMARY KEY,
@@ -62,6 +63,12 @@ class MergeFieldServiceTest extends TestCase
                 id INTEGER PRIMARY KEY,
                 event_id INTEGER,
                 team_id INTEGER
+            );
+            CREATE TABLE team_members (
+                id INTEGER PRIMARY KEY,
+                team_id INTEGER,
+                athlete_id INTEGER,
+                status TEXT
             );
             CREATE TABLE venues (
                 id INTEGER PRIMARY KEY,
@@ -80,7 +87,9 @@ class MergeFieldServiceTest extends TestCase
 
     private function seed(): void
     {
-        $this->pdo->exec("INSERT INTO teams (id, name) VALUES (10, 'Eagles U14')");
+        $this->pdo->exec("INSERT INTO teams (id, name, deleted_at) VALUES (10, 'Eagles U14', NULL)");
+        $this->pdo->exec("INSERT INTO team_members (id, team_id, athlete_id, status)
+            VALUES (1, 10, 55, 'active')");
         $this->pdo->exec("INSERT INTO venues (id, name, address, city, state)
             VALUES (5, 'Main Stadium', '123 Main St', 'Springfield', 'IL')");
         $this->pdo->exec("INSERT INTO fields (id, name, address)
@@ -216,6 +225,34 @@ class MergeFieldServiceTest extends TestCase
     }
 
     // ---- unresolved / no-data handling ----
+
+    /**
+     * {{team_name}} appears in 101 of the 142 stored templates, and an ordinary
+     * "email my team" send carries no event and no team_id — so the tag has to
+     * resolve from the recipient's own roster row or the guard blocks the send.
+     */
+    public function testTeamNameResolvesFromTheRecipientAthleteWhenNothingElseIsGiven(): void
+    {
+        $context = ['athlete_id' => 55, 'club_profile_id' => 100];
+        $out = $this->svc->resolveVariables('Go {{team_name}}!', $context);
+        $this->assertSame('Go Eagles U14!', $out);
+    }
+
+    public function testSoftDeletedTeamsAreNotUsedForRecipientFallback(): void
+    {
+        $this->pdo->exec("INSERT INTO teams (id, name, deleted_at) VALUES (12, 'Old Team', '2026-01-01')");
+        $this->pdo->exec("INSERT INTO team_members (id, team_id, athlete_id, status)
+            VALUES (2, 12, 56, 'active')");
+        $context = ['athlete_id' => 56, 'club_profile_id' => 100];
+        $this->assertSame('{{team_name}}', $this->svc->resolveVariables('{{team_name}}', $context));
+    }
+
+    public function testExplicitTeamIdStillWinsOverTheRecipientRoster(): void
+    {
+        $this->pdo->exec("INSERT INTO teams (id, name, deleted_at) VALUES (13, 'Hawks U16', NULL)");
+        $context = ['athlete_id' => 55, 'team_id' => 13, 'club_profile_id' => 100];
+        $this->assertSame('Hawks U16', $this->svc->resolveVariables('{{team_name}}', $context));
+    }
 
     public function testUnknownTeamLeavesPlaceholder(): void
     {

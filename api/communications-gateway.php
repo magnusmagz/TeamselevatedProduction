@@ -173,6 +173,10 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
     $body          = $data['body'] ?? null;
     $templateId    = $data['template_id'] ?? null;
     $eventId       = $data['event_id'] ?? null;
+    // Optional: lets {{team_name}} resolve when the caller knows the team (a team
+    // group selection). Without it MergeFieldService falls back to the recipient's
+    // own roster row.
+    $teamId        = $data['team_id'] ?? null;
 
     // Validate required fields
     if (!$clubProfileId || empty($recipients) || !$subject || !$htmlBody) {
@@ -238,6 +242,7 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
         foreach ($recipients as &$r) {
             $context = [
                 'event_id'             => $eventId,
+                'team_id'              => $teamId,
                 'athlete_id'           => $r['athlete_id'] ?? null,
                 'guardian_id'          => ($r['type'] === 'guardian') ? ($r['id'] ?? null) : null,
                 'user_id'              => $auth->getUserId(),

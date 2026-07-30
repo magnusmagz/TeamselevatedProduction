@@ -71,6 +71,12 @@ class MergeFieldService {
             if (!$teamId && !empty($context['event_id'])) {
                 $teamId = $this->resolveEventTeamId($context['event_id']);
             }
+            // Last resort: the recipient's own team. {{team_name}} is in 101 of the
+            // 142 templates, and a plain team email carries no event — without this
+            // the tag never resolved and the send guard 422'd the whole send.
+            if (!$teamId && !empty($context['athlete_id'])) {
+                $teamId = $this->resolveAthleteTeamId($context['athlete_id']);
+            }
             $data = $this->loadTeamData($teamId);
             $replacements = array_merge($replacements, $data);
         }
@@ -407,6 +413,42 @@ class MergeFieldService {
             $teamId = ($val !== false && $val !== null) ? (int)$val : null;
         } catch (\PDOException $e) {
             error_log('MergeFieldService::resolveEventTeamId - ' . $e->getMessage());
+            $teamId = null;
+        }
+
+        $this->cache[$key] = $teamId;
+        return $teamId;
+    }
+
+    /**
+     * The team a recipient plays on — used for {{team_name}} when the caller gave
+     * neither a team nor an event (the ordinary "email my team" send).
+     *
+     * An athlete can be rostered on several teams; takes the lowest active team_id
+     * so the value is at least deterministic. Soft-deleted teams are excluded.
+     */
+    private function resolveAthleteTeamId($athleteId) {
+        if (!$athleteId) return null;
+        $key = "athlete_team_$athleteId";
+        if (isset($this->cache[$key])) return $this->cache[$key];
+
+        $teamId = null;
+        try {
+            $stmt = $this->pdo->prepare(
+                "SELECT tm.team_id
+                   FROM team_members tm
+                   JOIN teams t ON t.id = tm.team_id
+                  WHERE tm.athlete_id = ?
+                    AND tm.status = 'active'
+                    AND t.deleted_at IS NULL
+                  ORDER BY tm.team_id
+                  LIMIT 1"
+            );
+            $stmt->execute([$athleteId]);
+            $val = $stmt->fetchColumn();
+            $teamId = ($val !== false && $val !== null) ? (int) $val : null;
+        } catch (\PDOException $e) {
+            error_log('MergeFieldService::resolveAthleteTeamId - ' . $e->getMessage());
             $teamId = null;
         }
 
