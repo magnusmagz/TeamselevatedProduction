@@ -157,6 +157,20 @@ function handleSetClubSmsNumber($auth, $connection)
         $twilioSid = $verification['sid'];
     }
 
+    // Wire the number's inbound webhook to the auto-reply handler. Non-fatal: a
+    // club with a working send number should not be blocked from saving because
+    // the reply hook failed. Reported back so the UI can say so rather than let
+    // families text into silence without anyone knowing.
+    $inboundWarning = null;
+    if ($twilioSid) {
+        $hook = te_configure_twilio_inbound($twilioSid);
+        if (!$hook['ok']) {
+            $inboundWarning = 'Number saved, but auto-reply could not be enabled: ' . $hook['error']
+                            . ' Replies to this number will go unanswered until it is set in the Twilio console.';
+            error_log('[sms-numbers] inbound hook failed for ' . $twilioSid . ': ' . $hook['error']);
+        }
+    }
+
     // Deactivate rather than delete: which number was in force when is exactly what
     // you need to reconstruct a carrier STOP months later.
     $connection->beginTransaction();
@@ -208,6 +222,7 @@ function handleSetClubSmsNumber($auth, $connection)
             'phone_number'          => $phoneNumber,
             'messaging_service_sid' => $messagingServiceSid,
             'twilio_phone_sid'      => $twilioSid,
+            'inbound_warning'       => $inboundWarning,
         ],
     ]);
 }

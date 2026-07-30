@@ -153,6 +153,63 @@ if (!function_exists('te_verify_twilio_number')) {
     }
 }
 
+if (!function_exists('te_configure_twilio_inbound')) {
+    /**
+     * Point a number's inbound SMS webhook at our auto-reply handler.
+     *
+     * Called when an admin saves a number, so wiring is never a separate manual
+     * step in the Twilio console. That matters because forgetting it fails
+     * silently in the worst direction: families reply, get no response at all,
+     * and nothing anywhere records that it happened.
+     *
+     * Best-effort by design — a club with a verified, working SEND number should
+     * not be blocked from saving because the reply hook could not be set. The
+     * caller surfaces the warning instead.
+     *
+     * @return array{ok: bool, error: ?string}
+     */
+    function te_configure_twilio_inbound(string $phoneSid): array
+    {
+        $accountSid = Env::get('TWILIO_ACCOUNT_SID');
+        $authToken  = Env::get('TWILIO_AUTH_TOKEN');
+        $backendUrl = rtrim(Env::get('BACKEND_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com'), '/');
+
+        if (!$accountSid || !$authToken) {
+            return ['ok' => false, 'error' => 'Twilio is not configured on this environment.'];
+        }
+
+        $url = "https://api.twilio.com/2010-04-01/Accounts/{$accountSid}/IncomingPhoneNumbers/{$phoneSid}.json";
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'SmsUrl'    => $backendUrl . '/api/webhooks/twilio-inbound.php',
+                'SmsMethod' => 'POST',
+            ]),
+            CURLOPT_USERPWD        => "{$accountSid}:{$authToken}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 10,
+        ]);
+        $response  = curl_exec($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            return ['ok' => false, 'error' => "Could not reach Twilio: {$curlError}"];
+        }
+        if ($httpCode < 200 || $httpCode >= 300) {
+            $data = json_decode($response, true);
+            return ['ok' => false, 'error' => $data['message'] ?? "Twilio returned HTTP {$httpCode}"];
+        }
+
+        return ['ok' => true, 'error' => null];
+    }
+}
+
 if (!function_exists('te_sms_sender_missing_message')) {
     /**
      * The one place this wording lives, so the API, the compose screen and the
