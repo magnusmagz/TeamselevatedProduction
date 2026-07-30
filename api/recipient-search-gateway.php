@@ -229,14 +229,27 @@ function handleSearch($connection, $auth, $userId) {
     $athleteTeamFilterSql = $teamFilter['sql'];
     $athleteParams = array_merge($athleteParams, $teamFilter['params']);
 
+    // Club membership comes from athletes.club_id, and the roster is a LEFT JOIN
+    // used only for the team label. An INNER JOIN here meant a registered athlete
+    // who had not been placed on a team yet was invisible to the To field — along
+    // with their whole crew — which is exactly the population you most need to
+    // reach at season start. The club-wide groups (resolveSpecialGroup) dropped
+    // the roster requirement for that reason; this query never got the same fix,
+    // so "All" could reach a family that search could not find.
+    //
+    // Coach scoping still holds: getTeamFilterClause adds `AND tm.team_id IN (...)`,
+    // and a NULL team_id from the LEFT JOIN does not satisfy IN, so an unrostered
+    // athlete stays invisible to a coach and visible only to club admins.
     $athleteSql = "
         SELECT DISTINCT a.id, a.first_name, a.last_name, a.email, a.phone, 'athlete' as type,
                t.id as team_id, t.name as team_name
         FROM athletes a
-        JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
-        JOIN teams t ON tm.team_id = t.id AND t.club_id = ?
-        WHERE (a.first_name ILIKE ? OR a.last_name ILIKE ? OR a.email ILIKE ? OR a.phone LIKE ?)
+        LEFT JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
+        LEFT JOIN teams t ON tm.team_id = t.id AND t.deleted_at IS NULL
+        WHERE a.club_id = ?
+          AND (a.first_name ILIKE ? OR a.last_name ILIKE ? OR a.email ILIKE ? OR a.phone LIKE ?)
           AND a.active_status = true
+          AND a.deleted_at IS NULL
         {$athleteTeamFilterSql}
         LIMIT 20
     ";
@@ -281,6 +294,9 @@ function handleSearch($connection, $auth, $userId) {
     $guardianTeamFilterSql = $teamFilter['sql'];
     $guardianParams = array_merge($guardianParams, $teamFilter['params']);
 
+    // Same change as the athlete query above, and the same reason: a guardian was
+    // reachable only through a rostered athlete, so a family that had just
+    // registered could not be found by name even though "All" would text them.
     $guardianSql = "
         SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone as phone, 'guardian' as type,
                a.id as athlete_id, a.first_name as athlete_first_name, a.last_name as athlete_last_name,
@@ -288,9 +304,12 @@ function handleSearch($connection, $auth, $userId) {
         FROM guardians g
         JOIN athlete_guardians ag ON g.id = ag.guardian_id
         JOIN athletes a ON ag.athlete_id = a.id
-        JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
-        JOIN teams t ON tm.team_id = t.id AND t.club_id = ?
-        WHERE (g.first_name ILIKE ? OR g.last_name ILIKE ? OR g.email ILIKE ? OR g.mobile_phone LIKE ?)
+        LEFT JOIN team_members tm ON a.id = tm.athlete_id AND tm.status = 'active'
+        LEFT JOIN teams t ON tm.team_id = t.id AND t.deleted_at IS NULL
+        WHERE a.club_id = ?
+          AND (g.first_name ILIKE ? OR g.last_name ILIKE ? OR g.email ILIKE ? OR g.mobile_phone LIKE ?)
+          AND a.deleted_at IS NULL
+          AND a.active_status = true
         {$guardianTeamFilterSql}
         LIMIT 20
     ";

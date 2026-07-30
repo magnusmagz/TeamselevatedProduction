@@ -3,7 +3,11 @@
 use PHPUnit\Framework\TestCase;
 
 // Load the gateway for its query helpers only — no dispatch, no Neon connect.
-define('TE_RECIPIENT_SEARCH_LIB_ONLY', true);
+// Guarded: more than one test file now loads this gateway, and phpunit.xml sets
+// failOnWarning, so an unguarded redefine fails the suite.
+if (!defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
+    define('TE_RECIPIENT_SEARCH_LIB_ONLY', true);
+}
 require_once __DIR__ . '/../../api/recipient-search-gateway.php';
 
 /**
