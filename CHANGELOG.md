@@ -32,24 +32,82 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
-### Chat conversation archive — migration 058 applied to Neon
-`a1e1993` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30
+### Chat conversation archive (no delete) — migration 058 + chat app v11
+`a1e1993` / `50cfe92` · migration **058_chat_conversation_archive.sql** applied to Neon 2026-07-30 ·
+chat app `teamselevated-chat` **v11** (subtree split `ccd4f0a`) · Netlify build of the merge to main
 
 `ALTER TABLE conversation_participants ADD COLUMN archived_at TIMESTAMP` plus
 `idx_conv_participants_archived (user_id, archived_at)`. Verified after apply: column present and
 nullable, index present, **0 rows archived** — purely additive, no existing row touched.
 
-Applied BEFORE either deploy on purpose. The chat server's conversation-list query references
-`cp.archived_at`; shipping that dyno against a database without the column would have failed the
-conversation list for every user, not degraded gracefully.
+**Order was migration → chat server → frontend, and the first two are load-bearing.** The chat
+server's conversation-list query references `cp.archived_at`; that dyno against a database without
+the column would have failed the conversation list for every user, not degraded gracefully.
+Frontend last because the frontend is the side *adding* calls here — shipping it first puts an
+archive button in front of people that the old dyno ignores. (CLAUDE.md's usual frontend-first note
+is about *tightening* auth on an existing contract; this is the inverse, same as the jersey-size
+entry below.)
+
+**The chat server is a separate Heroku app and deploys by subtree**, since its repo root is the
+contents of `chat-server/`: `git subtree split --prefix=chat-server` then push that ref to the
+`chat` remote. `git push heroku` does not deploy it and never has. Verified the split
+fast-forwarded onto the deployed commit before pushing; post-deploy `/health` 200 and "Database
+connected successfully" in the logs.
 
 `tests/fixtures/production-schema.json` updated in the same commit — the snapshot is the
 authority `SchemaConformanceTest` checks against, so a migration that doesn't update it puts the
 fixture out of step with live.
 
-Durable rules (no user-facing delete in chat; per-user chat state must be UPSERTed because team
-conversations have no participant rows) are in `../CLAUDE.md` → "Chat has archive, and
-deliberately has NO delete". Design rationale in `docs/chat-archive-plan.md`.
+**Prod state discovered:** `markRead` had been a no-op on every team conversation for as long as
+team chats have existed. `ensureTeamConversation()` creates them with no `conversation_participants`
+rows, and `markRead` was a bare `UPDATE ... WHERE conversation_id AND user_id` — zero rows. Team
+unread badges never cleared. Fixed in the same commit (upsert) because the archive write had to
+solve the identical problem.
+
+Durable rules (no user-facing delete in chat; per-user chat state must be UPSERTed) are in
+`../CLAUDE.md` → "Chat has archive, and deliberately has NO delete". Design rationale and the
+unbuilt Phases 2–3 are in `docs/chat-archive-plan.md`.
+
+### SECURITY — athlete and guardian writes were gated on the read predicate
+`2f14a4c` (merged as `d382a8a`) · Heroku **v448** · backend-only · **no migration**
+
+Found while scoping a narrow endpoint for the crew jersey-size feature (below): every write in
+`legacy/athletes-gateway.php` and `legacy/guardian-gateway.php` gated on
+`AthleteScope::userCanAccessAthlete`, which passes guardians by design.
+
+Four handlers, in ascending order of severity:
+
+- `athletes-gateway` **PUT** — a parent-portal token could rewrite their own child's
+  `date_of_birth` (decides age-group eligibility), name and address.
+- `athletes-gateway` **DELETE** — soft-delete their own child off every roster.
+- `guardian-gateway` **DELETE** — delete the *other* parent's `athlete_guardians` link, ending that
+  parent's access with nothing but a missing row to show for it.
+- `guardian-gateway` **POST / PUT** — **no scope check at all.** `athlete_id` came straight from the
+  request body. Since `isGuardianOfAthlete` matches guardians on **email**, any authenticated user
+  (parent, player, volunteer) could attach a guardian row carrying their own address to any athlete
+  in any club, become that child's guardian, and read the record **and the health data** via
+  `legacy/medical-gateway.php`. A cross-family escalation chain, not a tidiness problem.
+
+**No evidence it was exploited — and also no check run.** Maggie opted to ship the fix without an
+abuse audit first. If that question comes back, the query is: `guardians` rows whose email is linked
+via `athlete_guardians` to athletes spanning unrelated clubs.
+
+**Why it survived:** nothing reachable by clicking. Every caller is a staff screen (`AthleteForm`,
+`GuardianManagement`, `RosterManagement`, `AthleteProfileEnhanced`, `AthletePhotoUpload`). The
+missing button was doing the job the access control should have been doing. Durable lesson in
+CLAUDE.md under "Reading an athlete and writing one are different permissions."
+
+`staffCanManageAthlete` is `userCanAccessAthlete` minus the guardian branch, and the read predicate
+is now *defined in terms of it* so the two cannot drift. Staff standing is byte-for-byte the logic
+that already gated the GET — which is the evidence it works in prod, since admins can view athletes
+today. `AthleteWriteScopeTest` covers the CA-18 unrostered-athlete path (where a subtle break would
+hide) and parses both gateways to assert the write handlers call the strict predicate. That
+source-level guard was mutation-tested: reverting one call fails it.
+
+`legacy/medical-gateway.php` writes were left on the read predicate deliberately — a parent
+plausibly *is* the authority on their child's allergies. Now an explicit open item, not an accident.
+
+Post-deploy: both gateways still answer 401 unauthenticated.
 
 ### Crew can edit their athlete's jersey size in the parent portal
 `aa41ee4` (merged as `3d2c7b1`) · Heroku **v447** · Netlify build of `3d2c7b1` · **no migration**
