@@ -375,6 +375,12 @@ class EmailSendService {
         $unsubscribeToken = $this->generateUnsubscribeToken($communicationLogId, $recipientEmail, $clubProfileId);
         $unsubscribeUrl = $appUrl . '/unsubscribe?token=' . urlencode($unsubscribeToken);
 
+        // {{unsubscribe_link}} can only be filled here — the signed token needs the
+        // communication_log row, which does not exist when MergeFieldService runs.
+        // Templates that place their own unsubscribe link (the tournament ones)
+        // would otherwise mail the raw tag.
+        $html = str_replace('{{unsubscribe_link}}', htmlspecialchars($unsubscribeUrl), $html);
+
         $brand = \EmailBranding::forClub($this->pdo, $clubProfileId);
 
         return \EmailBranding::wrap($html, $brand, $unsubscribeUrl);

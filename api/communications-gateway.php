@@ -264,7 +264,13 @@ function handleSendEmail($auth, $connection, $emailService, $mergeFieldService) 
                   . (string)($r['_resolved_html_body'] ?? '') . ' '
                   . (string)($r['_resolved_body'] ?? '');
             if (preg_match_all('/\{\{[a-zA-Z0-9_]+\}\}/', $blob, $mm)) {
-                foreach ($mm[0] as $tag) $unresolved[$tag] = true;
+                foreach ($mm[0] as $tag) {
+                    // Filled later, by design: the unsubscribe token needs the
+                    // communication_log row, so EmailSendService::processHtml()
+                    // substitutes it after queueing. Not an authoring mistake.
+                    if ($tag === '{{unsubscribe_link}}') continue;
+                    $unresolved[$tag] = true;
+                }
             }
         }
         unset($r);

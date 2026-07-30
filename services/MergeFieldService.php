@@ -3,6 +3,21 @@
 require_once __DIR__ . '/../config/env.php';
 
 class MergeFieldService {
+    /**
+     * Merge tags whose value is supplied by the caller in the merge context
+     * rather than loaded from a table. Kept as an explicit whitelist so a stray
+     * context key (ids, tokens, internal flags) can never be substituted into an
+     * email by naming a tag after it.
+     */
+    const CONTEXT_PASSTHROUGH_KEYS = [
+        'accept_url',
+        'decline_url',
+        'offer_expires_at',
+        'division_gender',
+        'venue_name',
+        'waitlist_position',
+    ];
+
     private $pdo;
     private $cache = []; // Cache loaded data to avoid duplicate queries
 
@@ -80,6 +95,19 @@ class MergeFieldService {
             $replacements = array_merge($replacements, $data);
         }
 
+        // Values the CALLER already resolved and passed in the context — the
+        // waitlist accept/decline URLs, the offer deadline, the tournament venue.
+        // They have no loader of their own (nothing to look up: WaitlistService
+        // built them), and without this pass-through the templates that use them
+        // mailed the literal "{{accept_url}}" to families instead of a working
+        // button. Whitelisted rather than open — an arbitrary context key must not
+        // become a substitutable tag.
+        foreach (self::CONTEXT_PASSTHROUGH_KEYS as $key) {
+            if (array_key_exists($key, $context) && $context[$key] !== null && $context[$key] !== '') {
+                $replacements[$key] = $context[$key];
+            }
+        }
+
         // Replace all found variables, leave unresolved ones as-is
         foreach ($replacements as $key => $value) {
             $replacement = $value ?? '';
@@ -120,6 +148,8 @@ class MergeFieldService {
             ['key' => 'event_date', 'label' => 'Event Date', 'group' => 'Event'],
             ['key' => 'event_time', 'label' => 'Event Time', 'group' => 'Event'],
             ['key' => 'event_location', 'label' => 'Event Location', 'group' => 'Event'],
+            ['key' => 'event_venue_name', 'label' => 'Event Venue', 'group' => 'Event'],
+            ['key' => 'event_address', 'label' => 'Event Address', 'group' => 'Event'],
             ['key' => 'event_type', 'label' => 'Event Type', 'group' => 'Event'],
             ['key' => 'sender_first_name', 'label' => 'Sender First Name', 'group' => 'Sender'],
             ['key' => 'sender_last_name', 'label' => 'Sender Last Name', 'group' => 'Sender'],
@@ -141,6 +171,14 @@ class MergeFieldService {
             ['key' => 'match_away_score', 'label' => 'Away Score', 'group' => 'Tournament'],
             ['key' => 'registration_team_name', 'label' => 'Registered Team Name', 'group' => 'Tournament'],
             ['key' => 'registration_status', 'label' => 'Registration Status', 'group' => 'Tournament'],
+            // Supplied by WaitlistService in the merge context (see
+            // CONTEXT_PASSTHROUGH_KEYS) — only resolve inside waitlist emails.
+            ['key' => 'venue_name', 'label' => 'Tournament Venue', 'group' => 'Tournament'],
+            ['key' => 'division_gender', 'label' => 'Division Gender', 'group' => 'Tournament'],
+            ['key' => 'accept_url', 'label' => 'Waitlist Accept Link', 'group' => 'Waitlist'],
+            ['key' => 'decline_url', 'label' => 'Waitlist Decline Link', 'group' => 'Waitlist'],
+            ['key' => 'offer_expires_at', 'label' => 'Waitlist Offer Deadline', 'group' => 'Waitlist'],
+            ['key' => 'waitlist_position', 'label' => 'Waitlist Position', 'group' => 'Waitlist'],
         ];
     }
 
@@ -242,22 +280,24 @@ class MergeFieldService {
         $key = "event_$eventId";
         if (isset($this->cache[$key])) return $this->cache[$key];
 
-        // Events table has: title, start_datetime, end_datetime, event_type
-        // It may have venue_id (FK to venues) or field_id (FK to fields which belongs to a venue)
-        // Query both paths to resolve a human-readable location
+        // calendar_events, NOT events. The `events` table this used to query was
+        // dropped, so every {{event_*}} tag the template editor advertises silently
+        // resolved to nothing (or threw). The shape differs: `name` not `title`,
+        // `event_date` + `start_time` as separate columns not `start_datetime`,
+        // `type` not `event_type`, plus a free-text `location` fallback.
         $stmt = $this->pdo->prepare("
             SELECT
-                e.title,
-                e.start_datetime,
-                e.event_type,
+                e.name,
+                e.event_date,
+                e.start_time,
+                e.type,
+                e.location,
                 v.name AS venue_name,
                 v.address AS venue_address,
                 v.city AS venue_city,
-                v.state AS venue_state,
-                f.name AS field_name
-            FROM events e
+                v.state AS venue_state
+            FROM calendar_events e
             LEFT JOIN venues v ON e.venue_id = v.id
-            LEFT JOIN fields f ON e.field_id = f.id
             WHERE e.id = ?
         ");
 
@@ -265,20 +305,9 @@ class MergeFieldService {
             $stmt->execute([$eventId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            // If the JOIN on venues fails (column venue_id may not exist), fall back to fields only
-            $stmt = $this->pdo->prepare("
-                SELECT
-                    e.title,
-                    e.start_datetime,
-                    e.event_type,
-                    f.name AS field_name,
-                    f.address AS field_address
-                FROM events e
-                LEFT JOIN fields f ON e.field_id = f.id
-                WHERE e.id = ?
-            ");
-            $stmt->execute([$eventId]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            error_log('MergeFieldService::loadEventData - ' . $e->getMessage());
+            $this->cache[$key] = [];
+            return [];
         }
 
         if (!$row) {
@@ -286,18 +315,32 @@ class MergeFieldService {
             return [];
         }
 
-        // Build a readable location string
+        // A venue gives the richer string; `location` is the free-text fallback for
+        // events booked somewhere without a venue record.
         $location = $this->buildLocationString($row);
+        if ($location === '') {
+            $location = (string) ($row['location'] ?? '');
+        }
 
-        // Parse date and time from start_datetime
-        $startDt = $row['start_datetime'] ? new \DateTime($row['start_datetime']) : null;
+        $date = $row['event_date'] ? new \DateTime($row['event_date']) : null;
+        $time = $row['start_time'] ? new \DateTime($row['start_time']) : null;
+
+        // Venue and address are also exposed separately: the seeded templates say
+        // "Venue: X / Address: Y", and pointing both at the combined string
+        // repeated the venue name inside its own address line.
+        $addressParts = array_filter([
+            $row['venue_address'] ?? null,
+            trim(implode(' ', array_filter([$row['venue_city'] ?? null, $row['venue_state'] ?? null]))) ?: null,
+        ]);
 
         $data = [
-            'event_name' => $row['title'] ?? '',
-            'event_date' => $startDt ? $startDt->format('l, F j, Y') : '',
-            'event_time' => $startDt ? $startDt->format('g:i A') : '',
-            'event_type' => ucfirst($row['event_type'] ?? ''),
+            'event_name' => $row['name'] ?? '',
+            'event_date' => $date ? $date->format('l, F j, Y') : '',
+            'event_time' => $time ? $time->format('g:i A') : '',
+            'event_type' => ucfirst((string) ($row['type'] ?? '')),
             'event_location' => $location,
+            'event_venue_name' => $row['venue_name'] ?: (string) ($row['location'] ?? ''),
+            'event_address' => $addressParts ? implode(', ', $addressParts) : (string) ($row['location'] ?? ''),
         ];
 
         $this->cache[$key] = $data;
@@ -342,9 +385,12 @@ class MergeFieldService {
     }
 
     /**
-     * Resolve the team_id that an event belongs to.
-     * events.team_id is a NOT NULL FK to teams(id) — the canonical event->team link.
-     * Returns null if the event has no team or doesn't exist.
+     * Resolve the team an event belongs to.
+     *
+     * calendar_events has NO team_id — the link is the join table
+     * calendar_event_teams, and an event can carry several teams. Takes the
+     * lowest-id team so {{team_name}} is at least deterministic; a multi-team
+     * event has no single right answer.
      */
     private function resolveEventTeamId($eventId) {
         if (!$eventId) return null;
@@ -353,12 +399,14 @@ class MergeFieldService {
 
         $teamId = null;
         try {
-            $stmt = $this->pdo->prepare("SELECT team_id FROM events WHERE id = ?");
+            $stmt = $this->pdo->prepare(
+                "SELECT team_id FROM calendar_event_teams WHERE event_id = ? ORDER BY team_id LIMIT 1"
+            );
             $stmt->execute([$eventId]);
             $val = $stmt->fetchColumn();
             $teamId = ($val !== false && $val !== null) ? (int)$val : null;
         } catch (\PDOException $e) {
-            // events table may lack team_id in some environments; degrade gracefully
+            error_log('MergeFieldService::resolveEventTeamId - ' . $e->getMessage());
             $teamId = null;
         }
 
