@@ -78,6 +78,7 @@ import PublicLiveScoreboard from './modules/tournament/pages/PublicLiveScoreboar
 import PlayerCards from './pages/PlayerCards';
 // Communications & Email
 import CommunicationLog from './pages/CommunicationLog';
+import BroadcastCompose from './pages/BroadcastCompose';
 import TemplateLibrary from './pages/TemplateLibrary';
 import CrewRoster from './pages/CrewRoster';
 import TemplateEditor from './pages/TemplateEditor';
@@ -332,14 +333,20 @@ function AppContent() {
     setCommsDropdownOpen(false);
   }, [location.pathname]);
 
+  // `exact` matters for '/communications': every other comms route is nested under
+  // it, so a prefix match would light up "All" on all of them.
   const commsLinks = [
-    { to: '/communications', label: 'All' },
+    { to: '/communications', label: 'All', exact: true },
+    { to: '/communications/broadcast', label: 'Broadcast' },
     { to: '/email-templates', label: 'Email Templates' },
     { to: '/sms-templates', label: 'SMS Templates' },
     { to: '/email-reporting', label: 'Reporting' },
   ];
 
-  const isCommsActive = commsLinks.some((link) => location.pathname.startsWith(link.to));
+  const isCommsLinkActive = (link: { to: string; exact?: boolean }) =>
+    link.exact ? location.pathname === link.to : location.pathname.startsWith(link.to);
+
+  const isCommsActive = commsLinks.some(isCommsLinkActive);
 
   const navLinks = isAdmin ? [
     { to: '/payment/revenue', label: 'Revenue' },
@@ -513,7 +520,7 @@ function AppContent() {
                                 key={cLink.to}
                                 to={cLink.to}
                                 className={`block px-4 py-2 text-sm font-medium ${
-                                  location.pathname.startsWith(cLink.to)
+                                  isCommsLinkActive(cLink)
                                     ? 'text-brand-primary bg-brand-secondary'
                                     : 'text-brand-primary hover:bg-brand-secondary'
                                 }`}
@@ -901,6 +908,11 @@ function AppContent() {
           <Route path="/sms-templates" element={
             <ProtectedRoute>
               <SmsTemplates />
+            </ProtectedRoute>
+          } />
+          <Route path="/communications/broadcast" element={
+            <ProtectedRoute>
+              <BroadcastCompose />
             </ProtectedRoute>
           } />
 

@@ -504,7 +504,7 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
-- [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `BROADCAST-SMS-SCOPE.md`.
+- [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `docs/broadcast-sms-scope.md`.
       Blocked on **migration 057**: `broadcast_campaigns` has no `body`/`html_body` column, so a
       scheduled campaign stores everything about the send except what to say (the SMS body survives
       only as `name`, truncated to 80 chars). A dispatcher alone cannot fix that. Dispatch should be
