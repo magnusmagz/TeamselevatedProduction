@@ -579,6 +579,32 @@ both sides by `BroadcastRecipientResolutionTest::testPluralRecipientTypesResolve
   row, so **only broadcasts appear in Reporting as a campaign**; the other path produces N loose
   `communication_log` rows.
 
+### Twilio error 30024 on a NEW number is not a bug — wait ~5 minutes
+`[30024] Numeric Sender ID Not Provisioned on Carrier` means the message reached
+Twilio fine and the **carrier** rejected the sender. On a freshly-purchased number
+it almost always means carrier provisioning onto the A2P 10DLC campaign hasn't
+propagated yet, not that anything is misconfigured.
+
+Observed 2026-07-30, club 32 (`+13605164604`), all three sends from the same number:
+
+| Sent after being added to the Messaging Service | Result |
+|---|---|
+| 65 seconds | ❌ 30024 |
+| ~2 minutes | ❌ 30024 |
+| **~5 minutes** | ✅ delivered |
+
+It looks exactly like a send-path bug and is not one. Before touching code, check
+the number's `date_created` on the Messaging Service and the brand/campaign status
+(`/v1/Services/{MG}/Compliance/Usa2p` — want brand `APPROVED`, campaign `VERIFIED`).
+If those are healthy, the answer is to wait and resend.
+
+⚠️ **Do NOT "fix" 30024 by putting a shared Messaging Service SID in Club Profile →
+Messaging.** `MGce1e99cb…` ("Mixed A2P Messaging Service") holds ~11 numbers spanning
+multiple clubs. Sending via a service lets Twilio pick any number in that pool, so
+one club would text families from another club's number — the exact cross-club bleed
+per-club senders exist to prevent. A per-club Messaging Service (one number, same
+approved campaign) is safe; a shared one is not.
+
 ### Inbound SMS: the auto-reply has two rules that look optional and are not
 `api/webhooks/twilio-inbound.php` answers replies with a pointer to the parent
 portal and stores nothing (Tier 0 of the reply plan in `docs/broadcast-sms-scope.md`).

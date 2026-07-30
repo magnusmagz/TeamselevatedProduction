@@ -32,6 +32,26 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### First real per-club SMS delivered — and a 30024 red herring
+No code change. Recorded because it looks like a regression and is not.
+
+Club 32 (Teams Elevated) got its own number `+13605164604` at 20:10:24Z. Two sends
+failed with `[30024] Numeric Sender ID Not Provisioned on Carrier` — at 65 seconds
+and ~2 minutes after the number joined the Messaging Service. The third, at ~5
+minutes, **delivered**. Nothing was changed in between.
+
+Brand `BNc61ab4e0…` was `APPROVED` and campaign `QE2c6890da…` `VERIFIED` throughout,
+and the number was correctly attached — this was purely carrier-side propagation.
+The earlier "successful" test at 19:16 was club 32 sending from the *Kansas* number
+(assigned to it 18:59, moved to club 51 at 19:58), so it never validated the new one.
+
+**Number history is now two clubs deep**, which is what made this legible:
+`sms_phone_numbers` rows 8–11 show the Kansas number moving 32 → 51 and club 32
+getting its own. Deactivating rather than deleting is why the timeline was
+reconstructable at all.
+
+Rule (wait ~5 min; never paste the shared Messaging Service SID) is in `CLAUDE.md`.
+
 ### Inbound SMS auto-reply — replies stop vanishing
 **Heroku v456** · Netlify `046f525` (carried this commit) · **no migration**
 
