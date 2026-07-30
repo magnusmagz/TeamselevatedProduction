@@ -429,6 +429,12 @@ function handleSearch($connection, $auth, $userId) {
 // ============================================
 function handleGroups($connection, $auth, $userId) {
     $clubProfileId = $_GET['club_profile_id'] ?? null;
+    // The picker used to count email addresses whatever you were composing, so
+    // an SMS "All Crew (132)" included everyone who had an email but no mobile.
+    $channel = $_GET['channel'] ?? 'email';
+    if (!in_array($channel, ['email', 'sms'], true)) {
+        $channel = 'email';
+    }
 
     if (!$clubProfileId) {
         http_response_code(400);
@@ -446,12 +452,23 @@ function handleGroups($connection, $auth, $userId) {
     $params = [$clubProfileId];
     $params = array_merge($params, $teamFilter['params']);
 
+    // Guardians carry mobile_phone; athletes carry phone.
+    $aContact = ($channel === 'sms') ? 'a.phone' : 'a.email';
+    $gContact = ($channel === 'sms') ? 'g.mobile_phone' : 'g.email';
+
     $sql = "
         SELECT t.id, t.name, t.age_group,
-               COUNT(DISTINCT tm.athlete_id) as athlete_count,
-               COUNT(DISTINCT g.id) as guardian_count
+               COUNT(DISTINCT tm.athlete_id)
+                 FILTER (WHERE {$aContact} IS NOT NULL AND trim({$aContact}) <> '') as athlete_count,
+               COUNT(DISTINCT g.id)
+                 FILTER (WHERE {$gContact} IS NOT NULL AND trim({$gContact}) <> '') as guardian_count,
+               COUNT(DISTINCT g.id)
+                 FILTER (WHERE {$gContact} IS NULL OR trim({$gContact}) = '') as guardian_missing,
+               COUNT(DISTINCT tm.athlete_id)
+                 FILTER (WHERE {$aContact} IS NULL OR trim({$aContact}) = '') as athlete_missing
         FROM teams t
         LEFT JOIN team_members tm ON t.id = tm.team_id AND tm.status = 'active'
+        LEFT JOIN athletes a ON tm.athlete_id = a.id
         LEFT JOIN athlete_guardians ag ON tm.athlete_id = ag.athlete_id
         LEFT JOIN guardians g ON ag.guardian_id = g.id
         WHERE t.club_id = ? AND t.deleted_at IS NULL
@@ -469,6 +486,12 @@ function handleGroups($connection, $auth, $userId) {
         $team['id'] = (int)$team['id'];
         $team['athlete_count'] = (int)$team['athlete_count'];
         $team['guardian_count'] = (int)$team['guardian_count'];
+        $team['missing_contact_count'] =
+            (int)$team['athlete_missing'] + (int)$team['guardian_missing'];
+        $team['missing_contact_label'] = ($channel === 'sms') ? 'phone number' : 'email address';
+        $team['people_count'] =
+            $team['athlete_count'] + $team['guardian_count'] + $team['missing_contact_count'];
+        unset($team['athlete_missing'], $team['guardian_missing']);
         $team['group_type'] = 'team';
     }
     unset($team);
@@ -478,7 +501,7 @@ function handleGroups($connection, $auth, $userId) {
     // the whole point of getTeamFilterClause above.
     $groups = $teams;
     if (isClubAdmin($auth, $clubProfileId)) {
-        $groups = array_merge(getSpecialGroups($connection, $clubProfileId), $groups);
+        $groups = array_merge(getSpecialGroups($connection, $clubProfileId, $channel), $groups);
     }
 
     echo json_encode([
@@ -495,51 +518,135 @@ function handleGroups($connection, $auth, $userId) {
  * onto a team are still reached. That is the case a club-wide announcement
  * (season kickoff, registration open) most needs to cover.
  *
- * recipient_count is the deduplicated EMAIL count, since the picker does not
- * tell us the channel. For SMS the resolve step returns exact recipients plus
- * the missing-contact warning, so the picker count is a preview, not a promise.
+ * Counts are CHANNEL-AWARE. They used to be the deduplicated EMAIL count no
+ * matter what you were composing, which made the SMS picker actively misleading:
+ * "All Crew (132)" counted every guardian with an email address, including the
+ * ones with no mobile number who could never receive a text. The resolve step
+ * dropped them correctly, so the picker promised 132 and the send reached fewer,
+ * with nothing explaining the gap.
+ *
+ * Each group now reports two numbers for the channel in play:
+ *   recipient_count      — how many can actually be reached
+ *   missing_contact_count — how many exist but have no address for THIS channel
+ *
+ * The picker shows both, so the number is self-explaining rather than a promise
+ * it cannot keep.
  */
-function getSpecialGroups($connection, $clubProfileId) {
+function getSpecialGroups($connection, $clubProfileId, $channel = 'email') {
+    // Guardians use mobile_phone for SMS; athletes and staff use phone.
+    $gContact = ($channel === 'sms') ? 'g.mobile_phone' : 'g.email';
+    $aContact = ($channel === 'sms') ? 'a.phone' : 'a.email';
+    $uContact = ($channel === 'sms') ? 'u.phone' : 'u.email';
+
+    // Three numbers, each counted directly, because they are three different
+    // things and subtracting one from another gives a wrong answer:
+    //
+    //   people    — distinct guardians in the group
+    //   missing   — distinct guardians with NO address on this channel
+    //   reachable — distinct ADDRESSES, i.e. how many messages actually go out
+    //
+    // reachable + missing != people, and that is correct: a household sharing one
+    // mobile is two people, no one missing, one message. Deriving `missing` by
+    // subtraction would report that household as someone lacking a phone number.
     $crewSql = "
-        SELECT COUNT(DISTINCT lower(trim(g.email)))
+        SELECT COUNT(DISTINCT g.id) AS people,
+               COUNT(DISTINCT g.id)
+                 FILTER (WHERE {$gContact} IS NULL OR trim({$gContact}) = '') AS missing,
+               COUNT(DISTINCT lower(trim({$gContact})))
+                 FILTER (WHERE {$gContact} IS NOT NULL AND trim({$gContact}) <> '') AS reachable
         FROM guardians g
         JOIN athlete_guardians ag ON g.id = ag.guardian_id
         JOIN athletes a ON ag.athlete_id = a.id
         WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
-          AND g.email IS NOT NULL AND trim(g.email) <> ''
     ";
     $stmt = $connection->prepare($crewSql);
     $stmt->execute([$clubProfileId]);
-    $crewCount = (int)$stmt->fetchColumn();
+    $crewRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    $crewCount   = (int)$crewRow['reachable'];
+    $crewPeople  = (int)$crewRow['people'];
+    $crewMissing = (int)$crewRow['missing'];
 
     $neverSent = (int)portalStatusCount($connection, $clubProfileId, 'invite_never_sent');
     $notSetUp  = (int)portalStatusCount($connection, $clubProfileId, 'invite_sent_not_setup');
 
     $allSql = "
         SELECT COUNT(*) FROM (
-            SELECT DISTINCT lower(trim(a.email)) AS e
+            SELECT DISTINCT lower(trim({$aContact})) AS e
             FROM athletes a
             WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
-              AND a.email IS NOT NULL AND trim(a.email) <> ''
+              AND {$aContact} IS NOT NULL AND trim({$aContact}) <> ''
             UNION
-            SELECT DISTINCT lower(trim(g.email))
+            SELECT DISTINCT lower(trim({$gContact}))
             FROM guardians g
             JOIN athlete_guardians ag ON g.id = ag.guardian_id
             JOIN athletes a2 ON ag.athlete_id = a2.id
             WHERE a2.club_id = ? AND a2.deleted_at IS NULL AND a2.active_status = true
-              AND g.email IS NOT NULL AND trim(g.email) <> ''
+              AND {$gContact} IS NOT NULL AND trim({$gContact}) <> ''
             UNION
-            SELECT DISTINCT lower(trim(u.email))
+            SELECT DISTINCT lower(trim({$uContact}))
             FROM users u
             JOIN user_club_access uca ON u.id = uca.user_id
             WHERE uca.club_profile_id = ? AND uca.active = true
               AND uca.role IN ('coach', 'club_admin')
-              AND u.email IS NOT NULL AND trim(u.email) <> ''
+              AND {$uContact} IS NOT NULL AND trim({$uContact}) <> ''
         ) x
     ";
     $stmt = $connection->prepare($allSql);
     $stmt->execute([$clubProfileId, $clubProfileId, $clubProfileId]);
     $allCount = (int)$stmt->fetchColumn();
+
+    // Same three-way count for "All", across all three populations.
+    $allPeopleSql = "
+        SELECT
+          (SELECT COUNT(*) FROM athletes a
+             WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true)
+        + (SELECT COUNT(DISTINCT g.id) FROM guardians g
+             JOIN athlete_guardians ag ON g.id = ag.guardian_id
+             JOIN athletes a2 ON ag.athlete_id = a2.id
+             WHERE a2.club_id = ? AND a2.deleted_at IS NULL AND a2.active_status = true)
+        + (SELECT COUNT(DISTINCT u.id) FROM users u
+             JOIN user_club_access uca ON u.id = uca.user_id
+             WHERE uca.club_profile_id = ? AND uca.active = true
+               AND uca.role IN ('coach', 'club_admin')) AS people,
+          (SELECT COUNT(*) FROM athletes a
+             WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+               AND ({$aContact} IS NULL OR trim({$aContact}) = ''))
+        + (SELECT COUNT(DISTINCT g.id) FROM guardians g
+             JOIN athlete_guardians ag ON g.id = ag.guardian_id
+             JOIN athletes a2 ON ag.athlete_id = a2.id
+             WHERE a2.club_id = ? AND a2.deleted_at IS NULL AND a2.active_status = true
+               AND ({$gContact} IS NULL OR trim({$gContact}) = ''))
+        + (SELECT COUNT(DISTINCT u.id) FROM users u
+             JOIN user_club_access uca ON u.id = uca.user_id
+             WHERE uca.club_profile_id = ? AND uca.active = true
+               AND uca.role IN ('coach', 'club_admin')
+               AND ({$uContact} IS NULL OR trim({$uContact}) = '')) AS missing
+    ";
+    $stmt = $connection->prepare($allPeopleSql);
+    $stmt->execute(array_fill(0, 6, $clubProfileId));
+    $allRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    $allPeople  = (int)$allRow['people'];
+    $allMissing = (int)$allRow['missing'];
+
+    // Coaches and club admins, by user_club_access — the authoritative source for
+    // club roles. Revoked access (active = false) is excluded, so someone who has
+    // left the club stops appearing the moment their access is revoked.
+    $coachSql = "
+        SELECT COUNT(DISTINCT u.id) AS people,
+               COUNT(DISTINCT u.id)
+                 FILTER (WHERE {$uContact} IS NULL OR trim({$uContact}) = '') AS missing,
+               COUNT(DISTINCT lower(trim({$uContact})))
+                 FILTER (WHERE {$uContact} IS NOT NULL AND trim({$uContact}) <> '') AS reachable
+        FROM users u
+        JOIN user_club_access uca ON u.id = uca.user_id
+        WHERE uca.club_profile_id = ? AND uca.active = true
+          AND uca.role IN ('coach', 'club_admin')
+    ";
+    $stmt = $connection->prepare($coachSql);
+    $stmt->execute([$clubProfileId]);
+    $coachRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $contactLabel = ($channel === 'sms') ? 'phone number' : 'email address';
 
     return [
         [
@@ -547,6 +654,9 @@ function getSpecialGroups($connection, $clubProfileId) {
             'name' => 'All',
             'group_type' => 'special',
             'recipient_count' => $allCount,
+            'people_count' => $allPeople,
+            'missing_contact_count' => $allMissing,
+            'missing_contact_label' => $contactLabel,
             'description' => 'Everyone in the club — athletes, crew, and coaches'
         ],
         [
@@ -554,8 +664,23 @@ function getSpecialGroups($connection, $clubProfileId) {
             'name' => 'All Crew',
             'group_type' => 'special',
             'recipient_count' => $crewCount,
+            'people_count' => $crewPeople,
+            'missing_contact_count' => $crewMissing,
+            'missing_contact_label' => $contactLabel,
             'description' => 'Every guardian in the club'
         ],
+        [
+            'id' => 'all_coaches',
+            'name' => 'All Coaches',
+            'group_type' => 'special',
+            'recipient_count' => (int)$coachRow['reachable'],
+            'people_count' => (int)$coachRow['people'],
+            'missing_contact_count' => (int)$coachRow['missing'],
+            'missing_contact_label' => $contactLabel,
+            'description' => 'Coaches and club admins — no families'
+        ],
+        // The two portal groups are defined by email state — an invite has nowhere
+        // to go without one — so their counts stay email-based on both channels.
         [
             'id' => 'invite_never_sent',
             'name' => 'Invite Never Sent',
@@ -667,7 +792,7 @@ function handleResolveGroup($connection, $auth, $userId) {
             echo json_encode(['success' => false, 'error' => 'Club-wide groups are available to club admins only']);
             exit();
         }
-        $validSpecialGroups = ['all', 'all_crew', 'invite_never_sent', 'invite_sent_not_setup'];
+        $validSpecialGroups = ['all', 'all_crew', 'all_coaches', 'invite_never_sent', 'invite_sent_not_setup'];
         if (!in_array($specialGroup, $validSpecialGroups, true)) {
             http_response_code(400);
             echo json_encode([
@@ -1026,29 +1151,32 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
         ];
     };
 
-    // ----- Crew (guardians) — every group is crew-based -----
-    // The two portal groups additionally require an email: a parent-portal
-    // invite has nowhere to go without one, so an emailless guardian is not a
-    // "never invited" case to chase, just an incomplete record.
-    $crewFilter = '';
-    if (in_array($specialGroup, ['invite_never_sent', 'invite_sent_not_setup'], true)) {
-        $crewFilter = " AND g.email IS NOT NULL AND trim(g.email) <> ''
-                        AND " . portalStatusPredicate($specialGroup);
-    }
+    // ----- Crew (guardians) -----
+    // Every group except All Coaches is crew-based. The two portal groups
+    // additionally require an email: a parent-portal invite has nowhere to go
+    // without one, so an emailless guardian is not a "never invited" case to
+    // chase, just an incomplete record.
+    if ($specialGroup !== 'all_coaches') {
+        $crewFilter = '';
+        if (in_array($specialGroup, ['invite_never_sent', 'invite_sent_not_setup'], true)) {
+            $crewFilter = " AND g.email IS NOT NULL AND trim(g.email) <> ''
+                            AND " . portalStatusPredicate($specialGroup);
+        }
 
-    $sql = "
-        SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone AS phone,
-               g.sms_opt_out
-        FROM guardians g
-        JOIN athlete_guardians ag ON g.id = ag.guardian_id
-        JOIN athletes a ON ag.athlete_id = a.id
-        WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
-        {$crewFilter}
-    ";
-    $stmt = $connection->prepare($sql);
-    $stmt->execute([$clubProfileId]);
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $add($row, 'guardian');
+        $sql = "
+            SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone AS phone,
+                   g.sms_opt_out
+            FROM guardians g
+            JOIN athlete_guardians ag ON g.id = ag.guardian_id
+            JOIN athletes a ON ag.athlete_id = a.id
+            WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+            {$crewFilter}
+        ";
+        $stmt = $connection->prepare($sql);
+        $stmt->execute([$clubProfileId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $add($row, 'guardian');
+        }
     }
 
     if ($specialGroup === 'all') {
@@ -1068,9 +1196,13 @@ function resolveSpecialGroup($connection, $clubProfileId, $specialGroup, $channe
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $add($row, 'athlete');
         }
+    }
 
-        // ----- Coaches and club admins -----
-        // user_club_access is authoritative for club roles, not users.role.
+    // ----- Coaches and club admins -----
+    // Reached by "All" and by "All Coaches" on its own. user_club_access is
+    // authoritative for club roles, NOT users.role, and revoked access
+    // (active = false) must not receive club messages.
+    if ($specialGroup === 'all' || $specialGroup === 'all_coaches') {
         $sql = "
             SELECT DISTINCT u.id, u.first_name, u.last_name, u.email, u.phone
             FROM users u
