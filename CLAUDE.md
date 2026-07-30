@@ -747,13 +747,14 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       health plans) or drop the policy row. A declared policy that silently does nothing is worse
       than an absent one, because the report implies coverage that isn't there.
 - [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `docs/broadcast-sms-scope.md`.
-      Blocked on **migration 057**: `broadcast_campaigns` has no `body`/`html_body` column, so a
-      scheduled campaign stores everything about the send except what to say (the SMS body survives
-      only as `name`, truncated to 80 chars). A dispatcher alone cannot fix that. Dispatch should be
-      a throttled tick inside the already-running `workers/queue-worker.php` — **not** a new
-      scheduler process, which would hit the same cost wall that keeps `calendar-sync-scheduler`
-      and `waitlist-expiry-scheduler` switched off. The 400 guard in `handleSendBroadcast` stays
-      until that ships.
+      Needs **a new migration (060+)** adding `body`/`html_body` to `broadcast_campaigns`. *(This
+      item used to say "migration 057"; 057 was claimed by per-club SMS numbers and does NOT contain
+      those columns — 058/059 are also taken.)* Without them a scheduled campaign stores everything
+      about the send except what to say: the SMS body survives only as `name`, truncated to 80
+      chars. A dispatcher alone cannot fix that. Dispatch should be a throttled tick inside the
+      already-running `workers/queue-worker.php` — **not** a new scheduler process, which would hit
+      the same cost wall that keeps `calendar-sync-scheduler` and `waitlist-expiry-scheduler`
+      switched off. The 400 guard in `handleSendBroadcast` stays until that ships.
 - [ ] **Staff phone number on profile (Workstream D)** — roadmap P0 #1. `users.phone` exists but is
       rarely populated, so the coach branches of `resolveBroadcastRecipients` resolve near-empty.
       No migration needed; normalize through `te_normalize_sms_phone` on save.
