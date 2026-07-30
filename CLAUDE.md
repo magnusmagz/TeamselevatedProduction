@@ -678,6 +678,14 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
+- [ ] **`athlete_profiles` retention policy has no rule and has never done anything** (found
+      2026-07-30 while adding the chat policies). `data_retention_policy` carries an
+      `athlete_profiles` row at 1825 days, but `lib/retention_plans.php` has no entry for it, so
+      `retention-check.php` prints `UNSUPPORTED — no rule defined`. In a report where every other
+      line reads "nothing to do", that is easy to scan past as fine. Either write the plan (what
+      counts as an expired athlete profile — presumably soft-deleted + inactive, matching the
+      health plans) or drop the policy row. A declared policy that silently does nothing is worse
+      than an absent one, because the report implies coverage that isn't there.
 - [ ] **Broadcast SMS — scheduled sends (Workstream C)**, plan in `docs/broadcast-sms-scope.md`.
       Blocked on **migration 057**: `broadcast_campaigns` has no `body`/`html_body` column, so a
       scheduled campaign stores everything about the send except what to say (the SMS body survives
