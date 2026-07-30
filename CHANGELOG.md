@@ -32,6 +32,40 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Parental consent actually gets recorded now — and the portal's Medical page was blank
+`3d1f2ba` (merged as `fffbf4c`) · **frontend-only** · no Heroku push, **no migration**
+
+**Prod state discovered — `consent_records` was never being written.** `AthleteForm`'s "Parental
+Consent (Required)" block was two checkboxes held in local React state: never POSTed, never stored,
+and force-set to `true` whenever anyone edited an existing athlete. They gated that form's submit
+button and nothing else. `api/consent.php` has been live and complete the whole time (verified
+responding in prod today) with **nothing ever calling `action=record`**. So the product asserted
+COPPA consent capture and stored none. Expect `consent_records` to be empty or near-empty for
+everything predating this deploy — that is the explanation, not corruption.
+
+Consent is now captured in the parent portal (`ConsentGate`), which is the only place a *parent*
+can give it — a club admin ticking "As the parent or legal guardian, I consent" was never parental
+consent regardless of storage. Design rules that must not be undone are in CLAUDE.md.
+
+**Second blank-page bug, same shape.** `MedicalInfoPage` read `allergies` / `medications` /
+`blood_type` / `insurance_*` off `api/athletes/?action=get` — i.e. off the `athletes` row, which
+has never had those columns. Every value resolved `undefined`, and the renderer *hid* empty fields,
+so it presented as a family with nothing on file rather than as a broken page. **The portal's
+Medical tab has been blank for every user for as long as it has existed.** Now reads
+`legacy/medical-gateway.php` (the only reader that decrypts the PHI) and renders "Not provided".
+
+Medical is also crew-editable now, by decision rather than inheritance — a parent is the
+authoritative source for their own child's allergies. Clinical fields (concussion history, last
+concussion, return-to-play) are withheld client-side only; noted in CLAUDE.md as a product
+boundary, not a security one.
+
+**⚠️ User-visible on next load:** every parent already in the portal meets a blocking consent
+screen. Intended, and confirmed with Maggie before pushing. It cannot be dismissed, but it does
+offer a decline path that signs out rather than trapping — consent that cannot be refused is not
+consent. Nothing is recorded on decline.
+
+Frontend-only, so Heroku was not pushed; the API this depends on was already deployed.
+
 ### First real per-club SMS delivered — and a 30024 red herring
 No code change. Recorded because it looks like a regression and is not.
 
