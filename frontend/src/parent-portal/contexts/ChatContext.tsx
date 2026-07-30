@@ -12,6 +12,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 const SAFE_DEFAULT: ChatContextValue = {
   conversations: [],
+  archivedConversations: [],
   activeConversation: null,
   messages: [],
   typingUsers: [],
@@ -20,10 +21,14 @@ const SAFE_DEFAULT: ChatContextValue = {
   chatUser: null,
   canCreate: false,
   totalUnreadCount: 0,
+  showArchived: false,
   selectConversation: () => {},
   sendMessage: () => {},
   createConversation: () => {},
   handleTyping: () => {},
+  archiveConversation: () => {},
+  unarchiveConversation: () => {},
+  setShowArchived: () => {},
 };
 
 // Returns safe defaults if used outside a ChatProvider so that ancillary

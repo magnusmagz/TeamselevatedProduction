@@ -120,6 +120,42 @@ export const chatSocket = {
     }
   },
 
+  /**
+   * Archive a conversation — hides it from THIS user's list only.
+   *
+   * Not a delete. Nothing is removed, no other participant is affected, and the
+   * next message in the thread brings it back. Chat has no user-facing delete by
+   * design; the only removal path is admin moderation.
+   *
+   * Returns whether the emit was dispatched, so callers can avoid optimistically
+   * hiding a conversation the server never heard about.
+   */
+  archiveConversation: (conversationId: number): boolean => {
+    if (socket?.connected) {
+      socket.emit('archiveConversation', { conversationId });
+      return true;
+    }
+    console.error('Cannot archive conversation - socket not connected');
+    return false;
+  },
+
+  /** Restore an archived conversation to this user's list */
+  unarchiveConversation: (conversationId: number): boolean => {
+    if (socket?.connected) {
+      socket.emit('unarchiveConversation', { conversationId });
+      return true;
+    }
+    console.error('Cannot unarchive conversation - socket not connected');
+    return false;
+  },
+
+  /** Request this user's archived conversations */
+  loadArchivedConversations: () => {
+    if (socket?.connected) {
+      socket.emit('loadArchivedConversations');
+    }
+  },
+
   /** Add a reaction to a message */
   addReaction: (messageId: string, emoji: string) => {
     if (socket?.connected) {

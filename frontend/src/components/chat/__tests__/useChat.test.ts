@@ -32,6 +32,9 @@ jest.mock('../chatSocket', () => {
     markRead: jest.fn(),
     createConversation: jest.fn(),
     sendTyping: jest.fn(),
+    archiveConversation: jest.fn((): boolean => true),
+    unarchiveConversation: jest.fn((): boolean => true),
+    loadArchivedConversations: jest.fn(),
     disconnect: jest.fn(),
   };
   return {
@@ -50,6 +53,10 @@ const mockedModule = chatSocketModule as unknown as {
     sendMessage: jest.Mock;
     joinConversation: jest.Mock;
     markRead: jest.Mock;
+    leaveConversation: jest.Mock;
+    archiveConversation: jest.Mock;
+    unarchiveConversation: jest.Mock;
+    loadArchivedConversations: jest.Mock;
   };
   __fakeSocket: { connected: boolean; on: jest.Mock };
   __registeredHandlers: Record<string, Function>;
@@ -60,6 +67,9 @@ const mockSendMessage = mockChatSocket.sendMessage;
 const mockJoinConversation = mockChatSocket.joinConversation;
 const mockRegisteredHandlers = mockedModule.__registeredHandlers;
 const mockFakeSocket = mockedModule.__fakeSocket;
+const mockArchive = mockChatSocket.archiveConversation;
+const mockUnarchive = mockChatSocket.unarchiveConversation;
+const mockLoadArchived = mockChatSocket.loadArchivedConversations;
 
 // ---- Mock the contexts the hook depends on --------------------------------
 jest.mock('../../../contexts/AuthContext', () => ({
@@ -100,6 +110,9 @@ beforeEach(() => {
   mockConnectChat.mockReturnValue(mockFakeSocket);
   mockSendMessage.mockReturnValue(true);
   mockJoinConversation.mockImplementation(() => {});
+  mockArchive.mockReturnValue(true);
+  mockUnarchive.mockReturnValue(true);
+  mockChatSocket.leaveConversation.mockImplementation(() => {});
   localStorage.setItem('auth_token', 'test-token');
 });
 
@@ -197,5 +210,126 @@ describe('useChat', () => {
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0].failed).toBe(true);
     expect(result.current.messages[0].pending).toBe(false);
+  });
+
+  // ---- Archive ------------------------------------------------------------
+  // Archive is per-user view state, never deletion. Chat has no user-facing
+  // delete: a control labelled "delete" that soft-deletes would tell the user
+  // their message is gone when it is not.
+  describe('archive', () => {
+    const other: Conversation = {
+      id: 8,
+      type: 'direct',
+      participants: [],
+      unreadCount: 0,
+      displayName: 'Coach Dave',
+    };
+
+    function withConversations() {
+      const hook = renderHook(() => useChat());
+      fire('conversationsList', [conversation, other]);
+      return hook;
+    }
+
+    test('archiving removes the conversation from the active list', () => {
+      const { result } = withConversations();
+      expect(result.current.conversations).toHaveLength(2);
+
+      act(() => result.current.archiveConversation(7));
+
+      expect(mockArchive).toHaveBeenCalledWith(7);
+      expect(result.current.conversations.map(c => c.id)).toEqual([8]);
+      // It moved, it did not vanish.
+      expect(result.current.archivedConversations.map(c => c.id)).toEqual([7]);
+    });
+
+    test('archiving the OPEN conversation closes it', () => {
+      const { result } = withConversations();
+      act(() => result.current.selectConversation(conversation));
+      expect(result.current.activeConversation?.id).toBe(7);
+
+      act(() => result.current.archiveConversation(7));
+
+      // Otherwise the user is left reading a thread that is no longer listed.
+      expect(result.current.activeConversation).toBeNull();
+      expect(result.current.messages).toHaveLength(0);
+    });
+
+    test('an offline archive does not hide the conversation', () => {
+      // Hiding a conversation the server never heard about is a silent lie that
+      // survives until the next reload.
+      mockArchive.mockReturnValueOnce(false);
+      const { result } = withConversations();
+
+      act(() => result.current.archiveConversation(7));
+
+      expect(result.current.conversations).toHaveLength(2);
+      expect(result.current.archivedConversations).toHaveLength(0);
+    });
+
+    test('unarchiving restores the conversation to the active list', () => {
+      const { result } = withConversations();
+      act(() => result.current.archiveConversation(7));
+      expect(result.current.conversations.map(c => c.id)).toEqual([8]);
+
+      act(() => result.current.unarchiveConversation(7));
+      expect(mockUnarchive).toHaveBeenCalledWith(7);
+
+      // The server confirms with the full conversation object.
+      fire('conversationUnarchived', { conversationId: 7, conversation });
+
+      expect(result.current.conversations.map(c => c.id).sort()).toEqual([7, 8]);
+      expect(result.current.archivedConversations).toHaveLength(0);
+    });
+
+    test('a new message brings an archived conversation back', () => {
+      // The server un-archives for everyone who had archived it and pushes the
+      // whole conversation, because conversationUpdated has nothing to patch
+      // while the conversation is absent from this client's list.
+      const { result } = withConversations();
+      act(() => result.current.archiveConversation(7));
+      expect(result.current.conversations.map(c => c.id)).toEqual([8]);
+
+      fire('newConversation', conversation);
+
+      expect(result.current.conversations.map(c => c.id)).toContain(7);
+      expect(result.current.archivedConversations).toHaveLength(0);
+    });
+
+    test('opening the archived view requests it from the server', () => {
+      const { result } = withConversations();
+
+      act(() => result.current.setShowArchived(true));
+      expect(result.current.showArchived).toBe(true);
+      expect(mockLoadArchived).toHaveBeenCalled();
+
+      fire('archivedConversationsList', [other]);
+      expect(result.current.archivedConversations.map(c => c.id)).toEqual([8]);
+
+      act(() => result.current.setShowArchived(false));
+      expect(result.current.showArchived).toBe(false);
+    });
+
+    test('archiving never removes messages', () => {
+      // The guard against this quietly becoming a delete.
+      const { result } = withConversations();
+      act(() => result.current.selectConversation(other));
+      fire('receiveMessage', {
+        id: '900',
+        conversationId: 8,
+        text: 'See you Saturday',
+        sender: 'Coach Dave',
+        senderId: 99,
+        timestamp: new Date().toISOString(),
+      } as ChatMessage);
+      expect(result.current.messages).toHaveLength(1);
+
+      act(() => result.current.archiveConversation(7));
+
+      // A different conversation's messages are untouched, and the archived one
+      // is still fully present in state — just filed elsewhere.
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.archivedConversations[0].displayName).toBe('U14 Mustangs');
+    });
   });
 });

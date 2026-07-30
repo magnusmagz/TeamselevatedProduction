@@ -28,12 +28,14 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (contribution_links / comms_tables_baseline / series_invites) — three sessions numbering
    independently. All are applied; filenames differ so nothing clobbers. **Claim the next number
    by checking `ls database/migrations/ | sort` in BOTH the main checkout and the
-   te-stripe-payments worktree before creating one.** Next free as of 2026-07-30: **057**
+   te-stripe-payments worktree before creating one.** Next free as of 2026-07-30: **059**
    (048–056 taken: athlete_gender_nullable, club_logo_png,
    emergency_contact_authorize_medical, athlete_medical, program_season_fields,
    users_tos_acceptance, athlete_jersey_size, registration_jersey_size_field,
-   clear_default_player_passwords).
-   All applied to Neon.
+   clear_default_player_passwords). 048–056 are applied to Neon.
+   **057 is RESERVED** for `broadcast_campaigns.body` (scheduled SMS, Workstream C) — not yet
+   written. **058** is `chat_conversation_archive` on branch `feature/chat-archive`
+   (worktree `te-chat-archive/`), **not yet applied to Neon**.
 3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
@@ -308,6 +310,36 @@ Fixing it properly is the same missing piece as the "Shared-email remaining case
 string match. The cheap interim is to key `active` off an **accepted** invite
 (`magic_link_tokens.used_at IS NOT NULL`) instead of off `password_hash`. Do not "fix" this by
 adding more email-matching.
+
+---
+
+### ⚠️ Chat has archive, and deliberately has NO delete
+Added 2026-07-30 on `feature/chat-archive`. Full rationale in `docs/chat-archive-plan.md`.
+
+- **Archive** (`conversation_participants.archived_at`, migration 058) hides a conversation from
+  one user's list. Nothing is removed, no other participant is affected, and a new message
+  un-archives it for everyone who had archived it.
+- **There is no user-facing delete, and this is a product decision, not an omission.** A control
+  labelled "delete" that soft-deletes tells the user their message is gone when it is not; in a
+  product carrying minors' communications that gap is the liability. The only removal path is
+  admin moderation, which tombstones and writes `audit_log`.
+- **COPPA is not the reason to retain chat.** COPPA pushes the other way — retain children's data
+  only as long as necessary, honor deletion requests, no indefinite retention. What argues for
+  keeping chat is child-safety recordkeeping (SafeSport-style) and club defensibility; COPPA
+  supplies the *ceiling*, enforced by the retention plans in `scripts/retention-check.php`.
+- **Do not implement archive with `left_at`.** That column's six read-side uses make it behave like
+  *leave group* — you disappear from every other participant's roster. Different verb.
+- **Per-user chat state must be UPSERTed, never UPDATEd.** `ensureTeamConversation()` creates team
+  conversations with **no participant rows**; members reach them through the `c.type = 'team' AND
+  c.team_id = ANY(...)` branch of `getUserConversations`. A bare `UPDATE ... WHERE conversation_id
+  AND user_id` therefore hits zero rows on team chats — which is exactly why `markRead` never
+  cleared team-chat unread badges until 2026-07-30. SQL lives in `chat-server/lib/archive.js`,
+  guarded by `chat-server/__tests__/archive.test.js` (`npm test` in `chat-server/`, uses built-in
+  `node:test`, no new deps).
+- The archive predicate must sit **outside** the `OR` group in the conversation-list WHERE, or the
+  team branch re-admits archived team chats. Locked by test.
+- **The chat server is a separate Heroku app** — git remote `chat` → `teamselevated-chat.git`, not
+  the `heroku` backend remote. Deploying the backend does not deploy chat.
 
 ---
 

@@ -13,6 +13,7 @@ export default function ChatWidget() {
 
   const {
     conversations,
+    archivedConversations,
     activeConversation,
     messages,
     typingUsers,
@@ -20,10 +21,14 @@ export default function ChatWidget() {
     loading,
     canCreate,
     totalUnreadCount,
+    showArchived,
     selectConversation,
     sendMessage,
     createConversation,
     handleTyping,
+    archiveConversation,
+    unarchiveConversation,
+    setShowArchived,
   } = useChat();
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -110,10 +115,14 @@ export default function ChatWidget() {
               </div>
 
               <ConversationList
-                conversations={conversations}
+                conversations={showArchived ? archivedConversations : conversations}
                 onSelect={handleSelectConversation}
                 onNewConversation={canCreate ? handleNewConversation : undefined}
                 loading={loading}
+                onArchive={archiveConversation}
+                onUnarchive={unarchiveConversation}
+                showArchived={showArchived}
+                onToggleArchived={setShowArchived}
               />
             </>
           )}

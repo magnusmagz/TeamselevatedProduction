@@ -9,6 +9,13 @@ const { Server } = require('socket.io');
 const { createServer } = require('http');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const {
+  buildConversationsQuery,
+  ARCHIVE_SQL,
+  UNARCHIVE_SQL,
+  UNARCHIVE_ON_NEW_MESSAGE_SQL,
+  MARK_READ_SQL,
+} = require('./lib/archive');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -179,8 +186,12 @@ async function ensureTeamConversation(teamId, clubId) {
  * Get all conversations for a user. Includes:
  * - Conversations where they're an explicit participant
  * - Team conversations they belong to (auto-discovered for parents)
+ *
+ * Archived conversations are excluded by default. Pass { archived: true } for the
+ * user's archived list — archive is per-user view state, never deletion, so the
+ * same rows are simply on the other side of the filter.
  */
-async function getUserConversations(userId, role, payload) {
+async function getUserConversations(userId, role, payload, { archived = false } = {}) {
   // Get team IDs this user has access to
   let teamIds = [];
   if (role === 'parent') {
@@ -213,28 +224,9 @@ async function getUserConversations(userId, role, payload) {
     }
   }
 
-  // Get conversations where user is explicit participant OR is part of a team conversation
-  const query = `
-    SELECT DISTINCT
-      c.id,
-      c.type,
-      c.team_id AS "teamId",
-      t.name AS "teamName",
-      c.last_message_at AS "lastMessageAt",
-      c.last_message_preview AS "lastMessagePreview",
-      c.created_at AS "createdAt",
-      COALESCE(c.last_message_at, c.created_at) AS "sortTime"
-    FROM conversations c
-    LEFT JOIN teams t ON t.id = c.team_id
-    LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = $1
-    WHERE (
-      cp.user_id IS NOT NULL AND cp.left_at IS NULL
-    )
-    OR (
-      c.type = 'team' AND c.team_id = ANY($2::int[])
-    )
-    ORDER BY "sortTime" DESC
-  `;
+  // Get conversations where user is explicit participant OR is part of a team
+  // conversation, minus (or only) the ones this user archived.
+  const query = buildConversationsQuery({ archived });
 
   try {
     const result = await pool.query(query, [userId, teamIds]);
@@ -774,6 +766,17 @@ io.on('connection', (socket) => {
       }
     };
 
+    // A new message un-archives the conversation for everyone who had archived it.
+    // This is what makes archive safe to offer: nothing is ever permanently hidden,
+    // so the control never has to promise more than it delivers.
+    let unarchivedUserIds = [];
+    try {
+      const unarchived = await pool.query(UNARCHIVE_ON_NEW_MESSAGE_SQL, [conversationId]);
+      unarchivedUserIds = unarchived.rows.map(r => r.user_id);
+    } catch (error) {
+      console.error('Error un-archiving on new message:', error.message);
+    }
+
     // Broadcast to all sockets of participants not in the room
     // (they need list updates even if not viewing this conversation)
     const participants = await pool.query(
@@ -792,6 +795,24 @@ io.on('connection', (socket) => {
     for (const [sid, info] of connectedUsers.entries()) {
       if (participantUserIds.has(info.userId) || (convInfo.rows[0]?.type === 'team')) {
         io.to(sid).emit('conversationUpdated', updatePayload);
+      }
+    }
+
+    // `conversationUpdated` is not enough for anyone we just un-archived: the
+    // conversation is absent from their client-side list, so the handler maps over
+    // a list that does not contain it and silently drops the update. Push the whole
+    // conversation instead — `newConversation` already dedupes by id.
+    if (unarchivedUserIds.length > 0) {
+      const unarchivedSet = new Set(unarchivedUserIds);
+      for (const [sid, info] of connectedUsers.entries()) {
+        if (!unarchivedSet.has(info.userId)) continue;
+        try {
+          const convs = await getUserConversations(info.userId, info.role, info.payload);
+          const restored = convs.find(c => c.id === conversationId);
+          if (restored) io.to(sid).emit('newConversation', restored);
+        } catch (e) {
+          console.error('Error restoring un-archived conversation:', e.message);
+        }
       }
     }
 
@@ -916,13 +937,107 @@ io.on('connection', (socket) => {
 
     const { conversationId } = data;
     try {
-      await pool.query(`
-        UPDATE conversation_participants SET last_read_at = NOW(),
-          last_read_message_id = (SELECT MAX(id) FROM chat_messages WHERE conversation_id = $1 AND deleted_at IS NULL)
-        WHERE conversation_id = $1 AND user_id = $2
-      `, [conversationId, userInfo.userId]);
+      await pool.query(MARK_READ_SQL, [
+        conversationId,
+        userInfo.userId,
+        userInfo.userName || userInfo.email,
+      ]);
     } catch (error) {
       console.error('Error marking read:', error.message);
+    }
+  });
+
+  // ─── Archive / Unarchive ──────────────────────────────────────────────────
+  // Archive is per-user view state. It hides the conversation from THIS user's
+  // list and nothing else — no other participant is affected, no message is
+  // touched, and the next message brings it back. There is deliberately no
+  // user-facing delete: a control labelled "delete" that soft-deletes would tell
+  // the user their message is gone when it is not, which in a product carrying
+  // minors' communications is the liability, not the fix.
+  socket.on('archiveConversation', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { conversationId } = data || {};
+    if (!conversationId) {
+      socket.emit('error', { message: 'Conversation ID is required' });
+      return;
+    }
+
+    // You cannot archive a conversation you cannot see.
+    const hasAccess = await isConversationParticipant(
+      conversationId, userInfo.userId, userInfo.role, userInfo.payload
+    );
+    if (!hasAccess) {
+      socket.emit('error', { message: 'You do not have access to this conversation' });
+      return;
+    }
+
+    try {
+      await pool.query(ARCHIVE_SQL, [
+        conversationId,
+        userInfo.userId,
+        userInfo.userName || userInfo.email,
+      ]);
+      socket.emit('conversationArchived', { conversationId });
+    } catch (error) {
+      console.error('Error archiving conversation:', error.message);
+      socket.emit('error', { message: 'Failed to archive conversation' });
+    }
+  });
+
+  socket.on('unarchiveConversation', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { conversationId } = data || {};
+    if (!conversationId) {
+      socket.emit('error', { message: 'Conversation ID is required' });
+      return;
+    }
+
+    const hasAccess = await isConversationParticipant(
+      conversationId, userInfo.userId, userInfo.role, userInfo.payload
+    );
+    if (!hasAccess) {
+      socket.emit('error', { message: 'You do not have access to this conversation' });
+      return;
+    }
+
+    try {
+      await pool.query(UNARCHIVE_SQL, [conversationId, userInfo.userId]);
+      const conversations = await getUserConversations(
+        userInfo.userId, userInfo.role, userInfo.payload
+      );
+      const restored = conversations.find(c => c.id === conversationId);
+      socket.emit('conversationUnarchived', { conversationId, conversation: restored || null });
+    } catch (error) {
+      console.error('Error unarchiving conversation:', error.message);
+      socket.emit('error', { message: 'Failed to unarchive conversation' });
+    }
+  });
+
+  socket.on('loadArchivedConversations', async () => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    try {
+      const conversations = await getUserConversations(
+        userInfo.userId, userInfo.role, userInfo.payload, { archived: true }
+      );
+      socket.emit('archivedConversationsList', conversations);
+    } catch (error) {
+      console.error('Error loading archived conversations:', error.message);
+      socket.emit('error', { message: 'Failed to load archived conversations' });
     }
   });
 

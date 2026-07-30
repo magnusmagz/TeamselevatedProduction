@@ -7,6 +7,12 @@ export interface Conversation {
   lastMessage?: { text: string; timestamp: string; senderName: string };
   unreadCount: number;
   displayName: string;
+  /**
+   * When this user archived the conversation; null/absent when active. Archive is
+   * per-user view state — it says nothing about other participants, and no
+   * message is ever removed.
+   */
+  archivedAt?: string | null;
 }
 
 export interface ConversationParticipant {

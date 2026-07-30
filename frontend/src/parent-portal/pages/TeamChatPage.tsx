@@ -9,16 +9,21 @@ export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
   const {
     conversations,
+    archivedConversations,
     activeConversation,
     messages,
     typingUsers,
     isConnected,
     loading,
     canCreate,
+    showArchived,
     selectConversation,
     sendMessage,
     createConversation,
     handleTyping,
+    archiveConversation,
+    unarchiveConversation,
+    setShowArchived,
   } = useChatContext();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -316,9 +321,13 @@ export const TeamChatPage: React.FC = () => {
         )}
 
         <ConversationList
-          conversations={conversations}
+          conversations={showArchived ? archivedConversations : conversations}
           onSelect={(conv) => selectConversation(conv)}
           loading={loading}
+          onArchive={archiveConversation}
+          onUnarchive={unarchiveConversation}
+          showArchived={showArchived}
+          onToggleArchived={setShowArchived}
         />
       </div>
 
