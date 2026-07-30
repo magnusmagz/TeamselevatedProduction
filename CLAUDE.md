@@ -34,7 +34,8 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    users_tos_acceptance, athlete_jersey_size, registration_jersey_size_field,
    clear_default_player_passwords). 048–056 are applied to Neon.
    **057 is RESERVED** for `broadcast_campaigns.body` (scheduled SMS, Workstream C) — not yet
-   written. **058** (`chat_conversation_archive`) is **applied to Neon 2026-07-30**.
+   written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
+   **applied to Neon 2026-07-30**. Next free number is therefore **060**.
 3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
@@ -424,7 +425,31 @@ Added 2026-07-30 on `feature/chat-archive`. Full rationale in `docs/chat-archive
 - The archive predicate must sit **outside** the `OR` group in the conversation-list WHERE, or the
   team branch re-admits archived team chats. Locked by test.
 - **The chat server is a separate Heroku app** — git remote `chat` → `teamselevated-chat.git`, not
-  the `heroku` backend remote. Deploying the backend does not deploy chat.
+  the `heroku` backend remote, and it deploys **by subtree** (its repo root is the contents of
+  `chat-server/`): `git subtree split --prefix=chat-server -b <ref>` then push that ref to `chat`.
+  `git push heroku` does not deploy it and never has.
+
+### Retention rules live in `lib/retention_plans.php`
+Moved out of `scripts/retention-check.php` on 2026-07-30 so they can be unit-tested — that script
+connects to Neon at load, so a test that required it would have hit the production database.
+`ChatRetentionPlanTest` covers them.
+
+- **A purge must clear inbound references before deleting.** `chat_read_receipts.last_read_message_id`
+  is a **NO ACTION** FK onto `chat_messages`, so a naive `DELETE FROM chat_messages` raises
+  SQLSTATE 23503 and fails the whole run. Verified against live Neon, not inferred: the naive delete
+  was rehearsed in a rolled-back transaction and did fail. A plan may carry a `before` list of
+  statements, run in the same transaction as the delete. `chat_reactions` cascades and needs nothing;
+  `conversation_participants.last_read_message_id` has no FK but is cleared anyway (11 live rows
+  point at messages today).
+- `chat_read_receipts` is **empty and nothing writes it** — it predates the `conversations` model
+  and `conversation_participants` superseded it. That is exactly why the FK matters: the purge would
+  pass every test today and fail the first time the table had rows.
+- **Every seeded policy is `auto_delete = FALSE`, including both chat ones.** Declare, don't destroy.
+  Purging needs BOTH `--purge` on the command line AND an armed policy. `chat_messages`' 1095 days is
+  a placeholder that reports only — how long a club's communications should live is a policy
+  decision, not a number to guess at in code.
+- `chat_messages_removed` is **inert until admin moderation removal ships** (Phase 2). Nothing writes
+  `chat_messages.deleted_at` yet, so it reports zero. Correct, not broken.
 
 ---
 
