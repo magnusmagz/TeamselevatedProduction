@@ -1,21 +1,25 @@
 # Broadcast SMS — Scope & Build Plan
 
-**Status:** Workstreams A + B **built, tested, NOT deployed.** C + D still open.
-**Written:** 2026-07-30 · **Built:** 2026-07-30
+**Status:** Workstreams A + B **deployed**. C + D still open.
+**Written:** 2026-07-30 · **Built & deployed:** 2026-07-30
 
 ## Build status
 
 | Workstream | State |
 |---|---|
-| A — Persist SMS broadcasts as campaigns | ✅ Built |
-| B — Broadcast compose UI (incl. club-wide) | ✅ Built |
-| C — Scheduled broadcasts | ⬜ Open — needs migration 057 (see landmine 1) |
+| A — Persist SMS broadcasts as campaigns | ✅ Deployed (Heroku v451 / Netlify `ccd2705`) |
+| B — Broadcast compose UI (incl. club-wide) | ✅ Deployed |
+| — Per-club SMS sender numbers | ✅ Deployed (migration 057, not in the original plan) |
+| C — Scheduled broadcasts | ⬜ Open — needs a `body` column on `broadcast_campaigns` |
 | D — Staff phone number on profile | ⬜ Open |
 
-**Nothing is deployed.** `main` is shared across sessions, so an unpushed commit still ships
-inside anyone else's push — see the deploy rules in CLAUDE.md. Deploy order when it goes:
-frontend (`git push origin main`, wait for Netlify `ready`) **before** backend
-(`git push heroku main:main`), after `git fetch heroku && git merge heroku/main`.
+⚠️ **Broadcast SMS has never sent a real message.** It reached production before the staged gate
+below ran — `main` is shared, and another session's push carried it. Run the gate on the first
+real send.
+
+⚠️ **SMS refuses for all 5 clubs until each configures a number** in Club Profile → Messaging.
+Intended: `te_resolve_sms_sender` has no fallback to `TWILIO_FROM_NUMBER`, because a shared sender
+makes one family's STOP silence every club at the carrier.
 
 ### What landed
 

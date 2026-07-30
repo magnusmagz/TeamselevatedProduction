@@ -33,7 +33,13 @@ Newest first. Times are Pacific.
 ## 2026-07-30
 
 ### Per-club SMS sending numbers — **migration 057 applied to Neon**
-Not yet deployed to Heroku/Netlify at time of writing; the migration is live, the code is on `main`.
+**Heroku v451** (from v450) · **Netlify deploy `ccd2705` ready** · deployed ~11:50 PT
+
+Deployed **backend first**, deliberately inverting the usual frontend-first rule. That rule exists
+for auth tightening, where the live frontend must already be sending a header the backend starts
+demanding — not the case here. Frontend-first would have put the Messaging tab in front of Maggie
+before `api/sms-numbers.php` existed on the dyno, so the tab would have errored on first click.
+Backend-first was safe *only* because SMS has no real users yet.
 
 - **Schema:** new `sms_phone_numbers` table (109 tables now, was 108) + `communication_log.from_number`.
   Applied ~11:20 PT. Table created **empty on purpose — no backfill.**
