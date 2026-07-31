@@ -32,6 +32,34 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### Two more duplicate guardians merged — Central Kansas
+No code change. Found via the ambiguous-sender analysis for inbox M5.
+
+`314 Jarref Green` → **381 Jarred Green** (name typo; same email and phone, one on
+each of two siblings) and `407 Josh Hill` → **320 Josh Hill** (one row had the
+email, the other proper capitalization; one on each of two athletes). Both were
+repoints, not link-deletes — each duplicate sat on a DIFFERENT athlete, so the link
+moves rather than being dropped. Guarded by a DO block asserting the pair still
+shares a phone and that no athlete link would be duplicated.
+
+Guarded on **phone, not email**: the Hill pair had an email on only one row, which
+is part of why they duplicated in the first place.
+
+Also normalized `joshua hill` → `Josh Hill`. First names are used in message
+personalization, and "Hi joshua" reads as a mistake to the person receiving it.
+
+**These would NOT have been caught by the createOrFindGuardian fix.** That matches
+on email + first + last, and here the FIRST NAME differs — Jarref vs Jarred, joshua
+vs Josh. A typo anywhere in the identity makes a new person by definition. Catching
+these needs same-phone near-duplicate detection, which nothing does.
+
+**Prod state discovered:** ambiguous senders are rarer than the design assumed.
+Across the platform only 7 phone numbers are shared by multiple guardians, and in
+Central Kansas there were 3 — of which two were these duplicates. Exactly **one**
+genuine shared-handset household remains there (Eric Hawk / Carmen Hawk, plus a
+suspected third duplicate row `322 Carmen Haej` sharing Carmen's email). So inbox
+M5's ambiguity handling covers a much smaller real case than expected.
+
 ### SMS inbox M4 — replying from the inbox — **migration 066 applied to Neon**
 `066_thread_existing_sms.sql` · Heroku **v475** · Netlify `307cb6a`
 
