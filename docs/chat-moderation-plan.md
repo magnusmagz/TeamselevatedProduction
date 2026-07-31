@@ -203,9 +203,16 @@ in any club**. Same shape as the athlete/guardian gateway bug in CLAUDE.md — *
 accepts, not what the form happens to send.* `getTeamMembersForPicker` already returns only guardians
 and coaches, so the UI is correct and the endpoint is the hole.
 
-**Never exploited:** zero athletes have ever been a conversation participant. But conversation 18 is
-a live cross-club DM (`parent1@` is club 25, the conversation is club 32), both internal accounts —
-so it is reachable, not theoretical.
+**Never exploited against a child:** zero athletes have ever been a conversation participant. One
+participant *is* genuinely out of scope — **conversation 52** (group, club 32), user 27
+`john@nomail.com`, connected to that club by neither the guardian chain nor a staff role. So the hole
+is reachable and has been reached, not theoretical.
+
+> Correction, 2026-07-30: an earlier draft cited **conversation 18** as a cross-club DM. That was
+> wrong. User 91 is a guardian of an athlete on a club 32 team, so the DM is legitimate; their
+> `user_club_access` row says club 25, which is a stale secondary role. The mistake was comparing
+> `user_club_access.club_profile_id` against `conversations.club_id` instead of walking the guardian
+> chain. **Club membership for a guardian is the guardian chain, not their `user_club_access` row.**
 
 ### Implement as an ALLOWLIST, never a blocklist on `athletes.user_id`
 
@@ -219,8 +226,10 @@ Verified against live Neon 2026-07-30, and this is the trap:
 | users holding the `player` role | **0** |
 
 `athletes.user_id` is not a reliable "this account is the child" signal — it mostly points at the
-parent. A blocklist on it would refuse DMs to 23 guardians and 10 coaches, i.e. break exactly the
-coach↔crew conversation the feature exists for.
+parent. Measured directly against the finished allowlist: **club 51's allowlist is 26 people, and 16
+of them are also `athletes.user_id` values.** A blocklist would have removed **62% of that club's
+reachable contacts**, most of them guardians — breaking exactly the coach↔crew conversation the
+feature exists for.
 
 So: participants must be **in the allowlist the picker already computes** — guardians of athletes on
 the creator's teams, plus coaches/admins of the same club. Anything else is rejected. Athletes are

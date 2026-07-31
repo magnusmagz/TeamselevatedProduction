@@ -818,15 +818,19 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **⚠️ `createConversation` validates no participants** (found 2026-07-30) — it takes
       `participantIds` from the client, resolves names from `users`, and inserts. No club, team or
       role check, and `canInitiateConversation` includes `parent`, so any authenticated initiator
-      can open a DM with **any user id in any club**. Never exploited (0 athletes have ever been a
-      participant) but reachable — conversation 18 is a live cross-club DM between internal
-      accounts. Fix is **M0** in `docs/chat-moderation-plan.md`, ships first.
+      can open a DM with **any user id in any club**. No athlete has ever been a participant, but
+      the hole has been reached: conversation 52 holds user 27 (`john@nomail.com`), tied to club 32
+      by neither the guardian chain nor a staff role. Fix is **M0** in
+      `docs/chat-moderation-plan.md`, ships first.
       **Implement as an allowlist, NOT a blocklist on `athletes.user_id`.** That column is not a
       "this account is the child" signal: of 26 populated, **23 point at an account whose email is a
-      guardian's** and **10 hold staff roles** (6 coach, 4 club_admin), while **0** users hold the
-      `player` role. Blocklisting it would refuse DMs to 23 guardians and 10 coaches — the exact
-      coach↔crew conversation chat exists for. Product rule (Maggie, 2026-07-30): coaches cannot DM
-      athletes at all; DMs are coach↔crew.
+      guardian's** and **10 hold staff roles**, while **0** users hold the `player` role. Measured
+      against the built allowlist: club 51's is 26 people and **16 of them are `athletes.user_id`
+      values** — blocklisting would have cut 62% of that club's contacts. Product rule (Maggie,
+      2026-07-30): coaches cannot DM athletes at all; DMs are coach↔crew.
+      ⚠️ **A guardian's club is the guardian chain, not their `user_club_access` row.** Comparing
+      `user_club_access.club_profile_id` to `conversations.club_id` produces false cross-club
+      findings — it did on 2026-07-30, flagging a legitimate DM as a leak.
 - [ ] **Chat admin-review notice + ToS — with the attorney, lands later.** Club chat carries **no
       expectation of privacy** (Maggie, 2026-07-30) and admins will be able to read reported
       conversations. **Chat is live and approved for the beta clubs ahead of that copy — decided

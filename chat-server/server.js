@@ -16,6 +16,7 @@ const {
   UNARCHIVE_ON_NEW_MESSAGE_SQL,
   MARK_READ_SQL,
 } = require('./lib/archive');
+const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('./lib/participants');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -183,6 +184,33 @@ async function ensureTeamConversation(teamId, clubId) {
 }
 
 /**
+ * Team ids this user can reach: their own teams, plus every team in their club
+ * if they hold a club-level role.
+ *
+ * Extracted from getUserConversations so the conversation list and the
+ * create-conversation allowlist cannot drift apart — if these two disagreed, a
+ * user could be offered someone they are then refused permission to message, or
+ * worse, the reverse.
+ */
+async function getAccessibleTeamIds(userId, role, payload) {
+  if (role === 'parent') return await getParentTeamIds(userId);
+
+  let teamIds = getCoachTeamIds(payload);
+  if (canInitiateConversation(role)) {
+    const clubId = getClubId(payload);
+    if (clubId) {
+      try {
+        const clubTeams = await pool.query(`SELECT id FROM teams WHERE club_id = $1`, [clubId]);
+        teamIds = [...new Set([...teamIds, ...clubTeams.rows.map(r => r.id)])];
+      } catch (e) {
+        console.error('Error fetching club teams:', e.message);
+      }
+    }
+  }
+  return teamIds;
+}
+
+/**
  * Get all conversations for a user. Includes:
  * - Conversations where they're an explicit participant
  * - Team conversations they belong to (auto-discovered for parents)
@@ -192,29 +220,7 @@ async function ensureTeamConversation(teamId, clubId) {
  * same rows are simply on the other side of the filter.
  */
 async function getUserConversations(userId, role, payload, { archived = false } = {}) {
-  // Get team IDs this user has access to
-  let teamIds = [];
-  if (role === 'parent') {
-    teamIds = await getParentTeamIds(userId);
-  } else {
-    teamIds = getCoachTeamIds(payload);
-    // Also include club-level: all teams in their club
-    if (canInitiateConversation(role)) {
-      const clubId = getClubId(payload);
-      if (clubId) {
-        try {
-          const clubTeams = await pool.query(
-            `SELECT id FROM teams WHERE club_id = $1`,
-            [clubId]
-          );
-          const clubTeamIds = clubTeams.rows.map(r => r.id);
-          teamIds = [...new Set([...teamIds, ...clubTeamIds])];
-        } catch (e) {
-          console.error('Error fetching club teams:', e.message);
-        }
-      }
-    }
-  }
+  const teamIds = await getAccessibleTeamIds(userId, role, payload);
 
   // Ensure team conversations exist
   const clubId = getClubId(payload);
@@ -604,6 +610,47 @@ io.on('connection', (socket) => {
     }
 
     const convType = participantIds.length === 1 ? 'direct' : (type || 'group');
+
+    // ─── Participant allowlist ────────────────────────────────────────────────
+    // Until 2026-07-30 this handler inserted whatever ids the client sent, so any
+    // initiator could open a DM with any user in any club — and coaches could
+    // reach athletes, which the product forbids. The set is built from guardians
+    // and club staff; athletes are excluded by never being in it.
+    //
+    // NEVER "improve" this by subtracting athletes.user_id instead: 23 of the 26
+    // populated values point at a GUARDIAN's account and 10 at staff accounts, so
+    // a blocklist would refuse the coach↔crew DMs this feature exists for. See
+    // lib/participants.js.
+    try {
+      const teamIds = await getAccessibleTeamIds(
+        userInfo.userId, userInfo.role, userInfo.payload
+      );
+      const allowed = await pool.query(ALLOWED_PARTICIPANTS_SQL, [
+        teamIds,
+        getClubId(userInfo.payload),
+      ]);
+      const refused = disallowedParticipants(
+        participantIds,
+        allowed.rows.map(r => r.user_id),
+        userInfo.userId
+      );
+      if (refused.length > 0) {
+        console.warn(
+          `Refused conversation: user ${userInfo.userId} (${userInfo.role}) requested ` +
+          `out-of-scope participants ${refused.join(',')}`
+        );
+        socket.emit('error', {
+          message: 'You can only message coaches and crew connected to your teams',
+        });
+        return;
+      }
+    } catch (error) {
+      // Fail CLOSED. If the allowlist cannot be computed we do not know who the
+      // creator may talk to, and guessing "everyone" is how this was broken.
+      console.error('Error resolving allowed participants:', error.message);
+      socket.emit('error', { message: 'Failed to create conversation' });
+      return;
+    }
 
     try {
       // Check if a conversation with the exact same participant set already exists
