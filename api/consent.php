@@ -12,6 +12,8 @@
  *   confirm-email     GET   validate the token from that email, stamp confirmation
  *   status            GET   consent state for an athlete
  *   list              GET   all consents for a guardian
+ *   summary           GET   STAFF-ONLY roll-up across the caller's athletes —
+ *                           who still owes consent (added 2026-07-31)
  *   revoke            POST  withdraw a consent
  *   request-deletion  POST  right to erasure — purge health data, soft-delete athlete
  *
@@ -278,6 +280,93 @@ try {
                 'has_active_consent' => count($active) > 0,
                 'active_consent_types' => array_values(array_unique(array_column($active, 'consent_type'))),
                 'consents' => $rows,
+            ]);
+            break;
+        }
+
+        // ------------------------------------------------------------------
+        // STAFF-ONLY roll-up: which children in my scope still owe consent?
+        //
+        // Scoped with staffManageableAthleteIds, NOT accessibleAthleteIds — a
+        // caller who is only a parent gets an empty list rather than a one-row
+        // report about their own child, and a coach sees their teams rather than
+        // the whole club. `status` and `list` already answer the per-athlete and
+        // per-guardian questions; this exists because a club cannot chase
+        // outstanding consent one athlete at a time.
+        case 'summary': {
+            $auth = AuthMiddleware::requireAuth();
+
+            $isSuper = $auth->isSuperAdmin();
+            $scopeIds = $isSuper ? [] : AthleteScope::staffManageableAthleteIds($pdo, $auth);
+
+            // Empty scope and "everything" are opposite answers; only a super
+            // admin gets the unrestricted branch, and never by falling through.
+            if (!$isSuper && empty($scopeIds)) {
+                echo json_encode([
+                    'success' => true, 'athletes' => [], 'counts' => te_consent_summary_counts([]),
+                ]);
+                break;
+            }
+
+            $where = 'a.active_status = true AND a.deleted_at IS NULL';
+            $params = [];
+            if (!$isSuper) {
+                $ph = implode(',', array_fill(0, count($scopeIds), '?'));
+                $where .= " AND a.id IN ($ph)";
+                $params = array_values($scopeIds);
+            }
+
+            // Optional narrowing to one club, for a super admin or a multi-club admin.
+            $clubId = (int) ($_GET['club_id'] ?? 0);
+            if ($clubId > 0) {
+                $where .= ' AND a.club_id = ?';
+                $params[] = $clubId;
+            }
+
+            // One row per athlete with their consent rows aggregated, rather than
+            // a query per athlete — this view exists to be run over a whole club.
+            $stmt = $pdo->prepare(
+                "SELECT a.id, a.first_name, a.last_name,
+                        COALESCE(
+                            json_agg(
+                                json_build_object(
+                                    'consent_type', cr.consent_type,
+                                    'source', cr.source,
+                                    'consented_at', cr.consented_at,
+                                    'email_confirmed_at', cr.email_confirmed_at,
+                                    'guardian_name', cr.guardian_name
+                                )
+                                ORDER BY cr.consented_at
+                            ) FILTER (WHERE cr.id IS NOT NULL),
+                            '[]'::json
+                        ) AS consents
+                 FROM athletes a
+                 LEFT JOIN consent_records cr
+                        ON cr.athlete_id = a.id
+                       AND cr.consent_given = TRUE
+                       AND cr.revoked_at IS NULL
+                 WHERE $where
+                 GROUP BY a.id, a.first_name, a.last_name
+                 ORDER BY a.last_name, a.first_name"
+            );
+            $stmt->execute($params);
+
+            $athletes = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $rows = json_decode($row['consents'] ?? '[]', true) ?: [];
+                $athletes[] = [
+                    'athlete_id' => (int) $row['id'],
+                    'first_name' => $row['first_name'],
+                    'last_name'  => $row['last_name'],
+                    'status'     => te_consent_rollup_status($rows),
+                    'consents'   => $rows,
+                ];
+            }
+
+            echo json_encode([
+                'success' => true,
+                'athletes' => $athletes,
+                'counts' => te_consent_summary_counts($athletes),
             ]);
             break;
         }

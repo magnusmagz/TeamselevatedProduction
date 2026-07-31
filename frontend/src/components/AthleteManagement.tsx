@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  CONSENT_STATUS_META,
+  CONSENT_STATUS_ORDER,
+  consentStatusMeta,
+  consentStatusRank,
+} from '../utils/consentStatus';
 import { Link } from 'react-router-dom';
 import { ageGroup, ageInYears } from '../utils/ageGroup';
 import { formatGrade, GRADE_OPTIONS as GRADE_LEVEL_OPTIONS } from '../utils/grade';
@@ -46,10 +52,35 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   const [showTeamSelector, setShowTeamSelector] = useState<number | null>(null);
   const [availableTeams, setAvailableTeams] = useState<any[]>([]);
 
+  // Parental-consent roll-up, keyed by athlete id. Fetched separately from the
+  // athlete list rather than joined into athletes-gateway: consent lives behind
+  // api/consent.php, which owns the staff-only scoping (staffManageableAthleteIds),
+  // and widening the athlete gateway to carry it would put a compliance read
+  // behind a different permission check than the rest of the consent API.
+  const [consentByAthlete, setConsentByAthlete] = useState<Record<number, string>>({});
+
   useEffect(() => {
     fetchAthletes();
     fetchAvailableTeams();
+    fetchConsentSummary();
   }, []);
+
+  const fetchConsentSummary = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/consent.php?action=summary`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.athletes)) {
+        const map: Record<number, string> = {};
+        for (const a of data.athletes) map[a.athlete_id] = a.status;
+        setConsentByAthlete(map);
+      }
+    } catch {
+      // Leave the column blank rather than breaking the roster. It renders as
+      // "Unknown" (never as a silent pass) — see consentStatusMeta.
+    }
+  };
 
   const fetchAthletes = async () => {
     try {
@@ -250,6 +281,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
               setShowTeamSelector={setShowTeamSelector}
               availableTeams={availableTeams}
               handleAddToTeam={handleAddToTeam}
+              consentByAthlete={consentByAthlete}
             />
           </div>
         </div>
@@ -295,6 +327,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         setShowTeamSelector={setShowTeamSelector}
         availableTeams={availableTeams}
         handleAddToTeam={handleAddToTeam}
+              consentByAthlete={consentByAthlete}
       />
 
       {showForm && (
@@ -346,6 +379,9 @@ export const AthleteListContent: React.FC<{
   setShowTeamSelector: (value: number | null) => void;
   availableTeams: any[];
   handleAddToTeam: (athleteId: number, teamId: number) => void;
+  /** athlete id -> consent rollup status. Optional: a caller without it renders
+   *  "Unknown", which is honest — a blank cell would read as "fine". */
+  consentByAthlete?: Record<number, string>;
 }> = ({
   athletes,
   loading,
@@ -358,7 +394,8 @@ export const AthleteListContent: React.FC<{
   showTeamSelector,
   setShowTeamSelector,
   availableTeams,
-  handleAddToTeam
+  handleAddToTeam,
+  consentByAthlete = {},
 }) => {
   const { currentClubId } = useOrg();
   const [showEmailCompose, setShowEmailCompose] = useState(false);
@@ -366,7 +403,7 @@ export const AthleteListContent: React.FC<{
   const [composeRecipient, setComposeRecipient] = useState<any>(null);
 
   // Per-column sort + filter for the athlete table.
-  type ColKey = 'name' | 'age' | 'grade' | 'gender' | 'team' | 'guardian' | 'contact';
+  type ColKey = 'name' | 'age' | 'grade' | 'gender' | 'team' | 'guardian' | 'contact' | 'consent';
   // Pre-K / K / 1st … 12th — filter values are the stored integer as a string
   // (matched against athlete.grade_level.toString()).
   const GRADE_OPTIONS = GRADE_LEVEL_OPTIONS.map((o) => ({
@@ -390,6 +427,14 @@ export const AthleteListContent: React.FC<{
     { key: 'team', label: 'Team' },
     { key: 'guardian', label: 'Primary Crew' },
     { key: 'contact', label: 'Contact' },
+    {
+      key: 'consent',
+      label: 'Consent',
+      options: CONSENT_STATUS_ORDER.map((k) => ({
+        value: k,
+        label: CONSENT_STATUS_META[k].label,
+      })),
+    },
   ];
   const [sortKey, setSortKey] = useState<ColKey | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -423,6 +468,7 @@ export const AthleteListContent: React.FC<{
       case 'team': return teamLabel(a).toLowerCase();
       case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
       case 'contact': return contactStr(a).toLowerCase();
+      case 'consent': return consentStatusRank(consentByAthlete[a.id]);
     }
   };
   const filterText = (a: Athlete, key: ColKey): string => {
@@ -434,6 +480,7 @@ export const AthleteListContent: React.FC<{
       case 'team': return teamLabel(a).toLowerCase();
       case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
       case 'contact': return contactStr(a).toLowerCase();
+      case 'consent': return (consentByAthlete[a.id] || '').toLowerCase();
     }
   };
 
@@ -678,6 +725,19 @@ export const AthleteListContent: React.FC<{
                         <div className="text-xs text-gray-500">No contact info</div>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
+                    {(() => {
+                      const meta = consentStatusMeta(consentByAthlete[athlete.id]);
+                      return (
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${meta.cls}`}
+                          title={meta.detail}
+                        >
+                          {meta.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm w-32">
                     <div className="flex flex-col space-y-1">

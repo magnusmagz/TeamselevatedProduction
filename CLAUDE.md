@@ -412,7 +412,31 @@ Design points that are load-bearing:
 - **A failed status read lets the parent through.** The gate is a prompt, not an access control;
   the real enforcement is server-side. Never let a flaky read lock a family out.
 
-Guarded by `ConsentGate.test.tsx` (8 tests).
+Guarded by `ConsentGate.test.tsx`.
+
+### Staff-facing consent: `action=summary`, and the ladder means something
+Added 2026-07-31. Powers the **Consent column on the athlete list** (`AthleteManagement`),
+sortable and filterable; the status ladder is defined once in `lib/consent_capture.php`
+(`te_consent_rollup_status`) and labelled once in `frontend/src/utils/consentStatus.ts`.
+
+- **verified** — every required type agreed in the portal AND email-confirmed. The defensible one.
+- **confirmed** — agreed in the portal, emailed link not clicked.
+- **signup_only** — agreed on the registration form only. Real consent, not tied to an account.
+- **partial** / **none** — some types missing / nothing at all.
+
+**`signup_only` counts as outstanding on purpose.** It is genuine consent, but it is not attached
+to a user account and has not been verified, which is precisely what the portal step exists to
+obtain. Do not "simplify" the ladder to consented/not — the rungs are the COPPA distinction.
+
+⚠️ **`summary` is scoped with `AthleteScope::staffManageableAthleteIds`, NOT
+`accessibleAthleteIds`.** The difference is the guardian branch. On the wrong one, a parent hitting
+this endpoint gets a report about their own child instead of nothing, and a coach who is also a
+parent sees a child from outside their teams. Super admin is the only unrestricted branch and is
+checked explicitly — an empty scope and "everything" are opposite answers, and conflating them is
+how a scope check becomes a data leak. Pinned by `ConsentRollupTest`.
+
+A missing or unrecognised status renders as **Unknown**, never as a blank cell: blank reads as
+"fine", which is the wrong default for a compliance column.
 
 ### Editing a crew member's contact details goes through the POST branch
 `legacy/guardian-gateway.php` PUT updates the **relationship** row only
@@ -800,14 +824,11 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
-- [ ] **Staff have no view of who has consented.** `ConsentGate` captures it and `consent.php`
-      can report it (`action=status` per athlete, `action=list` per guardian), but nothing
-      staff-facing reads either. A club cannot currently answer "which families still owe
-      consent" without a query. Maggie chose record-and-surface over blocking, so the surfacing
-      half is still owed: an indicator on the athlete profile and the Crew page, distinguishing
-      **recorded** (parent agreed) from **verified** (they clicked the emailed link) — that
-      distinction already exists in the data and is what COPPA's verifiable-consent standard
-      turns on.
+- [ ] **Consent status is not on the Crew page.** Shipped on the athlete list instead
+      (2026-07-31) — consent is per-child, so a guardian row covering three athletes cannot show
+      one honest badge, and `api/auth-gateway.php` (which powers Crew) is on the do-not-modify
+      list. If Crew needs it, merge `action=summary` client-side and show one badge per athlete
+      name in the row, not one for the guardian.
 - [ ] **Crew add says "already in the system" for an email that is not in the system**
       (reported 2026-07-30, PAUSED mid-investigation — resume here, don't re-dig).
       Case: an admin adding `jacqueline.devora@icloud.com` as crew on the Devora family

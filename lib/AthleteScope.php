@@ -278,6 +278,58 @@ class AthleteScope {
      * @return int[] distinct athlete IDs
      */
     public static function accessibleAthleteIds(PDO $pdo, AuthMiddleware $auth): array {
+        // Staff standing first; the guardian branch is added below. Same shape as
+        // userCanAccessAthlete being defined in terms of staffCanManageAthlete —
+        // the staff half lives in exactly one place so the two cannot drift.
+        $ids = [];
+        foreach (self::staffManageableAthleteIds($pdo, $auth) as $aid) {
+            $ids[$aid] = true;
+        }
+
+        // Guardian-of athletes.
+        $payload = $auth->getPayload();
+        $email = '';
+        if (is_object($payload) && isset($payload->email)) {
+            $email = (string) $payload->email;
+        } elseif (is_array($payload) && isset($payload['email'])) {
+            $email = (string) $payload['email'];
+        }
+        if ($email !== '') {
+            $sql = "
+                SELECT DISTINCT ag.athlete_id
+                FROM guardians g
+                JOIN athlete_guardians ag ON ag.guardian_id = g.id
+                WHERE g.email = ?
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$email]);
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
+                $ids[(int) $aid] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * The athlete IDs the requester may MANAGE as staff — club admin of their
+     * club, or coach of their team. No guardian branch.
+     *
+     * The list counterpart of staffCanManageAthlete(), for the same reason: a
+     * staff-only view (who still owes parental consent, say) must not widen to
+     * every athlete the caller happens to parent, and must return nothing at all
+     * for a caller who is only a parent.
+     *
+     * Returns an empty array for a requester with no staff standing, INCLUDING a
+     * super admin — callers that need "unrestricted" must check isSuperAdmin()
+     * themselves, because an empty list and "everything" are opposite answers and
+     * conflating them is how a scope check turns into a data leak.
+     *
+     * @param PDO $pdo
+     * @param AuthMiddleware $auth
+     * @return int[] distinct athlete IDs
+     */
+    public static function staffManageableAthleteIds(PDO $pdo, AuthMiddleware $auth): array {
         $ids = [];
 
         // Club admin clubs (from JWT roles).
@@ -332,28 +384,6 @@ class AthleteScope {
                 foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
                     $ids[(int) $aid] = true;
                 }
-            }
-        }
-
-        // Guardian-of athletes.
-        $payload = $auth->getPayload();
-        $email = '';
-        if (is_object($payload) && isset($payload->email)) {
-            $email = (string) $payload->email;
-        } elseif (is_array($payload) && isset($payload['email'])) {
-            $email = (string) $payload['email'];
-        }
-        if ($email !== '') {
-            $sql = "
-                SELECT DISTINCT ag.athlete_id
-                FROM guardians g
-                JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                WHERE g.email = ?
-            ";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$email]);
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
-                $ids[(int) $aid] = true;
             }
         }
 

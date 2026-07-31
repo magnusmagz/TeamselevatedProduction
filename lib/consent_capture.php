@@ -35,6 +35,102 @@ if (!defined('TE_CONSENT_VERSION')) {
 const TE_CONSENT_SOURCES = ['registration', 'portal', 'staff'];
 
 /**
+ * The consent types a child must have before their record is fully covered.
+ * Mirrors REQUIRED_CONSENT_TYPES in the parent portal's ConsentGate — the gate
+ * asks for exactly these, so a staff view that counted a different set would
+ * report families as outstanding who can never clear it.
+ */
+const TE_REQUIRED_CONSENT_TYPES = ['data_collection', 'medical_data'];
+
+/**
+ * Roll a child's consent rows up into one status for a staff list.
+ *
+ * The ladder is ordered by how much the club can rely on it, and the rungs are
+ * NOT cosmetic — they are the distinction COPPA's verifiable-consent standard
+ * turns on:
+ *
+ *   verified    every required type agreed in the portal AND confirmed by email.
+ *               Double opt-in complete; this is the defensible one.
+ *   confirmed   every required type agreed in the portal, email link not clicked.
+ *   signup_only every required type agreed, but only on the registration form.
+ *               Real consent, and the only record a family who never opens the
+ *               portal will have — but not tied to an account and not verified.
+ *   partial     some required types covered, others missing.
+ *   none        nothing on file.
+ *
+ * Callers are expected to have filtered to consent_given = TRUE and
+ * revoked_at IS NULL already (the summary query does it in SQL).
+ *
+ * @param array $rows consent rows: consent_type, source, email_confirmed_at
+ */
+function te_consent_rollup_status(array $rows): string
+{
+    $portal = [];
+    $portalConfirmed = [];
+    $any = [];
+
+    foreach ($rows as $r) {
+        $type = $r['consent_type'] ?? null;
+        if ($type === null) {
+            continue;
+        }
+        $any[$type] = true;
+
+        // Rows predating migration 063 carry no source. That migration backfilled
+        // them to 'portal' because ConsentGate was the only writer that had ever
+        // existed, so default the same way rather than demoting real consent to
+        // signup_only on a database that has not been migrated.
+        $source = $r['source'] ?? 'portal';
+        if ($source === 'registration') {
+            continue;
+        }
+
+        $portal[$type] = true;
+        if (!empty($r['email_confirmed_at'])) {
+            $portalConfirmed[$type] = true;
+        }
+    }
+
+    $covers = static fn(array $set): bool => empty(array_diff(TE_REQUIRED_CONSENT_TYPES, array_keys($set)));
+
+    if ($covers($portalConfirmed)) {
+        return 'verified';
+    }
+    if ($covers($portal)) {
+        return 'confirmed';
+    }
+    if ($covers($any)) {
+        return 'signup_only';
+    }
+    return empty($any) ? 'none' : 'partial';
+}
+
+/** Tally of rollup statuses, so the UI can show "12 outstanding" without recounting. */
+function te_consent_summary_counts(array $athletes): array
+{
+    $counts = [
+        'verified' => 0, 'confirmed' => 0, 'signup_only' => 0,
+        'partial' => 0, 'none' => 0, 'total' => 0, 'outstanding' => 0,
+    ];
+
+    foreach ($athletes as $a) {
+        $status = $a['status'] ?? 'none';
+        if (isset($counts[$status])) {
+            $counts[$status]++;
+        }
+        $counts['total']++;
+        // "Outstanding" = the club still has something to chase. signup_only
+        // counts as outstanding on purpose: real consent, but not confirmed
+        // against an account, which is the thing the portal step exists to get.
+        if ($status !== 'verified' && $status !== 'confirmed') {
+            $counts['outstanding']++;
+        }
+    }
+
+    return $counts;
+}
+
+/**
  * Which consents did this registration payload actually give?
  *
  * The two flags ride at the TOP LEVEL of the request body, as siblings of
