@@ -185,7 +185,11 @@ const CrewRoster: React.FC = () => {
       q === '' ||
       `${m.first_name} ${m.last_name}`.toLowerCase().includes(q) ||
       (m.email || '').toLowerCase().includes(q) ||
-      (m.athletes || '').toLowerCase().includes(q);
+      (m.athletes || '').toLowerCase().includes(q) ||
+      // Digits only, so "9256280439" finds "(925) 628-0439" — the number is
+      // almost never typed the way it is stored.
+      (q.replace(/\D/g, '').length >= 3 &&
+        (m.mobile_phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, '')));
     return matchesFilter && matchesSearch;
   });
 
@@ -279,7 +283,7 @@ const CrewRoster: React.FC = () => {
       <div className="mb-5">
         <input
           type="text"
-          placeholder="Search by name, email, or athlete…"
+          placeholder="Search by name, email, phone, or athlete…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full sm:max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
@@ -298,7 +302,7 @@ const CrewRoster: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Crew member', 'Email', 'Athlete(s)', 'Status', ''].map((h, i) => (
+                  {['Crew member', 'Email', 'Phone', 'Athlete(s)', 'Status', ''].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -319,6 +323,9 @@ const CrewRoster: React.FC = () => {
                         {m.first_name} {m.last_name}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{m.email || <span className="italic text-gray-400">none</span>}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap tabular-nums">
+                        {m.mobile_phone || <span className="italic text-gray-400">none</span>}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{m.athletes}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${meta.cls}`}>{meta.label}</span>
