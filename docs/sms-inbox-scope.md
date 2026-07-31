@@ -290,10 +290,19 @@ families.
 
 ---
 
-### M4 — Reply as SMS, and change the copy
+### M4 — Reply as SMS (copy deliberately unchanged)
 
-The first family-visible milestone. **Both halves ship together** — the moment a human can answer,
-"this number is not monitored" is false.
+**Revised 2026-07-31, Maggie's call: the copy does NOT ship with the capability.**
+
+The original plan bundled them, reasoning that "this number is not monitored" becomes false the
+moment a human *can* answer. That was wrong in a way only a club owner would spot: shipping a Reply
+button does not mean anyone is watching. Telling 152 families "someone will get back to you" on the
+day the button appears is a promise made on the club's behalf, by us, before they have agreed to
+keep it — and a family who texts and hears nothing is worse off than one told plainly that the
+number is unmonitored.
+
+So M4 ships the capability. The auto-reply keeps firing on every inbound and keeps its current
+wording. The copy changes when a club says they are ready to engage — a separate, deliberate act.
 
 Replies go through `SmsSendService::queueSms`, inheriting per-club sender resolution, the
 suppression predicate, segment counting, `from_number` and retry. A reply is an ordinary outbound

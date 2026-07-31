@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../lib/suppression.php';
 require_once __DIR__ . '/../lib/sms_sender.php';
+require_once __DIR__ . '/../lib/inbound_sms.php';
 
 /**
  * SMS Send Service
@@ -100,12 +101,12 @@ class SmsSendService {
                     club_profile_id, user_id, channel, recipient_type,
                     recipient_id, recipient_phone, recipient_name,
                     athlete_id, body, status, tracking_id,
-                    broadcast_campaign_id, from_number, created_at
+                    broadcast_campaign_id, from_number, conversation_id, created_at
                 ) VALUES (
                     ?, ?, 'sms', ?,
                     ?, ?, ?,
                     ?, ?, 'queued', ?,
-                    ?, ?, CURRENT_TIMESTAMP
+                    ?, ?, ?, CURRENT_TIMESTAMP
                 )
                 RETURNING id
             ");
@@ -123,7 +124,11 @@ class SmsSendService {
                 // The number in force at SEND time, not whatever the club's row says
                 // when you read the log later. Without this a 21610 after a number
                 // change is undiagnosable.
-                $sender['phone_number'] ?? $sender['from']
+                $sender['phone_number'] ?? $sender['from'],
+                // Thread EVERY outbound message, not just inbox replies. It is what
+                // gives a reply its context: an admin opening "I did not receive an
+                // email" needs the broadcast that prompted it sitting above.
+                te_sms_conversation_id((int) $clubProfileId, $phone),
             ]);
             $communicationLogId = $logStmt->fetchColumn();
 

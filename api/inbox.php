@@ -47,9 +47,10 @@ try {
         case 'threads': handleInboxThreads($auth, $connection); break;
         case 'thread':  handleInboxThread($auth, $connection);  break;
         case 'read':    handleInboxRead($auth, $connection);    break;
+        case 'reply':   handleInboxReply($auth, $connection);   break;
         default:
             http_response_code(400);
-            echo json_encode(['error' => 'Unknown action. Valid: threads, thread, read']);
+            echo json_encode(['error' => 'Unknown action. Valid: threads, thread, read, reply']);
     }
 } catch (Exception $e) {
     http_response_code(500);
@@ -283,6 +284,91 @@ function handleInboxThread($auth, PDO $pdo): void
             'messages' => $messages,
         ],
     ]);
+}
+
+/**
+ * Reply to a thread, as a text, from the club's own number.
+ *
+ * Goes through SmsSendService::queueSms rather than talking to Twilio here, so a
+ * reply inherits everything already built and tested: per-club sender resolution,
+ * the suppression/opt-out predicate, segment counting, from_number recording, the
+ * Redis queue and its retries. A reply is an ordinary outbound message that
+ * happens to carry a conversation_id — which queueSms now sets for every send.
+ *
+ * The auto-reply keeps firing on inbound regardless. A family that texts still
+ * gets an immediate acknowledgement; this adds a human one after it.
+ */
+function handleInboxReply($auth, PDO $pdo): void
+{
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $clubProfileId  = $data['club_profile_id'] ?? null;
+    $conversationId = $data['conversation_id'] ?? null;
+    $body           = trim((string) ($data['body'] ?? ''));
+
+    if ($err = inboxAuthError($auth, $pdo, $clubProfileId)) {
+        http_response_code($err['code']);
+        echo json_encode(['error' => $err['error']]);
+        return;
+    }
+    if (!$conversationId || $body === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'conversation_id and a message body are required']);
+        return;
+    }
+
+    // Resolve the recipient FROM the thread, never from the request. Trusting a
+    // client-supplied phone number here would let a crafted request send from the
+    // club's number to anyone at all.
+    $stmt = $pdo->prepare("
+        SELECT recipient_phone, recipient_type, recipient_id, recipient_name, athlete_id
+        FROM communication_log
+        WHERE club_profile_id = ? AND conversation_id = ? AND channel = 'sms'
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$clubProfileId, $conversationId]);
+    $contact = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$contact || empty($contact['recipient_phone'])) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Conversation not found']);
+        return;
+    }
+
+    require_once __DIR__ . '/../services/SmsSendService.php';
+    $sms = new SmsSendService($pdo);
+
+    try {
+        $result = $sms->queueSms([
+            'user_id'         => $auth->getUserId(),
+            'club_profile_id' => $clubProfileId,
+            'body'            => $body,
+            'recipients'      => [[
+                'phone'      => $contact['recipient_phone'],
+                'name'       => $contact['recipient_name'],
+                'type'       => $contact['recipient_type'] ?: 'user',
+                'id'         => $contact['recipient_id'],
+                'athlete_id' => $contact['athlete_id'],
+            ]],
+        ]);
+    } catch (RuntimeException $e) {
+        // The club has no configured sender. A configuration problem, not a fault.
+        http_response_code(400);
+        echo json_encode(['error' => $e->getMessage()]);
+        return;
+    }
+
+    // queueSms SKIPS a suppressed or opted-out recipient rather than failing, so a
+    // reply to someone who texted STOP would otherwise report success and send
+    // nothing. Say what actually happened.
+    if (($result['queued'] ?? 0) === 0) {
+        $detail = $result['skipped_details'][0]['detail'] ?? 'This contact cannot receive texts.';
+        http_response_code(409);
+        echo json_encode(['error' => $detail, 'skipped' => true]);
+        return;
+    }
+
+    echo json_encode(['success' => true, 'data' => ['queued' => $result['queued']]]);
 }
 
 function handleInboxRead($auth, PDO $pdo): void

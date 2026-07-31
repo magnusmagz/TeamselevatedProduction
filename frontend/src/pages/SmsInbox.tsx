@@ -1,18 +1,26 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 /**
- * SMS Inbox — read-only (M3 of docs/sms-inbox-scope.md).
+ * SMS Inbox (M3 + M4 of docs/sms-inbox-scope.md).
  *
- * Replies to the club's number, threaded. Replying is M4, so there is no composer
- * here yet and the screen says so rather than showing a disabled box.
+ * Replies to the club's number, threaded, and answerable — the answer goes out as
+ * a text from that same number.
  *
- * Design decisions live in docs/mockups/sms-inbox.html; the two that matter most:
- * "Needs reply" is the default view because the job is clearing a queue, and the
- * auto-reply is SHOWN and marked as automated — hiding it would let an admin write
- * an answer that contradicts what the family already received.
+ * Design decisions live in docs/mockups/sms-inbox.html; three that matter:
+ *  - "Needs reply" is the default view, because the job is clearing a queue.
+ *  - The auto-reply is SHOWN and marked automated. Hiding it would let an admin
+ *    write an answer contradicting what the family already received.
+ *  - A failed send keeps the typed text in the box. Retyping a reply you already
+ *    wrote is worse than the failure.
+ *
+ * The auto-reply still fires on every inbound and still says the number is not
+ * monitored. That is deliberate and Maggie's call: a club should be genuinely
+ * ready to engage before we promise families someone will answer. The copy changes
+ * when a club says so, not when the button shipped.
  */
 
 type Filter = 'needs_reply' | 'unread' | 'all';
@@ -83,6 +91,9 @@ export const SmsInbox: React.FC = () => {
   const [loadingThread, setLoadingThread] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const token = localStorage.getItem('auth_token');
   const headers = React.useMemo(
@@ -131,6 +142,9 @@ export const SmsInbox: React.FC = () => {
     if (!currentClubId) return;
     setSelected(conversationId);
     setLoadingThread(true);
+    // Never carry a half-written reply into someone else's conversation.
+    setDraft('');
+    setSendError(null);
     try {
       const res = await fetch(
         `${API_URL}/api/inbox.php?action=thread&club_profile_id=${currentClubId}&conversation_id=${encodeURIComponent(conversationId)}`,
@@ -157,6 +171,36 @@ export const SmsInbox: React.FC = () => {
       setLoadingThread(false);
     }
   }, [currentClubId, headers]);
+
+  const sendReply = useCallback(async () => {
+    if (!currentClubId || !selected || draft.trim() === '') return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/inbox.php?action=reply`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          club_profile_id: currentClubId,
+          conversation_id: selected,
+          body: draft,
+        }),
+      });
+      const data = await res.json();
+      // A 409 means queueSms skipped them — opted out, suppressed, bad number.
+      // Keep the text in the box; retyping a reply you already wrote is worse
+      // than the failure itself.
+      if (!res.ok) throw new Error(data.error || 'Could not send this reply');
+      setDraft('');
+      await openThread(selected);
+      loadThreads();
+    } catch (e: any) {
+      setSendError(e.message);
+    } finally {
+      setSending(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentClubId, selected, draft, headers]);
 
   if (!isClubAdmin) {
     return (
@@ -306,14 +350,39 @@ export const SmsInbox: React.FC = () => {
                 ))}
               </div>
 
-              {/* M4 adds the composer. Saying so beats a disabled box with no
-                  explanation, or worse, letting someone type into nothing. */}
-              <div className="border-t border-gray-200 px-5 py-3 bg-gray-50 text-xs text-gray-500">
-                Replying from here is coming next. For now, reply from the contact's
-                profile using Send SMS
-                {detail.sending_number && (
-                  <> — this club texts from <span className="font-mono tabular-nums">{formatPhone(detail.sending_number)}</span></>
-                )}.
+              <div className="border-t border-gray-200 px-5 py-3 bg-gray-50">
+                {sendError && (
+                  <div className="mb-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-xs">
+                    {sendError}
+                  </div>
+                )}
+                <textarea
+                  value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  rows={2}
+                  placeholder={`Reply to ${detail.contact.name || 'this contact'}…`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none resize-y"
+                />
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  <span className="text-xs text-gray-400">
+                    Sends as a text from{' '}
+                    <span className="font-mono tabular-nums text-gray-600">
+                      {formatPhone(detail.sending_number)}
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-400 ml-auto tabular-nums">
+                    {draft.length} / {SMS_SEGMENT_LENGTH}
+                    {countSmsSegments(draft) > 1 && ` · ${countSmsSegments(draft)} segments`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={sendReply}
+                    disabled={sending || draft.trim() === ''}
+                    className="px-4 py-2 rounded-md bg-brand-primary text-white text-xs font-bold uppercase disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-primary-hover"
+                  >
+                    {sending ? 'Sending…' : 'Send text'}
+                  </button>
+                </div>
               </div>
             </>
           )}
