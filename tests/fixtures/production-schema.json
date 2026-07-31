@@ -301,6 +301,14 @@
 "deleted_at",
 "deleted_by"
 ],
+"chat_access_log": [
+"id",
+"user_id",
+"conversation_id",
+"report_id",
+"club_id",
+"created_at"
+],
 "chat_message_reports": [
 "id",
 "message_id",

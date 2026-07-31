@@ -27,6 +27,11 @@ const {
 } = require('./lib/moderation');
 const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
 const {
+  OPEN_REPORT_FOR_CONVERSATION_SQL,
+  LOG_ACCESS_SQL,
+  moderatorMayOpen,
+} = require('./lib/access');
+const {
   severityForReason,
   isValidReason,
   FILE_USER_REPORT_SQL,
@@ -536,12 +541,52 @@ io.on('connection', (socket) => {
     const { conversationId } = data;
 
     // Verify access
-    const hasAccess = await isConversationParticipant(
+    let hasAccess = await isConversationParticipant(
       conversationId, userInfo.userId, userInfo.role, userInfo.payload
     );
+
+    // Flag-gated moderator read. A club admin may open a conversation they are
+    // not part of ONLY because an open report exists on it — there is no
+    // browse-any-conversation path. Note this grants READING: sendMessage still
+    // uses the strict predicate above, so an admin cannot post into a DM between
+    // two other people.
+    let viaReportId = null;
+    if (!hasAccess && canModerate(userInfo.role)) {
+      try {
+        const found = await pool.query(OPEN_REPORT_FOR_CONVERSATION_SQL, [conversationId]);
+        const report = found.rows[0];
+        if (report && moderatorMayOpen({
+          role: userInfo.role,
+          actorClubId: getClubId(userInfo.payload),
+          reportClubId: report.clubId,
+          isPlatform: isPlatformRole(userInfo.role),
+        })) {
+          hasAccess = true;
+          viaReportId = report.id;
+        }
+      } catch (e) {
+        console.error('Error resolving moderator access:', e.message);
+      }
+    }
+
     if (!hasAccess) {
       socket.emit('error', { message: 'You do not have access to this conversation' });
       return;
+    }
+
+    // Record the open BEFORE serving any of it. A read that happened without a
+    // log entry is exactly what this table exists to make impossible, so if the
+    // log write fails the conversation is not served.
+    if (viaReportId !== null) {
+      try {
+        await pool.query(LOG_ACCESS_SQL, [
+          userInfo.userId, conversationId, viaReportId, getClubId(userInfo.payload),
+        ]);
+      } catch (e) {
+        console.error('Error writing chat access log:', e.message);
+        socket.emit('error', { message: 'Failed to open conversation' });
+        return;
+      }
     }
 
     // Join the Socket.IO room
