@@ -32,6 +32,38 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### Email delivery rate: club 32's 2.6% is pre-instrumentation history, not a bug
+No code change. Recorded because it looks like a broken webhook and is not.
+
+**The SendGrid webhook works.** It was fixed on 2026-07-28 by `3e9d442` ("Fix tracking + webhook
+handlers querying columns that don't exist") — all four engagement handlers selected or inserted
+`contact_id`, a column none of those tables have, and threw SQLSTATE 42703 **inside a try/catch that
+logged and carried on**. Every endpoint returned a healthy response while recording nothing:
+no delivered/open/click/bounce/spam/unsubscribe, no opens, no click timestamps, and **no SMS STOP
+suppressions**. The swallowed exception is why it survived months; a hard failure would have been
+caught in a week.
+
+Post-fix the pipeline is exact: **135 `delivered` events, 135 rows at status `delivered`.**
+Club 51 reads **97.7%** (129/132), club 32 **100%** (6/6).
+
+**What remains is cosmetic and deliberate.** The 226 rows stuck at `sent` are all club 32,
+2026-03-21 to 2026-05-21, sent before anything was recorded. SendGrid does not replay webhooks, so
+they can never resolve. They sit in the delivery-rate denominator, which is why club 32's dashboard
+shows **2.6%** against a real post-fix rate of 100%. Club 51 — the actual customer — has zero
+pre-fix rows and reads correctly.
+
+**Decision (Maggie, 2026-07-31): leave it.** It self-heals as volume grows and only distorts the
+internal demo club.
+
+⚠️ **Do not backfill those rows to `delivered`.** That fabricates delivery confirmations SendGrid
+never sent; the status column's only value is that it reflects what the provider actually confirmed.
+Excluding pre-2026-07-28 rows from rate denominators was also considered and rejected — it bakes a
+magic date into `analytics-gateway.php` for a demo club's cosmetics.
+
+Unexplained and left alone: **3 `open` events dated March 2026**, before the handler could have
+worked. The other 83 opens are post-fix. Three rows, no impact — flagged rather than rationalised.
+
+
 ### Registration consent is recorded now — migration 063 applied to Neon
 `b40e5d1` (merged as `cb70159`) · migration **063_consent_source_and_identity.sql** applied
 2026-07-31 · Netlify build of `cb70159` · Heroku push follows the Netlify build
