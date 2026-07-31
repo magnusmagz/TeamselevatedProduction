@@ -824,6 +824,24 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
+- [ ] **⚠️ Consent audit readiness — scheduled for Monday 2026-08-03. Full scope, verbatim
+      evidence and landmines in `docs/consent-audit-readiness.md`; read that, don't re-derive.**
+      Consent *capture* and *staff visibility* are done and live. What is missing is the
+      defensibility half Maggie actually asked for — "log these in case we experience an audit or
+      a complaint". Two gaps:
+      1. **The wording is not stored and has already diverged.** Every row stamps
+         `consent_version='1.0'`, but nothing records what 1.0 said — the statements are JSX in
+         `ConsentGate.tsx` and `PublicRegistrationForm.tsx`, and the medical one now differs
+         between them ("for example" vs "may include but is not limited to" — different scope
+         claims, same version string). So you can prove a parent consented and when, but not to
+         what. Fix: statements server-side as the single source, both surfaces render from it,
+         and store the exact text on each row (migration 064). Start versions at **1.1** — 1.0 is
+         already ambiguous.
+      2. **The portal promises withdrawal it does not offer.** `ConsentGate` says "you can
+         withdraw it at any time from the portal"; `action=revoke` exists and **nothing calls
+         it**. Same silent-promise pattern this workstream spent two days removing, introduced by
+         the 2026-07-30 copy. Needs a "Your consents" section — and a product decision on what
+         withdrawal *means* (revoking currently re-raises the blocking gate, i.e. a loop).
 - [ ] **Consent status is not on the Crew page.** Shipped on the athlete list instead
       (2026-07-31) — consent is per-child, so a guardian row covering three athletes cannot show
       one honest badge, and `api/auth-gateway.php` (which powers Crew) is on the do-not-modify
