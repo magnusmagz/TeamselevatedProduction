@@ -109,8 +109,17 @@ function isClubAdmin($auth, $clubProfileId) {
 // Returns ['join' => string, 'where' => string, 'params' => array]
 // ---------------------------------------------------------------------------
 function buildCoachScope($connection, $auth, $userId, $clubProfileId) {
+    // Reporting measures what the club SENT. Since migration 064,
+    // communication_log also holds inbound replies, and they carry
+    // status='delivered' because the status CHECK has no 'received' value — so
+    // without this filter every reply from a parent would count as a message the
+    // club sent AND as a successful delivery, inflating volume and delivery rate
+    // at the same time. All ten analytics queries funnel through this helper,
+    // which is why the filter lives here rather than in each of them.
+    $outbound = "AND cl.direction = 'outbound'";
+
     if (isClubAdmin($auth, $clubProfileId)) {
-        return ['join' => '', 'where' => '', 'params' => []];
+        return ['join' => '', 'where' => $outbound, 'params' => []];
     }
 
     $teamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
@@ -130,7 +139,7 @@ function buildCoachScope($connection, $auth, $userId, $clubProfileId) {
         LEFT JOIN team_members _scope_tm2
             ON _scope_ag.athlete_id = _scope_tm2.athlete_id AND _scope_tm2.team_id IN ($placeholders)
     ";
-    $where = "AND (_scope_tm.id IS NOT NULL OR _scope_tm2.id IS NOT NULL)";
+    $where = "AND (_scope_tm.id IS NOT NULL OR _scope_tm2.id IS NOT NULL) {$outbound}";
     $params = array_merge($teamIds, $teamIds);
 
     return ['join' => $join, 'where' => $where, 'params' => $params];

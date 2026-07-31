@@ -445,7 +445,10 @@
 "created_at",
 "updated_at",
 "tournament_id",
-"from_number"
+"from_number",
+"direction",
+"conversation_id",
+"read_at"
 ],
 "consent_records": [
 "id",
@@ -1229,7 +1232,8 @@
 "is_active",
 "provisioned_at",
 "created_at",
-"updated_at"
+"updated_at",
+"inbox_enabled"
 ],
 "sponsors": [
 "id",

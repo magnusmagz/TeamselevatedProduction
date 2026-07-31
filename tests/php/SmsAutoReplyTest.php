@@ -113,29 +113,27 @@ class SmsAutoReplyTest extends TestCase
         );
     }
 
-    public function testNothingIsStored(): void
+    /**
+     * Replaced 2026-07-31. This used to assert the handler wrote NOTHING, pinning
+     * the Tier 0 promise that a reply was answered and discarded.
+     *
+     * M1 deliberately breaks that promise: replies are now recorded so the inbox
+     * has something to show. What has NOT changed is the outgoing wording — it
+     * still says the number is not monitored, and that stays true, because storing
+     * is not monitoring. The copy moves in M4, when a human can actually answer.
+     *
+     * So the invariant worth guarding is no longer "stores nothing" but "the
+     * message still tells the truth", which A1/A2 below already cover. Recording
+     * itself is covered by InboundSmsCaptureTest.
+     */
+    public function testTheHandlerStillClaimsOnlyWhatIsTrue(): void
     {
-        // Tier 0 promises the reply is not recorded, and the outgoing text says so.
-        // If this file ever gains a database write, that promise is a lie and this
-        // test should be the thing that objects.
-        //
-        // Comments are stripped first: the file's own docblock explains that it
-        // does NOT write to communication_log, and a naive substring search flags
-        // that explanation as the very thing it is disclaiming.
-        $code = '';
-        foreach (token_get_all(file_get_contents(self::HANDLER)) as $token) {
-            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
-                continue;
-            }
-            $code .= is_array($token) ? $token[1] : $token;
-        }
+        $msg = $this->messageIn($this->post('hi'));
 
-        foreach (['INSERT', 'UPDATE ', 'communication_log', 'Database::', 'PDO'] as $forbidden) {
-            $this->assertStringNotContainsStringIgnoringCase(
-                $forbidden,
-                $code,
-                "the auto-reply handler must not persist anything (found '{$forbidden}' in code)"
-            );
-        }
+        $this->assertStringContainsString(
+            'not monitored',
+            $msg,
+            'until M4 gives a human somewhere to answer, this must stay accurate'
+        );
     }
 }

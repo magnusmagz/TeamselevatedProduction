@@ -32,6 +32,50 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### SMS inbox M1 — inbound replies are recorded — **migration 064 applied to Neon**
+`064_sms_inbox_capture.sql` · Heroku **v472** · backend only
+
+Replies used to be answered and thrown away, so the seven real replies to the
+2026-07-30 Central Kansas broadcast lived only in Twilio's message log. They are
+now written to `communication_log` with `direction='inbound'` and a
+`conversation_id`. Nothing reads them yet — M1 of `docs/sms-inbox-scope.md`.
+
+**First migration to alter `communication_log`**, which holds real history (510
+rows). Additive and backfill-free: `direction` DEFAULTs to `'outbound'`, so every
+existing row became correct without an UPDATE. Numbered 064, not the 060 the scope
+doc says — 060-063 were claimed by the chat and consent work while it was written.
+
+**Rehearsed before applying**, using Postgres transactional DDL (BEGIN → migrate →
+inspect → ROLLBACK) since there is no Neon CLI or API key here. That rehearsal
+caught a defect that would have reached production: `communication_log.user_id` is
+NOT NULL **with an FK to users**, and an inbound message has no sending staff
+member. Writing 0 threw a constraint violation; naming a club admin would have
+credited them with words they did not write. The migration drops the NOT NULL and
+inbound rows store NULL.
+
+**Prod state discovered — reporting would have silently inflated.** `status` has no
+`received` value, so inbound rows carry `delivered`. All ten analytics queries
+counted `status <> 'queued'` as sent, so every reply would have counted as a
+message the club sent AND as a successful delivery. They funnel through
+`buildCoachScope`, which now adds `AND cl.direction = 'outbound'` in one place.
+
+**A second defect caught by a test, not by review:** Twilio reports E.164
+(`+17855550100`, 11 digits) while stored numbers are hand-entered and usually 10.
+A whole-string digit comparison never matches, so *every* sender would have
+resolved as "unknown". Matching is now on the last 10 digits.
+
+`api/webhooks/twilio-inbound.php` deliberately does NOT use
+`Database::getInstance()`: `config/database.php` `die()`s a JSON error on
+connection failure, which would emit JSON instead of TwiML and take the auto-reply
+down with the database. It connects directly so the failure stays catchable — a
+lost log row beats a family getting silence.
+
+Capture is **not** behind `inbox_enabled` (added to `sms_phone_numbers`, default
+false). Storing is not monitoring, so the "this number is not monitored" wording
+stays true; it changes in M4 when a human can reply.
+`SmsAutoReplyTest::testNothingIsStored` retired — it pinned exactly the promise
+this milestone sets out to break.
+
 ### Merged a duplicate Taylor Cook — ad-hoc prod data fix
 No code change. Neon snapshot taken beforehand at Maggie's request.
 
