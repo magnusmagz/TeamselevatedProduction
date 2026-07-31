@@ -819,6 +819,29 @@ there (and `git log`) before concluding something is unbuilt. The whole communic
 the data importer, household combining, recurring events, payments, and the event merge tags are
 all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE above.
 
+- [ ] **⚠️ Any parent can read their club's whole crew roster** (found 2026-07-31 by
+      `scripts/smoke-test.php`; deliberately NOT fixed — `api/auth-gateway.php` is on the
+      do-not-modify list above, so this needs Maggie's go-ahead).
+      `handleClubParents` gates on `$auth->canAccessClub($clubId)`, which is **club
+      membership, not staff standing** — a `user_club_access` row with role `parent`
+      satisfies it. So a parent POSTing `{club_id}` to
+      `auth-gateway.php?action=club-parents` receives every guardian in the club: name,
+      email, mobile phone, portal status, and their children's names.
+      **Verified against production**, not inferred — a real parent token returned the
+      full roster, HTTP 200.
+      Blast radius: club 32 → 196 guardians / 194 emails / 188 phones, reachable by 13
+      parent accounts; club 51 → 148 / 120 / 135, reachable by 2. `volunteer` (1 row in
+      club 32) passes the same check.
+      **Not clickable — the Crew page is admin-only in the nav — and that is exactly the
+      point.** "The absence of a UI is not an access control" is already a lesson in this
+      file from the 2026-07-30 guardian-gateway fix; this is the same shape.
+      Fix is one predicate: require club-admin standing, not `canAccessClub`. Check
+      `handleParentPortalStatus` and every other handler in that file for the same
+      substitution before calling it done — `canAccessClub` is the wrong gate anywhere the
+      answer is club-wide staff data.
+      Pinned in the meantime by `scripts/smoke-test.php` ("parent is refused the crew
+      list"), which currently FAILS on purpose — it is the open finding, not a broken test.
+
 - [ ] **Shared-email remaining case** — `users.email ≠ guardians.email` loses the parent role; needs Phase 2 `user_guardians` link table (the read-side fixes in the 3 legacy files are DONE, verified 2026-07-06)
 - [ ] **Portal status is still inferred from a shared email** — same missing `user_guardians` table
       as above, failing in the opposite direction: any account sharing a guardian's email answers
@@ -952,6 +975,22 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **Silent-failure bugs found in code verification 2026-07-06** (UI promises, backend doesn't deliver — see `TeamsElevated-Product-Roadmap.docx` Tier 1): scheduled broadcasts never dispatch; tryout "send offers" sends no notifications; invoice/receipt/reminder emails are demo stubs and registration confirmation is commented out; email signatures stored but never appended; facility contacts dropped on save; unsubscribe scope ignored at send time; volunteer direct-assignment bypasses background-check block
 
 ---
+
+### Run `scripts/smoke-test.php` after a day of deploys
+Read-only walk of the staff read surface against deployed prod, minting tokens for a
+discovered club_admin / coach / parent per club. `main` is shared, so a push carries commits
+no one in your session wrote — checking only what you touched is not enough.
+
+- It checks **refusals as carefully as successes.** An empty scope and "everything" are
+  opposite answers, so `consent?action=summary` returning *zero* athletes to a parent is
+  the assertion that proves the scope is right; a 403 there would actually be wrong.
+- Some read endpoints are **POSTs** — `club-parents` takes `club_id` in a JSON body. A GET
+  gets `400 club_id is required`, which reads like a bug and is not one.
+- A 404 from `inbox.php` is **correct** for a club without `inbox_enabled` (the flag lives
+  on `sms_phone_numbers`, not `club_profile`).
+- **Do not add a write to it.** It is only worth running against production, and that is
+  only safe while it cannot change anything.
+
 
 ## Helpful Context
 

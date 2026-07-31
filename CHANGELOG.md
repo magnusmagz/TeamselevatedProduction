@@ -32,6 +32,38 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### `/api/teams` had been returning 500 since the move off MySQL — fixed
+Found by the new `scripts/smoke-test.php`, not by a report. Heroku v476.
+
+`Team::getTeams` derived its count query with
+`str_replace('SELECT t.*', 'SELECT COUNT(*)', $sql)`, which rewrote only the
+first line of the select list and left `CONCAT(u.first_name, ...)`, `s.name`
+and `f.name` beside an aggregate with no GROUP BY — SQLSTATE 42803, a hard
+500 on every call. Introduced 2025-10-02; MySQL accepted it, Postgres does
+not. It survived because the main Teams screen uses
+`legacy/teams-gateway.php`; the one live caller is
+`VolunteerSignupRequests.tsx`, where the team list just came back empty.
+
+Two more MySQL-isms in the same function:
+- `ORDER BY t.$sortBy $sortOrder` interpolated `$_GET['sort_by']` and
+  `$_GET['sort_order']` straight into the statement. ORDER BY cannot be
+  bound, so it now comes from a fixed column list and collapses to exactly
+  DESC or ASC.
+- `LIKE` is case-insensitive in MySQL and not in Postgres, so searching
+  "Thunder" for a team stored as "thunder" silently matched nothing. Now
+  ILIKE.
+
+`TeamListQueryTest` pins all three. It **strips comments before asserting**:
+the comments in `getTeams` quote the code they replaced, so reading the file
+naively made each test fail against its own explanation — and would have
+passed again the moment someone deleted the comment.
+
+**Prod state discovered:** a parent can read their club's entire crew roster
+(`auth-gateway.php?action=club-parents`) — 196 guardians with emails and
+phones in club 32, 148 in club 51. Gated on `canAccessClub`, which is club
+membership rather than staff standing. Logged as open work in CLAUDE.md
+rather than fixed, because that file is on the do-not-modify list.
+
 ### Two more duplicate guardians merged — Central Kansas
 No code change. Found via the ambiguous-sender analysis for inbox M5.
 
