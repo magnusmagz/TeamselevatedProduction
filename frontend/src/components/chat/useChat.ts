@@ -20,6 +20,8 @@ interface UseChatReturn {
   sendMessage: (text: string) => void;
   createConversation: (participantIds: number[]) => void;
   handleTyping: (isTyping: boolean) => void;
+  reportedMessageIds: string[];
+  reportMessage: (messageId: string, reason: string, note?: string) => void;
   archiveConversation: (conversationId: number) => void;
   unarchiveConversation: (conversationId: number) => void;
   setShowArchived: (show: boolean) => void;
@@ -38,6 +40,7 @@ export function useChat(): UseChatReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatUser, setChatUser] = useState<ChatUser | null>(null);
+  const [reportedMessageIds, setReportedMessageIds] = useState<string[]>([]);
 
   const activeConvRef = useRef<Conversation | null>(null);
 
@@ -333,6 +336,17 @@ export function useChat(): UseChatReturn {
     chatSocket.sendTyping(activeConversation.id, user.name || user.email, isTyping);
   }, [activeConversation, user]);
 
+  // Report a message into the club's moderation queue.
+  //
+  // Marked reported locally as soon as the emit goes out. The server answers the
+  // same way for a fresh report and a duplicate on purpose — a reporter must not
+  // learn that someone else already flagged it, or what an admin decided — so
+  // there is nothing more informative to wait for.
+  const reportMessage = useCallback((messageId: string, reason: string, note?: string) => {
+    if (!chatSocket.reportMessage(messageId, reason, note)) return;
+    setReportedMessageIds(prev => (prev.includes(messageId) ? prev : [...prev, messageId]));
+  }, []);
+
   // Archive: hide from this user's list. Not a delete — nothing is removed, no
   // other participant is affected, and the next message restores it.
   //
@@ -387,6 +401,8 @@ export function useChat(): UseChatReturn {
     sendMessage,
     createConversation,
     handleTyping,
+    reportedMessageIds,
+    reportMessage,
     archiveConversation,
     unarchiveConversation,
     setShowArchived,

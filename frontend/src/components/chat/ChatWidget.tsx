@@ -26,6 +26,8 @@ export default function ChatWidget() {
     sendMessage,
     createConversation,
     handleTyping,
+    reportedMessageIds,
+    reportMessage,
     archiveConversation,
     unarchiveConversation,
     setShowArchived,
@@ -156,6 +158,8 @@ export default function ChatWidget() {
                 messages={adaptedMessages}
                 currentUser={user}
                 typingUsers={typingUsers}
+                onReport={reportMessage}
+                reportedMessageIds={reportedMessageIds}
               />
 
               {/* Input */}

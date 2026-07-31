@@ -120,6 +120,35 @@ export const chatSocket = {
   },
 
   /**
+   * Report a message to the club's moderation queue.
+   *
+   * Any participant may report, and the response is the same whether or not the
+   * message was already flagged — a reporter must not learn that someone else
+   * reported it, or that an admin dismissed it.
+   */
+  reportMessage: (messageId: string, reason: string, note?: string): boolean => {
+    if (socket?.connected) {
+      socket.emit('reportMessage', { messageId, reason, note });
+      return true;
+    }
+    console.error('Cannot report message - socket not connected');
+    return false;
+  },
+
+  /**
+   * Remove a message. Club admins only — the server enforces it; this is not a
+   * control coaches or senders are ever shown.
+   */
+  removeMessage: (messageId: string, reason?: string): boolean => {
+    if (socket?.connected) {
+      socket.emit('removeMessage', { messageId, reason });
+      return true;
+    }
+    console.error('Cannot remove message - socket not connected');
+    return false;
+  },
+
+  /**
    * Archive a conversation — hides it from THIS user's list only.
    *
    * Not a delete. Nothing is removed, no other participant is affected, and the

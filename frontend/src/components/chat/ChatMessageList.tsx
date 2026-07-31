@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import ReportMessageButton from './ReportMessageButton';
 
 interface Message {
   id: string;
@@ -32,9 +33,16 @@ interface Props {
   messages: Message[];
   currentUser: User;
   typingUsers: TypingUser[];
+  /**
+   * Report a message. Omitted where reporting is not offered. Only ever shown on
+   * other people's messages — reporting your own is not a thing, and the server
+   * would accept it, so the UI is where that is decided.
+   */
+  onReport?: (messageId: string, reason: string) => void;
+  reportedMessageIds?: string[];
 }
 
-export default function ChatMessageList({ messages, currentUser, typingUsers }: Props) {
+export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, reportedMessageIds = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -100,8 +108,18 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
         return (
           <div
             key={msg.id}
-            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+            className={`group flex items-start gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}
           >
+            {/* Reporting is offered only on other people's messages. */}
+            {!isOwn && onReport && (
+              <div className="pt-1 order-2">
+                <ReportMessageButton
+                  messageId={msg.id}
+                  reported={reportedMessageIds.includes(msg.id)}
+                  onReport={onReport}
+                />
+              </div>
+            )}
             <div
               className={`max-w-[80%] ${
                 isOwn
