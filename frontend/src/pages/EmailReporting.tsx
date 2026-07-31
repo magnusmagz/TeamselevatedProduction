@@ -403,10 +403,10 @@ export const EmailReporting: React.FC = () => {
 
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-brand-primary uppercase tracking-wide">
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">
           Email &amp; SMS Reporting
         </h1>
         <p className="text-gray-600 mt-1">

@@ -218,16 +218,16 @@ export const BroadcastCompose: React.FC = () => {
 
   if (!clubId) {
     return (
-      <div className="p-6">
+      <div className="p-6 max-w-7xl mx-auto">
         <p className="text-sm text-gray-500">Select a club to send a broadcast.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-gray-900">Broadcast SMS</h1>
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Broadcast SMS</h1>
         <p className="mt-1 text-sm text-gray-500">
           Send one message to whole teams or the entire club. Sends appear in Reporting as a
           single campaign.

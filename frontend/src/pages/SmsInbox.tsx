@@ -204,7 +204,7 @@ export const SmsInbox: React.FC = () => {
 
   if (!isClubAdmin) {
     return (
-      <div className="p-8 text-sm text-gray-600">
+      <div className="p-6 max-w-7xl mx-auto text-sm text-gray-600">
         The SMS inbox is available to club admins.
       </div>
     );
@@ -212,7 +212,7 @@ export const SmsInbox: React.FC = () => {
 
   if (disabled) {
     return (
-      <div className="max-w-xl mx-auto p-8">
+      <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Inbox</h1>
         <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg text-sm text-amber-900">
           The inbox is not switched on for this club yet. Replies to your number are
@@ -224,7 +224,7 @@ export const SmsInbox: React.FC = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-6 max-w-7xl mx-auto">
       <header className="mb-4">
         <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Inbox</h1>
         <p className="text-sm text-gray-500 mt-1">Replies to your club's number</p>
