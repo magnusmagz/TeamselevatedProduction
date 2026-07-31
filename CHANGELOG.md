@@ -32,6 +32,41 @@ Newest first. Times are Pacific.
 
 ## 2026-07-30
 
+### Chat moderation — M0 through M4 and M7, shipped in one run
+migrations **060, 061, 062** applied to Neon · chat app **v12 → v16** · Heroku **v466, v467** ·
+Netlify builds of `a1ca50a` and `da05d5b` · plan and design record in `docs/chat-moderation-plan.md`
+
+Built ahead of its scheduled week at Maggie's direction: run all milestones, guess where a decision
+is needed and log it for revisit, no destructive actions. The guesses taken are listed under
+"Revisit after launch" in the plan.
+
+- **M0 — `createConversation` validated nothing.** It took `participantIds` from the client and
+  inserted them; no club, team or role check, and `canInitiateConversation` includes `parent`. Any
+  initiator could open a DM with any user id in any club. Fixed with an allowlist built from
+  guardians + club staff. **Prod state discovered:** conversation 52 held user 27
+  (`john@nomail.com`), tied to club 32 by neither the guardian chain nor a staff role — the hole had
+  been reached. No athlete has ever been a participant.
+- **M1 — moderation removal.** Soft delete, tombstone, audit inside the transaction, text never
+  copied into `audit_log`. Migration 060.
+- **M2 — reports + review queue.** Migration 061; human reports and auto-flags share one table so
+  admins get one inbox. `api/chat-moderation.php` reads the queue and closes items but deliberately
+  cannot remove anything.
+- **M3 — flag-gated admin read + `chat_access_log`.** Migration 062. An open report is what
+  authorises opening a conversation; the log is written before the conversation is served, and a
+  failed log refuses the read.
+- **M4 — auto-flagging.** Flags, never censors. Profanity is the lowest severity; secrecy and
+  off-platform contact are the high-value rules.
+- **M7 — queue health + compliance summary.** Counts actions, never content.
+
+**NOT built:** the weekly admin digest (needs a tick inside `workers/queue-worker.php`, not a new
+scheduler), and M5's notice + ToS (with the attorney; explicitly not a blocker — chat is live to
+beta clubs and the business owns that risk tolerance).
+
+**Correction recorded during this work:** an earlier entry and CLAUDE.md cited conversation 18 as a
+cross-club DM. It is not — that user is a guardian of a club 32 athlete via the guardian chain, and
+their `user_club_access` row (club 25) is a stale secondary role. **A guardian's club is the guardian
+chain, not their `user_club_access` row.**
+
 ### Parental consent actually gets recorded now — and the portal's Medical page was blank
 `3d1f2ba` (merged as `fffbf4c`) · **frontend-only** · no Heroku push, **no migration**
 

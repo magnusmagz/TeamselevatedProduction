@@ -1,5 +1,33 @@
 # Chat moderation — plan
 
+## ✅ BUILT AND DEPLOYED 2026-07-30 — M0, M1, M2, M3, M4, M7
+
+Ahead of schedule; built in one autonomous run. Deploy coordinates in
+`../CHANGELOG.md`. Everything below is kept as the design record.
+
+| | | |
+|---|---|---|
+| **M0** | createConversation allowlist | chat **v12** |
+| **M1** | removal + tombstone + audit | migration 060, chat **v13** |
+| **M2** | reports + review queue | migration 061, chat **v14**, Heroku **v466** |
+| **M3** | flag-gated admin read + access log | migration 062, chat **v15** |
+| **M4** | auto-flag pipeline | chat **v16** |
+| **M7** | queue health + compliance summary | Heroku **v467** |
+| M5 | notice + ToS | with the attorney — not a blocker, decided |
+
+**The weekly digest is NOT wanted — decided by Maggie 2026-07-31.** Do not build
+it and do not re-raise it as a gap. Consequence, recorded once as fact rather
+than objection: inaction is visible only to someone who opens the queue page,
+which does surface the age of the oldest unreviewed item (amber at 3 days, red at
+7). Nothing pushes that to an admin who does not look.
+
+If it is ever revived, it belongs as a throttled tick inside the already-running
+`workers/queue-worker.php` — **never** a new scheduler process, which hits the
+cost wall that keeps `calendar-sync-scheduler` and `waitlist-expiry-scheduler`
+switched off.
+
+**Original plan follows.**
+
 **Scheduled: week of Monday 2026-08-03.** Written 2026-07-30, after archive + retention shipped.
 
 Phase 2 of `docs/chat-archive-plan.md`, expanded well past what that document assumed. It is not
@@ -170,35 +198,162 @@ Two rules that are not negotiable:
 
 ---
 
-## M5 — Notice + ToS
+## M5 — Notice + ToS — out of the build, follows later
+
+**Decision (Maggie, 2026-07-30): chat is live and goes to the beta clubs now. The ToS comes from the
+attorney afterwards, and the business owns this risk tolerance explicitly.** Not an oversight and
+not pending — decided. Do not re-raise it as a blocker.
+
+Still to land, in the attorney's time:
 
 - Persistent line in the conversation header: "Club administrators can review messages."
-- ToS/privacy copy updated and re-accepted via the existing `users.tos_accepted_at` /
-  `tos_version` mechanism.
-- **Ships before M3 goes live**, not after. The capability must not precede the notice.
-- Copy is Maggie's, not mine.
+- ToS/privacy copy + acceptance via `users.tos_accepted_at` / `tos_version`.
+
+**Fact for whoever builds M3, not a caution:** once beta clubs are live, admin read touches real
+families' conversations rather than internal test accounts. As of 2026-07-30 every `direct` message
+in prod was between internal accounts (6 of the 8 senders ever were `maggie+*@4msquared.com` /
+`@teamselevated.com`), so that ceases to be true as beta usage starts. It changes what the access
+log in M3 is holding, which is a reason to build M3 with the log rather than after it — not a reason
+to delay M3.
 
 ---
 
-## M6 — Co-adult rule on adult↔minor DMs — **DECISION PENDING**
+## M0 — `createConversation` participant allowlist — **DECIDED, SHIPS FIRST**
 
-Not building until asked. Raised twice, unanswered — captured here so it is not lost.
+Supersedes the co-adult rule. Maggie, 2026-07-30: **coaches cannot DM athletes at all.** DMs are
+between coaches and the crew (guardians). So this is not "require a second adult" — athletes are
+simply not permissible participants.
 
-Require a parent or second adult on any coach↔athlete DM, enforced at `createConversation`.
-SafeSport-style guidance is that adult↔minor communication should not be unobserved 1:1. This is the
-one control that does not depend on anyone reviewing anything, cannot be evaded by phrasing, and
-needs no classifier. If it is wanted, it lands **before** the queue, not after — it changes which
-conversations can exist at all.
+**`createConversation` validates nothing today.** It takes `participantIds` from the client, looks
+the names up in `users`, and inserts them. No check of club, team, or role. Any user passing
+`canInitiateConversation` (which includes `parent`) can open a DM with **any user id in the system,
+in any club**. Same shape as the athlete/guardian gateway bug in CLAUDE.md — *bound what the endpoint
+accepts, not what the form happens to send.* `getTeamMembersForPicker` already returns only guardians
+and coaches, so the UI is correct and the endpoint is the hole.
+
+**Never exploited against a child:** zero athletes have ever been a conversation participant. One
+participant *is* genuinely out of scope — **conversation 52** (group, club 32), user 27
+`john@nomail.com`, connected to that club by neither the guardian chain nor a staff role. So the hole
+is reachable and has been reached, not theoretical.
+
+> Correction, 2026-07-30: an earlier draft cited **conversation 18** as a cross-club DM. That was
+> wrong. User 91 is a guardian of an athlete on a club 32 team, so the DM is legitimate; their
+> `user_club_access` row says club 25, which is a stale secondary role. The mistake was comparing
+> `user_club_access.club_profile_id` against `conversations.club_id` instead of walking the guardian
+> chain. **Club membership for a guardian is the guardian chain, not their `user_club_access` row.**
+
+### Implement as an ALLOWLIST, never a blocklist on `athletes.user_id`
+
+Verified against live Neon 2026-07-30, and this is the trap:
+
+| | |
+|---|---|
+| athletes with `user_id` | 26 |
+| …whose account email is **a guardian's** | **23** |
+| …whose account holds a **staff role** | **10** (6 coach, 4 club_admin) |
+| users holding the `player` role | **0** |
+
+`athletes.user_id` is not a reliable "this account is the child" signal — it mostly points at the
+parent. Measured directly against the finished allowlist: **club 51's allowlist is 26 people, and 16
+of them are also `athletes.user_id` values.** A blocklist would have removed **62% of that club's
+reachable contacts**, most of them guardians — breaking exactly the coach↔crew conversation the
+feature exists for.
+
+So: participants must be **in the allowlist the picker already computes** — guardians of athletes on
+the creator's teams, plus coaches/admins of the same club. Anything else is rejected. Athletes are
+excluded by never being in the set, which stays true however messy `athletes.user_id` becomes.
+
+**Tests**
+- a participant outside the creator's club is rejected (conversation 18 could not be created today)
+- a participant on another team is rejected for a coach; allowed for a club admin of that club
+- an athlete `user_id` is rejected **even when that account also holds a coach or guardian role** —
+  the allowlist decides, not athlete-ness
+- a guardian whose account is mis-linked as `athletes.user_id` is **still reachable** (the regression
+  a blocklist would cause)
+- the endpoint rejects ids the picker would never have offered, with the picker stubbed out entirely
+
+---
+
+## M6 — Co-adult rule — **SUPERSEDED by M0**
+
+Kept for history. The co-adult rule ("require a second adult on a coach↔athlete DM") is moot once
+coach↔athlete DMs cannot exist at all. M0 is the stronger form of the same control.
+
+---
+
+## M7 — Queue health + compliance summary
+
+Added 2026-07-30. Maggie: this is a **compliance feature that sells** — club admins hold queue
+access and the capability itself is the pitch.
+
+That is legitimate, and it has a design consequence. A queue that is demoed but not watched is worse
+for a club than no queue: an unactioned flag sitting for eight months is discoverable evidence that
+they were told and did nothing. **Make inaction visible** — it protects the club and it demos better.
+
+- Oldest unreviewed item and open count, surfaced on the queue and the admin dashboard.
+- Weekly digest to club admins when anything is open. Silence when the queue is clean.
+- **Compliance summary** — messages reviewed, flags raised, actions taken, over a date range. This
+  is the artifact a club hands to a board or an insurer, and it is the reason a buyer cares.
+
+Sellable claims in descending strength, which is roughly the inverse of how impressive they sound:
+
+1. Coaches cannot privately message athletes (**M0** — structural, verifiable)
+2. No message can be deleted by anyone (**shipped 2026-07-30**), retained under a stated policy
+   (`lib/retention_plans.php`)
+3. Removals are tombstoned and audited; nothing vanishes silently (**M1**)
+4. Any participant can report; admins review (**M2**)
+5. Admin access is itself logged (**M3**) — the answer to "so admins read everyone's messages?"
+6. Automated flagging (**M4**) — sounds strongest, is weakest
+
+---
+
+## How this gets built (Maggie, 2026-07-30)
+
+Run all milestones autonomously. Where something needs a decision, **make the best guess, build it,
+and add it to "Revisit after launch" below** rather than stopping. Deploy per milestone, not one
+drop at the end — `main` is shared and holding code back has already misfired in this repo.
+
+### No destructive actions — the boundary, since this feature removes messages
+
+- **Allowed:** message removal (soft delete — row survives, tombstoned, audited, reversible);
+  additive migrations only (new tables, new nullable columns).
+- **Never:** `retention-check.php --purge`; arming a retention policy; hard-deleting any row;
+  `DROP`; destructive `UPDATE` on prod data; overwriting backfills.
+- If a milestone genuinely requires something destructive, **stop and flag it.** Do not guess.
+
+### Revisit after launch
+
+Best guesses taken to avoid blocking. None are load-bearing; all are cheap to change.
+
+- [ ] Admin notification is **email** via the existing transactional path + an in-app queue badge.
+      Weekly digest; individual alerts only for high severity.
+- [ ] **The sender is not notified** when their message is removed — the tombstone is visible
+      in-thread to everyone including them. Silent-to-sender read worse than no notification.
+- [ ] `super_admin` / `owner` get queue access, scoped per club, for platform support.
+- [ ] Review queue is a **new nav item** under the admin section rather than folded into a page.
+- [ ] Profanity list is a conservative standard set, word-boundary matched. **Expect to tune it once
+      real flag rates exist** — the first version is a guess about a club's tolerance, not a fact.
+- [ ] Severity thresholds and what each tier triggers.
+- [ ] Whether the plan should also live as Jira tickets on TE (raised, never settled).
+
+### Verification limits — say this again when M2 lands
+
+There is no staging environment: one Netlify site, one Heroku app, one Neon database. Verification is
+unit tests, rolled-back transactions against prod, and deployed-bundle checks. **Nobody has clicked
+through the review queue as a real club admin.** That was acceptable for an archive button; for a
+workflow an admin is expected to operate under compliance pressure, someone should drive it once
+before a beta club relies on it.
 
 ---
 
 ## Order
 
-M5 → M1 → M2 → M3 → M4, with M6 first if it is wanted.
+**M0 → M1 → M2 → M3 → M4 → M7.** M5 is no longer in the build (attorney), and is a rollout gate.
 
-M5 leads because the notice must precede the capability. M1 is the foundation. M3 is deliberately
-late: admin read is the sharpest edge and should land once the queue that justifies each open
-already exists.
+M0 first: it is a security fix on its own merits and it is the structural control — it prevents
+rather than detects, and needs nobody watching a queue. M1 is the foundation for the rest. M3 is
+deliberately late; admin read is the sharpest edge and should land once the queue justifying each
+open exists.
 
 ## Deploy notes
 

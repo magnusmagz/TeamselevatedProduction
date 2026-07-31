@@ -34,6 +34,11 @@ export interface ChatMessage {
   pending?: boolean;
   /** Set when an optimistic send could not be dispatched (socket offline). */
   failed?: boolean;
+  /**
+   * Removed by a club admin. The server nulls `text` for these, so never render
+   * `text` for a removed message — render the tombstone.
+   */
+  removed?: boolean;
 }
 
 export interface TypingUser {

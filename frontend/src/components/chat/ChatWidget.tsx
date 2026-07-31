@@ -26,6 +26,8 @@ export default function ChatWidget() {
     sendMessage,
     createConversation,
     handleTyping,
+    reportedMessageIds,
+    reportMessage,
     archiveConversation,
     unarchiveConversation,
     setShowArchived,
@@ -63,6 +65,9 @@ export default function ChatWidget() {
     time: msg.time,
     channel: 'general',
     role: msg.role,
+    // Without this a removed message arrives with empty text and no flag, and
+    // renders as a blank bubble instead of a tombstone.
+    removed: msg.removed,
   }));
 
   if (!user) return null;
@@ -153,6 +158,8 @@ export default function ChatWidget() {
                 messages={adaptedMessages}
                 currentUser={user}
                 typingUsers={typingUsers}
+                onReport={reportMessage}
+                reportedMessageIds={reportedMessageIds}
               />
 
               {/* Input */}

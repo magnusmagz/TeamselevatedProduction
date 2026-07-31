@@ -32,6 +32,8 @@ jest.mock('../chatSocket', () => {
     markRead: jest.fn(),
     createConversation: jest.fn(),
     sendTyping: jest.fn(),
+    reportMessage: jest.fn((): boolean => true),
+    removeMessage: jest.fn((): boolean => true),
     archiveConversation: jest.fn((): boolean => true),
     unarchiveConversation: jest.fn((): boolean => true),
     loadArchivedConversations: jest.fn(),
@@ -54,6 +56,7 @@ const mockedModule = chatSocketModule as unknown as {
     joinConversation: jest.Mock;
     markRead: jest.Mock;
     leaveConversation: jest.Mock;
+    reportMessage: jest.Mock;
     archiveConversation: jest.Mock;
     unarchiveConversation: jest.Mock;
     loadArchivedConversations: jest.Mock;
@@ -68,6 +71,7 @@ const mockJoinConversation = mockChatSocket.joinConversation;
 const mockRegisteredHandlers = mockedModule.__registeredHandlers;
 const mockFakeSocket = mockedModule.__fakeSocket;
 const mockArchive = mockChatSocket.archiveConversation;
+const mockReport = mockChatSocket.reportMessage;
 const mockUnarchive = mockChatSocket.unarchiveConversation;
 const mockLoadArchived = mockChatSocket.loadArchivedConversations;
 
@@ -111,6 +115,7 @@ beforeEach(() => {
   mockSendMessage.mockReturnValue(true);
   mockJoinConversation.mockImplementation(() => {});
   mockArchive.mockReturnValue(true);
+  mockReport.mockReturnValue(true);
   mockUnarchive.mockReturnValue(true);
   mockChatSocket.leaveConversation.mockImplementation(() => {});
   localStorage.setItem('auth_token', 'test-token');
@@ -210,6 +215,127 @@ describe('useChat', () => {
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0].failed).toBe(true);
     expect(result.current.messages[0].pending).toBe(false);
+  });
+
+  // ---- Moderation removal -------------------------------------------------
+  describe('removal', () => {
+    const incoming: ChatMessage = {
+      id: '100',
+      conversationId: 7,
+      text: 'something that had to go',
+      sender: 'Coach Dave',
+      senderId: 99,
+      timestamp: new Date().toISOString(),
+    };
+
+    test('a removed message becomes a tombstone in place, not a gap', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+      expect(result.current.messages).toHaveLength(1);
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      // Still present — a message that silently disappears leaves people unsure
+      // whether they imagined it.
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0].removed).toBe(true);
+    });
+
+    test('the removed text is dropped from client state', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      expect(result.current.messages[0].text).toBe('');
+      expect(result.current.messages[0].text).not.toContain('had to go');
+    });
+
+    test('removal matches on id even when the server sends a number', () => {
+      // History delivers string ids; the socket payload carries whatever the
+      // server put in it. A strict === would silently no-op.
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      fire('messageRemoved', { messageId: 100, conversationId: 7 });
+
+      expect(result.current.messages[0].removed).toBe(true);
+    });
+
+    test('other messages are untouched', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+      fire('receiveMessage', { ...incoming, id: '101', text: 'this one stays' });
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1].removed).toBeFalsy();
+      expect(result.current.messages[1].text).toBe('this one stays');
+    });
+  });
+
+  // ---- Reporting ----------------------------------------------------------
+  describe('reporting', () => {
+    const incoming: ChatMessage = {
+      id: '200',
+      conversationId: 7,
+      text: 'report me',
+      sender: 'Coach Dave',
+      senderId: 99,
+      timestamp: new Date().toISOString(),
+    };
+
+    test('reporting marks the message reported for this user', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      act(() => result.current.reportMessage('200', 'safety_concern'));
+
+      expect(mockReport).toHaveBeenCalledWith('200', 'safety_concern', undefined);
+      expect(result.current.reportedMessageIds).toContain('200');
+    });
+
+    test('an offline report is not shown as reported', () => {
+      // Same reasoning as the offline archive: telling someone their report was
+      // filed when it never left the browser is worse than an error.
+      mockReport.mockReturnValueOnce(false);
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+
+      act(() => result.current.reportMessage('200', 'harassment'));
+
+      expect(result.current.reportedMessageIds).not.toContain('200');
+    });
+
+    test('reporting the same message twice does not duplicate', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+
+      act(() => result.current.reportMessage('200', 'spam'));
+      act(() => result.current.reportMessage('200', 'spam'));
+
+      expect(result.current.reportedMessageIds.filter(id => id === '200')).toHaveLength(1);
+    });
+
+    test('reporting does not remove or alter the message', () => {
+      // Reporting is not a soft delete. The message stays exactly as it was
+      // until an admin acts on it.
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      act(() => result.current.reportMessage('200', 'inappropriate'));
+
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0].text).toBe('report me');
+      expect(result.current.messages[0].removed).toBeFalsy();
+    });
   });
 
   // ---- Archive ------------------------------------------------------------

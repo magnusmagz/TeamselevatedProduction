@@ -86,6 +86,7 @@ import EmailReporting from './pages/EmailReporting';
 import DataImport from './pages/DataImport';
 import ImportsIndex from './pages/ImportsIndex';
 import SmsTemplates from './pages/SmsTemplates';
+import ChatModeration from './pages/ChatModeration';
 // Volunteer Management
 import VolunteerManagement from './pages/VolunteerManagement';
 import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
@@ -341,6 +342,7 @@ function AppContent() {
     { to: '/email-templates', label: 'Email Templates' },
     { to: '/sms-templates', label: 'SMS Templates' },
     { to: '/email-reporting', label: 'Reporting' },
+    { to: '/chat-moderation', label: 'Reported Messages' },
   ];
 
   const isCommsLinkActive = (link: { to: string; exact?: boolean }) =>
@@ -908,6 +910,11 @@ function AppContent() {
           <Route path="/sms-templates" element={
             <ProtectedRoute>
               <SmsTemplates />
+            </ProtectedRoute>
+          } />
+          <Route path="/chat-moderation" element={
+            <ProtectedRoute>
+              <ChatModeration />
             </ProtectedRoute>
           } />
           <Route path="/communications/broadcast" element={

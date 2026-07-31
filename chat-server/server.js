@@ -16,6 +16,29 @@ const {
   UNARCHIVE_ON_NEW_MESSAGE_SQL,
   MARK_READ_SQL,
 } = require('./lib/archive');
+const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('./lib/participants');
+const {
+  TOMBSTONE_TEXT,
+  canModerate,
+  isPlatformRole,
+  buildMessageHistoryQuery,
+  MESSAGE_SCOPE_SQL,
+  REMOVE_MESSAGE_SQL,
+} = require('./lib/moderation');
+const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
+const {
+  OPEN_REPORT_FOR_CONVERSATION_SQL,
+  LOG_ACCESS_SQL,
+  moderatorMayOpen,
+} = require('./lib/access');
+const {
+  severityForReason,
+  isValidReason,
+  FILE_USER_REPORT_SQL,
+  FILE_AUTO_REPORT_SQL,
+  REPORT_SCOPE_SQL,
+} = require('./lib/reports');
+const { evaluateMessage } = require('./lib/flags');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -183,6 +206,33 @@ async function ensureTeamConversation(teamId, clubId) {
 }
 
 /**
+ * Team ids this user can reach: their own teams, plus every team in their club
+ * if they hold a club-level role.
+ *
+ * Extracted from getUserConversations so the conversation list and the
+ * create-conversation allowlist cannot drift apart — if these two disagreed, a
+ * user could be offered someone they are then refused permission to message, or
+ * worse, the reverse.
+ */
+async function getAccessibleTeamIds(userId, role, payload) {
+  if (role === 'parent') return await getParentTeamIds(userId);
+
+  let teamIds = getCoachTeamIds(payload);
+  if (canInitiateConversation(role)) {
+    const clubId = getClubId(payload);
+    if (clubId) {
+      try {
+        const clubTeams = await pool.query(`SELECT id FROM teams WHERE club_id = $1`, [clubId]);
+        teamIds = [...new Set([...teamIds, ...clubTeams.rows.map(r => r.id)])];
+      } catch (e) {
+        console.error('Error fetching club teams:', e.message);
+      }
+    }
+  }
+  return teamIds;
+}
+
+/**
  * Get all conversations for a user. Includes:
  * - Conversations where they're an explicit participant
  * - Team conversations they belong to (auto-discovered for parents)
@@ -192,29 +242,7 @@ async function ensureTeamConversation(teamId, clubId) {
  * same rows are simply on the other side of the filter.
  */
 async function getUserConversations(userId, role, payload, { archived = false } = {}) {
-  // Get team IDs this user has access to
-  let teamIds = [];
-  if (role === 'parent') {
-    teamIds = await getParentTeamIds(userId);
-  } else {
-    teamIds = getCoachTeamIds(payload);
-    // Also include club-level: all teams in their club
-    if (canInitiateConversation(role)) {
-      const clubId = getClubId(payload);
-      if (clubId) {
-        try {
-          const clubTeams = await pool.query(
-            `SELECT id FROM teams WHERE club_id = $1`,
-            [clubId]
-          );
-          const clubTeamIds = clubTeams.rows.map(r => r.id);
-          teamIds = [...new Set([...teamIds, ...clubTeamIds])];
-        } catch (e) {
-          console.error('Error fetching club teams:', e.message);
-        }
-      }
-    }
-  }
+  const teamIds = await getAccessibleTeamIds(userId, role, payload);
 
   // Ensure team conversations exist
   const clubId = getClubId(payload);
@@ -298,42 +326,11 @@ async function getUserConversations(userId, role, payload, { archived = false } 
  * Load message history for a conversation, including legacy messages for team conversations
  */
 async function loadConversationMessages(conversationId, teamId, limit = 50) {
-  let query;
-  let params;
-
-  if (teamId) {
-    // Team conversation: UNION with legacy messages that have no conversation_id
-    query = `
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, $1::int AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE conversation_id = $1 AND deleted_at IS NULL
-      UNION ALL
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, $1::int AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE scope_type = 'team' AND scope_id = $2 AND conversation_id IS NULL AND deleted_at IS NULL
-      ORDER BY timestamp DESC
-      LIMIT $3
-    `;
-    params = [conversationId, teamId, limit];
-  } else {
-    query = `
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, conversation_id AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE conversation_id = $1 AND deleted_at IS NULL
-      ORDER BY created_at DESC
-      LIMIT $2
-    `;
-    params = [conversationId, limit];
-  }
+  // Removed messages come back as tombstones rather than being filtered out —
+  // see lib/moderation.js. A message that simply vanishes leaves participants
+  // unsure whether they imagined it.
+  const query = buildMessageHistoryQuery({ team: Boolean(teamId) });
+  const params = teamId ? [conversationId, teamId, limit] : [conversationId, limit];
 
   try {
     const result = await pool.query(query, params);
@@ -546,12 +543,52 @@ io.on('connection', (socket) => {
     const { conversationId } = data;
 
     // Verify access
-    const hasAccess = await isConversationParticipant(
+    let hasAccess = await isConversationParticipant(
       conversationId, userInfo.userId, userInfo.role, userInfo.payload
     );
+
+    // Flag-gated moderator read. A club admin may open a conversation they are
+    // not part of ONLY because an open report exists on it — there is no
+    // browse-any-conversation path. Note this grants READING: sendMessage still
+    // uses the strict predicate above, so an admin cannot post into a DM between
+    // two other people.
+    let viaReportId = null;
+    if (!hasAccess && canModerate(userInfo.role)) {
+      try {
+        const found = await pool.query(OPEN_REPORT_FOR_CONVERSATION_SQL, [conversationId]);
+        const report = found.rows[0];
+        if (report && moderatorMayOpen({
+          role: userInfo.role,
+          actorClubId: getClubId(userInfo.payload),
+          reportClubId: report.clubId,
+          isPlatform: isPlatformRole(userInfo.role),
+        })) {
+          hasAccess = true;
+          viaReportId = report.id;
+        }
+      } catch (e) {
+        console.error('Error resolving moderator access:', e.message);
+      }
+    }
+
     if (!hasAccess) {
       socket.emit('error', { message: 'You do not have access to this conversation' });
       return;
+    }
+
+    // Record the open BEFORE serving any of it. A read that happened without a
+    // log entry is exactly what this table exists to make impossible, so if the
+    // log write fails the conversation is not served.
+    if (viaReportId !== null) {
+      try {
+        await pool.query(LOG_ACCESS_SQL, [
+          userInfo.userId, conversationId, viaReportId, getClubId(userInfo.payload),
+        ]);
+      } catch (e) {
+        console.error('Error writing chat access log:', e.message);
+        socket.emit('error', { message: 'Failed to open conversation' });
+        return;
+      }
     }
 
     // Join the Socket.IO room
@@ -604,6 +641,47 @@ io.on('connection', (socket) => {
     }
 
     const convType = participantIds.length === 1 ? 'direct' : (type || 'group');
+
+    // ─── Participant allowlist ────────────────────────────────────────────────
+    // Until 2026-07-30 this handler inserted whatever ids the client sent, so any
+    // initiator could open a DM with any user in any club — and coaches could
+    // reach athletes, which the product forbids. The set is built from guardians
+    // and club staff; athletes are excluded by never being in it.
+    //
+    // NEVER "improve" this by subtracting athletes.user_id instead: 23 of the 26
+    // populated values point at a GUARDIAN's account and 10 at staff accounts, so
+    // a blocklist would refuse the coach↔crew DMs this feature exists for. See
+    // lib/participants.js.
+    try {
+      const teamIds = await getAccessibleTeamIds(
+        userInfo.userId, userInfo.role, userInfo.payload
+      );
+      const allowed = await pool.query(ALLOWED_PARTICIPANTS_SQL, [
+        teamIds,
+        getClubId(userInfo.payload),
+      ]);
+      const refused = disallowedParticipants(
+        participantIds,
+        allowed.rows.map(r => r.user_id),
+        userInfo.userId
+      );
+      if (refused.length > 0) {
+        console.warn(
+          `Refused conversation: user ${userInfo.userId} (${userInfo.role}) requested ` +
+          `out-of-scope participants ${refused.join(',')}`
+        );
+        socket.emit('error', {
+          message: 'You can only message coaches and crew connected to your teams',
+        });
+        return;
+      }
+    } catch (error) {
+      // Fail CLOSED. If the allowlist cannot be computed we do not know who the
+      // creator may talk to, and guessing "everyone" is how this was broken.
+      console.error('Error resolving allowed participants:', error.message);
+      socket.emit('error', { message: 'Failed to create conversation' });
+      return;
+    }
 
     try {
       // Check if a conversation with the exact same participant set already exists
@@ -765,6 +843,29 @@ io.on('connection', (socket) => {
         senderName: userInfo.userName || userInfo.email
       }
     };
+
+    // ─── Automatic flagging ───────────────────────────────────────────────────
+    // Runs AFTER the message is saved and broadcast, inside its own try/catch,
+    // and cannot alter or block delivery. Nothing is censored — a flag only adds
+    // a queue item. Moderation must never become a way for chat to stop working.
+    try {
+      const hits = evaluateMessage(text.trim());
+      if (hits.length > 0) {
+        // Only pay for this lookup when something actually fired. The report is
+        // filed against the CONVERSATION's club, not the sender's, so it lands in
+        // the right admin's queue even when those differ.
+        const cc = await pool.query('SELECT club_id FROM conversations WHERE id = $1', [conversationId]);
+        const flagClubId = cc.rows[0]?.club_id ?? getClubId(userInfo.payload);
+
+        for (const hit of hits) {
+          await pool.query(FILE_AUTO_REPORT_SQL, [
+            saved.id, conversationId, flagClubId, hit.rule, hit.severity,
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-flagging message:', error.message);
+    }
 
     // A new message un-archives the conversation for everyone who had archived it.
     // This is what makes archive safe to offer: nothing is ever permanently hidden,
@@ -944,6 +1045,158 @@ io.on('connection', (socket) => {
       ]);
     } catch (error) {
       console.error('Error marking read:', error.message);
+    }
+  });
+
+  // ─── Report a message ─────────────────────────────────────────────────────
+  // Any participant may report. The report is both a queue item and, from M3
+  // onward, the record that authorises a club admin to read the conversation.
+  socket.on('reportMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { messageId, reason, note } = data || {};
+    if (!messageId || !isValidReason(reason)) {
+      socket.emit('error', { message: 'A message and a reason are required' });
+      return;
+    }
+
+    try {
+      const scope = await pool.query(REPORT_SCOPE_SQL, [messageId]);
+      const msg = scope.rows[0];
+      if (!msg) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      // Reporting must not become a way to probe for messages elsewhere: you can
+      // only report something you can already read.
+      const hasAccess = await isConversationParticipant(
+        msg.conversationId, userInfo.userId, userInfo.role, userInfo.payload
+      );
+      if (!hasAccess) {
+        socket.emit('error', { message: 'You do not have access to this conversation' });
+        return;
+      }
+
+      await pool.query(FILE_USER_REPORT_SQL, [
+        messageId,
+        msg.conversationId,
+        msg.clubId || getClubId(userInfo.payload),
+        userInfo.userId,
+        reason,
+        (note || '').slice(0, 2000) || null,
+        severityForReason(reason),
+      ]);
+
+      // Reported either way, including when this was a duplicate. The reporter
+      // must not learn whether someone else already flagged it, or whether an
+      // admin has dismissed it.
+      socket.emit('messageReported', { messageId });
+    } catch (error) {
+      console.error('Error reporting message:', error.message);
+      socket.emit('error', { message: 'Failed to report message' });
+    }
+  });
+
+  // ─── Moderation removal ───────────────────────────────────────────────────
+  // The ONLY way a message is ever removed. Club admins only — not coaches, and
+  // not senders removing their own words, which is the capability deliberately
+  // withheld. Soft delete: the row survives, everyone sees a tombstone, and the
+  // text stays recoverable until retention purges it.
+  socket.on('removeMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    if (!canModerate(userInfo.role)) {
+      socket.emit('error', { message: 'Only club administrators can remove messages' });
+      return;
+    }
+
+    const { messageId, reason } = data || {};
+    if (!messageId) {
+      socket.emit('error', { message: 'Message ID is required' });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      const scope = await client.query(MESSAGE_SCOPE_SQL, [messageId]);
+      const msg = scope.rows[0];
+      if (!msg) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      // A club admin is confined to their own club; platform roles are not.
+      if (!isPlatformRole(userInfo.role)) {
+        const actorClub = getClubId(userInfo.payload);
+        if (!actorClub || !msg.clubId || Number(actorClub) !== Number(msg.clubId)) {
+          socket.emit('error', { message: 'You do not have access to this conversation' });
+          return;
+        }
+      }
+
+      if (msg.deletedAt) {
+        // Already removed. Idempotent, and must not rewrite who removed it.
+        socket.emit('messageRemoved', {
+          messageId, conversationId: msg.conversationId, text: TOMBSTONE_TEXT,
+        });
+        return;
+      }
+
+      await client.query('BEGIN');
+      const removed = await client.query(REMOVE_MESSAGE_SQL, [
+        messageId, userInfo.userId, reason || null,
+      ]);
+      if (removed.rowCount === 0) {
+        // Raced with another admin.
+        await client.query('ROLLBACK');
+        socket.emit('messageRemoved', {
+          messageId, conversationId: msg.conversationId, text: TOMBSTONE_TEXT,
+        });
+        return;
+      }
+
+      // Audit INSIDE the transaction: unlike AuditLogger's swallow-and-continue,
+      // a removal that cannot be recorded must not happen. The entry deliberately
+      // does NOT carry the message text — audit_log is retained for 2555 days
+      // against the message's own 90, so copying it there would defeat removals
+      // motivated by privacy rather than safety.
+      await logInTransaction(client, {
+        userId: userInfo.userId,
+        action: 'chat_message_removed',
+        resourceType: 'chat_messages',
+        resourceId: Number(messageId),
+        ipAddress: socketIp(socket),
+        userAgent: socketUserAgent(socket),
+        details: {
+          conversation_id: msg.conversationId,
+          sender_id: msg.senderId,
+          reason: reason || null,
+          actor_role: userInfo.role,
+        },
+      });
+      await client.query('COMMIT');
+
+      // Everyone in the room swaps the message for a tombstone live.
+      io.to(getConversationRoom(msg.conversationId)).emit('messageRemoved', {
+        messageId,
+        conversationId: msg.conversationId,
+        text: TOMBSTONE_TEXT,
+      });
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* not in a transaction */ }
+      console.error('Error removing message:', error.message);
+      socket.emit('error', { message: 'Failed to remove message' });
+    } finally {
+      client.release();
     }
   });
 

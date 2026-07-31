@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import ReportMessageButton from './ReportMessageButton';
 
 interface Message {
   id: string;
@@ -9,6 +10,12 @@ interface Message {
   time?: string;
   channel: string;
   role?: string;
+  /**
+   * Removed by a club admin. The server nulls `text` for these, so this flag —
+   * not the text — decides what renders. Any adapter mapping into this shape
+   * must carry it through, or a removed message renders as an empty bubble.
+   */
+  removed?: boolean;
 }
 
 interface TypingUser {
@@ -26,9 +33,16 @@ interface Props {
   messages: Message[];
   currentUser: User;
   typingUsers: TypingUser[];
+  /**
+   * Report a message. Omitted where reporting is not offered. Only ever shown on
+   * other people's messages — reporting your own is not a thing, and the server
+   * would accept it, so the UI is where that is decided.
+   */
+  onReport?: (messageId: string, reason: string) => void;
+  reportedMessageIds?: string[];
 }
 
-export default function ChatMessageList({ messages, currentUser, typingUsers }: Props) {
+export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, reportedMessageIds = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -76,11 +90,36 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
       {messages.map((msg) => {
         const isOwn = isOwnMessage(msg);
 
+        // A removed message leaves a tombstone rather than a gap. If it simply
+        // vanished, participants would be left unsure whether they imagined it —
+        // and moderation would be furtive instead of visible.
+        if (msg.removed) {
+          return (
+            <div key={msg.id} className="flex justify-center">
+              <div className="max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
+                <p className="text-xs italic text-gray-500 text-center">
+                  Message removed by an administrator
+                </p>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             key={msg.id}
-            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+            className={`group flex items-start gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}
           >
+            {/* Reporting is offered only on other people's messages. */}
+            {!isOwn && onReport && (
+              <div className="pt-1 order-2">
+                <ReportMessageButton
+                  messageId={msg.id}
+                  reported={reportedMessageIds.includes(msg.id)}
+                  onReport={onReport}
+                />
+              </div>
+            )}
             <div
               className={`max-w-[80%] ${
                 isOwn

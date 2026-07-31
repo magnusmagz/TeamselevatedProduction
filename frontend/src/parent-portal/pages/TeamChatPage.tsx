@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useChatContext } from '../contexts/ChatContext';
 import ConversationList from '../../components/chat/ConversationList';
 import NewConversationDialog from '../../components/chat/NewConversationDialog';
+import ReportMessageButton from '../../components/chat/ReportMessageButton';
 import { ParentHeader } from '../components/ParentHeader';
 
 export const TeamChatPage: React.FC = () => {
@@ -21,6 +22,8 @@ export const TeamChatPage: React.FC = () => {
     sendMessage,
     createConversation,
     handleTyping,
+    reportedMessageIds,
+    reportMessage,
     archiveConversation,
     unarchiveConversation,
     setShowArchived,
@@ -213,6 +216,20 @@ export const TeamChatPage: React.FC = () => {
               {messages.map((message) => {
                 const isOwnMessage = message.senderId === user?.id;
 
+                // Removed by an admin: a tombstone, not a gap. The server nulls
+                // the text, so without this branch crew would see a blank bubble.
+                if (message.removed) {
+                  return (
+                    <div key={message.id} className="flex justify-center">
+                      <div className="max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
+                        <p className="text-xs italic text-gray-500 text-center">
+                          Message removed by an administrator
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={message.id}
@@ -243,13 +260,23 @@ export const TeamChatPage: React.FC = () => {
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
                       </div>
-                      <p className={`text-xs mt-1 ${isOwnMessage ? 'text-right' : ''} ${message.failed ? 'text-red-500' : 'text-gray-400'}`}>
-                        {message.failed
-                          ? 'Not delivered'
-                          : message.pending
-                          ? 'Sending…'
-                          : formatTime(message.timestamp)}
-                      </p>
+                      <div className={`flex items-center gap-1 ${isOwnMessage ? 'justify-end' : ''}`}>
+                        <p className={`text-xs mt-1 ${message.failed ? 'text-red-500' : 'text-gray-400'}`}>
+                          {message.failed
+                            ? 'Not delivered'
+                            : message.pending
+                            ? 'Sending…'
+                            : formatTime(message.timestamp)}
+                        </p>
+                        {/* Reporting is offered on other people's messages only. */}
+                        {!isOwnMessage && (
+                          <ReportMessageButton
+                            messageId={message.id}
+                            reported={reportedMessageIds.includes(message.id)}
+                            onReport={reportMessage}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

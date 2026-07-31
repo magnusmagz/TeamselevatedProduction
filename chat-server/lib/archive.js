@@ -103,12 +103,19 @@ const UNARCHIVE_ON_NEW_MESSAGE_SQL = `
  * because the participant row does not exist — team-chat unread badges never
  * cleared. Fixed here rather than left inconsistent alongside the archive upsert.
  * ($1 conv, $2 user, $3 display name)
+ *
+ * The watermark deliberately does NOT filter `deleted_at IS NULL`. A removed
+ * message is still something the user has seen — it renders as a tombstone — so
+ * excluding it would stop the watermark short of the newest message and leave the
+ * unread badge stuck forever on any conversation whose latest message was
+ * moderated away. Unread COUNTS still exclude removed messages; only this
+ * high-water mark includes them.
  */
 const MARK_READ_SQL = `
   INSERT INTO conversation_participants
     (conversation_id, user_id, role, display_name, last_read_at, last_read_message_id)
   VALUES ($1, $2, 'member', $3, NOW(),
-    (SELECT MAX(id) FROM chat_messages WHERE conversation_id = $1 AND deleted_at IS NULL))
+    (SELECT MAX(id) FROM chat_messages WHERE conversation_id = $1))
   ON CONFLICT (conversation_id, user_id)
   DO UPDATE SET last_read_at = NOW(),
                 last_read_message_id = EXCLUDED.last_read_message_id

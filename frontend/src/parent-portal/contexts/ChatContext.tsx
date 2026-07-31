@@ -26,6 +26,8 @@ const SAFE_DEFAULT: ChatContextValue = {
   sendMessage: () => {},
   createConversation: () => {},
   handleTyping: () => {},
+  reportedMessageIds: [],
+  reportMessage: () => {},
   archiveConversation: () => {},
   unarchiveConversation: () => {},
   setShowArchived: () => {},
