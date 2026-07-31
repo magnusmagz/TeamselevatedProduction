@@ -63,6 +63,99 @@ optimization, not a requirement.
 ---
 
 
+---
+
+## The screen
+
+`/communications/inbox`, in the Communications dropdown beside Broadcast. Rendered in
+`docs/mockups/sms-inbox.html` using the app's real chrome — three panes under the existing top nav
+and comms sub-nav.
+
+```
+┌──────────── top nav ─────────────────────────────────────────┐
+│ All │ Inbox │ Broadcast │ Email Tpl │ SMS Tpl │ Reporting    │
+├──────────┬──────────────────┬────────────────────────────────┤
+│ status   │ conversations    │ thread                         │
+│ rail     │ (list)           │ (messages + composer)          │
+│ 176px    │ 320px            │ fills                          │
+└──────────┴──────────────────┴────────────────────────────────┘
+```
+
+### Pane 1 — status rail
+
+Counts, not just labels: **Needs reply (4)** · Unread · All · Done. Plus a "Sending as" line naming
+the club's number, so the identity of outgoing replies is visible before you write one.
+
+Needs-reply carries a coloured count; the rest are plain. Only one thing on this screen is urgent
+and the rail should say which.
+
+### Pane 2 — conversation list
+
+Per row: crew member name, their athlete, a two-line preview, timestamp, and a state tag.
+Unread rows carry a dot and heavier name weight; read rows drop to normal.
+
+Sorted by **needs-reply first, then recency** — the job is clearing a queue, not reading a feed.
+Filter chips repeat the rail for narrow screens.
+
+State tags are semantic and mutually exclusive: `Needs reply` (amber), `Opted out` (red), or none.
+
+### Pane 3 — thread
+
+Header names the crew member, their athlete and team, and the number. Quick actions sit here
+because they are the answer to most replies: **Open profile · Send portal invite · Mark done**.
+
+Messages are bubbles on a day-marked timeline:
+- **outbound** — right, brand primary, stamped with delivery status and the broadcast it came from
+- **inbound** — left, neutral surface
+- **auto-reply** — left, dashed border, labelled "Auto-reply sent"
+
+That third style is not decoration. The system answers before any human sees the thread; hiding it
+lets an admin write a reply that contradicts what the family already received.
+
+Composer states **which number it sends from** and the live segment count, matching Broadcast's
+rules at the point the message is written rather than after.
+
+### States that must be designed, not discovered
+
+| State | Behavior |
+|---|---|
+| No threads at all | "No replies yet." Not an error, and not a spinner that never resolves |
+| Filter empty (e.g. no needs-reply) | "Nothing waiting on you." — a good outcome, worded like one |
+| Contact opted out | Composer replaced by the reason; thread still readable |
+| Unknown sender | Number as the title, reply still allowed, offer to attach to a crew member |
+| Ambiguous sender | Primary guardian named, ambiguity stated in the header |
+| Club has no number | Whole page replaced by the existing "no SMS number configured" message and a link to Messaging |
+| `inbox_enabled` off | Route and nav item absent entirely — not a disabled tab |
+| Send fails | Message stays in the composer with the error. Never silently lose typed text |
+
+### Responsive
+
+Under 900px the three panes stack: rail collapses into the filter chips, list and thread become
+separate views with a back affordance. An admin answering from a touchline is the likely case, not
+the edge case.
+
+### API surface
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /api/inbox?action=threads` | List, with filter + counts |
+| `GET  /api/inbox?action=thread&id=` | Messages for one thread |
+| `POST /api/inbox?action=read` | Mark read |
+| `POST /api/inbox?action=reply` | Reply — delegates to `SmsSendService::queueSms` |
+| `POST /api/inbox?action=done` | Mark done |
+
+New gateway rather than extending `communications-gateway.php`, which is already ~1900 lines and
+serves a different job. Club-scoped and admin-gated on every action; `broadcastAuthError` is the
+pattern to copy, not to reimplement.
+
+### Deliberately not built
+
+Real-time push, typing indicators, attachments/MMS, search within threads, bulk actions, per-admin
+assignment. The list refreshes on load and on poll. Socket.IO already exists for chat and can be
+adopted later — it is an optimization, not a requirement, and adding it in M3 would couple this
+feature to the chat server for no user-visible gain.
+
+
 ## Milestones
 
 Five, each independently shippable and each leaving the product in a defensible state. **M1–M3
@@ -170,7 +263,7 @@ send in between.
 
 ### M3 — Read-only inbox
 
-`/communications/inbox`, admin-only, behind `inbox_enabled`. Threads, filters, no reply box.
+`/communications/inbox`, admin-only, behind `inbox_enabled`. Full screen spec above — panes, states, API surface. This milestone builds all of it **except** the composer, which is M4, and the unknown/ambiguous handling, which is M5.
 
 Ships value on its own: at this point the four "where is my invite" replies are readable in the
 product instead of via the Twilio API.
@@ -261,6 +354,39 @@ Everything the happy path skips. Worth its own milestone because each is a decis
 **Done when:** none of the seven real replies from 2026-07-30 land in a state the UI cannot explain.
 
 ---
+
+---
+
+## Landmines
+
+**STOP is not recorded until a send fails.** Verified 2026-07-30: a guardian texted `Stop` then
+`Start`, Twilio blocked at the carrier, and both `email_suppressions` and `guardians.sms_opt_out`
+stayed empty. The only sync is reactive — `handleStatusCallback` on error 21610, i.e. after a send
+has already failed. M2 exists to fix this.
+
+**Do not create a second delivery-status vocabulary.** `communication_log.status` already means
+queued/sent/delivered/failed. Thread state is `read_at` plus "is the newest message inbound" —
+derived on read, never a stored status that can drift out of step with the messages it describes.
+
+**Identity resolution is the `user_guardians` gap again** — the same missing link table behind the
+shared-email role loss and the inferred portal status. This feature survives without it: attribute
+by phone, flag ambiguity, allow manual attach (M5). Anything that later merges SMS with chat does
+not survive without it, because chat identity is a `users` row and SMS identity is a phone number
+on a `guardians` row.
+
+**Never merge an inbound SMS into a team chat conversation.** SMS is 1:1; team chat is group. One
+mis-routed *"Ava is back in hospital"* reaches thirty families. If SMS and chat ever share a view,
+they share it with 1:1 DMs only.
+
+**Guardian rows duplicate.** `createOrFindGuardian` matches on email + first_name with no last
+name, and 25 guardians carry an empty-STRING email that compares equal. Two Taylor Cooks and two
+Maddison Mathises were merged by hand on 2026-07-31. A thread keyed to a guardian id points at
+whichever duplicate the router matched — so the underlying bug should be fixed before, or with, M1.
+
+**A reply must respect opt-out.** `queueSms` already refuses a suppressed recipient, so an
+un-guarded composer produces a send that silently skips. Disable the composer with the reason
+instead of discovering it in `skipped_count`.
+
 
 ## Manual QA before M4 goes to a real club
 
