@@ -270,6 +270,45 @@ Sellable claims in descending strength, which is roughly the inverse of how impr
 
 ---
 
+## How this gets built (Maggie, 2026-07-30)
+
+Run all milestones autonomously. Where something needs a decision, **make the best guess, build it,
+and add it to "Revisit after launch" below** rather than stopping. Deploy per milestone, not one
+drop at the end — `main` is shared and holding code back has already misfired in this repo.
+
+### No destructive actions — the boundary, since this feature removes messages
+
+- **Allowed:** message removal (soft delete — row survives, tombstoned, audited, reversible);
+  additive migrations only (new tables, new nullable columns).
+- **Never:** `retention-check.php --purge`; arming a retention policy; hard-deleting any row;
+  `DROP`; destructive `UPDATE` on prod data; overwriting backfills.
+- If a milestone genuinely requires something destructive, **stop and flag it.** Do not guess.
+
+### Revisit after launch
+
+Best guesses taken to avoid blocking. None are load-bearing; all are cheap to change.
+
+- [ ] Admin notification is **email** via the existing transactional path + an in-app queue badge.
+      Weekly digest; individual alerts only for high severity.
+- [ ] **The sender is not notified** when their message is removed — the tombstone is visible
+      in-thread to everyone including them. Silent-to-sender read worse than no notification.
+- [ ] `super_admin` / `owner` get queue access, scoped per club, for platform support.
+- [ ] Review queue is a **new nav item** under the admin section rather than folded into a page.
+- [ ] Profanity list is a conservative standard set, word-boundary matched. **Expect to tune it once
+      real flag rates exist** — the first version is a guess about a club's tolerance, not a fact.
+- [ ] Severity thresholds and what each tier triggers.
+- [ ] Whether the plan should also live as Jira tickets on TE (raised, never settled).
+
+### Verification limits — say this again when M2 lands
+
+There is no staging environment: one Netlify site, one Heroku app, one Neon database. Verification is
+unit tests, rolled-back transactions against prod, and deployed-bundle checks. **Nobody has clicked
+through the review queue as a real club admin.** That was acceptable for an archive button; for a
+workflow an admin is expected to operate under compliance pressure, someone should drive it once
+before a beta club relies on it.
+
+---
+
 ## Order
 
 **M0 → M1 → M2 → M3 → M4 → M7.** M5 is no longer in the build (attorney), and is a rollout gate.
