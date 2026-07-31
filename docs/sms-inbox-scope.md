@@ -85,6 +85,43 @@ not on the sender**, because the club owns the number today — when per-coach n
 Reusing `communication_log` rather than a new table is what makes inbound show up on the contact's
 existing Communications tab for free, and keeps one delivery/status vocabulary.
 
+### 1b. The flag — per club, not global
+
+Migration 060 also adds:
+
+```
+ALTER TABLE sms_phone_numbers
+  ADD COLUMN inbox_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+```
+
+It lives on `sms_phone_numbers`, not `club_profile`, mirroring
+`club_payment_accounts.charges_enabled` and `payment_items.sibling_discount_enabled` — this repo
+has no global flag system, it puts capability booleans on the row that owns the capability and
+checks them server-side. An inbox cannot exist without a number, so this is that row.
+
+**It must be per club, because the flag drives the auto-reply copy.** "Someone from your club will
+get back to you here" is only true where someone is watching. A global toggle would promise it to
+every club at once, including ones with no one reading. Tie the promise to the same boolean that
+turns the inbox on and the two can never disagree.
+
+What the flag does and does not gate:
+
+| | Flagged? |
+|---|---|
+| Capturing inbound (writing the rows) | **No — always on** |
+| Recording STOP on arrival | **No — always on**, it is a compliance fix |
+| Inbox route, nav item, reply | Yes |
+| Which auto-reply copy is sent | Yes — branches on it |
+
+Capture stays on for every club because storing is not monitoring: the current copy says the number
+is *not monitored*, which remains true for an unflagged club, and it means the inbox has real
+history the day it is switched on rather than opening empty. `SmsAutoReplyTest::testNothingIsStored`
+is retired at that point — it pinned a Tier 0 promise we are deliberately leaving behind, and the
+test that replaces it should assert the copy matches the flag.
+
+Enable it for Central Kansas first. They are the club that generated the replies, and the only one
+whose families are actively texting.
+
 ### 2. Route inbound
 
 `To` → `sms_phone_numbers` → club. That lookup is exact and only became possible when per-club
@@ -231,7 +268,7 @@ and records the opt-out.
 
 ## Sequencing
 
-1. Migration 060 + capture + routing (C-tests) — the data has to exist before anything can show it
+1. Migration 060 (columns + `inbox_enabled`) + capture + routing (C-tests) — the data has to exist before anything can show it. Capture ships unflagged; nothing is user-visible yet
 2. STOP-on-inbound (S-tests) — a compliance fix, and it stands alone
 3. Inbox read-only (I-tests) — at this point the four "where is my invite" replies are visible
 4. Reply-as-SMS + the copy change together (R, A) — the copy cannot lag the capability
