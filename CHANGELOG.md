@@ -32,6 +32,35 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### Staff can see who still owes parental consent
+`571b736` (merged as `59c88da`) · Heroku deploy of `59c88da` · Netlify build of `59c88da` ·
+**no migration** (uses the columns migration 063 added this morning)
+
+Closes the loop opened by the two consent changes earlier today: both surfaces were capturing,
+nothing staff-facing was reading. New `api/consent.php?action=summary` plus a sortable,
+filterable **Consent** column on the athlete list.
+
+**Deployed backend-first**, inverting the CLAUDE.md default, for the same reason as the
+jersey-size endpoint on 2026-07-30: the new column calls a brand-new action, so a frontend-first
+deploy would have shown "Unknown" in every row until Heroku caught up. The frontend-first rule is
+about *tightening auth on an existing contract*; new UI depending on new backend is the inverse.
+
+**The scoping is the part that mattered.** `summary` uses a new
+`AthleteScope::staffManageableAthleteIds`, not `accessibleAthleteIds` — the difference is the
+guardian branch. On the wrong predicate a parent hitting the endpoint would receive a report about
+their own child instead of nothing, and a coach who is also a parent would see a child from
+outside their teams. `accessibleAthleteIds` is now *defined as* the staff half plus the guardian
+branch, the same shape as `userCanAccessAthlete` / `staffCanManageAthlete`, so the two cannot
+drift. Both cases are tested in `ConsentRollupTest`.
+
+**Not on the Crew page**, which is where it was originally scoped. Consent is per child, so a
+guardian row covering three athletes cannot carry one honest badge, and `api/auth-gateway.php`
+(which powers Crew) is on the do-not-modify list. Reasoning and the path forward are in CLAUDE.md.
+
+Post-deploy: `action=summary` answers 401 unauthenticated and on a bogus token; `status` and
+`record` unchanged. Frontend suite still shows the known 10 pre-existing failing suites / 33
+tests — unchanged by this work.
+
 ### Email delivery rate: club 32's 2.6% is pre-instrumentation history, not a bug
 No code change. Recorded because it looks like a broken webhook and is not.
 
