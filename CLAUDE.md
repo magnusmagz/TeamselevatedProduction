@@ -831,6 +831,12 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       ⚠️ **A guardian's club is the guardian chain, not their `user_club_access` row.** Comparing
       `user_club_access.club_profile_id` to `conversations.club_id` produces false cross-club
       findings — it did on 2026-07-30, flagging a legitimate DM as a leak.
+- [ ] **Chat moderation: the weekly admin digest is NOT built.** The queue page surfaces the age of
+      the oldest unreviewed item, so inaction is visible to anyone who opens it — the digest is what
+      makes it visible to someone who does not. Build it as a throttled tick inside the running
+      `workers/queue-worker.php`, **never** a new scheduler process (same cost wall that keeps
+      `calendar-sync-scheduler` and `waitlist-expiry-scheduler` off). Guesses logged for revisit are
+      in `docs/chat-moderation-plan.md` → "Revisit after launch".
 - [ ] **Chat admin-review notice + ToS — with the attorney, lands later.** Club chat carries **no
       expectation of privacy** (Maggie, 2026-07-30) and admins will be able to read reported
       conversations. **Chat is live and approved for the beta clubs ahead of that copy — decided
@@ -838,7 +844,8 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       one.** Still to land: the header line "Club administrators can review messages", and ToS
       acceptance via `users.tos_accepted_at` / `tos_version`. Detail in
       `docs/chat-moderation-plan.md` → M5.
-- [ ] **Chat moderation — scheduled week of 2026-08-03.** Full plan in
+- [x] **Chat moderation — BUILT AND DEPLOYED 2026-07-30** (M0–M4, M7). Was scheduled for the week
+      of 2026-08-03. Full plan in
       `docs/chat-moderation-plan.md`. Report/auto-flag → admin notified → admin opens that
       conversation with full read → removes or dismisses. Every admin read is logged — a
       defensibility control, not a privacy one. Admin read is **flag-gated**, not blanket browse.

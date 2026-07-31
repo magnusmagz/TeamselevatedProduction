@@ -1,5 +1,30 @@
 # Chat moderation — plan
 
+## ✅ BUILT AND DEPLOYED 2026-07-30 — M0, M1, M2, M3, M4, M7
+
+Ahead of schedule; built in one autonomous run. Deploy coordinates in
+`../CHANGELOG.md`. Everything below is kept as the design record.
+
+| | | |
+|---|---|---|
+| **M0** | createConversation allowlist | chat **v12** |
+| **M1** | removal + tombstone + audit | migration 060, chat **v13** |
+| **M2** | reports + review queue | migration 061, chat **v14**, Heroku **v466** |
+| **M3** | flag-gated admin read + access log | migration 062, chat **v15** |
+| **M4** | auto-flag pipeline | chat **v16** |
+| **M7** | queue health + compliance summary | Heroku **v467** |
+| M5 | notice + ToS | with the attorney — not a blocker, decided |
+
+**NOT built — the weekly digest.** M7's digest to admins when the queue is
+non-empty is the remaining half of "make inaction visible". It needs a throttled
+tick inside the already-running `workers/queue-worker.php` — **not** a new
+scheduler process, which hits the cost wall that keeps `calendar-sync-scheduler`
+and `waitlist-expiry-scheduler` switched off. The queue page shows the age of the
+oldest unreviewed item, so inaction is visible to anyone who opens it; the digest
+is what makes it visible to someone who does not.
+
+**Original plan follows.**
+
 **Scheduled: week of Monday 2026-08-03.** Written 2026-07-30, after archive + retention shipped.
 
 Phase 2 of `docs/chat-archive-plan.md`, expanded well past what that document assumed. It is not
