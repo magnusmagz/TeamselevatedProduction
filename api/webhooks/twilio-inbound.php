@@ -48,11 +48,9 @@ const TE_SMS_AUTOREPLY =
  * best; at worst it reads as ignoring an opt-out. HELP has its own carrier-mandated
  * response. In both cases: say nothing and let Twilio do its job.
  */
-const TE_SMS_CARRIER_KEYWORDS = [
-    'stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit',
-    'start', 'yes', 'unstop',
-    'help', 'info',
-];
+define('TE_SMS_CARRIER_KEYWORDS', array_merge(
+    TE_SMS_OPT_OUT_KEYWORDS, TE_SMS_OPT_IN_KEYWORDS, TE_SMS_HELP_KEYWORDS
+));
 
 $body = trim((string) ($_POST['Body'] ?? ''));
 $to   = trim((string) ($_POST['To'] ?? ''));

@@ -32,6 +32,44 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### SMS inbox M2 — STOP is recorded when it arrives — **migration 065 applied to Neon**
+`065_sms_suppression_unique.sql` · backend only
+
+Until now the only opt-out sync was REACTIVE: `handleStatusCallback` on Twilio
+error 21610, which fires only after a send has already failed against a blocked
+number. Observed on 2026-07-30 — a guardian texted `Stop` then `Start` fourteen
+seconds later, Twilio blocked and unblocked at the carrier, and both
+`email_suppressions` and `guardians.sms_opt_out` stayed empty. Between a STOP and
+the next send the broadcast preview counted that family as reachable, and the
+eventual failure read as "failed" rather than "opted out".
+
+Now `STOP`/`STOPALL`/`UNSUBSCRIBE`/`CANCEL`/`END`/`QUIT` write the club-scoped
+suppression and set the person flag at arrival; `START`/`YES`/`UNSTOP` clear both.
+`HELP`/`INFO` do neither. Only the BARE keyword counts — "can we stop by the field
+at 6?" is a question about a field.
+
+**Prod state discovered — the existing ON CONFLICT never fired.**
+`idx_email_suppressions_unique` covers (club, EMAIL, channel, scope, team) and an
+SMS suppression has `email = NULL`, which Postgres treats as distinct. So the
+`ON CONFLICT DO NOTHING` in handleStatusCallback silently did nothing for phone
+rows, and repeated STOPs would have accumulated duplicates — each counted
+separately in the preview's suppressed tally. Nothing had gone wrong only because
+there were **zero** SMS suppression rows. Migration 065 adds a partial unique index
+on (club, phone, scope, team) WHERE channel='sms', rehearsed by inserting a
+duplicate STOP inside a rolled-back transaction and confirming it collapsed to one.
+
+Suppression is club-scoped, which is meaningful now that each club sends from its
+own number: a STOP to Kansas's number is a STOP to Kansas.
+
+⚠️ **Known over-block:** `guardians.sms_opt_out` is a single person-level boolean
+and cannot express "this club only", so a family in two clubs who stops one is
+currently stopped for both. Matches what handleStatusCallback already did, and errs
+toward respecting the opt-out; worth revisiting only when a family is actually in
+two clubs.
+
+`START` deliberately clears only `twilio_stop` suppressions — a hard bounce or a
+manual admin suppression is not something a parent can undo by texting START.
+
 ### SMS inbox M1 — inbound replies are recorded — **migration 064 applied to Neon**
 `064_sms_inbox_capture.sql` · Heroku **v472** · backend only
 

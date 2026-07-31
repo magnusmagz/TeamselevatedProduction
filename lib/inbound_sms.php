@@ -167,6 +167,125 @@ if (!function_exists('te_resolve_inbound_sender')) {
     }
 }
 
+/**
+ * Twilio's carrier keywords, split by what they MEAN.
+ *
+ * The webhook previously treated all of these as one bucket — "say nothing" — which
+ * was right for the auto-reply and useless for anything else. STOP and START are
+ * opposites, and HELP is neither.
+ */
+if (!defined('TE_SMS_OPT_OUT_KEYWORDS')) {
+    define('TE_SMS_OPT_OUT_KEYWORDS', ['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']);
+    define('TE_SMS_OPT_IN_KEYWORDS',  ['start', 'yes', 'unstop']);
+    define('TE_SMS_HELP_KEYWORDS',    ['help', 'info']);
+}
+
+if (!function_exists('te_sms_keyword_intent')) {
+    /**
+     * @return 'opt_out'|'opt_in'|'help'|null  null = an ordinary message.
+     *
+     * Only the BARE keyword counts, after stripping trailing punctuation. "Can we
+     * stop by the field at 6?" is a question about a field, not an opt-out, and
+     * treating it as one would silently mute a family.
+     */
+    function te_sms_keyword_intent(?string $body): ?string
+    {
+        $kw = strtolower(trim((string) $body, " \t\n\r\0\x0B.!?,"));
+
+        if (in_array($kw, TE_SMS_OPT_OUT_KEYWORDS, true)) return 'opt_out';
+        if (in_array($kw, TE_SMS_OPT_IN_KEYWORDS, true))  return 'opt_in';
+        if (in_array($kw, TE_SMS_HELP_KEYWORDS, true))    return 'help';
+
+        return null;
+    }
+}
+
+if (!function_exists('te_apply_sms_optout')) {
+    /**
+     * Record a STOP at the moment it arrives.
+     *
+     * Until now the only sync was REACTIVE — SmsSendService::handleStatusCallback
+     * on Twilio error 21610, i.e. after a later send had already failed. Verified
+     * on 2026-07-30: a guardian texted Stop then Start, Twilio blocked at the
+     * carrier, and both email_suppressions and guardians.sms_opt_out stayed empty.
+     * Between the STOP and the next send, preview counts overstated and the
+     * eventual failure read as "failed" rather than "opted out".
+     *
+     * Writes BOTH:
+     *  - `email_suppressions` — club-scoped, which is now meaningful because each
+     *    club sends from its own number, so a STOP to one club's number is a STOP
+     *    to that club.
+     *  - `guardians.sms_opt_out` — person-level, matching what
+     *    handleStatusCallback already does.
+     *
+     * ⚠️ Known limitation: sms_opt_out is a single boolean on the person and
+     * cannot express "this club only", so a family in two clubs who stops one is
+     * currently stopped for both. Erring toward respecting the opt-out is the
+     * right side to be wrong on, but it is a real over-block. Fixing it means
+     * moving person-level opt-out onto a club-scoped row; not worth doing until a
+     * family is actually in two clubs.
+     */
+    function te_apply_sms_optout(PDO $pdo, int $clubProfileId, ?string $phone, array $sender, ?int $logId = null): void
+    {
+        $normalized = te_normalize_sms_phone($phone);
+        if ($normalized === null) {
+            return;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO email_suppressions
+                (club_profile_id, phone, channel, reason, scope, communication_log_id, created_at)
+            VALUES (?, ?, 'sms', 'twilio_stop', 'club', ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (club_profile_id, phone, scope, COALESCE(team_id, 0))
+            WHERE channel = 'sms' AND phone IS NOT NULL
+            DO NOTHING
+        ");
+        $stmt->execute([$clubProfileId, $normalized, $logId]);
+
+        if (($sender['type'] ?? null) === 'guardian' && !empty($sender['id'])) {
+            $pdo->prepare("
+                UPDATE guardians
+                SET sms_opt_out = TRUE, sms_opt_out_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ")->execute([$sender['id']]);
+        }
+    }
+}
+
+if (!function_exists('te_apply_sms_optin')) {
+    /**
+     * START / UNSTOP — the person is asking to hear from us again.
+     *
+     * Clears exactly what the opt-out set. Only `twilio_stop` suppressions are
+     * removed: a hard bounce or a manual admin suppression is not something a
+     * parent can undo by texting START, and deleting those would silently
+     * resurrect an address the club deliberately stopped using.
+     */
+    function te_apply_sms_optin(PDO $pdo, int $clubProfileId, ?string $phone, array $sender): void
+    {
+        $normalized = te_normalize_sms_phone($phone);
+        if ($normalized === null) {
+            return;
+        }
+
+        $pdo->prepare("
+            DELETE FROM email_suppressions
+            WHERE club_profile_id = ? AND channel = 'sms'
+              AND reason = 'twilio_stop'
+              AND right(regexp_replace(COALESCE(phone,''), '[^0-9]', '', 'g'), 10)
+                = right(regexp_replace(?, '[^0-9]', '', 'g'), 10)
+        ")->execute([$clubProfileId, $normalized]);
+
+        if (($sender['type'] ?? null) === 'guardian' && !empty($sender['id'])) {
+            $pdo->prepare("
+                UPDATE guardians
+                SET sms_opt_out = FALSE, sms_opt_out_at = NULL
+                WHERE id = ?
+            ")->execute([$sender['id']]);
+        }
+    }
+}
+
 if (!function_exists('te_record_inbound_sms')) {
     /**
      * Write the reply to communication_log.
@@ -229,6 +348,19 @@ if (!function_exists('te_record_inbound_sms')) {
             $sid,
         ]);
 
-        return (int) $stmt->fetchColumn();
+        $logId = (int) $stmt->fetchColumn();
+
+        // Act on a carrier keyword the moment it arrives, not after a later send
+        // fails against it. Deliberately AFTER the insert so the opt-out row can
+        // point at the message that caused it — that link is what lets someone
+        // later answer "why is this family suppressed?".
+        $intent = te_sms_keyword_intent($body);
+        if ($intent === 'opt_out') {
+            te_apply_sms_optout($pdo, $clubProfileId, $from, $sender, $logId);
+        } elseif ($intent === 'opt_in') {
+            te_apply_sms_optin($pdo, $clubProfileId, $from, $sender);
+        }
+
+        return $logId;
     }
 }
