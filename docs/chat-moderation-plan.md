@@ -15,13 +15,16 @@ Ahead of schedule; built in one autonomous run. Deploy coordinates in
 | **M7** | queue health + compliance summary | Heroku **v467** |
 | M5 | notice + ToS | with the attorney — not a blocker, decided |
 
-**NOT built — the weekly digest.** M7's digest to admins when the queue is
-non-empty is the remaining half of "make inaction visible". It needs a throttled
-tick inside the already-running `workers/queue-worker.php` — **not** a new
-scheduler process, which hits the cost wall that keeps `calendar-sync-scheduler`
-and `waitlist-expiry-scheduler` switched off. The queue page shows the age of the
-oldest unreviewed item, so inaction is visible to anyone who opens it; the digest
-is what makes it visible to someone who does not.
+**The weekly digest is NOT wanted — decided by Maggie 2026-07-31.** Do not build
+it and do not re-raise it as a gap. Consequence, recorded once as fact rather
+than objection: inaction is visible only to someone who opens the queue page,
+which does surface the age of the oldest unreviewed item (amber at 3 days, red at
+7). Nothing pushes that to an admin who does not look.
+
+If it is ever revived, it belongs as a throttled tick inside the already-running
+`workers/queue-worker.php` — **never** a new scheduler process, which hits the
+cost wall that keeps `calendar-sync-scheduler` and `waitlist-expiry-scheduler`
+switched off.
 
 **Original plan follows.**
 
