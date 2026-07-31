@@ -30,6 +30,46 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-07-31
+
+### Registration consent is recorded now — migration 063 applied to Neon
+`b40e5d1` (merged as `cb70159`) · migration **063_consent_source_and_identity.sql** applied
+2026-07-31 · Netlify build of `cb70159` · Heroku push follows the Netlify build
+
+**Prod state confirmed before applying: `consent_records` had 0 rows.** Not "few" — zero. The
+public registration form has always asked the parent for both COPPA consents and sent
+`consent_data_collection` / `consent_medical_data`; `registrations-api.php` never read either
+key. Combined with the staff-form theatre fixed on 2026-07-30, nothing anywhere had ever
+written a consent record. That is the explanation for an empty table, not data loss.
+
+**Migration 063 relaxes a NOT NULL, which is a documented exception to the add-only rule.**
+`consent_records.guardian_id` is `NOT NULL REFERENCES users (id)` and a parent completing the
+public form has no account — so consent could only be recorded from people who already had
+accounts, i.e. never at the point of collection. Agreed with Maggie before applying. The FK is
+intact; identity for account-less consent is carried by the new `guardian_email` /
+`guardian_name`, copied in as frozen evidence rather than joined (a join returns *today's*
+answer; a consent record must preserve the answer as of the moment).
+
+- Rehearsed in a `BEGIN … ROLLBACK` against live Neon first, then applied. `UPDATE 0` on the
+  backfill — consistent with the 0-row finding.
+- `tests/fixtures/production-schema.json` regenerated **from Neon**, not hand-edited; diff is
+  exactly the 3 new columns (111 tables, unchanged).
+- `SchemaConformanceTest` caught the missing columns before deploy, which is precisely what it
+  is for — the failure was the guard working, not a problem.
+
+**Both surfaces capture now, deliberately** — see CLAUDE.md. Registration records at sign-up;
+`ConsentGate` re-affirms once there is an account to attribute it to. The gate keys on
+`source='portal'`, so the second prompt cannot silently vanish for families who signed up online.
+
+**Deployed frontend-first** (the CLAUDE.md default) rather than backend-first: shipping the
+backend first would start writing `source='registration'` rows while the old bundle still
+treated any consent row as sufficient, briefly letting sign-up consent clear the gate and
+skipping the re-affirmation. Frontend-first has no such window.
+
+Registration capture runs in a SAVEPOINT so that a consent failure can never roll back a
+family's registration — relevant because `main` is shared and this code could have reached a
+dyno before the migration reached Neon.
+
 ## 2026-07-30
 
 ### Chat moderation — M0 through M4 and M7, shipped in one run
