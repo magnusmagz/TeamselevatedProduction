@@ -68,7 +68,12 @@ instead of editing the original.
 **Still NOT actioned** — Maddison Mathis (424 typo/bounced
 vs 467 correct, both on the same athlete, so a merge deletes the duplicate link
 rather than repointing it) and Laura Thompson (63 orphaned test row vs 464 real).
-Root cause is still the open `createOrFindGuardian` matching bug in CLAUDE.md.
+**Root cause corrected.** Both pairs were first blamed on guardian matching; the data says
+otherwise. Each duplicate had a DIFFERENT email when created — `tcook0921@yhaoo.com` vs `@yahoo.com`,
+`jbaugjman1972@` vs `jbaughman1972@` — so matching behaved correctly and a typo simply is a different
+identity. The typos were corrected later, which is why the rows looked identical by the time they
+were found. No matching rule can see through a misspelled address; catching it needs a same-name
+near-duplicate warning at import preview, which does not exist.
 
 ### Staff can see who still owes parental consent
 `571b736` (merged as `59c88da`) · Heroku deploy of `59c88da` · Netlify build of `59c88da` ·

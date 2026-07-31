@@ -169,15 +169,26 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Composite match: email + first_name + last_name, matching AthleteController::createOrFindGuardian()
             // so families can share an email (e.g. thejones@gmail.com for both parents).
-            $checkGuardian = $pdo->prepare(
-                "SELECT id FROM guardians WHERE email = :email AND first_name = :first_name AND last_name = :last_name"
-            );
-            $checkGuardian->execute([
-                ':email' => $guardian['email'],
-                ':first_name' => $guardian['first_name'],
-                ':last_name' => $guardian['last_name']
-            ]);
-            $existingGuardian = $checkGuardian->fetch();
+            // Blank email matches nothing: 25 guardians carry email = '' (empty
+            // string, not NULL) and '' = '' is true, so two unrelated emailless
+            // people with the same name would merge into one record.
+            // Comparison is case/whitespace-insensitive so "Taylor" and "taylor "
+            // are one person, not two rows.
+            $existingGuardian = false;
+            if (trim((string)($guardian['email'] ?? '')) !== '') {
+                $checkGuardian = $pdo->prepare(
+                    "SELECT id FROM guardians
+                     WHERE lower(trim(email))      = lower(:email)
+                       AND lower(trim(first_name)) = lower(:first_name)
+                       AND lower(trim(last_name))  = lower(:last_name)"
+                );
+                $checkGuardian->execute([
+                    ':email'      => trim($guardian['email']),
+                    ':first_name' => trim((string)($guardian['first_name'] ?? '')),
+                    ':last_name'  => trim((string)($guardian['last_name'] ?? '')),
+                ]);
+                $existingGuardian = $checkGuardian->fetch();
+            }
 
             if ($existingGuardian) {
                 $guardianId = $existingGuardian['id'];

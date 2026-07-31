@@ -234,17 +234,35 @@ class AthleteImportStrategy extends ImportStrategy {
     }
 
     private function upsertGuardian(PDO $pdo, array $g): int {
-        $stmt = $pdo->prepare('
-            SELECT id FROM guardians
-            WHERE email = :email AND first_name = :first AND last_name = :last
-            LIMIT 1
-        ');
-        $stmt->execute([
-            'email' => $g['email'],
-            'first' => $g['first_name'],
-            'last'  => $g['last_name'],
-        ]);
-        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Blank email matches NOTHING. This matters most here: a CSV of a whole
+        // club can carry many guardians with no email, and '' = '' is true in
+        // Postgres, so matching on it would collapse every emailless "Juan" in the
+        // file into one person. 25 such rows already exist in production.
+        //
+        // Case/whitespace-insensitive, because import data is hand-typed: "Taylor"
+        // and "taylor " are the same human and must not become two records.
+        //
+        // NOTE this cannot dedupe a MISSPELLED email — a typo is a different
+        // identity by definition. Taylor Cook and Maddison Mathis each arrived
+        // twice in 2026-07 precisely that way (tcook0921@yhaoo vs @yahoo), and
+        // were merged by hand on 2026-07-31. Catching that needs a same-name
+        // near-duplicate warning at preview time, which the importer does not do.
+        $existing = false;
+        if (trim((string)($g['email'] ?? '')) !== '') {
+            $stmt = $pdo->prepare('
+                SELECT id FROM guardians
+                WHERE lower(trim(email))      = lower(:email)
+                  AND lower(trim(first_name)) = lower(:first)
+                  AND lower(trim(last_name))  = lower(:last)
+                LIMIT 1
+            ');
+            $stmt->execute([
+                'email' => trim($g['email']),
+                'first' => trim((string)($g['first_name'] ?? '')),
+                'last'  => trim((string)($g['last_name'] ?? '')),
+            ]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
         if ($existing) return (int) $existing['id'];
 
         $mobile = $g['mobile_phone'] !== '' ? $g['mobile_phone'] : 'unknown';

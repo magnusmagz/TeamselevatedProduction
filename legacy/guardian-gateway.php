@@ -125,11 +125,22 @@ try {
                 // guardians into one. This mirrors api/athletes.php and
                 // AthleteController::createOrFindGuardian() so the per-person
                 // guardian / shared-email model is preserved.
-                $stmt = $pdo->prepare(
-                    "SELECT id FROM guardians WHERE email = ? AND first_name = ? AND last_name = ?"
-                );
-                $stmt->execute([$email, $first_name, $last_name]);
-                $existingGuardian = $stmt->fetch(PDO::FETCH_ASSOC);
+                // A BLANK email matches nothing. 25 guardians carry email = '' (an
+                // empty string, not NULL), and '' = '' is true — so an emailless
+                // person could attach to an unrelated one with the same name.
+                // Comparison is case- and whitespace-insensitive so "Taylor" and
+                // "taylor " resolve to the same person instead of two rows.
+                $existingGuardian = false;
+                if (trim($email) !== '') {
+                    $stmt = $pdo->prepare(
+                        "SELECT id FROM guardians
+                         WHERE lower(trim(email))      = lower(?)
+                           AND lower(trim(first_name)) = lower(?)
+                           AND lower(trim(last_name))  = lower(?)"
+                    );
+                    $stmt->execute([trim($email), trim($first_name), trim($last_name)]);
+                    $existingGuardian = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
 
                 // Editing an existing crew member: AthleteForm carries the
                 // athlete_guardians LINK id, so prefer resolving the guardian from

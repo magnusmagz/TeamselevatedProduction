@@ -151,20 +151,40 @@ class AthleteController {
     }
 
     private function createOrFindGuardian($guardianData) {
-        // Check if guardian exists with same email AND first name
-        // This allows families to share emails (e.g., John and Jane both using thejonesfamily@email.com)
-        $sql = "SELECT id FROM guardians
-                WHERE email = :email
-                AND first_name = :first_name";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            ':email' => $guardianData['email'],
-            ':first_name' => $guardianData['first_name']
-        ]);
-        $existing = $stmt->fetch();
+        // Identity is email + FIRST + LAST, compared case- and whitespace-insensitively.
+        // Households legitimately share one address (John & Jane at
+        // thejones@gmail.com), so email alone would merge two people — but email +
+        // first name alone merged them too: "Taylor Cook" and a hypothetical
+        // "Taylor Cooke" on the same family address collapsed into one row.
+        //
+        // A BLANK email matches nothing, deliberately. 25 guardians carry
+        // email = '' (an empty string, not NULL — '' = '' is true), so matching on
+        // it merged unrelated people who happened to share a first name. `Juan
+        // Rocha` and `Juan Coca` are both in production right now, and a third
+        // emailless Juan would have attached to whichever came first.
+        //
+        // Two duplicate pairs created by the old rule were merged by hand on
+        // 2026-07-31 (Taylor Cook, Maddison Mathis) — see CHANGELOG.
+        $email     = trim((string)($guardianData['email'] ?? ''));
+        $firstName = trim((string)($guardianData['first_name'] ?? ''));
+        $lastName  = trim((string)($guardianData['last_name'] ?? ''));
 
-        if ($existing) {
-            return $existing['id'];
+        if ($email !== '') {
+            $sql = "SELECT id FROM guardians
+                    WHERE lower(trim(email))      = lower(:email)
+                      AND lower(trim(first_name)) = lower(:first_name)
+                      AND lower(trim(last_name))  = lower(:last_name)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':email'      => $email,
+                ':first_name' => $firstName,
+                ':last_name'  => $lastName,
+            ]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                return $existing['id'];
+            }
         }
 
         // Create new guardian
