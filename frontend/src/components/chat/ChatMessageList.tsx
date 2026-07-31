@@ -9,6 +9,12 @@ interface Message {
   time?: string;
   channel: string;
   role?: string;
+  /**
+   * Removed by a club admin. The server nulls `text` for these, so this flag —
+   * not the text — decides what renders. Any adapter mapping into this shape
+   * must carry it through, or a removed message renders as an empty bubble.
+   */
+  removed?: boolean;
 }
 
 interface TypingUser {
@@ -75,6 +81,21 @@ export default function ChatMessageList({ messages, currentUser, typingUsers }: 
 
       {messages.map((msg) => {
         const isOwn = isOwnMessage(msg);
+
+        // A removed message leaves a tombstone rather than a gap. If it simply
+        // vanished, participants would be left unsure whether they imagined it —
+        // and moderation would be furtive instead of visible.
+        if (msg.removed) {
+          return (
+            <div key={msg.id} className="flex justify-center">
+              <div className="max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
+                <p className="text-xs italic text-gray-500 text-center">
+                  Message removed by an administrator
+                </p>
+              </div>
+            </div>
+          );
+        }
 
         return (
           <div

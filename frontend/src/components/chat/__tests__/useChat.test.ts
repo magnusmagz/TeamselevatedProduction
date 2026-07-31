@@ -212,6 +212,68 @@ describe('useChat', () => {
     expect(result.current.messages[0].pending).toBe(false);
   });
 
+  // ---- Moderation removal -------------------------------------------------
+  describe('removal', () => {
+    const incoming: ChatMessage = {
+      id: '100',
+      conversationId: 7,
+      text: 'something that had to go',
+      sender: 'Coach Dave',
+      senderId: 99,
+      timestamp: new Date().toISOString(),
+    };
+
+    test('a removed message becomes a tombstone in place, not a gap', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+      expect(result.current.messages).toHaveLength(1);
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      // Still present — a message that silently disappears leaves people unsure
+      // whether they imagined it.
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0].removed).toBe(true);
+    });
+
+    test('the removed text is dropped from client state', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      expect(result.current.messages[0].text).toBe('');
+      expect(result.current.messages[0].text).not.toContain('had to go');
+    });
+
+    test('removal matches on id even when the server sends a number', () => {
+      // History delivers string ids; the socket payload carries whatever the
+      // server put in it. A strict === would silently no-op.
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+
+      fire('messageRemoved', { messageId: 100, conversationId: 7 });
+
+      expect(result.current.messages[0].removed).toBe(true);
+    });
+
+    test('other messages are untouched', () => {
+      const { result } = renderHook(() => useChat());
+      act(() => result.current.selectConversation(conversation));
+      fire('receiveMessage', incoming);
+      fire('receiveMessage', { ...incoming, id: '101', text: 'this one stays' });
+
+      fire('messageRemoved', { messageId: '100', conversationId: 7 });
+
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1].removed).toBeFalsy();
+      expect(result.current.messages[1].text).toBe('this one stays');
+    });
+  });
+
   // ---- Archive ------------------------------------------------------------
   // Archive is per-user view state, never deletion. Chat has no user-facing
   // delete: a control labelled "delete" that soft-deletes would tell the user

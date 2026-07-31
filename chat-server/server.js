@@ -17,6 +17,15 @@ const {
   MARK_READ_SQL,
 } = require('./lib/archive');
 const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('./lib/participants');
+const {
+  TOMBSTONE_TEXT,
+  canModerate,
+  isPlatformRole,
+  buildMessageHistoryQuery,
+  MESSAGE_SCOPE_SQL,
+  REMOVE_MESSAGE_SQL,
+} = require('./lib/moderation');
+const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -304,42 +313,11 @@ async function getUserConversations(userId, role, payload, { archived = false } 
  * Load message history for a conversation, including legacy messages for team conversations
  */
 async function loadConversationMessages(conversationId, teamId, limit = 50) {
-  let query;
-  let params;
-
-  if (teamId) {
-    // Team conversation: UNION with legacy messages that have no conversation_id
-    query = `
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, $1::int AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE conversation_id = $1 AND deleted_at IS NULL
-      UNION ALL
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, $1::int AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE scope_type = 'team' AND scope_id = $2 AND conversation_id IS NULL AND deleted_at IS NULL
-      ORDER BY timestamp DESC
-      LIMIT $3
-    `;
-    params = [conversationId, teamId, limit];
-  } else {
-    query = `
-      SELECT id, message_text AS text, sender_name AS sender, sender_id AS "senderId",
-             sender_role AS role, conversation_id AS "conversationId",
-             created_at AS timestamp,
-             TO_CHAR(created_at, 'HH24:MI') AS time
-      FROM chat_messages
-      WHERE conversation_id = $1 AND deleted_at IS NULL
-      ORDER BY created_at DESC
-      LIMIT $2
-    `;
-    params = [conversationId, limit];
-  }
+  // Removed messages come back as tombstones rather than being filtered out —
+  // see lib/moderation.js. A message that simply vanishes leaves participants
+  // unsure whether they imagined it.
+  const query = buildMessageHistoryQuery({ team: Boolean(teamId) });
+  const params = teamId ? [conversationId, teamId, limit] : [conversationId, limit];
 
   try {
     const result = await pool.query(query, params);
@@ -991,6 +969,104 @@ io.on('connection', (socket) => {
       ]);
     } catch (error) {
       console.error('Error marking read:', error.message);
+    }
+  });
+
+  // ─── Moderation removal ───────────────────────────────────────────────────
+  // The ONLY way a message is ever removed. Club admins only — not coaches, and
+  // not senders removing their own words, which is the capability deliberately
+  // withheld. Soft delete: the row survives, everyone sees a tombstone, and the
+  // text stays recoverable until retention purges it.
+  socket.on('removeMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    if (!canModerate(userInfo.role)) {
+      socket.emit('error', { message: 'Only club administrators can remove messages' });
+      return;
+    }
+
+    const { messageId, reason } = data || {};
+    if (!messageId) {
+      socket.emit('error', { message: 'Message ID is required' });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      const scope = await client.query(MESSAGE_SCOPE_SQL, [messageId]);
+      const msg = scope.rows[0];
+      if (!msg) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      // A club admin is confined to their own club; platform roles are not.
+      if (!isPlatformRole(userInfo.role)) {
+        const actorClub = getClubId(userInfo.payload);
+        if (!actorClub || !msg.clubId || Number(actorClub) !== Number(msg.clubId)) {
+          socket.emit('error', { message: 'You do not have access to this conversation' });
+          return;
+        }
+      }
+
+      if (msg.deletedAt) {
+        // Already removed. Idempotent, and must not rewrite who removed it.
+        socket.emit('messageRemoved', {
+          messageId, conversationId: msg.conversationId, text: TOMBSTONE_TEXT,
+        });
+        return;
+      }
+
+      await client.query('BEGIN');
+      const removed = await client.query(REMOVE_MESSAGE_SQL, [
+        messageId, userInfo.userId, reason || null,
+      ]);
+      if (removed.rowCount === 0) {
+        // Raced with another admin.
+        await client.query('ROLLBACK');
+        socket.emit('messageRemoved', {
+          messageId, conversationId: msg.conversationId, text: TOMBSTONE_TEXT,
+        });
+        return;
+      }
+
+      // Audit INSIDE the transaction: unlike AuditLogger's swallow-and-continue,
+      // a removal that cannot be recorded must not happen. The entry deliberately
+      // does NOT carry the message text — audit_log is retained for 2555 days
+      // against the message's own 90, so copying it there would defeat removals
+      // motivated by privacy rather than safety.
+      await logInTransaction(client, {
+        userId: userInfo.userId,
+        action: 'chat_message_removed',
+        resourceType: 'chat_messages',
+        resourceId: Number(messageId),
+        ipAddress: socketIp(socket),
+        userAgent: socketUserAgent(socket),
+        details: {
+          conversation_id: msg.conversationId,
+          sender_id: msg.senderId,
+          reason: reason || null,
+          actor_role: userInfo.role,
+        },
+      });
+      await client.query('COMMIT');
+
+      // Everyone in the room swaps the message for a tombstone live.
+      io.to(getConversationRoom(msg.conversationId)).emit('messageRemoved', {
+        messageId,
+        conversationId: msg.conversationId,
+        text: TOMBSTONE_TEXT,
+      });
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* not in a transaction */ }
+      console.error('Error removing message:', error.message);
+      socket.emit('error', { message: 'Failed to remove message' });
+    } finally {
+      client.release();
     }
   });
 

@@ -213,6 +213,20 @@ export const TeamChatPage: React.FC = () => {
               {messages.map((message) => {
                 const isOwnMessage = message.senderId === user?.id;
 
+                // Removed by an admin: a tombstone, not a gap. The server nulls
+                // the text, so without this branch crew would see a blank bubble.
+                if (message.removed) {
+                  return (
+                    <div key={message.id} className="flex justify-center">
+                      <div className="max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
+                        <p className="text-xs italic text-gray-500 text-center">
+                          Message removed by an administrator
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={message.id}

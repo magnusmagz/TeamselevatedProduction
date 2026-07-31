@@ -179,6 +179,16 @@ export function useChat(): UseChatReturn {
       setArchivedConversations(prev => prev.filter(c => c.id !== conv.id));
     };
 
+    // An admin removed a message. Swap it for a tombstone in place rather than
+    // dropping it — a message that silently disappears is worse than one that
+    // visibly went away.
+    const handleMessageRemoved = (data: { messageId: string | number; conversationId: number }) => {
+      const id = String(data.messageId);
+      setMessages(prev =>
+        prev.map(m => (String(m.id) === id ? { ...m, removed: true, text: '' } : m))
+      );
+    };
+
     const handleArchivedList = (convs: Conversation[]) => {
       setArchivedConversations(sortByLastMessage(convs));
     };
@@ -228,6 +238,7 @@ export function useChat(): UseChatReturn {
     socket.on('conversationCreated', handleConversationCreated);
     socket.on('newConversation', handleNewConversation);
     socket.on('typingUpdate', handleTypingUpdate);
+    socket.on('messageRemoved', handleMessageRemoved);
     socket.on('archivedConversationsList', handleArchivedList);
     socket.on('conversationArchived', handleConversationArchived);
     socket.on('conversationUnarchived', handleConversationUnarchived);
@@ -246,6 +257,7 @@ export function useChat(): UseChatReturn {
       socket.off('conversationCreated', handleConversationCreated);
       socket.off('newConversation', handleNewConversation);
       socket.off('typingUpdate', handleTypingUpdate);
+      socket.off('messageRemoved', handleMessageRemoved);
       socket.off('archivedConversationsList', handleArchivedList);
       socket.off('conversationArchived', handleConversationArchived);
       socket.off('conversationUnarchived', handleConversationUnarchived);
