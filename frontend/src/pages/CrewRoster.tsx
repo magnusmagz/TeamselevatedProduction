@@ -45,6 +45,15 @@ const CrewRoster: React.FC = () => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [inviting, setInviting] = useState<number | null>(null);
+  // Detail slide-out. `editing` is separate from `selected` so opening a crew
+  // member shows their details read-only first — editing is a deliberate second
+  // click, not the default state of the panel.
+  const [selected, setSelected] = useState<CrewMember | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ first_name: '', last_name: '', email: '', mobile_phone: '' });
+  const [saving, setSaving] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  const [panelWarnings, setPanelWarnings] = useState<string[]>([]);
   const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
   const cancelRef = useRef(false);
 
@@ -94,6 +103,70 @@ const CrewRoster: React.FC = () => {
       alert('Could not send invite.');
     } finally {
       setInviting(null);
+    }
+  };
+
+  const openMember = (m: CrewMember) => {
+    setSelected(m);
+    setEditing(false);
+    setPanelError(null);
+    setPanelWarnings([]);
+    setDraft({
+      first_name: m.first_name || '',
+      last_name: m.last_name || '',
+      email: m.email || '',
+      mobile_phone: m.mobile_phone || '',
+    });
+  };
+
+  const closePanel = () => {
+    setSelected(null);
+    setEditing(false);
+    setPanelError(null);
+    setPanelWarnings([]);
+  };
+
+  // Esc closes the panel — a slide-out that can only be dismissed by mouse is a
+  // trap for anyone working down the list from the keyboard.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selected]);
+
+  const saveContact = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setPanelError(null);
+    setPanelWarnings([]);
+    try {
+      const res = await fetch(`${API_URL}/api/crew.php?action=update-contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          club_profile_id: clubProfileId,
+          guardian_id: selected.guardian_id,
+          ...draft,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Could not save changes');
+
+      // Patch the row in place so the table reflects the edit immediately, then
+      // reload in the background — portal status is derived from the email, so a
+      // changed address can move them to a different filter bucket.
+      setCrew((prev) =>
+        prev.map((m) => (m.guardian_id === selected.guardian_id ? { ...m, ...data.data } : m))
+      );
+      setSelected((prev) => (prev ? { ...prev, ...data.data } : prev));
+      setPanelWarnings(data.data?.warnings || []);
+      setEditing(false);
+      load();
+    } catch (e: any) {
+      setPanelError(e.message || 'Could not save changes.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -235,7 +308,13 @@ const CrewRoster: React.FC = () => {
                   const meta = STATUS_META[m.status] || STATUS_META.not_invited;
                   const busy = inviting === m.guardian_id;
                   return (
-                    <tr key={m.guardian_id} className="hover:bg-gray-50">
+                    <tr
+                      key={m.guardian_id}
+                      onClick={() => openMember(m)}
+                      className={`hover:bg-gray-50 cursor-pointer ${
+                        selected?.guardian_id === m.guardian_id ? 'bg-brand-light' : ''
+                      }`}
+                    >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
                         {m.first_name} {m.last_name}
                       </td>
@@ -247,7 +326,9 @@ const CrewRoster: React.FC = () => {
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         {m.status === 'active' || m.status === 'no_email' ? null : (
                           <button
-                            onClick={() => handleInvite(m)}
+                            // The row opens the panel, so the invite button must not
+                            // also trigger it.
+                            onClick={(e) => { e.stopPropagation(); handleInvite(m); }}
                             disabled={busy || bulk.running}
                             className={
                               m.status === 'invited'
@@ -266,6 +347,164 @@ const CrewRoster: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* ── Detail slide-out ───────────────────────────────────────────── */}
+      {selected && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={closePanel}
+            aria-hidden="true"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${selected.first_name} ${selected.last_name}`}
+            className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200"
+          >
+            <header className="px-5 py-4 border-b border-gray-200 flex items-start gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-brand-primary truncate">
+                  {selected.first_name} {selected.last_name}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  Crew for {selected.athletes || '—'}
+                </p>
+              </div>
+              <button
+                onClick={closePanel}
+                aria-label="Close"
+                className="ml-auto text-gray-400 hover:text-gray-600 text-xl leading-none px-1"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+              {panelError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  {panelError}
+                </div>
+              )}
+              {panelWarnings.map((w, i) => (
+                <div key={i} className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm">
+                  {w}
+                </div>
+              ))}
+
+              {!editing ? (
+                <>
+                  <dl className="space-y-4">
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Email</dt>
+                      <dd className="text-sm text-gray-900 mt-1 break-all">
+                        {selected.email || <span className="italic text-gray-400">none on file</span>}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Mobile phone</dt>
+                      <dd className="text-sm text-gray-900 mt-1">
+                        {selected.mobile_phone || <span className="italic text-gray-400">none on file</span>}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Athletes</dt>
+                      <dd className="text-sm text-gray-900 mt-1">{selected.athletes || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Parent portal</dt>
+                      <dd className="mt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                          (STATUS_META[selected.status] || STATUS_META.not_invited).cls
+                        }`}>
+                          {(STATUS_META[selected.status] || STATUS_META.not_invited).label}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="w-full bg-brand-primary text-white rounded-md px-4 py-2.5 text-sm font-bold uppercase hover:bg-brand-primary-hover"
+                  >
+                    Edit details
+                  </button>
+                </>
+              ) : (
+                <form
+                  onSubmit={(e) => { e.preventDefault(); saveContact(); }}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">First name</span>
+                      <input
+                        required
+                        value={draft.first_name}
+                        onChange={(e) => setDraft({ ...draft, first_name: e.target.value })}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Last name</span>
+                      <input
+                        required
+                        value={draft.last_name}
+                        onChange={(e) => setDraft({ ...draft, last_name: e.target.value })}
+                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Email</span>
+                    <input
+                      type="email"
+                      value={draft.email}
+                      onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                    />
+                    <span className="block text-xs text-gray-400 mt-1">
+                      Their portal account is matched on this address — changing it may need a fresh invite.
+                    </span>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Mobile phone</span>
+                    <input
+                      type="tel"
+                      value={draft.mobile_phone}
+                      onChange={(e) => setDraft({ ...draft, mobile_phone: e.target.value })}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                    />
+                    <span className="block text-xs text-gray-400 mt-1">
+                      Used for club texts. Include the area code.
+                    </span>
+                  </label>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 bg-brand-primary text-white rounded-md px-4 py-2.5 text-sm font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50"
+                    >
+                      {saving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => { setEditing(false); setPanelError(null); }}
+                      className="px-4 py-2.5 border border-gray-300 rounded-md text-sm font-semibold uppercase text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </aside>
+        </>
       )}
     </div>
   );
