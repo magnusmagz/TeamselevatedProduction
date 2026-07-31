@@ -81,6 +81,7 @@ export default function ChatModeration() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [summary, setSummary] = useState<Record<string, number> | null>(null);
 
   const authHeaders = useCallback((): Record<string, string> => {
     const token = localStorage.getItem('auth_token');
@@ -88,6 +89,22 @@ export default function ChatModeration() {
       ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       : { 'Content-Type': 'application/json' };
   }, []);
+
+  // Loaded lazily, on first expand — a club admin opening the queue to act on a
+  // report should not pay for a 90-day aggregate they did not ask for.
+  const loadSummary = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ action: 'summary', days: '90' });
+      if (clubId) params.set('club_id', String(clubId));
+      const res = await fetch(`${API_URL}/api/chat-moderation.php?${params}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) setSummary(data.summary);
+    } catch {
+      /* The summary is informational; a failure must not disturb the queue. */
+    }
+  }, [clubId, authHeaders]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +188,45 @@ export default function ChatModeration() {
           </div>
         )}
       </div>
+
+      {/* Compliance summary — the artifact a club hands to a board or an insurer.
+          Counts actions, never content, so it can be shared without carrying the
+          thing that was reported. */}
+      <details className="mb-6 border border-gray-200 rounded-lg bg-white">
+        <summary
+          className="px-4 py-3 cursor-pointer text-sm font-medium text-brand-primary select-none"
+          onClick={() => { if (!summary) loadSummary(); }}
+        >
+          Oversight summary (last 90 days)
+        </summary>
+        <div className="px-4 pb-4 pt-1">
+          {!summary ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                ['Reports received', summary.reports_total],
+                ['From members', summary.reports_from_members],
+                ['Auto-flagged', summary.reports_auto_flagged],
+                ['High severity', summary.reports_high_severity],
+                ['Reviewed', summary.reviewed],
+                ['Still open', summary.still_open],
+                ['Messages removed', summary.messages_removed],
+                ['Admin conversation reads', summary.admin_reads],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <div className="text-xl font-semibold text-brand-primary">{value as number}</div>
+                  <div className="text-xs text-gray-500">{label as string}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-4">
+            Counts actions only — no message content is included. Every admin read of a
+            conversation they are not part of is recorded and counted here.
+          </p>
+        </div>
+      </details>
 
       <div className="flex gap-2 mb-4">
         {(['open', 'all'] as const).map(s => (

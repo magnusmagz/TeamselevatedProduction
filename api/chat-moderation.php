@@ -221,6 +221,79 @@ switch ($action) {
         exit;
     }
 
+    /**
+     * Compliance summary over a date range.
+     *
+     * This is the artifact a club hands to a board or an insurer, and the reason
+     * a buyer cares about any of this. It answers "we were told N times, we
+     * looked N times, here is what we did" with numbers rather than assurances.
+     *
+     * It counts ACTIONS, never content — no message text is aggregated or
+     * returned here, so the summary can be shared without carrying the thing
+     * that was reported.
+     */
+    case 'summary': {
+        $clubId = isset($_GET['club_id']) ? (int) $_GET['club_id'] : null;
+        te_mod_require_admin($auth, $clubId);
+
+        $days = isset($_GET['days']) ? max(1, min(365, (int) $_GET['days'])) : 90;
+
+        $clubFilter  = $clubId !== null ? 'AND club_id = :club_id' : '';
+        $bind = [':days' => $days];
+        if ($clubId !== null) $bind[':club_id'] = $clubId;
+
+        $sql = "
+            SELECT
+              count(*)::int AS reports_total,
+              count(*) FILTER (WHERE source = 'user')::int      AS reports_from_members,
+              count(*) FILTER (WHERE source = 'auto')::int      AS reports_auto_flagged,
+              count(*) FILTER (WHERE severity = 'high')::int    AS reports_high_severity,
+              count(*) FILTER (WHERE status = 'open')::int      AS still_open,
+              count(*) FILTER (WHERE status = 'actioned')::int  AS handled,
+              count(*) FILTER (WHERE status = 'dismissed')::int AS no_action_needed,
+              count(*) FILTER (WHERE status <> 'open')::int     AS reviewed
+            FROM chat_message_reports
+            WHERE created_at >= NOW() - (:days || ' days')::interval $clubFilter
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($bind);
+        $reports = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // Messages actually removed, and admin reads of conversations they were
+        // not part of. The second is the number that shows oversight happened
+        // AND that it was accountable.
+        $removedSql = "
+            SELECT count(*)::int AS messages_removed
+            FROM chat_messages m
+            LEFT JOIN conversations c ON c.id = m.conversation_id
+            WHERE m.deleted_at >= NOW() - (:days || ' days')::interval
+            " . ($clubId !== null ? 'AND c.club_id = :club_id' : '');
+        $rs = $pdo->prepare($removedSql);
+        $rs->execute($bind);
+        $removed = $rs->fetch(PDO::FETCH_ASSOC) ?: ['messages_removed' => 0];
+
+        $readsSql = "
+            SELECT count(*)::int AS admin_reads,
+                   count(DISTINCT user_id)::int AS admins_who_read
+            FROM chat_access_log
+            WHERE created_at >= NOW() - (:days || ' days')::interval $clubFilter
+        ";
+        $as = $pdo->prepare($readsSql);
+        $as->execute($bind);
+        $reads = $as->fetch(PDO::FETCH_ASSOC) ?: ['admin_reads' => 0, 'admins_who_read' => 0];
+
+        echo json_encode([
+            'success' => true,
+            'days'    => $days,
+            'summary' => array_merge(
+                array_map('intval', $reports),
+                array_map('intval', $removed),
+                array_map('intval', $reads)
+            ),
+        ]);
+        exit;
+    }
+
     default:
         te_mod_fail(400, 'Unknown action');
 }

@@ -125,6 +125,31 @@ class ChatModerationQueueTest extends TestCase
         $this->assertStringContainsString("(r.status = 'open') DESC", $this->src);
     }
 
+    public function testTheComplianceSummaryCountsActionsNeverContent(): void
+    {
+        // The summary is meant to be shareable with a board or an insurer, so it
+        // must not carry the thing that was reported.
+        $summary = substr($this->src, strpos($this->src, "case 'summary'"));
+        $this->assertStringNotContainsString('message_text', $summary,
+            'the compliance summary must aggregate actions, not content');
+        $this->assertStringContainsString('reports_total', $summary);
+        $this->assertStringContainsString('messages_removed', $summary);
+        $this->assertStringContainsString('admin_reads', $summary,
+            'oversight is only credible if the reads are counted too');
+    }
+
+    public function testSummaryRangeIsClamped(): void
+    {
+        // An unbounded :days would let a caller ask for an arbitrary interval.
+        $this->assertStringContainsString('max(1, min(365,', $this->src);
+    }
+
+    public function testSummaryIsClubScopedLikeTheQueue(): void
+    {
+        $summary = substr($this->src, strpos($this->src, "case 'summary'"));
+        $this->assertStringContainsString('te_mod_require_admin', $summary);
+    }
+
     /** Every column read here must exist in the committed Neon snapshot. */
     public function testColumnsExistInTheSchemaSnapshot(): void
     {
@@ -139,6 +164,11 @@ class ChatModerationQueueTest extends TestCase
         }
         foreach (['deleted_at', 'deleted_by', 'removal_reason', 'message_text'] as $col) {
             $this->assertContains($col, $tables['chat_messages'], "chat_messages.$col");
+        }
+
+        $this->assertArrayHasKey('chat_access_log', $tables);
+        foreach (['user_id', 'conversation_id', 'report_id', 'club_id', 'created_at'] as $col) {
+            $this->assertContains($col, $tables['chat_access_log'], "chat_access_log.$col");
         }
     }
 }
