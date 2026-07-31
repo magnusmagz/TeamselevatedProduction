@@ -84,13 +84,57 @@ test('pushing to an unmonitored app is flagged', () => {
   }
 });
 
-test('profanity is flagged, and is the LOWEST severity', () => {
-  // Deliberate: a coach swearing about a referee is a bad look, not a safeguarding
-  // event. The dangerous patterns in youth sports chat carry no profanity at all.
+test('profanity is HIGH severity and escalates on its own', () => {
+  // Changed 2026-07-31 (Maggie): in a product where adults talk to children,
+  // swearing is not a tone problem to triage later.
   const hits = evaluateMessage('that was a shit call by the ref');
   assert.ok(hits.some(h => h.rule === 'profanity'));
-  assert.strictEqual(hits.find(h => h.rule === 'profanity').severity, 'low');
-  assert.strictEqual(shouldNotify(hits), false, 'profanity alone must not page an admin');
+  assert.strictEqual(hits.find(h => h.rule === 'profanity').severity, 'high');
+  assert.strictEqual(shouldNotify(hits), true);
+});
+
+test('slurs fire as hate_speech, not as profanity', () => {
+  // Separate rules at the same severity, so a reviewer can tell a swear word
+  // from a slur at a glance and the compliance summary counts them apart.
+  for (const text of ['you are such a slut', 'stop being a retard', 'that faggot']) {
+    const hits = evaluateMessage(text);
+    assert.ok(hits.some(h => h.rule === 'hate_speech'), `should flag hate_speech: ${text}`);
+    assert.strictEqual(hits.find(h => h.rule === 'hate_speech').severity, 'high');
+  }
+});
+
+test('gendered slurs moved out of generic profanity', () => {
+  // slut/whore/cunt sitting next to "shitty" understated what they are.
+  const hits = evaluateMessage('slut');
+  assert.ok(hits.some(h => h.rule === 'hate_speech'));
+  assert.ok(!hits.some(h => h.rule === 'profanity'));
+});
+
+test('symbol substitution does not evade', () => {
+  for (const text of ['b!tch', 'a$$hole', 'n1gger', 'f4ggot', 'sh1t']) {
+    assert.ok(evaluateMessage(text).length > 0, `should flag: ${text}`);
+  }
+});
+
+test('stretched letters do not evade', () => {
+  // An earlier normalisation collapsed runs to two characters, which turned
+  // "shiiiit" into "shiit" and matched nothing. Repetition now lives in the
+  // pattern, so this is a regression guard on that exact bug.
+  for (const text of ['shiiiiit', 'shhhit', 'shittttt', 'fuuuuck']) {
+    assert.ok(evaluateMessage(text).length > 0, `should flag: ${text}`);
+  }
+});
+
+test('common names and words that contain slur substrings stay clean', () => {
+  for (const text of [
+    'Dick Vitale is calling the game',
+    'we saw a raccoon by the field',
+    'the Cooney twins are both playing',
+    'she plays with such passion',
+    'that was a spectacular assist',
+  ]) {
+    assert.deepStrictEqual(evaluateMessage(text), [], `should not flag: ${text}`);
+  }
 });
 
 test('a message can fire several rules at once', () => {

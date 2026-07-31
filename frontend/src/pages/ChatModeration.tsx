@@ -41,6 +41,15 @@ interface Report {
   reviewer_last_name: string | null;
 }
 
+/** Auto-rule names, for the queue. Keep in step with RULES in chat-server/lib/flags.js. */
+const RULE_LABELS: Record<string, string> = {
+  hate_speech: 'Racial or hate slur',
+  secrecy: 'Asking to keep it secret',
+  off_platform_contact: 'Contact details / off-platform',
+  profanity: 'Profanity',
+  external_app: 'Another messaging app',
+};
+
 const REASON_LABELS: Record<string, string> = {
   safety_concern: 'Safety concern',
   harassment: 'Harassment or bullying',
@@ -274,7 +283,7 @@ export default function ChatModeration() {
                   <SeverityBadge severity={r.severity} />
                   <span className="text-xs text-gray-500">
                     {r.source === 'auto'
-                      ? `Auto-flagged${r.rule ? `: ${r.rule}` : ''}`
+                      ? `Auto-flagged${r.rule ? `: ${RULE_LABELS[r.rule] || r.rule}` : ''}`
                       : REASON_LABELS[r.rule || ''] || 'Reported'}
                   </span>
                   {r.team_name && (
