@@ -32,6 +32,40 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### SMS inbox M4 — replying from the inbox — **migration 066 applied to Neon**
+`066_thread_existing_sms.sql` · Heroku **v475** · Netlify `307cb6a`
+
+An admin can answer a thread and it goes out as a text from the club's own number,
+via `SmsSendService::queueSms` — so a reply inherits per-club sender resolution,
+the suppression predicate, segment counting, `from_number` and the retry queue.
+
+**The copy did NOT change with it — Maggie's call, and the scope was revised.**
+The plan bundled them, reasoning that "this number is not monitored" goes false the
+moment a human *can* answer. Shipping a Reply button does not mean anyone is
+watching; promising 152 families someone will respond, before the club has agreed
+to keep that promise, leaves a family who texts and hears nothing worse off than
+one told plainly the number is unmonitored. The auto-reply keeps firing, unchanged,
+until a club says they are ready to engage.
+
+**Threading was the real work.** `queueSms` set no `conversation_id`, so a reply
+would have started a new thread — and the broadcast that PROMPTED every reply was
+unthreaded too, meaning an admin would open "I did not receive an email" with
+nothing above it explaining what email. queueSms now threads every outbound
+message, and 066 backfilled the existing **140 sms rows into 131 conversations**.
+The SQL hash was verified byte-identical to `te_sms_conversation_id()` before
+running — a mismatch would have silently created a second thread per contact
+rather than failing.
+
+Verified live after deploy: an inbound from Cathy Rice landed under her existing
+broadcast thread, showing the 07-30 22:58 announcement, her reply, and the
+auto-reply marked automated. Check rows removed; 510 outbound rows and 131 threads
+intact.
+
+Two refusals in the endpoint: the recipient is resolved from the THREAD, never the
+request body (a client-supplied number would make the club's sender an open relay),
+and `queued = 0` returns 409 with the reason rather than reporting a reply that was
+never sent — queueSms skips a suppressed contact rather than throwing.
+
 ### SMS inbox M3 — the replies are readable in the app
 Heroku **v474** · Netlify `6b16165` · **no migration** · `inbox_enabled` switched ON for club 51
 
