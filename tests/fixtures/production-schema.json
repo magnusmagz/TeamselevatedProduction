@@ -301,6 +301,21 @@
 "deleted_at",
 "deleted_by"
 ],
+"chat_message_reports": [
+"id",
+"message_id",
+"conversation_id",
+"club_id",
+"source",
+"reported_by",
+"rule",
+"severity",
+"note",
+"status",
+"reviewed_by",
+"reviewed_at",
+"created_at"
+],
 "chat_messages": [
 "id",
 "scope_type",
@@ -313,7 +328,9 @@
 "created_at",
 "updated_at",
 "deleted_at",
-"conversation_id"
+"conversation_id",
+"deleted_by",
+"removal_reason"
 ],
 "chat_reactions": [
 "id",

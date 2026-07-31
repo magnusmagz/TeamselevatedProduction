@@ -26,6 +26,12 @@ const {
   REMOVE_MESSAGE_SQL,
 } = require('./lib/moderation');
 const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
+const {
+  severityForReason,
+  isValidReason,
+  FILE_USER_REPORT_SQL,
+  REPORT_SCOPE_SQL,
+} = require('./lib/reports');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -969,6 +975,60 @@ io.on('connection', (socket) => {
       ]);
     } catch (error) {
       console.error('Error marking read:', error.message);
+    }
+  });
+
+  // ─── Report a message ─────────────────────────────────────────────────────
+  // Any participant may report. The report is both a queue item and, from M3
+  // onward, the record that authorises a club admin to read the conversation.
+  socket.on('reportMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { messageId, reason, note } = data || {};
+    if (!messageId || !isValidReason(reason)) {
+      socket.emit('error', { message: 'A message and a reason are required' });
+      return;
+    }
+
+    try {
+      const scope = await pool.query(REPORT_SCOPE_SQL, [messageId]);
+      const msg = scope.rows[0];
+      if (!msg) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      // Reporting must not become a way to probe for messages elsewhere: you can
+      // only report something you can already read.
+      const hasAccess = await isConversationParticipant(
+        msg.conversationId, userInfo.userId, userInfo.role, userInfo.payload
+      );
+      if (!hasAccess) {
+        socket.emit('error', { message: 'You do not have access to this conversation' });
+        return;
+      }
+
+      await pool.query(FILE_USER_REPORT_SQL, [
+        messageId,
+        msg.conversationId,
+        msg.clubId || getClubId(userInfo.payload),
+        userInfo.userId,
+        reason,
+        (note || '').slice(0, 2000) || null,
+        severityForReason(reason),
+      ]);
+
+      // Reported either way, including when this was a duplicate. The reporter
+      // must not learn whether someone else already flagged it, or whether an
+      // admin has dismissed it.
+      socket.emit('messageReported', { messageId });
+    } catch (error) {
+      console.error('Error reporting message:', error.message);
+      socket.emit('error', { message: 'Failed to report message' });
     }
   });
 
