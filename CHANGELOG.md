@@ -32,6 +32,34 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### SMS inbox M3 — the replies are readable in the app
+Heroku **v474** · Netlify `6b16165` · **no migration** · `inbox_enabled` switched ON for club 51
+
+`/communications/inbox` — threads, filters, read state. Admin-only, gated on the
+per-club flag in `inboxAuthError` rather than only by hiding the nav item.
+Central Kansas enabled; club 32 left off.
+
+**Recording the auto-reply was a prerequisite nobody had spotted.** It leaves as
+TwiML in the webhook response, so Twilio sends it and nothing here knew it
+happened — an admin would have opened a thread, seen a family's question with no
+answer, and written a reply contradicting what the family already received.
+
+Machine-vs-human is `user_id`: auto-reply is outbound with NULL, a human reply
+carries the admin. That single distinction styles the bubble AND keeps a thread in
+"needs reply" after the robot answered. Without it, recording the auto-reply would
+have EMPTIED the inbox instead of filling it.
+
+The thread query is Postgres-only (`ARRAY_AGG … FILTER` with array subscripting)
+so the SQLite fixtures cannot exercise it. Verified by seeding three realistic
+threads in a rolled-back transaction against Neon — robot-answered stayed in the
+queue, human-answered left it, outbound-only broadcast excluded — then again
+end-to-end after deploy with a real inbound, and the check rows removed.
+
+⚠️ **The auto-reply copy still says "this number is not monitored"**, which is now
+only nearly true for club 51: an admin can read but not yet reply. The copy and the
+reply capability ship together in M4, deliberately. Revert with
+`UPDATE sms_phone_numbers SET inbox_enabled = FALSE WHERE club_profile_id = 51`.
+
 ### SMS inbox M2 — STOP is recorded when it arrives — **migration 065 applied to Neon**
 `065_sms_suppression_unique.sql` · backend only
 
