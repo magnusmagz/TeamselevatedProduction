@@ -140,6 +140,43 @@ connects to Neon at load, so a test requiring it would have hit production. The 
 each purge in a transaction and writes the `audit_log` entry **inside** it, so rows and their audit
 record commit together. `ChatRetentionPlanTest` (11 tests) locks the refusals; full PHP suite 373
 tests green after the extraction.
+### Calendar practice counts were hardcoded to zero in effect
+`a1be39a` · **Netlify deploy `a1be39a` ready** · frontend-only · **no backend, no migration**
+
+`TeamCalendarView` carried a `practices` state array from before practices moved into
+`calendar_events`. Nothing ever called `setPractices`, so it was permanently `[]` — and two pieces
+of UI read it and nothing else:
+
+- the practices **stat tile** (always visible, every view) rendered **0**
+- the **Schedule view's list** rendered **"No upcoming practices scheduled"**
+
+Both sat beside a month grid showing those same practices correctly, because the grid reads
+`events`, where practices arrive as `type='practice'`. **Live Neon at the time: 337 practice
+events, 18 upcoming** (334/18 for club 32). Confidently wrong numbers beside correct data — worse
+than blank, and invisible to tests because an empty array renders a plausible `0` and a plausible
+empty state.
+
+Removed the dead array, the `Practice` interface, `CalendarDay.practices`, and the day-cell loops
+over it — the month grid's "+N more" counted its length too, so that was also wrong whenever it
+mattered. Both readers now derive from `events.filter(e => e.type === 'practice')`.
+
+Three things beyond the deletion:
+
+- **The team-filter predicate was inlined four times with three different behaviours.** "Total
+  Events" omitted the `team_name` fallback and under-counted events carrying a name but no `teams`
+  array. Now one `eventMatchesTeamFilter`.
+- **The tile is now scoped to the visible month and relabelled "Practices This Month."** A lifetime
+  count (334 for club 32) next to "This Month" and "Upcoming" on a month calendar wasn't a useful
+  number. Maggie's call.
+- **Date bucketing compares ISO strings** and splits `YYYY-MM-DD` rather than going through
+  `new Date(...)`. A bare date parses as UTC midnight, which is the previous day in every US
+  timezone; it would have dropped today's practices from "upcoming" and mis-bucketed the 1st of
+  each month. The same trap bit the new test fixtures first, which had used `toISOString()`.
+
+Tests appended to the existing `TeamCalendarView` suite and verified to fail with `practiceEvents`
+forced empty — i.e. against the old behaviour — so they assert on known counts rather than on the
+absence of a crash.
+
 ### Frontend lint ratchet — the build catches things again
 `e3d75c1` · **Netlify deploy `e3d75c1` ready** · frontend-only · **no backend, no migration**
 
@@ -166,7 +203,8 @@ where rot goes unnoticed. Verified it bites: passes at 74, exits 1 at 73.
 ⚠️ **`main` is shared, so a failing lint blocks everyone's deploy.** The unblock is to fix the
 warning, not to raise the ceiling. Rules in `frontend/LINTING.md`, pointer in `CLAUDE.md`.
 
-**One real bug surfaced and left alone** (fixing it is a behavior change, not this commit's job):
+**One real bug surfaced** — left alone in this commit, **fixed later the same day** (see the
+calendar entry above):
 `TeamCalendarView` never calls `setPractices`, so the `practices` array is permanently `[]`. It is
 vestigial state from before practices moved into `calendar_events` — the grid gets them as events
 with `type='practice'` — but two pieces of UI still read the dead array and nothing else:

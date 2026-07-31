@@ -87,6 +87,40 @@ class SmsMergeFieldTest extends TestCase
         $this->assertSame('Hi Jane, Ava has practice.', $out[0]['_resolved_body']);
     }
 
+    /**
+     * {{recipient_first_name}} must resolve to the person's real name.
+     *
+     * It regressed to the "there" fallback the moment resolveSmsBodies passed the
+     * recipient's display name as recipient_name: loadRecipientData() derives from
+     * the guardian/athlete row only when BOTH recipient keys are absent, so
+     * supplying the full name alone suppressed derivation and left the first name
+     * empty. Every "Hi {{recipient_first_name}}" came out "Hi there".
+     */
+    public function testRecipientFirstNameResolvesForGuardianAndAthlete(): void
+    {
+        $recipients = [
+            ['type' => 'guardian', 'id' => 5, 'athlete_id' => 1, 'name' => 'Jane Jones', 'phone' => '+17855550003'],
+            ['type' => 'athlete', 'id' => 2, 'athlete_id' => 2, 'name' => 'Luis Ramirez', 'phone' => '+17855550002'],
+        ];
+
+        [$out, $unresolved] = resolveSmsBodies($recipients, 'Hi {{recipient_first_name}}!', $this->svc, $this->base());
+
+        $this->assertSame([], $unresolved);
+        $this->assertSame('Hi Jane!', $out[0]['_resolved_body']);
+        $this->assertSame('Hi Luis!', $out[1]['_resolved_body']);
+        $this->assertStringNotContainsString('there', $out[0]['_resolved_body']);
+    }
+
+    /** A coach has no guardian/athlete row, so the display name is the only source. */
+    public function testRecipientFirstNameFallsBackToTheDisplayNameForACoach(): void
+    {
+        $recipients = [['type' => 'coach', 'id' => 77, 'athlete_id' => null, 'name' => 'Sam Ortega', 'phone' => '+17855550009']];
+
+        [$out] = resolveSmsBodies($recipients, 'Hi {{recipient_first_name}}!', $this->svc, $this->base());
+
+        $this->assertSame('Hi Sam!', $out[0]['_resolved_body']);
+    }
+
     public function testClubNameResolves(): void
     {
         $recipients = [['type' => 'athlete', 'id' => 1, 'athlete_id' => 1, 'name' => 'Ava', 'phone' => '+17855550001']];

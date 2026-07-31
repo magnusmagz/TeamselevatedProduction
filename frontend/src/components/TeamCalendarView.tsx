@@ -4,18 +4,6 @@ import CalendarSubscriptionManager from './CalendarSubscriptionManager';
 import PracticeScheduler from './PracticeScheduler';
 import { useAuth } from '../contexts/AuthContext';
 
-interface Practice {
-  id: number;
-  team_id: number;
-  team_name: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  venue_id: number;
-  field_id: number;
-  day: string;
-}
-
 interface Event {
   id?: number;
   name: string;
@@ -59,7 +47,6 @@ interface CalendarDay {
   dateStr: string;
   isCurrentMonth: boolean;
   isToday: boolean;
-  practices: Practice[];
   events: Event[];
 }
 
@@ -86,7 +73,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const { user } = useAuth();
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [practices] = useState<Practice[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>(teamId ? String(teamId) : 'all');
@@ -381,7 +367,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     } else if (viewMode === 'week') {
       generateWeekDays();
     }
-  }, [currentDate, practices, events, selectedTeamFilter, viewMode, allTeams, myTeamIds]);
+  }, [currentDate, events, selectedTeamFilter, viewMode, allTeams, myTeamIds]);
 
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
@@ -406,8 +392,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       const currentDateCopy = new Date(date);
       const dateStr = currentDateCopy.toISOString().split('T')[0];
 
-      // Filter practices for this day
-      let dayPractices = practices.filter(p => p.date === dateStr);
       let dayEvents = events.filter(e => e.event_date === dateStr);
 
       // Apply team filter
@@ -416,9 +400,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         const myIdSet = new Set(myTeamIds);
         const myNameSet = new Set(
           allTeams.filter(t => myIdSet.has(t.id)).map(t => t.name)
-        );
-        dayPractices = dayPractices.filter(p =>
-          (p.team_id != null && myIdSet.has(p.team_id)) || (p.team_name && myNameSet.has(p.team_name))
         );
         dayEvents = dayEvents.filter(e => {
           if (e.teams && e.teams.length > 0) {
@@ -431,7 +412,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         const filterTeam = allTeams.find(t => t.id === filterTeamId);
         const filterTeamName = filterTeam?.name;
 
-        dayPractices = dayPractices.filter(p => p.team_name === filterTeamName || p.team_id === filterTeamId);
         dayEvents = dayEvents.filter(e => {
           // Check if event has this team in its teams array
           if (e.teams && e.teams.length > 0) {
@@ -447,7 +427,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         dateStr,
         isCurrentMonth: currentDateCopy.getMonth() === month,
         isToday: currentDateCopy.getTime() === today.getTime(),
-        practices: dayPractices,
         events: dayEvents
       });
     }
@@ -471,16 +450,12 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       date.setDate(startOfWeek.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
 
-      let dayPractices = practices.filter(p => p.date === dateStr);
       let dayEvents = events.filter(e => e.event_date === dateStr);
 
       if (selectedTeamFilter === 'my_teams') {
         const myIdSet = new Set(myTeamIds);
         const myNameSet = new Set(
           allTeams.filter(t => myIdSet.has(t.id)).map(t => t.name)
-        );
-        dayPractices = dayPractices.filter(p =>
-          (p.team_id != null && myIdSet.has(p.team_id)) || (p.team_name && myNameSet.has(p.team_name))
         );
         dayEvents = dayEvents.filter(e => {
           if (e.teams && e.teams.length > 0) {
@@ -493,7 +468,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         const filterTeam = allTeams.find(t => t.id === filterTeamId);
         const filterTeamName = filterTeam?.name;
 
-        dayPractices = dayPractices.filter(p => p.team_name === filterTeamName || p.team_id === filterTeamId);
         dayEvents = dayEvents.filter(e => {
           if (e.teams && e.teams.length > 0) {
             return e.teams.some(t => t.id === filterTeamId);
@@ -507,7 +481,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         dateStr,
         isCurrentMonth: true,
         isToday: date.getTime() === today.getTime(),
-        practices: dayPractices.sort((a, b) => a.start_time.localeCompare(b.start_time)),
         events: dayEvents.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
       });
     }
@@ -549,6 +522,48 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   // Color-code events by their type so the calendar reads at a glance.
   // Each event_type gets a distinct background / border / text treatment.
   // Falls back to a neutral style for unknown/legacy types.
+  /**
+   * Does this event belong to the team currently selected in the dropdown?
+   *
+   * Single definition on purpose: this logic used to be inlined four times with
+   * three different behaviours — the "Total Events" tile omitted the team_name
+   * fallback entirely and so under-counted any event that has a name but no
+   * `teams` array.
+   */
+  const eventMatchesTeamFilter = (e: Event): boolean => {
+    if (selectedTeamFilter === 'all') return true;
+    if (selectedTeamFilter === 'my_teams') {
+      const myIdSet = new Set(myTeamIds);
+      if (e.teams && e.teams.length > 0) return e.teams.some(t => myIdSet.has(t.id));
+      const myNames = new Set(allTeams.filter(t => myIdSet.has(t.id)).map(t => t.name));
+      return !!e.team_name && myNames.has(e.team_name);
+    }
+    const filterTeamId = parseInt(selectedTeamFilter);
+    if (e.teams && e.teams.length > 0) return e.teams.some(t => t.id === filterTeamId);
+    return e.team_name === allTeams.find(t => t.id === filterTeamId)?.name;
+  };
+
+  /**
+   * Practices, from the only place they actually live.
+   *
+   * There used to be a parallel `practices` state array here, left over from
+   * before practices moved into `calendar_events`. Nothing ever populated it, so
+   * the two pieces of UI that read it — the "Total Practices" tile and the
+   * Schedule view's list — rendered 0 and "none scheduled" permanently, next to a
+   * month grid that showed those same practices correctly from `events`.
+   * Production had 337 practice events at the time (18 upcoming).
+   */
+  const practiceEvents = events.filter(e => e.type === 'practice');
+
+  /** Is this event in the month the calendar is currently showing? */
+  const inCurrentMonth = (e: Event): boolean => {
+    // Split the ISO date rather than `new Date(...)`: bare YYYY-MM-DD parses as
+    // UTC midnight, which is the previous day in every US timezone and would
+    // mis-bucket the 1st of each month.
+    const [y, m] = e.event_date.split('-').map(Number);
+    return m - 1 === currentDate.getMonth() && y === currentDate.getFullYear();
+  };
+
   const getEventTypeStyle = (type?: Event['type']) => {
     switch (type) {
       case 'game':
@@ -937,19 +952,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         {event.start_time && <div className="text-xs">{event.start_time}</div>}
                       </div>
                     ))}
-                    {day.practices.slice(0, 2).map((practice, pIndex) => (
-                      <div
-                        key={`p-${pIndex}`}
-                        className={`text-xs p-1 border rounded-none ${getTeamColor(practice.team_name)}`}
-                        title={`${practice.team_name}: ${practice.start_time} - ${practice.end_time}`}
-                      >
-                        <div className="font-medium truncate">{practice.team_name}</div>
-                        <div className="text-xs">{practice.start_time}</div>
-                      </div>
-                    ))}
-                    {(day.events.length + day.practices.length) > 4 && (
+                    {day.events.length > 4 && (
                       <div className="text-xs text-gray-500 italic">
-                        +{(day.events.length + day.practices.length) - 4} more
+                        +{day.events.length - 4} more
                       </div>
                     )}
                   </div>
@@ -983,7 +988,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                   } last:border-r-0`}
                 >
                   <div className="border-b border-gray-200 p-2">
-                    {(day.events.length > 0 || day.practices.length > 0) ? (
+                    {day.events.length > 0 ? (
                       <div className="space-y-2">
                         {day.events.map((event, eIndex) => (
                           <div
@@ -1001,16 +1006,6 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                             </div>
                             {event.opponent_name && <div className="text-xs opacity-75">vs {event.opponent_name}</div>}
                             {event.venue_name && <div className="text-xs opacity-75">{event.venue_name}</div>}
-                          </div>
-                        ))}
-                        {day.practices.map((practice, pIndex) => (
-                          <div
-                            key={`p-${pIndex}`}
-                            className={`p-2 border ${getTeamColor(practice.team_name)}`}
-                          >
-                            <div className="font-bold text-sm">{practice.start_time} - {practice.end_time}</div>
-                            <div className="font-medium">{practice.team_name}</div>
-                            <div className="text-xs opacity-75">Field {practice.field_id}</div>
                           </div>
                         ))}
                       </div>
@@ -1035,26 +1030,17 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             <div className="p-4">
               <div className="max-h-[min(600px,70vh)] overflow-y-auto">
                 {(() => {
-                  let filteredPractices = practices;
-                  if (selectedTeamFilter !== 'all') {
-                    const filterTeamId = parseInt(selectedTeamFilter);
-                    const filterTeam = allTeams.find(t => t.id === filterTeamId);
-                    const filterTeamName = filterTeam?.name;
-                    filteredPractices = practices.filter(p => p.team_name === filterTeamName || p.team_id === filterTeamId);
-                  }
-
-                  const sortedPractices = [...filteredPractices].sort((a, b) => {
-                    const dateCompare = a.date.localeCompare(b.date);
-                    if (dateCompare !== 0) return dateCompare;
-                    return a.start_time.localeCompare(b.start_time);
-                  });
-
-                  const futurePractices = sortedPractices.filter(p => {
-                    const practiceDate = new Date(p.date);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return practiceDate >= today;
-                  });
+                  const todayStr = new Date().toLocaleDateString('en-CA');
+                  const futurePractices = practiceEvents
+                    .filter(eventMatchesTeamFilter)
+                    // String compare on ISO dates: `new Date('2026-07-30')` parses
+                    // as UTC midnight and can land on the previous day west of
+                    // Greenwich, which would drop today's practices from the list.
+                    .filter(e => e.event_date >= todayStr)
+                    .sort((a, b) => {
+                      const d = a.event_date.localeCompare(b.event_date);
+                      return d !== 0 ? d : (a.start_time || '').localeCompare(b.start_time || '');
+                    });
 
                   if (futurePractices.length === 0) {
                     return (
@@ -1066,7 +1052,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
                   let currentMonth = '';
                   return futurePractices.map((practice, index) => {
-                    const practiceDate = new Date(practice.date);
+                    const practiceDate = new Date(`${practice.event_date}T00:00:00`);
                     const monthYear = practiceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                     const showMonthHeader = monthYear !== currentMonth;
                     currentMonth = monthYear;
@@ -1086,28 +1072,25 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                           </div>
                           <div className="col-span-2">
                             <div className="text-brand-primary">
-                              {practice.start_time} - {practice.end_time}
+                              {practice.start_time && practice.end_time
+                                ? `${practice.start_time} - ${practice.end_time}`
+                                : 'All Day'}
                             </div>
                           </div>
                           <div className="col-span-3">
-                            <div className={`inline-block px-2 py-1 text-sm border ${getTeamColor(practice.team_name)}`}>
-                              {practice.team_name}
+                            <div className={`inline-block px-2 py-1 text-sm border ${getTeamColor(practice.team_name || '')}`}>
+                              {practice.teams && practice.teams.length > 0
+                                ? practice.teams.map(t => t.name).join(', ')
+                                : practice.team_name || 'No team'}
                             </div>
                           </div>
-                          <div className="col-span-2">
-                            <div className="text-gray-600">
-                              Facility {practice.venue_id}
-                            </div>
-                          </div>
-                          <div className="col-span-2">
-                            <div className="text-gray-600">
-                              Field {practice.field_id}
+                          <div className="col-span-4">
+                            <div className="text-gray-600 truncate">
+                              {practice.venue_name || practice.location || '—'}
                             </div>
                           </div>
                           <div className="col-span-1">
-                            <div className="text-gray-600 capitalize">
-                              {practice.day}
-                            </div>
+                            <div className="text-gray-600 truncate">{practice.name}</div>
                           </div>
                         </div>
                       </div>
@@ -1151,65 +1134,31 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
           </div>
         )}
 
-        {/* Stats */}
+        {/* Stats — all four read `events`, the only source there is. "Total
+            Practices" is scoped to the visible month like "This Month" beside it;
+            a lifetime count (334 for club 32) on a month calendar meant nothing. */}
         <div className="mt-6 grid grid-cols-4 gap-4">
           <div className="bg-gray-50 border border-gray-300 p-4">
             <div className="text-2xl font-bold text-brand-primary">
-              {events.filter(e => {
-                if (selectedTeamFilter === 'all') return true;
-                const filterTeamId = parseInt(selectedTeamFilter);
-                if (e.teams && e.teams.length > 0) {
-                  return e.teams.some(t => t.id === filterTeamId);
-                }
-                return false;
-              }).length}
+              {events.filter(eventMatchesTeamFilter).length}
             </div>
             <div className="text-sm text-gray-600 uppercase">Total Events</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
             <div className="text-2xl font-bold text-brand-primary">
-              {practices.filter(p => {
-                if (selectedTeamFilter === 'all') return true;
-                const filterTeamId = parseInt(selectedTeamFilter);
-                const filterTeam = allTeams.find(t => t.id === filterTeamId);
-                return p.team_name === filterTeam?.name || p.team_id === filterTeamId;
-              }).length}
+              {practiceEvents.filter(e => eventMatchesTeamFilter(e) && inCurrentMonth(e)).length}
             </div>
-            <div className="text-sm text-gray-600 uppercase">Total Practices</div>
+            <div className="text-sm text-gray-600 uppercase">Practices This Month</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
             <div className="text-2xl font-bold text-brand-primary">
-              {[...events, ...practices].filter(item => {
-                const itemDate = new Date('event_date' in item ? item.event_date : item.date);
-                const inMonth = itemDate.getMonth() === currentDate.getMonth() &&
-                       itemDate.getFullYear() === currentDate.getFullYear();
-                if (!inMonth) return false;
-                if (selectedTeamFilter === 'all') return true;
-                const filterTeamId = parseInt(selectedTeamFilter);
-                const filterTeam = allTeams.find(t => t.id === filterTeamId);
-                if ('teams' in item && item.teams) {
-                  return item.teams.some(t => t.id === filterTeamId);
-                }
-                return item.team_name === filterTeam?.name;
-              }).length}
+              {events.filter(e => eventMatchesTeamFilter(e) && inCurrentMonth(e)).length}
             </div>
             <div className="text-sm text-gray-600 uppercase">This Month</div>
           </div>
           <div className="bg-gray-50 border border-gray-300 p-4">
             <div className="text-2xl font-bold text-brand-primary">
-              {[...events, ...practices].filter(item => {
-                const itemDate = new Date('event_date' in item ? item.event_date : item.date);
-                const todayDate = new Date();
-                todayDate.setHours(0, 0, 0, 0);
-                if (itemDate < todayDate) return false;
-                if (selectedTeamFilter === 'all') return true;
-                const filterTeamId = parseInt(selectedTeamFilter);
-                const filterTeam = allTeams.find(t => t.id === filterTeamId);
-                if ('teams' in item && item.teams) {
-                  return item.teams.some(t => t.id === filterTeamId);
-                }
-                return item.team_name === filterTeam?.name;
-              }).length}
+              {events.filter(e => eventMatchesTeamFilter(e) && e.event_date >= new Date().toLocaleDateString('en-CA')).length}
             </div>
             <div className="text-sm text-gray-600 uppercase">Upcoming</div>
           </div>

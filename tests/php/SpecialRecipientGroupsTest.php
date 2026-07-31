@@ -3,7 +3,11 @@
 use PHPUnit\Framework\TestCase;
 
 // Load the gateway for its query helpers only — no dispatch, no Neon connect.
-define('TE_RECIPIENT_SEARCH_LIB_ONLY', true);
+// Guarded: more than one test file now loads this gateway, and phpunit.xml sets
+// failOnWarning, so an unguarded redefine fails the suite.
+if (!defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
+    define('TE_RECIPIENT_SEARCH_LIB_ONLY', true);
+}
 require_once __DIR__ . '/../../api/recipient-search-gateway.php';
 
 /**
@@ -131,19 +135,21 @@ class SpecialRecipientGroupsTest extends TestCase
         return array_column(getSpecialGroups($this->pdo, self::CLUB), 'recipient_count', 'id');
     }
 
-    public function testGroupListOffersAllFourGroups(): void
+    public function testGroupListOffersEveryGroup(): void
     {
         $groups = getSpecialGroups($this->pdo, self::CLUB);
 
+        // 'all_coaches' added 2026-07-30 — a staff-only group, so a club can text
+        // coaches without the message going to families.
         $this->assertSame(
-            ['all', 'all_crew', 'invite_never_sent', 'invite_sent_not_setup'],
+            ['all', 'all_crew', 'all_coaches', 'invite_never_sent', 'invite_sent_not_setup'],
             array_column($groups, 'id')
         );
         $this->assertSame(
-            ['All', 'All Crew', 'Invite Never Sent', 'Invite Sent, Not Set Up'],
+            ['All', 'All Crew', 'All Coaches', 'Invite Never Sent', 'Invite Sent, Not Set Up'],
             array_column($groups, 'name')
         );
-        $this->assertSame(['special', 'special', 'special', 'special'], array_column($groups, 'group_type'));
+        $this->assertSame(array_fill(0, 5, 'special'), array_column($groups, 'group_type'));
     }
 
     public function testAllCrewCollapsesTheSharedHousehold(): void

@@ -22,8 +22,41 @@ interface TeamGroup {
   athlete_count?: number;
   guardian_count?: number;
   group_type?: 'team' | 'special';
+  /** How many messages actually go out — distinct addresses on THIS channel. */
   recipient_count?: number;
+  /** How many people are in the group, reachable or not. */
+  people_count?: number;
+  /** People in the group with no address for this channel. */
+  missing_contact_count?: number;
+  /** "phone number" or "email address", so the copy matches the channel. */
+  missing_contact_label?: string;
 }
+
+/**
+ * Explain a group's size instead of asserting a bare number.
+ *
+ * These are three different counts and the arithmetic between them does not
+ * close: a household sharing one mobile is two people, nobody missing, one
+ * message. Saying "154 recipients" was wrong, and deriving "missing" by
+ * subtraction would wrongly accuse that household of lacking a phone.
+ */
+const groupCountSummary = (group: TeamGroup): { headline: string; detail: string | null } => {
+  const reachable = group.recipient_count ?? 0;
+  const people = group.people_count;
+  const missing = group.missing_contact_count ?? 0;
+  const label = group.missing_contact_label ?? 'contact details';
+
+  const headline = `${reachable} will receive`;
+  if (people === undefined) return { headline, detail: null };
+
+  const parts = [`${people} ${people === 1 ? 'person' : 'people'}`];
+  if (missing > 0) parts.push(`${missing} missing a ${label}`);
+  // Same person twice is not the same as an unreachable person — name it.
+  const sharing = people - missing - reachable;
+  if (sharing > 0) parts.push(`${sharing} share a ${label}`);
+
+  return { headline, detail: parts.join(' · ') };
+};
 
 interface GroupChip {
   group: TeamGroup;
@@ -132,6 +165,10 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       const params = new URLSearchParams({
         action: 'groups',
         club_profile_id: String(clubProfileId),
+        // Without this the counts are email-based on both channels, which is how
+        // "All Crew (124)" appeared in SMS compose while the send reached a
+        // different number of people entirely.
+        channel,
       });
       const res = await fetch(`${API_URL}/api/recipient-search?${params}`, { headers: headersRef.current });
       if (!res.ok) throw new Error('Failed to fetch groups');
@@ -477,9 +514,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                       </div>
                     </div>
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.group_type === 'special'
-                        ? 'Group'
-                        : `${group.athlete_count || 0} athletes, ${group.guardian_count || 0} crew`}
+                      {groupCountSummary(group).headline}
                     </span>
                   </button>
                 );
@@ -616,14 +651,20 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                     )}
                   </div>
                   <div className="text-xs text-gray-500 text-right">
-                    {group.group_type === 'special' ? (
-                      <div>{group.recipient_count} recipients</div>
-                    ) : (
-                      <>
-                        <div>{group.athlete_count} athletes</div>
-                        <div>{group.guardian_count} crew</div>
-                      </>
-                    )}
+                    {(() => {
+                      const { headline, detail } = groupCountSummary(group);
+                      return (
+                        <>
+                          <div className="font-medium text-gray-700">{headline}</div>
+                          {detail && <div className="text-gray-400">{detail}</div>}
+                          {group.group_type === 'team' && (
+                            <div className="text-gray-400">
+                              {group.athlete_count} athletes · {group.guardian_count} crew
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </button>
               );
