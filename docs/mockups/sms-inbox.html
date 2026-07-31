@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teams Elevated — SMS Inbox (mockup)</title>
+
+<style>
+  :root {
+    --ground:   #ffffff;
+    --surface:  #f7faf9;
+    --surface-2:#eef4f2;
+    --line:     #e2ebe8;
+    --ink:      #0f1c1a;
+    --ink-2:    #4a5c58;
+    --ink-3:    #7d8f8a;
+    --primary:  #12443e;
+    --primary-2:#236f4f;
+    --accent:   #3fcb9a;
+    --amber:    #b45309;
+    --amber-bg: #fef4e6;
+    --red:      #b91c1c;
+    --red-bg:   #fdeeee;
+    --green:    #15803d;
+    --radius:   4px;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:   #0b1614;
+      --surface:  #101f1c;
+      --surface-2:#162a26;
+      --line:     #223733;
+      --ink:      #e6f0ed;
+      --ink-2:    #a3b5b0;
+      --ink-3:    #7a8d88;
+      --primary:  #2bb382;
+      --primary-2:#3fcb9a;
+      --accent:   #3fcb9a;
+      --amber:    #f0a95c;
+      --amber-bg: #33260f;
+      --red:      #f08b8b;
+      --red-bg:   #331616;
+      --green:    #5fd18e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0b1614; --surface:#101f1c; --surface-2:#162a26; --line:#223733;
+    --ink:#e6f0ed; --ink-2:#a3b5b0; --ink-3:#7a8d88;
+    --primary:#2bb382; --primary-2:#3fcb9a; --accent:#3fcb9a;
+    --amber:#f0a95c; --amber-bg:#33260f; --red:#f08b8b; --red-bg:#331616; --green:#5fd18e;
+  }
+  :root[data-theme="light"] {
+    --ground:#ffffff; --surface:#f7faf9; --surface-2:#eef4f2; --line:#e2ebe8;
+    --ink:#0f1c1a; --ink-2:#4a5c58; --ink-3:#7d8f8a;
+    --primary:#12443e; --primary-2:#236f4f; --accent:#3fcb9a;
+    --amber:#b45309; --amber-bg:#fef4e6; --red:#b91c1c; --red-bg:#fdeeee; --green:#15803d;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--ground);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  .note {
+    max-width: 74ch;
+    margin: 0 auto;
+    padding: 28px 24px 8px;
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .note h1 {
+    font-size: 20px; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 6px;
+  }
+  .note .eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-3); margin-bottom: 10px;
+  }
+  .note code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--surface-2); padding: 1px 5px; border-radius: 3px;
+  }
+
+  .frame {
+    max-width: 1180px;
+    margin: 20px auto 40px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--ground);
+    box-shadow: 0 1px 3px rgba(15,28,26,.06);
+  }
+
+  /* ── app chrome: mirrors the real top nav ── */
+  .topnav {
+    display: flex; align-items: center; gap: 26px;
+    padding: 0 18px; height: 52px;
+    background: var(--primary);
+    color: #fff;
+  }
+  .wordmark {
+    font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  .wordmark .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none;
+  }
+  .topnav nav { display: flex; gap: 20px; font-size: 13px; overflow-x: auto; }
+  .topnav nav span { color: rgba(255,255,255,.72); white-space: nowrap; padding: 4px 0; }
+  .topnav nav span.on {
+    color: #fff; font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  .avatar {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 50%; flex: none;
+    background: var(--accent); color: var(--primary);
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  }
+
+  .subnav {
+    display: flex; gap: 22px; align-items: center;
+    padding: 0 18px; height: 42px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-2); overflow-x: auto;
+  }
+  .subnav span { white-space: nowrap; }
+  .subnav .on { color: var(--primary); font-weight: 600; box-shadow: inset 0 -2px 0 var(--primary); height: 42px; display: flex; align-items: center; }
+
+  /* ── three panes ── */
+  .panes { display: grid; grid-template-columns: 176px 320px 1fr; height: 560px; }
+  @media (max-width: 900px) {
+    .panes { grid-template-columns: 1fr; height: auto; }
+    .rail, .list { border-right: none; border-bottom: 1px solid var(--line); }
+    .list { max-height: 300px; }
+    .thread { min-height: 460px; }
+  }
+
+  .rail {
+    background: var(--surface); border-right: 1px solid var(--line);
+    padding: 14px 0; overflow-y: auto;
+  }
+  .rail h4 {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-3); padding: 0 14px; margin: 14px 0 6px; font-weight: 600;
+  }
+  .rail h4:first-child { margin-top: 0; }
+  .rail a {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 14px; font-size: 13px; color: var(--ink-2);
+    text-decoration: none; border-left: 2px solid transparent;
+  }
+  .rail a.on {
+    background: var(--ground); color: var(--primary);
+    font-weight: 600; border-left-color: var(--primary);
+  }
+  .rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .count {
+    font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+  }
+  .count.alert {
+    background: var(--amber-bg); color: var(--amber);
+    padding: 1px 6px; border-radius: 9px; font-weight: 700;
+  }
+
+  /* ── conversation list ── */
+  .list { border-right: 1px solid var(--line); overflow-y: auto; background: var(--ground); }
+  .list-head {
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+    display: flex; gap: 6px; position: sticky; top: 0; background: var(--ground); z-index: 1;
+  }
+  .chip {
+    font-size: 11px; padding: 3px 9px; border-radius: 11px;
+    border: 1px solid var(--line); color: var(--ink-2); background: var(--ground);
+    white-space: nowrap;
+  }
+  .chip.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+
+  .convo {
+    display: grid; grid-template-columns: 8px 1fr auto; gap: 8px;
+    padding: 11px 14px 11px 8px;
+    border-bottom: 1px solid var(--line); cursor: pointer;
+  }
+  .convo.sel { background: var(--surface-2); }
+  .convo .unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 6px; }
+  .convo .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .convo.read .name { font-weight: 500; color: var(--ink-2); }
+  .convo .sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+  .convo .prev {
+    font-size: 12px; color: var(--ink-2); margin-top: 4px; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .convo .when { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-top: 6px;
+  }
+  .tag.reply { background: var(--amber-bg); color: var(--amber); }
+  .tag.stop  { background: var(--red-bg);   color: var(--red); }
+
+  /* ── thread ── */
+  .thread { display: flex; flex-direction: column; min-width: 0; background: var(--ground); }
+  .thread-head {
+    padding: 12px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  }
+  .thread-head h2 { font-size: 15px; }
+  .thread-head .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .thread-head .meta b { color: var(--ink-2); font-weight: 600; }
+  .ghost {
+    margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .ghost button {
+    font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--ground); color: var(--ink-2);
+    border-radius: var(--radius);
+  }
+  .ghost button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .daymark {
+    align-self: center; font-size: 11px; color: var(--ink-3);
+    background: var(--surface-2); padding: 2px 10px; border-radius: 10px;
+  }
+  .bubble { max-width: 74%; padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+  .bubble .stamp {
+    display: block; font-size: 10px; margin-top: 5px; opacity: .75;
+    font-variant-numeric: tabular-nums;
+  }
+  .in  { align-self: flex-start; background: var(--surface-2); color: var(--ink); border-bottom-left-radius: 3px; }
+  .out { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
+  .auto {
+    align-self: flex-start; background: var(--ground); color: var(--ink-2);
+    border: 1px dashed var(--line); border-bottom-left-radius: 3px;
+  }
+  .auto .who {
+    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-3); margin-bottom: 3px; font-weight: 700;
+  }
+
+  .composer { border-top: 1px solid var(--line); padding: 12px 18px 14px; background: var(--surface); }
+  .composer textarea {
+    width: 100%; min-height: 62px; resize: vertical; font: inherit; font-size: 13px;
+    padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--ground); color: var(--ink);
+  }
+  .composer textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .composer .bar { display: flex; align-items: center; gap: 12px; margin-top: 9px; flex-wrap: wrap; }
+  .sendas { font-size: 11px; color: var(--ink-3); }
+  .sendas b { color: var(--ink-2); font-family: var(--mono); font-weight: 600; }
+  .seg { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+  .send {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; cursor: pointer;
+    background: var(--primary); color: #fff; border: 1px solid var(--primary); border-radius: var(--radius);
+  }
+  .send:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .blocked {
+    display: flex; gap: 9px; align-items: flex-start;
+    background: var(--red-bg); border: 1px solid var(--red);
+    border-radius: var(--radius); padding: 10px 12px; font-size: 12px; color: var(--red);
+  }
+
+  .legend {
+    max-width: 1180px; margin: 0 auto 48px; padding: 0 24px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px;
+  }
+  .legend div { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+  .legend h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--primary); margin-bottom: 5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="note">
+  <p class="eyebrow">Mockup · not built</p>
+  <h1>SMS Inbox</h1>
+  <p>
+    Replies land in the app instead of vanishing into Twilio, and an admin answers from here —
+    the reply goes out as a text from the club's own number. Every message below is real: these
+    are the seven replies to the Central Kansas broadcast on 30 July.
+  </p>
+</div>
+
+<div class="frame">
+  <div class="topnav">
+    <span class="wordmark"><span class="dot"></span>Teams Elevated</span>
+    <nav>
+      <span>Revenue</span><span>Programs</span><span>Teams</span>
+      <span class="on">Communications</span><span>Calendar</span><span>Facilities</span>
+    </nav>
+    <span class="avatar">MM</span>
+  </div>
+
+  <div class="subnav">
+    <span>All</span><span class="on">Inbox</span><span>Broadcast</span>
+    <span>Email Templates</span><span>SMS Templates</span><span>Reporting</span>
+  </div>
+
+  <div class="panes">
+    <aside class="rail">
+      <h4>Status</h4>
+      <a href="#" class="on">Needs reply <span class="count alert">4</span></a>
+      <a href="#">Unread <span class="count">5</span></a>
+      <a href="#">All <span class="count">7</span></a>
+      <a href="#">Done <span class="count">0</span></a>
+      <h4>Sending as</h4>
+      <a href="#" class="on">Central Kansas <span class="count">785…4221</span></a>
+    </aside>
+
+    <section class="list" aria-label="Conversations">
+      <div class="list-head">
+        <span class="chip on">Needs reply</span>
+        <span class="chip">Unread</span>
+        <span class="chip">All</span>
+      </div>
+
+      <article class="convo sel">
+        <span class="unread-dot"></span>
+        <div>
+          <div class="name">Cathy Rice</div>
+          <div class="sub">Crew · Jayce Darrington</div>
+          <div class="prev">I did not receive an email ir in my spam</div>
+          <span class="tag reply">Needs reply</span>
+        </div>
+        <span class="when">11:23p</span>
+      </article>
+
+      <article class="convo">
+        <span class="unread-dot"></span>
+        <div>
+          <div class="name">Amber Benning</div>
+          <div class="sub">Crew · Lyris Wohler</div>
+          <div class="prev">Unfortunately I haven't seen an email? Can you tell me which email it was sent to?</div>
+          <span class="tag reply">Needs reply</span>
+        </div>
+        <span class="when">11:19p</span>
+      </article>
+
+      <article class="convo">
+        <span class="unread-dot"></span>
+        <div>
+          <div class="name">Monica Cruz Arias</div>
+          <div class="sub">Crew · Alejandro Cruz Arias</div>
+          <div class="prev">I don't have any email, could you send it again</div>
+          <span class="tag reply">Needs reply</span>
+        </div>
+        <span class="when">11:18p</span>
+      </article>
+
+      <article class="convo">
+        <span class="unread-dot"></span>
+        <div>
+          <div class="name">Lily Ramirez</div>
+          <div class="sub">Crew · Idalie Ramirez</div>
+          <div class="prev">I did not receive anything. Was that sent today?</div>
+          <span class="tag reply">Needs reply</span>
+        </div>
+        <span class="when">11:01p</span>
+      </article>
+
+      <article class="convo read">
+        <span></span>
+        <div>
+          <div class="name">Sarina Patrick</div>
+          <div class="sub">Crew · no longer receiving texts</div>
+          <div class="prev">Stop → Start</div>
+          <span class="tag stop">Opted out, then back in</span>
+        </div>
+        <span class="when">11:00p</span>
+      </article>
+
+      <article class="convo read">
+        <span></span>
+        <div>
+          <div class="name">Devon James</div>
+          <div class="sub">Crew · Jaia Hanks</div>
+          <div class="prev">Awesome thanks!</div>
+        </div>
+        <span class="when">10:59p</span>
+      </article>
+    </section>
+
+    <section class="thread" aria-label="Conversation with Cathy Rice">
+      <header class="thread-head">
+        <div>
+          <h2>Cathy Rice</h2>
+          <div class="meta">
+            Crew for <b>Jayce Darrington</b> · 7th–8th Team 1 · <span style="font-family:var(--mono)">+1 916 517 0661</span>
+          </div>
+        </div>
+        <div class="ghost">
+          <button type="button">Open profile</button>
+          <button type="button">Send portal invite</button>
+          <button type="button">Mark done</button>
+        </div>
+      </header>
+
+      <div class="msgs">
+        <span class="daymark">Wed 30 July</span>
+
+        <div class="bubble out">
+          Hi Cathy – Central Kansas United has adopted a new communication platform for the new
+          season, Teams Elevated. We've sent you an email with all the details. Please check your
+          inbox and your spam folder.
+          <span class="stamp">10:58p · Delivered · Broadcast: “All Crew”</span>
+        </div>
+
+        <div class="bubble in">
+          I did not receive an email ir in my spam
+          <span class="stamp">11:23p</span>
+        </div>
+
+        <div class="bubble auto">
+          <span class="who">Auto-reply sent</span>
+          Thanks for your message! This number is not monitored. Chat is in our new parent portal -
+          check your email for an invite or ask your coach.
+          <span class="stamp">11:23p</span>
+        </div>
+      </div>
+
+      <div class="composer">
+        <label class="sr-only" for="reply" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Reply to Cathy Rice</label>
+        <textarea id="reply" placeholder="Reply to Cathy…">Hi Cathy – you're right, the invite hasn't gone out yet. Sending it to crice70@yahoo.com now. Sorry for the confusion!</textarea>
+        <div class="bar">
+          <span class="sendas">Sends as a text from <b>+1 785 465 4221</b></span>
+          <span class="seg">124 / 160 · 1 segment</span>
+          <button type="button" class="send">Send text</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="legend">
+  <div>
+    <h3>Why the auto-reply is shown</h3>
+    The system already answered Cathy before any human saw this. If the thread hid that, an admin
+    would write a reply that contradicts it. Once a person can answer, that auto-reply's wording
+    has to change — it currently claims the number isn't monitored.
+  </div>
+  <div>
+    <h3>Needs reply is the default view</h3>
+    Four of these seven are the same question — <em>where is the invite?</em> The list sorts for
+    what's unanswered, not what's newest, because the job here is clearing a queue.
+  </div>
+  <div>
+    <h3>The number is stated, not assumed</h3>
+    A reply goes out from the club's own number, so the composer says which one and what the text
+    will cost in segments. The same rules as Broadcast, in the place the message is written.
+  </div>
+  <div>
+    <h3>Context comes from the athlete</h3>
+    A phone number alone is not a person. Each thread names the crew member, their athlete and
+    team, so the admin answers knowing who is asking — and can open the profile or send the
+    invite without leaving the thread.
+  </div>
+</div>
+
+</body>
+</html>
