@@ -79,6 +79,7 @@ import PlayerCards from './pages/PlayerCards';
 // Communications & Email
 import CommunicationLog from './pages/CommunicationLog';
 import BroadcastCompose from './pages/BroadcastCompose';
+import SmsInbox from './pages/SmsInbox';
 import TemplateLibrary from './pages/TemplateLibrary';
 import CrewRoster from './pages/CrewRoster';
 import TemplateEditor from './pages/TemplateEditor';
@@ -339,6 +340,7 @@ function AppContent() {
   const commsLinks = [
     { to: '/communications', label: 'All', exact: true },
     { to: '/communications/broadcast', label: 'Broadcast' },
+    { to: '/communications/inbox', label: 'Inbox' },
     { to: '/email-templates', label: 'Email Templates' },
     { to: '/sms-templates', label: 'SMS Templates' },
     { to: '/email-reporting', label: 'Reporting' },
@@ -920,6 +922,11 @@ function AppContent() {
           <Route path="/communications/broadcast" element={
             <ProtectedRoute>
               <BroadcastCompose />
+            </ProtectedRoute>
+          } />
+          <Route path="/communications/inbox" element={
+            <ProtectedRoute>
+              <SmsInbox />
             </ProtectedRoute>
           } />
 

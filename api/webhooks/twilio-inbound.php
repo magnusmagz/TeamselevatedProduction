@@ -86,8 +86,9 @@ try {
         Env::get('DB_PASSWORD'),
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
     );
-    te_record_inbound_sms($pdo, $_POST);
+    $inboundId = te_record_inbound_sms($pdo, $_POST);
 } catch (Throwable $e) {
+    $pdo = null;
     error_log('[twilio-inbound] could not record inbound SMS: ' . $e->getMessage());
 }
 
@@ -101,6 +102,27 @@ if ($isCarrierKeyword) {
 // "is anyone actually replying?" when deciding whether to build the tier that
 // forwards these to a human, without recording who said what.
 error_log(sprintf('[twilio-inbound] auto-replied to an inbound SMS on %s', $to !== '' ? $to : 'unknown number'));
+
+// Record what we are about to send, so the thread shows the family's question AND
+// the machine answer they already got. Best-effort: the reply matters more than
+// the record of it.
+if (isset($pdo) && $pdo instanceof PDO) {
+    try {
+        $club = te_resolve_inbound_club($pdo, $_POST['To'] ?? null);
+        if ($club !== null) {
+            te_record_auto_reply(
+                $pdo,
+                $club,
+                te_resolve_inbound_sender($pdo, $club, $_POST['From'] ?? null),
+                (string) ($_POST['From'] ?? ''),
+                te_normalize_sms_phone($_POST['To'] ?? null) ?? (string) ($_POST['To'] ?? ''),
+                TE_SMS_AUTOREPLY
+            );
+        }
+    } catch (Throwable $e) {
+        error_log('[twilio-inbound] could not record auto-reply: ' . $e->getMessage());
+    }
+}
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
    . '<Response><Message>'

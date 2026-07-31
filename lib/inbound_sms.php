@@ -286,6 +286,49 @@ if (!function_exists('te_apply_sms_optin')) {
     }
 }
 
+if (!function_exists('te_record_auto_reply')) {
+    /**
+     * Record the auto-reply we just sent back.
+     *
+     * The auto-reply leaves as TwiML in the webhook response, so Twilio sends it
+     * and nothing here would otherwise know it happened. An admin opening the
+     * thread later would see a family's question and no answer, and write a reply
+     * that contradicts what the family already received.
+     *
+     * Machine-vs-human is `user_id`: an auto-reply is outbound with user_id NULL,
+     * a human reply (M4) carries the admin who wrote it. That distinction is also
+     * what keeps a thread in "needs reply" after a robot has answered it — a
+     * robot answer is not an answer.
+     */
+    function te_record_auto_reply(PDO $pdo, int $clubProfileId, array $sender, string $toPhone, string $fromNumber, string $body): void
+    {
+        $stmt = $pdo->prepare("
+            INSERT INTO communication_log (
+                club_profile_id, user_id, channel, direction, recipient_type,
+                recipient_id, recipient_phone, recipient_name, athlete_id,
+                body, status, from_number, conversation_id,
+                sent_at, delivered_at, created_at
+            ) VALUES (
+                ?, NULL, 'sms', 'outbound', ?,
+                ?, ?, ?, ?,
+                ?, 'sent', ?, ?,
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+        ");
+        $stmt->execute([
+            $clubProfileId,
+            $sender['type'],
+            $sender['id'],
+            te_normalize_sms_phone($toPhone) ?? $toPhone,
+            $sender['name'],
+            $sender['athlete_id'],
+            $body,
+            $fromNumber,
+            te_sms_conversation_id($clubProfileId, $toPhone),
+        ]);
+    }
+}
+
 if (!function_exists('te_record_inbound_sms')) {
     /**
      * Write the reply to communication_log.
