@@ -827,13 +827,13 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       `player` role. Blocklisting it would refuse DMs to 23 guardians and 10 coaches — the exact
       coach↔crew conversation chat exists for. Product rule (Maggie, 2026-07-30): coaches cannot DM
       athletes at all; DMs are coach↔crew.
-- [ ] **🚫 CHAT ROLLOUT BLOCKER — no admin-review notice is live.** Club chat carries **no
+- [ ] **Chat admin-review notice + ToS — with the attorney, lands later.** Club chat carries **no
       expectation of privacy** (Maggie, 2026-07-30) and admins will be able to read reported
-      conversations, but the in-UI notice and the ToS covering it are **not written** (attorney,
-      deferred). Deferring was safe only because nobody real uses chat — verified: every `direct`
-      message in prod is between internal test accounts, and the only 2 external senders used a
-      *team* chat admins could already read. **Do not roll chat out to a club until the header
-      notice and ToS are live.** Detail in `docs/chat-moderation-plan.md` → M5.
+      conversations. **Chat is live and approved for the beta clubs ahead of that copy — decided
+      2026-07-30, the business owns the risk tolerance. This is not a blocker; do not re-raise it as
+      one.** Still to land: the header line "Club administrators can review messages", and ToS
+      acceptance via `users.tos_accepted_at` / `tos_version`. Detail in
+      `docs/chat-moderation-plan.md` → M5.
 - [ ] **Chat moderation — scheduled week of 2026-08-03.** Full plan in
       `docs/chat-moderation-plan.md`. Report/auto-flag → admin notified → admin opens that
       conversation with full read → removes or dismisses. Every admin read is logged — a

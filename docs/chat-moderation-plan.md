@@ -170,22 +170,23 @@ Two rules that are not negotiable:
 
 ---
 
-## M5 — Notice + ToS — **OUT OF THE BUILD. THIS IS A ROLLOUT BLOCKER.**
+## M5 — Notice + ToS — out of the build, follows later
 
-Maggie, 2026-07-30: the attorney writes the ToS, and re-acceptance waits, **because nobody is using
-chat yet**. Verified rather than assumed — of the 8 accounts that have ever sent a chat message, 6
-are internal (`maggie+*@4msquared.com`, `@teamselevated.com`). The only 2 real people
-(`l.bixby2021@icloud.com`, `peterfmendez@gmail.com`) exchanged 2 messages in a **team** chat, which
-club admins could already read. **Every `direct` message in the system is between internal test
-accounts.** So M3 exposes no real family's private conversation and the notice can follow.
+**Decision (Maggie, 2026-07-30): chat is live and goes to the beta clubs now. The ToS comes from the
+attorney afterwards, and the business owns this risk tolerance explicitly.** Not an oversight and
+not pending — decided. Do not re-raise it as a blocker.
 
-**That safety argument expires the moment a real club starts using chat.** This is recorded as a
-blocker on chat rollout, not a to-do:
+Still to land, in the attorney's time:
 
 - Persistent line in the conversation header: "Club administrators can review messages."
-- ToS/privacy copy + re-acceptance via `users.tos_accepted_at` / `tos_version`.
-- **Do not roll chat out to a club until both are live.** If M3 shipped before them, the changelog
-  entry says so explicitly and says why it was safe at the time.
+- ToS/privacy copy + acceptance via `users.tos_accepted_at` / `tos_version`.
+
+**Fact for whoever builds M3, not a caution:** once beta clubs are live, admin read touches real
+families' conversations rather than internal test accounts. As of 2026-07-30 every `direct` message
+in prod was between internal accounts (6 of the 8 senders ever were `maggie+*@4msquared.com` /
+`@teamselevated.com`), so that ceases to be true as beta usage starts. It changes what the access
+log in M3 is holding, which is a reason to build M3 with the log rather than after it — not a reason
+to delay M3.
 
 ---
 
@@ -243,9 +244,35 @@ coach↔athlete DMs cannot exist at all. M0 is the stronger form of the same con
 
 ---
 
+## M7 — Queue health + compliance summary
+
+Added 2026-07-30. Maggie: this is a **compliance feature that sells** — club admins hold queue
+access and the capability itself is the pitch.
+
+That is legitimate, and it has a design consequence. A queue that is demoed but not watched is worse
+for a club than no queue: an unactioned flag sitting for eight months is discoverable evidence that
+they were told and did nothing. **Make inaction visible** — it protects the club and it demos better.
+
+- Oldest unreviewed item and open count, surfaced on the queue and the admin dashboard.
+- Weekly digest to club admins when anything is open. Silence when the queue is clean.
+- **Compliance summary** — messages reviewed, flags raised, actions taken, over a date range. This
+  is the artifact a club hands to a board or an insurer, and it is the reason a buyer cares.
+
+Sellable claims in descending strength, which is roughly the inverse of how impressive they sound:
+
+1. Coaches cannot privately message athletes (**M0** — structural, verifiable)
+2. No message can be deleted by anyone (**shipped 2026-07-30**), retained under a stated policy
+   (`lib/retention_plans.php`)
+3. Removals are tombstoned and audited; nothing vanishes silently (**M1**)
+4. Any participant can report; admins review (**M2**)
+5. Admin access is itself logged (**M3**) — the answer to "so admins read everyone's messages?"
+6. Automated flagging (**M4**) — sounds strongest, is weakest
+
+---
+
 ## Order
 
-**M0 → M1 → M2 → M3 → M4.** M5 is no longer in the build (attorney), and is a rollout gate.
+**M0 → M1 → M2 → M3 → M4 → M7.** M5 is no longer in the build (attorney), and is a rollout gate.
 
 M0 first: it is a security fix on its own merits and it is the structural control — it prevents
 rather than detects, and needs nobody watching a queue. M1 is the foundation for the rest. M3 is
