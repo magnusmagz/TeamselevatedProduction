@@ -32,6 +32,44 @@ Newest first. Times are Pacific.
 
 ## 2026-07-31
 
+### Merged a duplicate Taylor Cook — ad-hoc prod data fix
+No code change. Neon snapshot taken beforehand at Maggie's request.
+
+Guardians **306** and **382** were the same person: identical name, email
+(`tcook0921@yahoo.com`) and phone, each attached to one of the two Cook girls —
+306 to Calani, 382 to Tiana. Christina Cook, on the same family, was correctly ONE
+row linked to both, which points at the importer matching the first guardian on a
+family row and duplicating the second.
+
+Merged into 306 inside a single transaction guarded by a `DO` block that aborts
+unless the state matches what was reviewed — both rows present, still sharing an
+email, duplicate holding exactly one link, and no existing link between keeper and
+that athlete (which would have produced a duplicate pair, since
+`athlete_guardians` has **no** unique index on `(athlete_id, guardian_id)`).
+Repointed the link, moved 1 `communication_log` row so her history stays in one
+place, then deleted 382 — by which point it owned nothing, so its `ON DELETE
+CASCADE` took nothing with it.
+
+After: Taylor is one row, 2 athlete links, 3 comms rows. Zero orphans.
+
+**Prod state discovered while checking:** 306 carried the `tcook0921@yhaoo.com`
+typo (the address that was *rejected* on 2026-07-29) and 382 had it spelled right
+(*delivered*). Both read correctly now.
+
+**Maddison Mathis merged too** (same session). Inverse shape: 424 and 467 both sat on the SAME
+athlete (Benson Mathis), so the fix deletes the duplicate link rather than repointing it — getting
+that backwards would have produced two identical pairs, which nothing prevents since
+`athlete_guardians` has no unique index on `(athlete_id, guardian_id)`. Kept **424** for its send
+history and inherited what 467 had right: the correctly spelled `jbaughman1972@yahoo.com` (424
+carried `jbaugjman1972@` — the address that **bounced** on 2026-07-29) and the `is_primary` flag,
+which lives on the LINK, not the guardian. Someone had re-added her with the corrected address
+instead of editing the original.
+
+**Still NOT actioned** — Maddison Mathis (424 typo/bounced
+vs 467 correct, both on the same athlete, so a merge deletes the duplicate link
+rather than repointing it) and Laura Thompson (63 orphaned test row vs 464 real).
+Root cause is still the open `createOrFindGuardian` matching bug in CLAUDE.md.
+
 ### Staff can see who still owes parental consent
 `571b736` (merged as `59c88da`) · Heroku deploy of `59c88da` · Netlify build of `59c88da` ·
 **no migration** (uses the columns migration 063 added this morning)

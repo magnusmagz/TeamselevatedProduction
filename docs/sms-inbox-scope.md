@@ -62,222 +62,225 @@ optimization, not a requirement.
 
 ---
 
-## Build
 
-### 1. Capture — migration 060
+## Milestones
 
-`api/webhooks/twilio-inbound.php` currently stores **nothing**, deliberately, and
-`SmsAutoReplyTest::testNothingIsStored` enforces that. This inverts it, so that test changes with
-the feature.
+Five, each independently shippable and each leaving the product in a defensible state. **M1–M3
+change nothing a family can see** — capture is invisible, and the inbox is admin-only behind a
+flag that is off. The first family-visible change is M4, which is also the first that makes a
+promise, and therefore the one where the copy has to move.
 
-```
+| | Milestone | Family-visible? | Ships behind the flag? |
+|---|---|---|---|
+| M1 | Capture inbound | No | No — always on |
+| M2 | Record STOP on arrival | No | No — compliance |
+| M3 | Read-only inbox | No (admin UI) | Yes |
+| M4 | Reply as SMS + new copy | **Yes** | Yes |
+| M5 | Polish: unknown senders, ambiguity, mark done | No | Yes |
+
+Every milestone's fixtures mirror `tests/fixtures/production-schema.json`, and every migration is
+rehearsed on a Neon branch before prod — 057's `phone_number NOT NULL` defect was caught only by
+checking the real database after applying, on a table that happened to be empty. `communication_log`
+is not empty.
+
+---
+
+### M1 — Capture inbound
+
+Migration 060 and the webhook writing rows. Nothing reads them yet.
+
+**Migration 060**
+
+```sql
 ALTER TABLE communication_log
-  ADD COLUMN direction        VARCHAR(10) NOT NULL DEFAULT 'outbound'
+  ADD COLUMN direction       VARCHAR(10) NOT NULL DEFAULT 'outbound'
     CHECK (direction IN ('outbound','inbound')),
-  ADD COLUMN conversation_id  VARCHAR(64),
-  ADD COLUMN read_at          TIMESTAMP;
-```
+  ADD COLUMN conversation_id VARCHAR(64),
+  ADD COLUMN read_at         TIMESTAMP;
 
-`conversation_id` = a hash of `club_profile_id + normalized contact phone`. **Keyed on the club,
-not on the sender**, because the club owns the number today — when per-coach numbers arrive
-(`unified-messaging-scope.md` Phase 1) the key gains the user and existing threads keep working.
+CREATE INDEX communication_log_conversation_idx
+  ON communication_log (conversation_id, created_at);
 
-Reusing `communication_log` rather than a new table is what makes inbound show up on the contact's
-existing Communications tab for free, and keeps one delivery/status vocabulary.
-
-### 1b. The flag — per club, not global
-
-Migration 060 also adds:
-
-```
 ALTER TABLE sms_phone_numbers
   ADD COLUMN inbox_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 ```
 
-It lives on `sms_phone_numbers`, not `club_profile`, mirroring
-`club_payment_accounts.charges_enabled` and `payment_items.sibling_discount_enabled` — this repo
-has no global flag system, it puts capability booleans on the row that owns the capability and
-checks them server-side. An inbox cannot exist without a number, so this is that row.
+`DEFAULT 'outbound'` is what makes this safe on a live table: the 500+ existing rows are all
+outbound and become correct without a backfill.
 
-**It must be per club, because the flag drives the auto-reply copy.** "Someone from your club will
-get back to you here" is only true where someone is watching. A global toggle would promise it to
-every club at once, including ones with no one reading. Tie the promise to the same boolean that
-turns the inbox on and the two can never disagree.
+`conversation_id` = hash of `club_profile_id + normalized contact phone`. **Keyed on the club, not
+the sender** — the club owns the number today, and when per-coach numbers arrive the key gains the
+user without orphaning existing threads.
 
-What the flag does and does not gate:
+`api/webhooks/twilio-inbound.php` resolves `To` → club via `sms_phone_numbers`, `From` → person via
+`te_normalize_sms_phone` across `guardians.mobile_phone`, `athletes.phone`, `users.phone`, and
+writes an inbound row. It keeps sending the current auto-reply — storing is not monitoring, so
+"this number is not monitored" stays true.
 
-| | Flagged? |
-|---|---|
-| Capturing inbound (writing the rows) | **No — always on** |
-| Recording STOP on arrival | **No — always on**, it is a compliance fix |
-| Inbox route, nav item, reply | Yes |
-| Which auto-reply copy is sent | Yes — branches on it |
+`SmsAutoReplyTest::testNothingIsStored` is retired here. It pinned a Tier 0 promise we are
+deliberately leaving; it is replaced by A1/A2 in M4.
 
-Capture stays on for every club because storing is not monitoring: the current copy says the number
-is *not monitored*, which remains true for an unflagged club, and it means the inbox has real
-history the day it is switched on rather than opening empty. `SmsAutoReplyTest::testNothingIsStored`
-is retired at that point — it pinned a Tier 0 promise we are deliberately leaving behind, and the
-test that replaces it should assert the copy matches the flag.
+**Tests — M1**
 
-Enable it for Central Kansas first. They are the club that generated the replies, and the only one
-whose families are actively texting.
+| # | Test | Expected |
+|---|---|---|
+| M1.1 | Inbound to club 51's number | Row written, `club_profile_id` 51, never 32 |
+| M1.2 | Inbound to a number no club owns | No crash, no row misattributed, logged |
+| M1.3 | `From` raw vs stored `(785) 555-0100` | Matched by normalization, not string equality |
+| M1.4 | `From` matches nobody | Row still written, recipient null, marked unknown — **never dropped** |
+| M1.5 | Two messages, same person | Identical `conversation_id` |
+| M1.6 | Same person texts two clubs | **Two** `conversation_id`s — clubs never share a thread |
+| M1.7 | Existing outbound rows after migration | All read `direction='outbound'`, no backfill needed |
+| M1.8 | Inbound row on the contact's Communications tab | Appears, without that page being changed |
+| M1.9 | Auto-reply still sent | Unchanged wording at this milestone |
 
-### 2. Route inbound
+**Done when:** a text to the Kansas number appears as a row with the right club and person, and
+nothing about the product has visibly changed.
 
-`To` → `sms_phone_numbers` → club. That lookup is exact and only became possible when per-club
-numbers shipped on 2026-07-30; with one shared number there was no way to know which club a reply
-belonged to.
+---
 
-`From` → the person, via `te_normalize_sms_phone` against `guardians.mobile_phone`,
-`athletes.phone`, `users.phone`. Three outcomes, all of which need defined behavior:
+### M2 — Record STOP when it arrives
 
-- **one match** → attribute the thread to them
-- **no match** → thread still created, labelled "Unknown sender". **Never drop it.**
-- **several** (a shared household mobile) → attribute to the primary guardian and mark the thread
-  ambiguous in the UI. Do not guess silently.
+Standalone compliance fix; valuable even if the inbox never ships.
 
-### 3. Reply — `send-sms` with a thread
+Today the only STOP sync is reactive — `handleStatusCallback` on Twilio error 21610, i.e. after a
+later send has already failed. Verified on 2026-07-30: a guardian texted `Stop` then `Start`, Twilio
+blocked at the carrier, and `email_suppressions` and `guardians.sms_opt_out` both stayed empty.
+Between a STOP and the next send, preview counts overstate and the failure surfaces as "failed"
+rather than "opted out".
 
-Replies go through the existing `SmsSendService::queueSms`, so they inherit everything already
-built and tested: per-club sender resolution, the suppression/opt-out predicate, segment counting,
-`from_number` recording, retry. A reply is an ordinary outbound message that happens to carry a
-`conversation_id`.
+Now that inbound is captured, record it at arrival: `STOP` and friends write the suppression and set
+`sms_opt_out`; `START`/`UNSTOP` clear both. Still no auto-reply to carrier keywords.
 
-**A reply must respect opt-out.** If the contact has STOPped, the composer is disabled with the
-reason — not an error after the fact.
+**Tests — M2**
 
-### 4. The inbox — `/communications/inbox`
+| # | Test | Expected |
+|---|---|---|
+| M2.1 | `STOP` arrives | Suppression row + `sms_opt_out` set **immediately** |
+| M2.2 | `START` after a STOP | Both cleared; contact reachable again |
+| M2.3 | Any carrier keyword | Still empty TwiML — no auto-reply (regression on Tier 0) |
+| M2.4 | "can we stop by the field at 6?" | Ordinary message; only the bare keyword counts |
+| M2.5 | Preview count after a STOP | Excludes them without waiting for a failed send |
+| M2.6 | STOP then a broadcast | They are skipped as `opted_out`, not `failed` |
 
-Three panes under the existing nav (see mockup): status rail, conversation list, thread. Added to
-the Communications dropdown next to Broadcast.
+**Done when:** texting STOP from a handset removes that person from the next preview count, with no
+send in between.
 
-Design decisions the mockup encodes, each for a reason:
+---
 
-- **"Needs reply" is the default view**, not "newest". The job is clearing a queue. A thread needs a
-  reply when its most recent message is inbound and unanswered by a human.
-- **The auto-reply is shown in the thread**, marked as machine-sent. If it were hidden, an admin
-  would write an answer that contradicts what the family already received.
-- **The composer states the sending number and segment count.** Same rules as Broadcast, surfaced
-  where the message is actually written.
-- **Every thread names the crew member, their athlete and team.** A phone number is not a person;
-  the admin needs to know who is asking before answering.
-- **Quick actions in the thread header** — open profile, send portal invite, mark done — because the
-  most common answer to these four replies *was* "send the invite".
+### M3 — Read-only inbox
 
-### 5. The copy has to change in the same commit
+`/communications/inbox`, admin-only, behind `inbox_enabled`. Threads, filters, no reply box.
 
-The live auto-reply says:
+Ships value on its own: at this point the four "where is my invite" replies are readable in the
+product instead of via the Twilio API.
 
-> "Thanks for your message! This number is not monitored. Chat is in our new parent portal - check
-> your email for an invite or ask your coach."
+Thread state is **derived, not stored** — `read_at` plus "is the newest message inbound". Do not add
+a second status vocabulary alongside `communication_log.status`; it will drift.
 
-Once a human reads and answers these, that is **false**. Ship the new wording with the feature, not
-after it. Constraints are unchanged and non-negotiable: **≤160 GSM-7 characters, ASCII only** — one
-curly apostrophe forces UCS-2 and the limit drops to 70. Proposed (139):
+**Tests — M3**
+
+| # | Test | Expected |
+|---|---|---|
+| M3.1 | Thread whose newest message is inbound | Listed under "Needs reply" |
+| M3.2 | Thread whose newest is an admin reply | Not in "Needs reply" |
+| M3.3 | Thread whose newest is the **auto-reply** | Still "Needs reply" — a robot answer is not an answer |
+| M3.4 | Opening a thread | `read_at` set; unread count drops |
+| M3.5 | Coach opens the inbox | 403 / not in nav — admin-only |
+| M3.6 | Admin of club 32 requests a club 51 thread | 403 |
+| M3.7 | `inbox_enabled = false` | Route and nav item absent |
+| M3.8 | Auto-reply in a thread | Rendered as machine-sent, visually distinct |
+| M3.9 | Thread header | Names crew member, athlete and team |
+
+**Done when:** an admin can read yesterday's seven replies in the app, attributed to the right
+families.
+
+---
+
+### M4 — Reply as SMS, and change the copy
+
+The first family-visible milestone. **Both halves ship together** — the moment a human can answer,
+"this number is not monitored" is false.
+
+Replies go through `SmsSendService::queueSms`, inheriting per-club sender resolution, the
+suppression predicate, segment counting, `from_number` and retry. A reply is an ordinary outbound
+message carrying a `conversation_id`.
+
+New copy, ≤160 GSM-7, ASCII only — one curly apostrophe forces UCS-2 and the limit drops to 70:
 
 > "Thanks for your message! Someone from your club will get back to you here. You can also chat
 > with your coach in our parent portal."
 
-Consider suppressing the auto-reply entirely once a club has an active inbox user — an instant
-robot reply followed by a human answer is worse than just the human answer. Decide before shipping.
+Send it only for clubs with `inbox_enabled`; unflagged clubs keep the current wording. That is the
+whole reason the flag is per-club rather than global — the promise has to match who is actually
+watching.
+
+**Tests — M4**
+
+| # | Test | Expected |
+|---|---|---|
+| M4.1 | Admin replies | Sent via `queueSms` from the club's number; `from_number` recorded |
+| M4.2 | Reply row | `direction='outbound'`, same `conversation_id` |
+| M4.3 | Club has no number configured | Existing refusal message, not a silent failure |
+| M4.4 | Contact has STOPped | Composer disabled with the reason — not an error after sending |
+| M4.5 | Reply >160 chars | Segment count shown before sending |
+| M4.6 | Coach attempts a reply | 403 |
+| M4.7 | A1: new copy | ≤160 chars, ASCII only |
+| M4.8 | A2: new copy | Does **not** claim the number is unmonitored |
+| M4.9 | Club with flag off | Still receives the old wording |
+| M4.10 | Reply then refresh | Thread leaves "Needs reply" |
+
+**Done when:** texting the club number from a handset and answering in the app lands a text back on
+that handset, from the club's number.
 
 ---
 
-## Landmines
+### M5 — The awkward cases
 
-**STOP is not recorded until a send fails.** Found 2026-07-30: a guardian texted `Stop` then
-`Start`; Twilio blocked at the carrier, and `email_suppressions` and `guardians.sms_opt_out` were
-both left empty. Our only STOP sync is reactive — `handleStatusCallback` on error 21610, i.e. after
-a later send has already failed. Now that inbound is captured, record the opt-out **at the moment
-the STOP arrives**, and the un-suppress on `Start`. Until then, preview counts overstate.
+Everything the happy path skips. Worth its own milestone because each is a decision, not a detail.
 
-**Do not let a thread become a second delivery-status vocabulary.** `communication_log.status`
-already means queued/sent/delivered/failed. Thread state is `read_at` plus "was the last message
-inbound" — derived, not a new stored status that can drift out of step.
+- **Unknown sender** — a thread with no matched person. Show the number, allow a reply, offer to
+  attach it to an existing crew member.
+- **Ambiguous sender** — a shared household mobile matching two guardians. Attribute to the primary
+  and say so in the thread; never guess silently.
+- **Mark done** — the only thread state beyond read. Shared queue, no per-admin assignment (see the
+  open question).
+- **Quick actions** — open profile, send portal invite. The most common answer to the seven real
+  replies was literally "send the invite".
 
-**Identity resolution is the same `user_guardians` gap** behind the shared-email role loss and the
-inferred portal status. This feature survives without it (attribute by phone, flag ambiguity), but
-anything that later merges SMS with chat does not.
+**Tests — M5**
 
-**Never merge an inbound SMS into a team chat conversation.** SMS is 1:1, team chat is group. One
-mis-routed *"Ava is back in hospital"* reaches thirty families.
+| # | Test | Expected |
+|---|---|---|
+| M5.1 | Unknown sender thread | Listed, replyable, labelled unknown |
+| M5.2 | Attaching an unknown to a crew member | Thread re-attributes; history preserved |
+| M5.3 | Shared mobile, two guardians | One thread, primary guardian, flagged ambiguous |
+| M5.4 | Mark done | Leaves "Needs reply"; a new inbound returns it |
+| M5.5 | Send invite from the thread | Uses the existing invite path, no duplicate flow |
+
+**Done when:** none of the seven real replies from 2026-07-30 land in a state the UI cannot explain.
 
 ---
 
-## Testing criteria
+## Manual QA before M4 goes to a real club
 
-Fixtures mirror `tests/fixtures/production-schema.json`; verify against Neon before declaring done —
-that is how the `phone_number NOT NULL` defect on 057 was caught.
+1. Full suite green, plus `npm run lint:ci` — the ratchet gates Netlify and `main` is shared, so a
+   warning blocks everyone.
+2. Migration 060 rehearsed on a Neon branch, then applied; regenerate
+   `tests/fixtures/production-schema.json` **from the database**, not by hand.
+3. Text the club number from a real handset: reply appears attributed correctly; answering in the
+   app arrives as a text; STOP disables the composer and records the opt-out.
+4. Enable `inbox_enabled` for **Central Kansas only** — they generated the replies and are the only
+   club whose families are actively texting.
 
-### Capture and routing
-
-| # | Test | Expected |
-|---|---|---|
-| C1 | Inbound to club 51's number | Threaded under club 51, never club 32 |
-| C2 | Inbound to a number no club owns | Handled, logged, no crash, no misattribution |
-| C3 | `From` in raw format vs stored `(785) 555-0100` | Matched via normalization, not string equality |
-| C4 | `From` matches nobody | Thread created as "Unknown sender", **not dropped** |
-| C5 | `From` matches two guardians (shared mobile) | One thread, primary guardian, flagged ambiguous |
-| C6 | Two messages from the same person | Same `conversation_id`, one thread |
-| C7 | Same person, two clubs | **Two** threads — clubs must not see each other's |
-| C8 | Inbound row | `direction='inbound'`, visible on the contact's Communications tab |
-
-### STOP
-
-| # | Test | Expected |
-|---|---|---|
-| S1 | `STOP` arrives | Suppression + `sms_opt_out` recorded **immediately**, no auto-reply |
-| S2 | `START` after STOP | Opt-out cleared, contact reachable again |
-| S3 | Composer for a STOPped contact | Disabled, with the reason stated |
-| S4 | "can we stop by the field at 6?" | Ordinary message — only the bare keyword counts |
-
-### Reply
-
-| # | Test | Expected |
-|---|---|---|
-| R1 | Admin replies | Goes out via `queueSms` from the club's number; `from_number` recorded |
-| R2 | Club has no number configured | Refused with the existing message, not a silent failure |
-| R3 | Reply >160 chars | Segment count shown before sending |
-| R4 | Coach tries to open another club's thread | 403 |
-| R5 | Reply appears in thread | `direction='outbound'`, same `conversation_id` |
-
-### Inbox
-
-| # | Test | Expected |
-|---|---|---|
-| I1 | Thread whose last message is inbound | Appears under "Needs reply" |
-| I2 | After an admin replies | Leaves "Needs reply" |
-| I3 | Auto-reply only | Still "Needs reply" — a robot answer is not an answer |
-| I4 | Opening a thread | `read_at` set; unread count drops |
-| I5 | Auto-reply in thread | Visibly marked machine-sent |
-
-### Auto-reply copy
-
-| # | Test | Expected |
-|---|---|---|
-| A1 | New wording | ≤160 chars, ASCII only |
-| A2 | New wording | Does **not** claim the number is unmonitored |
-
-### Manual QA
-
-Text the club number from a real handset: reply arrives in the inbox attributed to the right crew
-member; answering from the app arrives as a text from the club's number; STOP disables the composer
-and records the opt-out.
+**Deploy order:** backend before frontend while SMS traffic is still light, as with v451. Once
+families are relying on it, revert to the default frontend-first and re-read the rules in CLAUDE.md.
 
 ---
-
-## Sequencing
-
-1. Migration 060 (columns + `inbox_enabled`) + capture + routing (C-tests) — the data has to exist before anything can show it. Capture ships unflagged; nothing is user-visible yet
-2. STOP-on-inbound (S-tests) — a compliance fix, and it stands alone
-3. Inbox read-only (I-tests) — at this point the four "where is my invite" replies are visible
-4. Reply-as-SMS + the copy change together (R, A) — the copy cannot lag the capability
-
-Step 3 is the point where this becomes worth having; 1–3 are shippable without 4.
 
 ## Open question
 
-**Who counts as "the inbox user"?** All club admins share one queue, or is a thread assignable?
-Shared is simpler and right for a club with one or two admins — which is every club today. Assignment
-matters at the size where two people answer the same parent twice. Recommend shared now, with
-"mark done" as the only state, and revisit if a club actually collides.
+**Shared queue or assignable threads?** Shared is simpler and right for a club with one or two
+admins — which is every club today. Assignment only matters at the size where two people answer the
+same parent twice. Recommend shared, with "mark done" as the only state, and revisit when a club
+actually collides.
