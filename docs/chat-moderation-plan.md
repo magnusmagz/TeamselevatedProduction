@@ -170,35 +170,87 @@ Two rules that are not negotiable:
 
 ---
 
-## M5 — Notice + ToS
+## M5 — Notice + ToS — **OUT OF THE BUILD. THIS IS A ROLLOUT BLOCKER.**
+
+Maggie, 2026-07-30: the attorney writes the ToS, and re-acceptance waits, **because nobody is using
+chat yet**. Verified rather than assumed — of the 8 accounts that have ever sent a chat message, 6
+are internal (`maggie+*@4msquared.com`, `@teamselevated.com`). The only 2 real people
+(`l.bixby2021@icloud.com`, `peterfmendez@gmail.com`) exchanged 2 messages in a **team** chat, which
+club admins could already read. **Every `direct` message in the system is between internal test
+accounts.** So M3 exposes no real family's private conversation and the notice can follow.
+
+**That safety argument expires the moment a real club starts using chat.** This is recorded as a
+blocker on chat rollout, not a to-do:
 
 - Persistent line in the conversation header: "Club administrators can review messages."
-- ToS/privacy copy updated and re-accepted via the existing `users.tos_accepted_at` /
-  `tos_version` mechanism.
-- **Ships before M3 goes live**, not after. The capability must not precede the notice.
-- Copy is Maggie's, not mine.
+- ToS/privacy copy + re-acceptance via `users.tos_accepted_at` / `tos_version`.
+- **Do not roll chat out to a club until both are live.** If M3 shipped before them, the changelog
+  entry says so explicitly and says why it was safe at the time.
 
 ---
 
-## M6 — Co-adult rule on adult↔minor DMs — **DECISION PENDING**
+## M0 — `createConversation` participant allowlist — **DECIDED, SHIPS FIRST**
 
-Not building until asked. Raised twice, unanswered — captured here so it is not lost.
+Supersedes the co-adult rule. Maggie, 2026-07-30: **coaches cannot DM athletes at all.** DMs are
+between coaches and the crew (guardians). So this is not "require a second adult" — athletes are
+simply not permissible participants.
 
-Require a parent or second adult on any coach↔athlete DM, enforced at `createConversation`.
-SafeSport-style guidance is that adult↔minor communication should not be unobserved 1:1. This is the
-one control that does not depend on anyone reviewing anything, cannot be evaded by phrasing, and
-needs no classifier. If it is wanted, it lands **before** the queue, not after — it changes which
-conversations can exist at all.
+**`createConversation` validates nothing today.** It takes `participantIds` from the client, looks
+the names up in `users`, and inserts them. No check of club, team, or role. Any user passing
+`canInitiateConversation` (which includes `parent`) can open a DM with **any user id in the system,
+in any club**. Same shape as the athlete/guardian gateway bug in CLAUDE.md — *bound what the endpoint
+accepts, not what the form happens to send.* `getTeamMembersForPicker` already returns only guardians
+and coaches, so the UI is correct and the endpoint is the hole.
+
+**Never exploited:** zero athletes have ever been a conversation participant. But conversation 18 is
+a live cross-club DM (`parent1@` is club 25, the conversation is club 32), both internal accounts —
+so it is reachable, not theoretical.
+
+### Implement as an ALLOWLIST, never a blocklist on `athletes.user_id`
+
+Verified against live Neon 2026-07-30, and this is the trap:
+
+| | |
+|---|---|
+| athletes with `user_id` | 26 |
+| …whose account email is **a guardian's** | **23** |
+| …whose account holds a **staff role** | **10** (6 coach, 4 club_admin) |
+| users holding the `player` role | **0** |
+
+`athletes.user_id` is not a reliable "this account is the child" signal — it mostly points at the
+parent. A blocklist on it would refuse DMs to 23 guardians and 10 coaches, i.e. break exactly the
+coach↔crew conversation the feature exists for.
+
+So: participants must be **in the allowlist the picker already computes** — guardians of athletes on
+the creator's teams, plus coaches/admins of the same club. Anything else is rejected. Athletes are
+excluded by never being in the set, which stays true however messy `athletes.user_id` becomes.
+
+**Tests**
+- a participant outside the creator's club is rejected (conversation 18 could not be created today)
+- a participant on another team is rejected for a coach; allowed for a club admin of that club
+- an athlete `user_id` is rejected **even when that account also holds a coach or guardian role** —
+  the allowlist decides, not athlete-ness
+- a guardian whose account is mis-linked as `athletes.user_id` is **still reachable** (the regression
+  a blocklist would cause)
+- the endpoint rejects ids the picker would never have offered, with the picker stubbed out entirely
+
+---
+
+## M6 — Co-adult rule — **SUPERSEDED by M0**
+
+Kept for history. The co-adult rule ("require a second adult on a coach↔athlete DM") is moot once
+coach↔athlete DMs cannot exist at all. M0 is the stronger form of the same control.
 
 ---
 
 ## Order
 
-M5 → M1 → M2 → M3 → M4, with M6 first if it is wanted.
+**M0 → M1 → M2 → M3 → M4.** M5 is no longer in the build (attorney), and is a rollout gate.
 
-M5 leads because the notice must precede the capability. M1 is the foundation. M3 is deliberately
-late: admin read is the sharpest edge and should land once the queue that justifies each open
-already exists.
+M0 first: it is a security fix on its own merits and it is the structural control — it prevents
+rather than detects, and needs nobody watching a queue. M1 is the foundation for the rest. M3 is
+deliberately late; admin read is the sharpest edge and should land once the queue justifying each
+open exists.
 
 ## Deploy notes
 

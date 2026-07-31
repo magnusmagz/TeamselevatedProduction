@@ -779,13 +779,37 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
 - [ ] **"Gets Comms" checkbox does nothing** (found 2026-07-29) — `GuardianManagement.tsx` binds it to `receives_communications`; no column exists and no live backend writes it. Either add the column and honor it at send time, or remove the control.
 - [ ] Migration files for the ad-hoc comms tables (`communication_log`, `email_events`, `email_links`, `email_templates`, `email_suppressions`, `broadcast_campaigns`) — currently exist in Neon but not in `/database/migrations/`. Schema-migration debt, not blocking.
 - [ ] Unit tests for email service, SMS service, permission scoping (status unknown — verify before writing duplicates)
+- [ ] **⚠️ `createConversation` validates no participants** (found 2026-07-30) — it takes
+      `participantIds` from the client, resolves names from `users`, and inserts. No club, team or
+      role check, and `canInitiateConversation` includes `parent`, so any authenticated initiator
+      can open a DM with **any user id in any club**. Never exploited (0 athletes have ever been a
+      participant) but reachable — conversation 18 is a live cross-club DM between internal
+      accounts. Fix is **M0** in `docs/chat-moderation-plan.md`, ships first.
+      **Implement as an allowlist, NOT a blocklist on `athletes.user_id`.** That column is not a
+      "this account is the child" signal: of 26 populated, **23 point at an account whose email is a
+      guardian's** and **10 hold staff roles** (6 coach, 4 club_admin), while **0** users hold the
+      `player` role. Blocklisting it would refuse DMs to 23 guardians and 10 coaches — the exact
+      coach↔crew conversation chat exists for. Product rule (Maggie, 2026-07-30): coaches cannot DM
+      athletes at all; DMs are coach↔crew.
+- [ ] **🚫 CHAT ROLLOUT BLOCKER — no admin-review notice is live.** Club chat carries **no
+      expectation of privacy** (Maggie, 2026-07-30) and admins will be able to read reported
+      conversations, but the in-UI notice and the ToS covering it are **not written** (attorney,
+      deferred). Deferring was safe only because nobody real uses chat — verified: every `direct`
+      message in prod is between internal test accounts, and the only 2 external senders used a
+      *team* chat admins could already read. **Do not roll chat out to a club until the header
+      notice and ToS are live.** Detail in `docs/chat-moderation-plan.md` → M5.
 - [ ] **Chat moderation — scheduled week of 2026-08-03.** Full plan in
       `docs/chat-moderation-plan.md`. Report/auto-flag → admin notified → admin opens that
-      conversation with full read → removes or dismisses. Product stance set 2026-07-30: **club chat
-      carries no expectation of privacy**, which makes two things requirements rather than polish —
-      the notice ships in the chat UI before the capability, and every admin read is logged (a
-      defensibility control, not a privacy one). Admin read is **flag-gated**, not blanket browse.
-      Open decision: the co-adult rule on adult↔minor DMs (M6) — if wanted it lands first.
+      conversation with full read → removes or dismisses. Every admin read is logged — a
+      defensibility control, not a privacy one. Admin read is **flag-gated**, not blanket browse.
+      Order M0 → M1 → M2 → M3 → M4. Auto-flagging **flags, never censors**, and profanity is one
+      rule among several: the patterns that matter in youth sports chat (off-platform contact,
+      secrecy) carry no profanity at all.
+- [ ] **`athletes.user_id` is largely mis-linked** (found 2026-07-30 while scoping chat M0). 23 of
+      26 populated values point at an account whose email belongs to a *guardian*, and 10 point at
+      accounts holding staff roles. Anything that treats `athletes.user_id` as "the athlete's own
+      login" is probably wrong. Not fixed — flagged because it silently breaks any feature that
+      assumes otherwise.
 - [ ] **`athlete_profiles` retention policy has no rule and has never done anything** (found
       2026-07-30 while adding the chat policies). `data_retention_policy` carries an
       `athlete_profiles` row at 1825 days, but `lib/retention_plans.php` has no entry for it, so
