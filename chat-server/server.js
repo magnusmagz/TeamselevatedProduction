@@ -35,8 +35,10 @@ const {
   severityForReason,
   isValidReason,
   FILE_USER_REPORT_SQL,
+  FILE_AUTO_REPORT_SQL,
   REPORT_SCOPE_SQL,
 } = require('./lib/reports');
+const { evaluateMessage } = require('./lib/flags');
 
 // Configuration
 const PORT = process.env.PORT || 5001;
@@ -841,6 +843,29 @@ io.on('connection', (socket) => {
         senderName: userInfo.userName || userInfo.email
       }
     };
+
+    // ─── Automatic flagging ───────────────────────────────────────────────────
+    // Runs AFTER the message is saved and broadcast, inside its own try/catch,
+    // and cannot alter or block delivery. Nothing is censored — a flag only adds
+    // a queue item. Moderation must never become a way for chat to stop working.
+    try {
+      const hits = evaluateMessage(text.trim());
+      if (hits.length > 0) {
+        // Only pay for this lookup when something actually fired. The report is
+        // filed against the CONVERSATION's club, not the sender's, so it lands in
+        // the right admin's queue even when those differ.
+        const cc = await pool.query('SELECT club_id FROM conversations WHERE id = $1', [conversationId]);
+        const flagClubId = cc.rows[0]?.club_id ?? getClubId(userInfo.payload);
+
+        for (const hit of hits) {
+          await pool.query(FILE_AUTO_REPORT_SQL, [
+            saved.id, conversationId, flagClubId, hit.rule, hit.severity,
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-flagging message:', error.message);
+    }
 
     // A new message un-archives the conversation for everyone who had archived it.
     // This is what makes archive safe to offer: nothing is ever permanently hidden,

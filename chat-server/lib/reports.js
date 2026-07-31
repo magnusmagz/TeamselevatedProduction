@@ -70,6 +70,24 @@ const REPORT_SCOPE_SQL = `
   WHERE m.id = $1
 `;
 
+/**
+ * File an automatic flag. Same table and same queue as human reports — one admin
+ * inbox, not two.
+ *
+ * ON CONFLICT DO NOTHING against the (message_id, rule) partial index, so a rule
+ * cannot flag the same message twice, and a re-evaluation cannot resurrect an
+ * item an admin already dismissed.
+ *
+ *   $1 message id, $2 conversation id, $3 club id, $4 rule, $5 severity
+ */
+const FILE_AUTO_REPORT_SQL = `
+  INSERT INTO chat_message_reports
+    (message_id, conversation_id, club_id, source, reported_by, rule, severity, status)
+  VALUES ($1, $2, $3, 'auto', NULL, $4, $5, 'open')
+  ON CONFLICT DO NOTHING
+  RETURNING id
+`;
+
 /** Open-report count for a club, for the queue badge. */
 const OPEN_REPORT_COUNT_SQL = `
   SELECT count(*)::int AS open_count
@@ -83,6 +101,7 @@ module.exports = {
   severityForReason,
   isValidReason,
   FILE_USER_REPORT_SQL,
+  FILE_AUTO_REPORT_SQL,
   REPORT_SCOPE_SQL,
   OPEN_REPORT_COUNT_SQL,
 };
