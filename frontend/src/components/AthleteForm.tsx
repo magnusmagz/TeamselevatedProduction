@@ -346,16 +346,49 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         const athleteData = await response.json();
         const athleteId = athleteData.athlete_id || athleteData.id || athlete?.id;
 
-        // Save each fully-filled guardian; the first is the primary contact.
-        // guardian-gateway POST is idempotent (matches on email+first+last and
-        // updates the athlete link), so re-saving on edit won't duplicate.
-        const guardiansToSave = (formData.guardians || []).filter(
-          g => g.first_name && g.last_name && g.email && g.mobile_phone
+        // The first crew member is the primary contact. guardian-gateway POST is
+        // idempotent (matches on email+first+last and updates the athlete link),
+        // so re-saving on edit won't duplicate.
+        //
+        // A row with NOTHING in it is the blank placeholder the form always
+        // renders — skip it. A row with SOME fields is someone the user was
+        // actually trying to add, and it used to be dropped here silently: the
+        // filter required all four fields, so adding a crew member you had an
+        // email but no phone for reported "saved successfully" and saved nobody.
+        // That is how a real crew member went missing with no error anywhere.
+        const enteredGuardians = (formData.guardians || []).filter(
+          g => g.first_name || g.last_name || g.email || g.mobile_phone
         );
-        for (let i = 0; i < guardiansToSave.length; i++) {
+        const incomplete = enteredGuardians
+          .map((g, idx) => {
+            const missing = [
+              !g.first_name && 'first name',
+              !g.last_name && 'last name',
+              !g.email && 'email',
+              !g.mobile_phone && 'mobile phone',
+            ].filter(Boolean);
+            return missing.length
+              ? `${g.first_name || g.last_name || `Crew member ${idx + 1}`}: needs ${missing.join(', ')}`
+              : null;
+          })
+          .filter(Boolean);
+
+        if (incomplete.length > 0) {
+          // The athlete is already saved at this point, so say so plainly rather
+          // than implying nothing happened. All four are required server-side.
+          alert(
+            `The athlete was saved, but this crew member could not be added:\n\n${incomplete.join(
+              '\n'
+            )}\n\nAdd the missing details and save again.`
+          );
+          onSubmit();
+          return;
+        }
+
+        for (let i = 0; i < enteredGuardians.length; i++) {
           const guardianData = {
             athlete_id: athleteId,
-            ...guardiansToSave[i],
+            ...enteredGuardians[i],
             is_primary_contact: i === 0 ? 1 : 0,
             has_legal_custody: 1,
             can_authorize_medical: 1,
@@ -364,11 +397,30 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             financial_responsible: i === 0 ? 1 : 0
           };
 
-          await fetch(`${API_URL}/legacy/guardian-gateway.php`, {
+          // The response used to be discarded, exactly like the medical save
+          // below before it was fixed — so a crew member the server REFUSED still
+          // produced "saved successfully". Whatever the server says, say it.
+          const guardianResponse = await fetch(`${API_URL}/legacy/guardian-gateway.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
             body: JSON.stringify(guardianData)
           });
+
+          if (!guardianResponse.ok) {
+            let detail = '';
+            try {
+              detail = (await guardianResponse.json())?.error ?? '';
+            } catch {
+              /* non-JSON error body */
+            }
+            const who = `${guardianData.first_name || ''} ${guardianData.last_name || ''}`.trim()
+              || `crew member ${i + 1}`;
+            alert(
+              `The athlete was saved, but ${who} could not be added${detail ? `: ${detail}` : '.'}`
+            );
+            onSubmit();
+            return;
+          }
         }
 
         // Save medical information if provided
