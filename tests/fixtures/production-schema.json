@@ -460,7 +460,10 @@
 "confirmation_token",
 "email_sent_at",
 "email_confirmed_at",
-"revoked_at"
+"revoked_at",
+"source",
+"guardian_email",
+"guardian_name"
 ],
 "contribution_links": [
 "id",

@@ -8,6 +8,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/registration_writes.php';
 require_once __DIR__ . '/../lib/jersey_size.php';
+require_once __DIR__ . '/../lib/consent_capture.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -322,6 +323,24 @@ try {
                 ]);
 
                 $registration_id = $connection->lastInsertId();
+
+                // Record the parental consent this form just collected. The two
+                // flags sit at the TOP LEVEL of the payload, beside form_data —
+                // not inside it. They were sent and thrown away until 2026-07-31,
+                // which meant a family who registered and never opened the portal
+                // had no consent record at all.
+                //
+                // Runs in a savepoint: a failure here must not roll back the
+                // family's registration. See lib/consent_capture.php.
+                te_record_registration_consent_safely(
+                    $connection,
+                    (int) $athlete_id,
+                    (string) $guardianEmail,
+                    trim($guardianFirst . ' ' . $guardianLast),
+                    te_consent_types_from_registration($data),
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                );
 
                 // Get payment item for this program (registration fee)
                 $stmt = $connection->prepare("

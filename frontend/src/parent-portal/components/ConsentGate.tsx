@@ -49,15 +49,22 @@ interface ConsentRow {
   consent_given: boolean | string;
   revoked_at: string | null;
   email_confirmed_at: string | null;
+  /** 'registration' | 'portal' | 'staff'. See migration 063. */
+  source?: string | null;
+  consented_at?: string | null;
 }
 
 interface AthleteConsentState {
   athleteId: number;
   name: string;
-  /** Recorded and not withdrawn — this is what clears the gate. */
-  recordedTypes: Set<string>;
-  /** Recorded AND confirmed by email — what COPPA counts as verified. */
+  /** Recorded in the PORTAL and not withdrawn — this is what clears the gate. */
+  portalTypes: Set<string>;
+  /** Recorded at public registration — shown as context, does not clear the gate. */
+  registrationTypes: Set<string>;
+  /** Portal consent confirmed by email — what COPPA counts as verified. */
   confirmedTypes: Set<string>;
+  /** When they agreed at sign-up, for the re-affirmation copy. */
+  registeredAt: string | null;
 }
 
 const truthy = (v: boolean | string): boolean =>
@@ -92,8 +99,10 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
         const base: AthleteConsentState = {
           athleteId: a.id,
           name: `${a.first_name} ${a.last_name}`.trim(),
-          recordedTypes: new Set<string>(),
+          portalTypes: new Set<string>(),
+          registrationTypes: new Set<string>(),
           confirmedTypes: new Set<string>(),
+          registeredAt: null,
         };
         try {
           const res = await fetch(
@@ -104,15 +113,26 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
           if (res.ok && data.success && Array.isArray(data.consents)) {
             for (const row of data.consents as ConsentRow[]) {
               if (!truthy(row.consent_given) || row.revoked_at) continue;
-              base.recordedTypes.add(row.consent_type);
-              if (row.email_confirmed_at) base.confirmedTypes.add(row.consent_type);
+              // Rows predating migration 063 carry no source, and the migration
+              // backfilled them to 'portal' because ConsentGate was the only
+              // writer that had ever existed. Defaulting the same way here means
+              // a backend that has not been migrated yet cannot re-prompt a
+              // family who already confirmed.
+              const source = row.source ?? 'portal';
+              if (source === 'registration') {
+                base.registrationTypes.add(row.consent_type);
+                if (!base.registeredAt) base.registeredAt = row.consented_at ?? null;
+              } else {
+                base.portalTypes.add(row.consent_type);
+                if (row.email_confirmed_at) base.confirmedTypes.add(row.consent_type);
+              }
             }
           }
         } catch {
           // A status read that fails must not lock a parent out of the portal.
           // Treat it as "already consented" — the gate is a prompt, not a
           // security control, and the real enforcement is server-side.
-          REQUIRED_CONSENT_TYPES.forEach((t) => base.recordedTypes.add(t));
+          REQUIRED_CONSENT_TYPES.forEach((t) => base.portalTypes.add(t));
         }
         return base;
       })
@@ -126,15 +146,30 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
     loadStatus();
   }, [loadStatus]);
 
+  // Keyed on the PORTAL record, not on consent generally — that is what makes
+  // this a re-affirmation rather than a first ask. A family who agreed at sign-up
+  // is still asked here, deliberately (see the header).
   const needsConsent = (states || []).filter((s) =>
-    REQUIRED_CONSENT_TYPES.some((t) => !s.recordedTypes.has(t))
+    REQUIRED_CONSENT_TYPES.some((t) => !s.portalTypes.has(t))
   );
 
   const awaitingConfirmation = (states || []).filter(
     (s) =>
-      REQUIRED_CONSENT_TYPES.every((t) => s.recordedTypes.has(t)) &&
+      REQUIRED_CONSENT_TYPES.every((t) => s.portalTypes.has(t)) &&
       REQUIRED_CONSENT_TYPES.some((t) => !s.confirmedTypes.has(t))
   );
+
+  /** Everyone being asked already agreed at sign-up — soften the ask. */
+  const allPreviouslyAgreed =
+    needsConsent.length > 0 &&
+    needsConsent.every((s) =>
+      REQUIRED_CONSENT_TYPES.every((t) => s.registrationTypes.has(t))
+    );
+
+  const earliestSignup = needsConsent
+    .map((s) => s.registeredAt)
+    .filter(Boolean)
+    .sort()[0];
 
   const handleSubmit = async () => {
     if (!user?.id) return;
@@ -149,7 +184,7 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
       // for a three-child family is how a provider starts rate-limiting.
       for (const s of needsConsent) {
         for (const type of REQUIRED_CONSENT_TYPES) {
-          if (s.recordedTypes.has(type)) continue;
+          if (s.portalTypes.has(type)) continue;
           const res = await fetch(`${API_URL}/api/consent.php?action=record`, {
             method: 'POST',
             headers: {
@@ -223,11 +258,28 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
       <div className="min-h-screen bg-gray-50 px-4 py-8">
         <div className="max-w-lg mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h1 className="text-xl font-bold text-brand-primary mb-2">
-            Parental consent
+            {allPreviouslyAgreed ? 'Confirm your consent' : 'Parental consent'}
           </h1>
           <p className="text-sm text-gray-600 mb-5">
-            Before you use the portal, your club needs your consent as the parent or
-            legal guardian. This is asked once per child.
+            {allPreviouslyAgreed ? (
+              <>
+                You agreed to this when you signed up
+                {earliestSignup
+                  ? ` on ${new Date(earliestSignup).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}`
+                  : ''}
+                . Please confirm it here now that you have an account, so it's
+                recorded against you rather than just the sign-up form.
+              </>
+            ) : (
+              <>
+                Before you use the portal, your club needs your consent as the parent
+                or legal guardian. This is asked once per child.
+              </>
+            )}
           </p>
 
           <div className="mb-5 rounded-md border border-gray-200 bg-gray-50 p-3">

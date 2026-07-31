@@ -32,9 +32,12 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/consent_capture.php';
 
 const CONSENT_TOKEN_TTL_HOURS = 48;
-const CONSENT_VERSION = '1.0';
+// Single source of truth, shared with the registration capture path so the two
+// cannot drift into recording different versions of the same agreement.
+const CONSENT_VERSION = TE_CONSENT_VERSION;
 
 /**
  * consent_records.consent_type carries a CHECK constraint. Validate here so a bad
@@ -133,17 +136,26 @@ try {
 
             $token = bin2hex(random_bytes(32));
 
+            // source='portal' and the frozen identity: this endpoint is only ever
+            // called by ConsentGate, and a consent record is evidence of what
+            // happened rather than a live relationship — so who agreed is copied
+            // in, not left to a join that would later return today's answer.
+            // Registration-sourced consent is written by lib/consent_capture.php.
             $stmt = $pdo->prepare(
                 'INSERT INTO consent_records
                     (guardian_id, athlete_id, consent_type, consent_given, consented_at,
-                     ip_address, user_agent, consent_version, confirmation_token, email_sent_at)
-                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, NULL)
+                     ip_address, user_agent, consent_version, confirmation_token, email_sent_at,
+                     source, guardian_email, guardian_name)
+                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, NULL, ?, ?, ?)
                  RETURNING id'
             );
             $stmt->execute([
                 $guardianId, $athleteId, $type, $given ? 'true' : 'false',
                 $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null,
                 CONSENT_VERSION, $token,
+                'portal',
+                $guardianUser['email'] ?? null,
+                trim(($guardianUser['first_name'] ?? '') . ' ' . ($guardianUser['last_name'] ?? '')),
             ]);
             $consentId = (int) $stmt->fetchColumn();
 
@@ -244,8 +256,12 @@ try {
             requireAthleteAccess($pdo, $auth, $athleteId);
 
             $stmt = $pdo->prepare(
+                // `source` is part of the contract with ConsentGate: the portal
+                // re-affirmation is keyed off it, so dropping it from this SELECT
+                // would make the gate prompt families who had already confirmed.
                 'SELECT id, guardian_id, consent_type, consent_given, consented_at,
-                        email_sent_at, email_confirmed_at, revoked_at, consent_version
+                        email_sent_at, email_confirmed_at, revoked_at, consent_version,
+                        source, guardian_email, guardian_name
                  FROM consent_records WHERE athlete_id = ? ORDER BY consented_at DESC'
             );
             $stmt->execute([$athleteId]);

@@ -35,7 +35,9 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    clear_default_player_passwords). 048–056 are applied to Neon.
    **057 is RESERVED** for `broadcast_campaigns.body` (scheduled SMS, Workstream C) — not yet
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
-   **applied to Neon 2026-07-30**. Next free number is therefore **060**.
+   **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
+   **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
+   Next free number is therefore **064**.
 3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
@@ -368,6 +370,29 @@ They gated that form's submit button and nothing else — so the product asserte
 capture and stored none, while `api/consent.php` sat fully implemented with nothing ever calling
 `action=record`. Beyond the storage bug, a club admin ticking "As the parent/legal guardian, I
 consent" is not parental consent in the first place. Removed 2026-07-30.
+
+**Consent is captured TWICE, on purpose** (2026-07-31). The public registration form records
+at sign-up (`lib/consent_capture.php`, `source='registration'`), and `ConsentGate` asks the
+parent to re-affirm the first time they enter the portal (`source='portal'`). This is a
+product decision, not redundancy to optimise away:
+
+- The sign-up consent is the one with the most legal weight — consent at the point of
+  collection — and it is the only record a family who never opens the portal will ever have.
+  It was being **discarded entirely** until 2026-07-31: the form sent
+  `consent_data_collection` / `consent_medical_data` and `registrations-api.php` never read
+  them.
+- The portal consent is what ties the agreement to an actual **account**. At sign-up there is
+  no user row to attribute it to (`guardian_id` is NULL there).
+- **The gate keys on `source='portal'`.** If it ever starts clearing on a registration row,
+  the second prompt silently disappears for every family who signed up online. Pinned by
+  `ConsentGate.test.tsx`.
+- The two flags sit at the **top level** of the registration payload, beside `form_data`, not
+  inside it. Reading them from `form_data` finds nothing and records nothing, silently — the
+  original bug. Pinned by `RegistrationConsentCaptureTest`.
+- Registration capture runs in a **SAVEPOINT**: `main` is shared and deploys are by push, so
+  this code can reach production before its migration does, and on Postgres a failed statement
+  poisons the whole transaction — an unguarded insert would roll back the family's
+  registration, not just the consent row.
 
 Design points that are load-bearing:
 - **Per child, always.** `consent_records` is keyed (guardian_id, athlete_id, consent_type) with
@@ -747,7 +772,14 @@ interface, the mock, and `overviewAggregate()` together or that test fails.
 
 ## What Claude Should NOT Change
 - Do not modify the authentication system (`lib/JWT.php`, `lib/AuthMiddleware.php`, `api/auth-gateway.php`)
-- Do not alter existing table structures — add new tables/columns only
+- Do not alter existing table structures — add new tables/columns only.
+  **One approved exception exists**: migration 063 dropped `NOT NULL` from
+  `consent_records.guardian_id`, because that column is an FK to `users(id)` and a parent
+  filling in the public registration form has no account yet — requiring one meant consent
+  could only be recorded from people who already had accounts, i.e. never at sign-up. Agreed
+  with Maggie 2026-07-31; the table held 0 rows at the time. The FK is intact, so a non-null
+  value is still guaranteed to be a real user. Do not treat this as a precedent for relaxing
+  other constraints.
 - Do not change the existing API routing pattern in `index.php` beyond adding new routes
 - The existing Redis/push notification reminder system must continue to work unchanged
 - Existing tests should continue to pass

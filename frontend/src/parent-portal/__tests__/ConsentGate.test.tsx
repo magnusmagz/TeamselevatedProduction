@@ -21,12 +21,17 @@ const setAthletes = (athletes: Array<{ id: number; first_name: string; last_name
 /** consent.php?action=status shape, reduced to what the gate reads. */
 const statusRows = (rows: unknown[]) => ({ success: true, consents: rows });
 
-const given = (type: string, confirmed = true) => ({
+const given = (type: string, confirmed = true, source = 'portal') => ({
   consent_type: type,
   consent_given: true,
   revoked_at: null,
   email_confirmed_at: confirmed ? '2026-07-30T10:00:00Z' : null,
+  source,
+  consented_at: '2026-07-28T09:00:00Z',
 });
+
+/** Consent captured on the public registration form (migration 063). */
+const givenAtSignup = (type: string) => given(type, false, 'registration');
 
 describe('ConsentGate', () => {
   beforeEach(() => {
@@ -193,6 +198,79 @@ describe('ConsentGate', () => {
   test('a status-read failure does not block the portal', async () => {
     setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
     global.fetch = jest.fn().mockRejectedValue(new Error('offline')) as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText('PORTAL')).toBeInTheDocument();
+  });
+
+  /**
+   * THE DOUBLE-CONSENT FLOW. Agreeing on the public registration form is now
+   * recorded (lib/consent_capture.php), but it does NOT clear this gate — the
+   * portal re-affirmation is deliberate, and it is what ties the consent to an
+   * actual account rather than to a sign-up form. Keyed on source, so if the gate
+   * ever starts clearing on a registration row the second prompt silently
+   * disappears for every family who signed up online.
+   */
+  test('consent given at sign-up does not clear the gate', async () => {
+    setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        statusRows([givenAtSignup('data_collection'), givenAtSignup('medical_data')]),
+    }) as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText('Confirm your consent')).toBeInTheDocument();
+    expect(screen.queryByText('PORTAL')).not.toBeInTheDocument();
+  });
+
+  /** Someone who already agreed is asked to confirm, not asked cold. */
+  test('a family who agreed at sign-up sees re-affirmation copy with the date', async () => {
+    setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        statusRows([givenAtSignup('data_collection'), givenAtSignup('medical_data')]),
+    }) as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText(/You agreed to this when you signed up/)).toBeInTheDocument();
+    expect(screen.getByText(/July 28, 2026/)).toBeInTheDocument();
+  });
+
+  /** A family with no prior record gets the plain first-ask wording. */
+  test('a family with no sign-up consent gets the first-ask copy', async () => {
+    setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => statusRows([]),
+    }) as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText('Parental consent')).toBeInTheDocument();
+    expect(screen.queryByText(/You agreed to this when you signed up/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Rows written before migration 063 carry no source. The migration backfilled
+   * them to 'portal' because ConsentGate was the only writer that ever existed,
+   * and the client defaults the same way — otherwise a backend that hasn't been
+   * migrated yet would re-prompt families who already confirmed.
+   */
+  test('a row with no source is treated as portal consent', async () => {
+    setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        statusRows([
+          { consent_type: 'data_collection', consent_given: true, revoked_at: null, email_confirmed_at: '2026-07-30T10:00:00Z' },
+          { consent_type: 'medical_data', consent_given: true, revoked_at: null, email_confirmed_at: '2026-07-30T10:00:00Z' },
+        ]),
+    }) as any;
 
     render(<ConsentGate><div>PORTAL</div></ConsentGate>);
 
