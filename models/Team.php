@@ -11,6 +11,53 @@ class Team {
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
 
+        // The WHERE fragment is built once and used by BOTH the page query and the
+        // count query. It used to be derived with
+        //     str_replace('SELECT t.*', 'SELECT COUNT(*)', $sql)
+        // which swapped only the first line of the select list and left
+        // CONCAT(u.first_name, …), s.name and f.name sitting beside an aggregate —
+        // SQLSTATE 42803, a hard 500 on every call. MySQL accepted it; Postgres does
+        // not, so this endpoint has been dead since the database moved.
+        $where = " WHERE t.deleted_at IS NULL";
+
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            // ILIKE, not LIKE: MySQL's LIKE is case-insensitive by default and
+            // Postgres' is not, so searching "Thunder" for a team named "thunder"
+            // silently returned nothing after the move.
+            $where .= " AND t.name ILIKE :search";
+            $params[':search'] = '%' . $filters['search'] . '%';
+        }
+
+        if (!empty($filters['season_id'])) {
+            $where .= " AND t.season_id = :season_id";
+            $params[':season_id'] = $filters['season_id'];
+        }
+
+        if (!empty($filters['age_group'])) {
+            $where .= " AND t.age_group = :age_group";
+            $params[':age_group'] = $filters['age_group'];
+        }
+
+        if (!empty($filters['division'])) {
+            $where .= " AND t.division = :division";
+            $params[':division'] = $filters['division'];
+        }
+
+        // ORDER BY cannot be a bound parameter, so it is interpolated — which means
+        // it MUST come from a fixed list. It previously took $_GET['sort_by'] and
+        // $_GET['sort_order'] and pasted them straight into the statement.
+        $sortable = ['name', 'division', 'age_group', 'status', 'created_at', 'updated_at', 'id'];
+        $sortBy = in_array($filters['sort_by'] ?? '', $sortable, true) ? $filters['sort_by'] : 'name';
+        $sortOrder = strtolower($filters['sort_order'] ?? '') === 'desc' ? 'DESC' : 'ASC';
+
+        // Counted off `teams` alone: every filter above is on `t`, and the three
+        // joins below are LEFT, so they cannot change the number of rows.
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM teams t" . $where);
+        $countStmt->execute($params);
+        $totalCount = $countStmt->fetchColumn();
+
         $sql = "SELECT t.*,
                 CONCAT(u.first_name, ' ', u.last_name) as coach_name,
                 s.name as season_name,
@@ -19,41 +66,10 @@ class Team {
                 FROM teams t
                 LEFT JOIN users u ON t.primary_coach_id = u.id
                 LEFT JOIN seasons s ON t.season_id = s.id
-                LEFT JOIN fields f ON t.home_field_id = f.id
-                WHERE t.deleted_at IS NULL";
-
-        $params = [];
-
-        if (!empty($filters['search'])) {
-            $sql .= " AND t.name LIKE :search";
-            $params[':search'] = '%' . $filters['search'] . '%';
-        }
-
-        if (!empty($filters['season_id'])) {
-            $sql .= " AND t.season_id = :season_id";
-            $params[':season_id'] = $filters['season_id'];
-        }
-
-        if (!empty($filters['age_group'])) {
-            $sql .= " AND t.age_group = :age_group";
-            $params[':age_group'] = $filters['age_group'];
-        }
-
-        if (!empty($filters['division'])) {
-            $sql .= " AND t.division = :division";
-            $params[':division'] = $filters['division'];
-        }
-
-        $sortBy = $filters['sort_by'] ?? 'name';
-        $sortOrder = $filters['sort_order'] ?? 'asc';
-        $sql .= " ORDER BY t.$sortBy $sortOrder";
-
-        $countSql = str_replace('SELECT t.*', 'SELECT COUNT(*)', $sql);
-        $countStmt = $this->db->prepare($countSql);
-        $countStmt->execute($params);
-        $totalCount = $countStmt->fetchColumn();
-
-        $sql .= " LIMIT :limit OFFSET :offset";
+                LEFT JOIN fields f ON t.home_field_id = f.id"
+            . $where
+            . " ORDER BY t.{$sortBy} {$sortOrder}"
+            . " LIMIT :limit OFFSET :offset";
         $stmt = $this->db->prepare($sql);
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value);
