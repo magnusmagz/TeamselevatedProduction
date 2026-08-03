@@ -32,6 +32,34 @@ Newest first. Times are Pacific.
 
 ## 2026-08-03
 
+### Parent portal was broken for anyone who is also a coach
+Reported by Central Kansas 2026-08-03 (Samantha Archer: "no athletes are
+registered to her"). Her data was correct throughout — guardian 426 linked to
+athlete 419 (Alia), both roles active. Deployed same day.
+
+`api/financial-permissions.php` joined `team_coaches` and `coaches`; **neither
+table exists**, so every request from a user holding a coach role returned HTTP
+500 (SQLSTATE 42P01) and the portal rendered "no athletes are registered to
+you". The parent branch runs first and had already found Alia — the coach branch
+then threw and took the whole response, so being a coach cost her her own child.
+
+Parent-only accounts were unaffected, which is why it survived a 148-family
+rollout with no reports. Verified against prod before and after: Samantha and
+Jed Phillips (coach+parent) 500 → 200 with 9 athletes; Peter Mendez and Leya
+Devora (parent-only) 200 throughout.
+
+Wider than the athlete list: `FinancialPermissionsProvider` is mounted app-wide
+and `ConsentGate` / `ProtectedParentRoute` both read it.
+
+Both occurrences (`check`, `check-athlete`) now scope through `getCoachTeamIds()`.
+
+**Prod state discovered:** three more phantom tables, all confirmed absent from
+Neon and all currently unreachable — `team_players` in
+`calendar-events-gateway`'s send-invite path (whose query also has `u.email !=
+""`, an identifier in Postgres, so it would fail twice), and
+`insurance_policies` / `athlete_sports` in `athletes-profile.php`, which has no
+frontend callers at all. Recorded in `QueriedTablesExistTest::KNOWN_BROKEN`.
+
 ### Portal status now reports a first-login date instead of guessing
 `lib/portal_status.php` + `frontend/src/utils/portalStatus.ts`, shared by the Crew
 page and both Coaches tables. Detail and the three bugs it replaced are in

@@ -438,6 +438,28 @@ how a scope check becomes a data leak. Pinned by `ConsentRollupTest`.
 A missing or unrecognised status renders as **Unknown**, never as a blank cell: blank reads as
 "fine", which is the wrong default for a compliance column.
 
+### A read against a missing table is invisible to SchemaConformanceTest
+`QueriedTablesExistTest` (added 2026-08-03) scans `FROM`/`JOIN` and checks every
+table against `tests/fixtures/production-schema.json`. SchemaConformance only ever
+checked `INSERT`/`UPDATE`, so `api/financial-permissions.php` joined `team_coaches`
+and `coaches` — **neither exists** — and 500'd for every coach for months.
+
+It hid because the failure read as a product statement: the parent portal takes its
+athlete list from that endpoint, so a coach who was also a parent was told "no
+athletes are registered to you" while Crew and Athletes showed the child fine.
+**Parent-only accounts worked**, so a 148-family rollout produced no reports; the
+first person to hit it was the first coach who was also a parent.
+
+- **Scan SQL literals, not source.** The first version matched English — "unsubscribe
+  from all club emails" — and produced 14 false positives, enough to bury the two real
+  findings. A test that cries wolf gets deleted.
+- **`KNOWN_BROKEN` is not `KNOWN_DEAD`.** The three entries there are live files with
+  an unreached broken query. Delete an entry when it is fixed; never add one to
+  silence a new finding.
+- Coach team scoping is `getCoachTeamIds()` in `lib/coach_scope.php` and nowhere else.
+  Re-deriving it is what produced a join against tables nobody had checked existed.
+
+
 ### Platform access is a DATE, not a badge — `lib/portal_status.php`
 Added 2026-08-03. One predicate, used by the Crew page (`handleClubParents`) and the
 Coaches page (`legacy/coaches-gateway.php?action=available`). Labels are shared too, in
