@@ -438,6 +438,45 @@ how a scope check becomes a data leak. Pinned by `ConsentRollupTest`.
 A missing or unrecognised status renders as **Unknown**, never as a blank cell: blank reads as
 "fine", which is the wrong default for a compliance column.
 
+### Platform access is a DATE, not a badge — `lib/portal_status.php`
+Added 2026-08-03. One predicate, used by the Crew page (`handleClubParents`) and the
+Coaches page (`legacy/coaches-gateway.php?action=available`). Labels are shared too, in
+`frontend/src/utils/portalStatus.ts`. **Do not re-derive this in a page or a gateway.**
+
+The badge it replaced said `active` when `password_hash` was non-empty. Three bugs in
+one CASE, all of which looked fine on screen:
+
+- **A password is not a login.** Passwords are set by admins (`coaches-gateway.php`
+  seeds a literal) and by auto-created shells. On 2026-07-31 two coaches displayed as
+  portal-active having never signed in and never been invited. The Coaches page was
+  worse — its Status column was the hardcoded string `Active`, in **both** of the
+  tables `CoachManagement.tsx` renders.
+- **An expired invite decayed into `not_invited`.** The test was
+  `used_at IS NULL AND expires_at > NOW()` with no third branch, so a lapsed invite
+  became indistinguishable from never having been contacted. 64 Central Kansas invites
+  lapse 2026-08-07; the club would have lost the record it ever wrote to those
+  families, and "send a reminder" would have read as "make first contact".
+  `invite_expired` is now its own state and bulk-invite targets it.
+- **The join is on email alone** and cannot be fixed here — it is the missing
+  `user_guardians` table. So it is **disclosed, not hidden**: `shared_account` +
+  `shared_reason` mark a row whose evidence may belong to another account on that
+  address, and the UI marks it rather than asserting.
+
+Evidence order: `audit_log` `login_success` → `users.last_login_at` → `magic_link_tokens`.
+
+⚠️ Two live gotchas, both pinned by `PortalStatusTest`:
+- `audit_log.resource_type` holds **both `'user'`** (68 rows, to 2026-07-29) **and
+  `'users'`** (123 since). Matching one loses six people's first-login date.
+- **15 users have `last_login_at` and no audit row**, so the `COALESCE` fallback is
+  load-bearing. Drop it and they all report as never having signed in.
+
+`handleClubParents` joins `athletes` with **no `deleted_at` filter**, so guardians of
+soft-deleted athletes still appear on Crew (153 rows for club 51 where the funnel counts
+148). Pre-existing; left alone because changing it changes what staff see.
+
+Measure the funnel with `scripts/onboarding-funnel.php` (read-only, crew + coaches).
+
+
 ### Editing a crew member's contact details goes through the POST branch
 `legacy/guardian-gateway.php` PUT updates the **relationship** row only
 (`athlete_guardians`: relationship, is_primary, can_pickup, emergency_contact). It never
@@ -841,6 +880,25 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       answer is club-wide staff data.
       Pinned in the meantime by `scripts/smoke-test.php` ("parent is refused the crew
       list"), which currently FAILS on purpose — it is the open finding, not a broken test.
+
+- [ ] **⚠️ Coach accounts are created with a shared literal password** (found 2026-08-03).
+      `legacy/coaches-gateway.php:144` does
+      `password_hash($data['password'] ?? 'password123', …)` and
+      `CoachManagement.tsx` hardcodes `password: 'password123'` in the form default and
+      shows the admin "Default password: password123". So every coach made through that
+      screen gets the same credential — and the 2026-07-31 Central Kansas kickoff blast
+      **emailed it in plaintext** to 11 people ("Temporary password: password123").
+      This is the same class migration 056 fixed for athletes, but 056 scoped itself
+      `WHERE role = 'player'`, so coaches were never covered. ~13 coach accounts have
+      never been signed into and would still carry it.
+      Fix is three parts and the third is what stops it recurring:
+      1. remove the literal from the gateway and the form (no password at creation);
+      2. give coaches a real invite — reuse `parentInvite_ensureUserAndToken` with a
+         `:coach_invite` suffix, so there is no shared secret and the funnel gets a real
+         `used_at` instead of an inferred email open;
+      3. a 056-style migration clearing existing hashes, guarded on
+         `last_login_at IS NULL` so it cannot lock out anyone actually using the account.
+      Clearing hashes without (1) just regenerates the problem on the next coach added.
 
 - [ ] **Shared-email remaining case** — `users.email ≠ guardians.email` loses the parent role; needs Phase 2 `user_guardians` link table (the read-side fixes in the 3 legacy files are DONE, verified 2026-07-06)
 - [ ] **Portal status is still inferred from a shared email** — same missing `user_guardians` table

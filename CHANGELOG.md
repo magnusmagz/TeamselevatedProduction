@@ -30,6 +30,28 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-03
+
+### Portal status now reports a first-login date instead of guessing
+`lib/portal_status.php` + `frontend/src/utils/portalStatus.ts`, shared by the Crew
+page and both Coaches tables. Detail and the three bugs it replaced are in
+CLAUDE.md; this is the event log.
+
+**Prod state discovered while measuring it:**
+- 373 people tracked; **77 have actually signed in** (21%). Crew invites convert at
+  **50%** (126 sent, 63 set a password), median 2h 8m to act. The coach email blast
+  converted at **18%** (11 recipients, 2 clicks).
+- Central Kansas is the only real rollout: 148 crew, 61 in, 53 through consent, **62
+  invited and stalled**, 24 with no email address at all.
+- Teams Elevated: 97 of 196 crew were emailed but never invited — nothing to click.
+- **64 invites expire 2026-08-07.** Before this change they would have silently
+  reverted to "Not invited".
+- The kickoff blast published `password123`. See the new CLAUDE.md pending item.
+
+### Two more duplicate guardians merged, and a smoke test that found a 500
+Covered in the 2026-07-31 entries below; `scripts/smoke-test.php` and
+`scripts/onboarding-funnel.php` are both read-only and safe against prod.
+
 ## 2026-07-31
 
 ### `/api/teams` had been returning 500 since the move off MySQL — fixed
