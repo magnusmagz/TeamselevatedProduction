@@ -927,6 +927,25 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
+- [ ] **"Invalid or expired link" means three different things, and it costs support time.**
+      `set-parent-password` in `api/auth-gateway.php` returns that one string for a genuinely
+      expired token, an **already used** one, and one invalidated by a re-send. Single-use is
+      correct; the message is not. On 2026-08-03 a parent completed setup successfully, re-clicked
+      his link, was told it had expired, and emailed support four minutes after it worked (see
+      CHANGELOG). Split the lookup: if a row matches the token but has `used_at` set, say "you have
+      already set this up — sign in" and link to login.
+- [ ] **`set-parent-password` burns the token before confirming the user exists.** Order is:
+      validate token → `UPDATE users … WHERE email = ?` (**row count never checked**) → mark token
+      used → look up the user → return "Invalid or expired link" if missing. So for any email with
+      no matching `users` row, the parent's FIRST attempt consumes their link and every retry
+      genuinely fails. Not the cause of the Mills report, but it produces the identical symptom and
+      would be much harder to diagnose. Check the update's row count and only consume the token
+      after the account is confirmed.
+- [ ] **Scan for crossed guardian emails before the next bulk invite.** The Mills household had the
+      two parents' addresses swapped, so each invite went to the other's inbox (fixed 2026-08-03,
+      CHANGELOG). Athlete 339 (Leonel Jimenez) looks like the same shape. The tell is a guardian
+      whose email local-part contains the OTHER guardian's name; a shared household address is
+      normal and must not be flagged. Worth a one-off query, not a feature.
 - [ ] **⚠️ Consent audit readiness — scheduled for Monday 2026-08-03. Full scope, verbatim
       evidence and landmines in `docs/consent-audit-readiness.md`; read that, don't re-derive.**
       Consent *capture* and *staff visibility* are done and live. What is missing is the

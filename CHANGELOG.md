@@ -32,6 +32,46 @@ Newest first. Times are Pacific.
 
 ## 2026-08-03
 
+### Mills household — two parents' emails were crossed; ad-hoc prod data fix
+No code change. Reported by the parent as "our link has expired"; it had not.
+
+**The report was a misdiagnosis, and so was the error message.** Colton Mills wrote in saying the
+set-up link kept saying expired, well inside the 7-day window. The token
+(`colton.mills193@gmail.com:parent_invite`) was minted 2026-07-31 22:43, expires 2026-08-07, and
+was **used successfully at 2026-08-03 21:55:19** — `users.updated_at` matches `used_at` to the
+second. He emailed **four minutes later**. The link is single-use, so his re-click returned
+"Invalid or expired link", which is the same string the endpoint returns for genuinely expired,
+already used, and invalidated. He read "expired" and reported expiry.
+
+**Root cause: the two parents' email addresses were swapped on their guardian rows** (athlete 409
+Ryker Mills, club 51), so each parent's invite went to the other's inbox:
+
+| | before | after |
+|---|---|---|
+| guardian 412 Colton | `ericapwells@gmail.com` | `colton.mills193@gmail.com` |
+| guardian 413 Erica | `colton.mills193@gmail.com` | `ericapwells@gmail.com` |
+
+Colton therefore set a password on the account keyed to *his* address but named *Erica Mills*.
+The fix corrects the guardian emails and renames the user rows so the name follows whoever owns
+the inbox — `users.272` → Colton (holds the password he set), `users.271` → Erica (still awaiting
+setup). **No `users.email` changed**, so `users_email_key` was never in play, and no password moved.
+Applied in one transaction behind a `DO` block asserting all four rows matched the reviewed state,
+rehearsed as `BEGIN … ROLLBACK` first.
+
+**Phone numbers deliberately NOT touched.** They may be crossed too — 412 and 413 hold different
+numbers — but nothing in the data proves which belongs to whom, and a guess is worse than a known
+gap. Confirm with the family.
+
+**Prod state discovered:** Ryker has **zero `consent_records`**, so nobody reached the consent gate
+that shipped 2026-07-31. The likely sequence is that Colton set his password, landed on the new
+full-page blocking consent screen instead of a dashboard, did not read it as success, went back to
+the email and clicked again. He is the first real family to hit that screen. Worth watching before
+concluding the gate's first-run experience is fine.
+
+**Other suspected crossed pairs, not actioned:** athlete 339 (Leonel Jimenez) has the same shape —
+Alejandro Jimenez carrying `Monica.82.mh82@gmail.com` while Monica Hernandez has no email. A proper
+scan is still owed before the next bulk invite.
+
 ### Parent portal was broken for anyone who is also a coach
 Reported by Central Kansas 2026-08-03 (Samantha Archer: "no athletes are
 registered to her"). Her data was correct throughout — guardian 426 linked to
