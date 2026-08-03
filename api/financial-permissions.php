@@ -155,21 +155,52 @@ try {
             }
 
             if ($isCoach) {
-                // Get athletes from coach's teams (query is already scoped to this user)
-                $teamAthleteStmt = $pdo->prepare("
-                    SELECT DISTINCT a.id, a.first_name, a.last_name
-                    FROM athletes a
-                    JOIN team_members tm ON a.id = tm.athlete_id
-                    JOIN teams t ON tm.team_id = t.id
-                    JOIN team_coaches tc ON t.id = tc.team_id
-                    JOIN coaches c ON tc.coach_id = c.id
-                    JOIN users u ON c.email = u.email
-                    WHERE u.id = :user_id
-                      AND a.active_status = true
+                // Athletes on the teams this user actually coaches.
+                //
+                // ⚠️ This query used to join `team_coaches` and `coaches`. NEITHER
+                // TABLE EXISTS. Every request from anyone holding a coach role
+                // therefore died with SQLSTATE 42P01 and the endpoint returned 500 —
+                // and because the parent branch above runs FIRST and had already
+                // filled $accessibleAthletes, a coach who is also a parent lost their
+                // own children too. That is what made the parent portal tell Samantha
+                // Archer she had no athletes while Crew and Athletes both showed Alia
+                // (reported 2026-08-03). Parent-only accounts were unaffected, which
+                // is why it survived a 148-family rollout.
+                //
+                // Team scoping is getCoachTeamIds() — primary_coach_id OR an active
+                // assistant_coach / team_manager membership — the same predicate the
+                // communications gateways use. Do not re-derive it here.
+                require_once __DIR__ . '/../lib/coach_scope.php';
+
+                $coachClubStmt = $pdo->prepare("
+                    SELECT DISTINCT club_profile_id FROM user_club_access
+                    WHERE user_id = :user_id AND active = TRUE AND role = 'coach'
                 ");
-                $teamAthleteStmt->execute(['user_id' => $userId]);
-                $coachAthletes = $teamAthleteStmt->fetchAll(PDO::FETCH_ASSOC);
-                $accessibleAthletes = array_merge($accessibleAthletes, $coachAthletes);
+                $coachClubStmt->execute(['user_id' => $userId]);
+
+                $teamIds = [];
+                foreach ($coachClubStmt->fetchAll(PDO::FETCH_COLUMN) as $coachClubId) {
+                    foreach (getCoachTeamIds($pdo, $userId, $coachClubId) as $teamId) {
+                        $teamIds[(int) $teamId] = true;
+                    }
+                }
+
+                if ($teamIds) {
+                    $ph = implode(',', array_fill(0, count($teamIds), '?'));
+                    $teamAthleteStmt = $pdo->prepare("
+                        SELECT DISTINCT a.id, a.first_name, a.last_name
+                        FROM athletes a
+                        JOIN team_members tm ON a.id = tm.athlete_id
+                        WHERE tm.team_id IN ($ph)
+                          AND a.active_status = true
+                          AND a.deleted_at IS NULL
+                    ");
+                    $teamAthleteStmt->execute(array_keys($teamIds));
+                    $accessibleAthletes = array_merge(
+                        $accessibleAthletes,
+                        $teamAthleteStmt->fetchAll(PDO::FETCH_ASSOC)
+                    );
+                }
             }
 
             // Unique athletes
@@ -263,21 +294,40 @@ try {
 
             // Check if coach has this athlete on their team
             if ($isCoach) {
-                $coachCheck = $pdo->prepare("
-                    SELECT tm.athlete_id
-                    FROM team_members tm
-                    JOIN teams t ON tm.team_id = t.id
-                    JOIN team_coaches tc ON t.id = tc.team_id
-                    JOIN coaches c ON tc.coach_id = c.id
-                    JOIN users u ON c.email = u.email
-                    WHERE u.id = :user_id AND tm.athlete_id = :athlete_id
-                ");
-                $coachCheck->execute([
-                    'user_id' => $userId,
-                    'athlete_id' => $athleteId
-                ]);
+                // Same phantom-table bug as `check` above — team_coaches and coaches
+                // do not exist, so this threw 42P01 for every coach. It failed later
+                // in the request than the other one (the guardian branch returns
+                // first), so a coach-parent asking about their OWN child got a
+                // correct answer and one about a team athlete got a 500.
+                require_once __DIR__ . '/../lib/coach_scope.php';
 
-                if ($coachCheck->fetch()) {
+                $coachClubStmt = $pdo->prepare("
+                    SELECT DISTINCT club_profile_id FROM user_club_access
+                    WHERE user_id = :user_id AND active = TRUE AND role = 'coach'
+                ");
+                $coachClubStmt->execute(['user_id' => $userId]);
+
+                $teamIds = [];
+                foreach ($coachClubStmt->fetchAll(PDO::FETCH_COLUMN) as $coachClubId) {
+                    foreach (getCoachTeamIds($pdo, $userId, $coachClubId) as $teamId) {
+                        $teamIds[(int) $teamId] = true;
+                    }
+                }
+
+                $onCoachTeam = false;
+                if ($teamIds) {
+                    $ph = implode(',', array_fill(0, count($teamIds), '?'));
+                    $coachCheck = $pdo->prepare("
+                        SELECT tm.athlete_id
+                        FROM team_members tm
+                        WHERE tm.team_id IN ($ph) AND tm.athlete_id = ?
+                        LIMIT 1
+                    ");
+                    $coachCheck->execute(array_merge(array_keys($teamIds), [$athleteId]));
+                    $onCoachTeam = (bool) $coachCheck->fetch();
+                }
+
+                if ($onCoachTeam) {
                     echo json_encode([
                         'success' => true,
                         'can_view' => true,
