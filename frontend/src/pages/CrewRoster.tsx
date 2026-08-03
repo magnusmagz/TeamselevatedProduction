@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import {
+  PortalStatus,
+  PORTAL_STATUS_META,
+  PORTAL_STATUS_ORDER,
+  portalStatusMeta,
+  portalStatusDetail,
+} from '../utils/portalStatus';
 
 /**
  * Crew — the club-wide roster of parents, guardians & family attached to any
@@ -15,22 +22,16 @@ interface CrewMember {
   mobile_phone: string;
   athletes: string;
   athlete_id: number;
-  status: 'active' | 'invited' | 'not_invited' | 'no_email';
+  status: PortalStatus | string;
+  first_login_at?: string | null;
+  invited_at?: string | null;
+  shared_account?: boolean;
+  shared_reason?: string | null;
 }
-
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: 'Portal active', cls: 'bg-green-100 text-green-700' },
-  invited: { label: 'Invited', cls: 'bg-amber-100 text-amber-800' },
-  not_invited: { label: 'Not invited', cls: 'bg-gray-100 text-gray-600' },
-  no_email: { label: 'No email', cls: 'bg-gray-100 text-gray-500' },
-};
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'not_invited', label: 'Not invited' },
-  { key: 'invited', label: 'Invited' },
-  { key: 'active', label: 'Portal active' },
-  { key: 'no_email', label: 'No email' },
+  ...PORTAL_STATUS_ORDER.map((k) => ({ key: k, label: PORTAL_STATUS_META[k].label })),
 ];
 
 const CrewRoster: React.FC = () => {
@@ -170,12 +171,11 @@ const CrewRoster: React.FC = () => {
     }
   };
 
-  const counts = {
+  const counts: Record<string, number> = {
     total: crew.length,
-    not_invited: crew.filter((m) => m.status === 'not_invited').length,
-    invited: crew.filter((m) => m.status === 'invited').length,
-    active: crew.filter((m) => m.status === 'active').length,
-    no_email: crew.filter((m) => m.status === 'no_email').length,
+    ...Object.fromEntries(
+      PORTAL_STATUS_ORDER.map((k) => [k, crew.filter((m) => m.status === k).length])
+    ),
   };
 
   const filtered = crew.filter((m) => {
@@ -194,7 +194,12 @@ const CrewRoster: React.FC = () => {
   });
 
   const inviteAll = async () => {
-    const targets = filtered.filter((m) => m.status === 'not_invited');
+    // 'invite_expired' is included deliberately: a lapsed invite needs exactly the
+    // same action as a missing one, and it used to be indistinguishable from
+    // 'not_invited' because the badge let expired invites decay into it.
+    const targets = filtered.filter(
+      (m) => m.status === 'not_invited' || m.status === 'invite_expired'
+    );
     if (!targets.length) return;
     if (!window.confirm(
       `Send a portal invite to ${targets.length} crew member${targets.length === 1 ? '' : 's'}?\n\n` +
@@ -229,12 +234,16 @@ const CrewRoster: React.FC = () => {
         </div>
         <button
           onClick={inviteAll}
-          disabled={bulk.running || counts.not_invited === 0}
+          disabled={bulk.running || counts.not_invited + counts.invite_expired === 0}
           className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {bulk.running
             ? `Inviting ${bulk.done} of ${bulk.total}…`
-            : `Invite all not invited (${filtered.filter((m) => m.status === 'not_invited').length})`}
+            : `Invite all not yet in (${
+                filtered.filter(
+                  (m) => m.status === 'not_invited' || m.status === 'invite_expired'
+                ).length
+              })`}
         </button>
       </div>
 
@@ -309,7 +318,8 @@ const CrewRoster: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filtered.map((m) => {
-                  const meta = STATUS_META[m.status] || STATUS_META.not_invited;
+                  const meta = portalStatusMeta(m.status);
+                  const detail = portalStatusDetail(m);
                   const busy = inviting === m.guardian_id;
                   return (
                     <tr
@@ -328,7 +338,22 @@ const CrewRoster: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{m.athletes}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${meta.cls}`}>{meta.label}</span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${meta.cls}`}
+                          title={meta.help}
+                        >
+                          {meta.label}
+                        </span>
+                        {/* The date IS the claim. "On the platform" without it is the
+                            old badge again, asserting more than we can show. */}
+                        {detail && (
+                          <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
+                        )}
+                        {m.shared_account && (
+                          <div className="text-[11px] text-amber-700 mt-0.5" title={m.shared_reason || ''}>
+                            ⚠ may be another account
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         {m.status === 'active' || m.status === 'no_email' ? null : (
@@ -343,7 +368,11 @@ const CrewRoster: React.FC = () => {
                                 : 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
                             }
                           >
-                            {busy ? 'Sending…' : m.status === 'invited' ? 'Resend' : 'Invite to portal'}
+                            {busy
+                              ? 'Sending…'
+                              : m.status === 'invited' || m.status === 'invite_expired'
+                              ? 'Resend'
+                              : 'Invite to portal'}
                           </button>
                         )}
                       </td>
@@ -423,9 +452,9 @@ const CrewRoster: React.FC = () => {
                       <dt className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Parent portal</dt>
                       <dd className="mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                          (STATUS_META[selected.status] || STATUS_META.not_invited).cls
+                          portalStatusMeta(selected.status).cls
                         }`}>
-                          {(STATUS_META[selected.status] || STATUS_META.not_invited).label}
+                          {portalStatusMeta(selected.status).label}
                         </span>
                       </dd>
                     </div>

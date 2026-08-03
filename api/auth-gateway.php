@@ -943,25 +943,22 @@ function handleClubParents($db, $input) {
         return;
     }
 
+    require_once __DIR__ . '/../lib/portal_status.php';
+
+    // Status comes from te_portal_status(), not from a CASE here — the Coaches page
+    // asks the same question and the two must not drift. The old CASE read a
+    // password as a login and let an expired invite decay into 'not_invited'.
     $stmt = $db->prepare("
         SELECT g.id AS guardian_id, g.first_name, g.last_name, g.email, g.mobile_phone,
                string_agg(DISTINCT a.first_name || ' ' || a.last_name, ', ') AS athletes,
-               CASE
-                   WHEN u.password_hash IS NOT NULL AND u.password_hash <> '' THEN 'active'
-                   WHEN EXISTS (
-                       SELECT 1 FROM magic_link_tokens t
-                       WHERE t.email = lower(btrim(g.email)) || ':parent_invite'
-                         AND t.used_at IS NULL AND t.expires_at > NOW()
-                   ) THEN 'invited'
-                   ELSE 'not_invited'
-               END AS status,
-               min(a.id) AS any_athlete_id
+               min(a.id) AS any_athlete_id,
+               " . te_portal_status_columns('g.email', 'u') . "
         FROM guardians g
         JOIN athlete_guardians ag ON ag.guardian_id = g.id
         JOIN athletes a ON a.id = ag.athlete_id
         LEFT JOIN users u ON lower(u.email) = lower(btrim(g.email))
         WHERE a.club_id = ?
-        GROUP BY g.id, u.password_hash
+        GROUP BY g.id, u.id, u.password_hash, u.last_login_at
         ORDER BY g.last_name, g.first_name
     ");
     $stmt->execute([$clubId]);
@@ -969,15 +966,20 @@ function handleClubParents($db, $input) {
     $parents = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $email = trim((string)($r['email'] ?? ''));
+        $s = te_portal_status($r, $email, 'crew');
         $parents[] = [
-            'guardian_id'  => (int)$r['guardian_id'],
-            'first_name'   => $r['first_name'],
-            'last_name'    => $r['last_name'],
-            'email'        => $email,
-            'mobile_phone' => $r['mobile_phone'],
-            'athletes'     => $r['athletes'],
-            'athlete_id'   => (int)$r['any_athlete_id'],
-            'status'       => $email === '' ? 'no_email' : $r['status'],
+            'guardian_id'    => (int)$r['guardian_id'],
+            'first_name'     => $r['first_name'],
+            'last_name'      => $r['last_name'],
+            'email'          => $email,
+            'mobile_phone'   => $r['mobile_phone'],
+            'athletes'       => $r['athletes'],
+            'athlete_id'     => (int)$r['any_athlete_id'],
+            'status'         => $s['status'],
+            'first_login_at' => $s['first_login_at'],
+            'invited_at'     => $s['invited_at'],
+            'shared_account' => $s['shared_account'],
+            'shared_reason'  => $s['shared_reason'],
         ];
     }
 

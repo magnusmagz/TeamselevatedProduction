@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
+import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 
 interface Coach {
   id: number;
@@ -10,6 +11,14 @@ interface Coach {
   phone?: string | null;
   team_count: number;
   teams?: { id: number; name: string }[];
+  // Platform access, from lib/portal_status.php — the same fields the Crew page
+  // gets. The Status column used to render the literal string "Active" for every
+  // coach regardless of whether they had ever signed in.
+  status?: string;
+  first_login_at?: string | null;
+  invited_at?: string | null;
+  shared_account?: boolean;
+  shared_reason?: string | null;
 }
 
 interface CoachManagementProps {
@@ -376,9 +385,33 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 border border-brand-primary text-brand-primary text-xs uppercase">
-                            Active
-                          </span>
+                          {(() => {
+                            const meta = portalStatusMeta(coach.status || 'not_invited');
+                            const detail = portalStatusDetail(coach);
+                            return (
+                              <>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
+                                  title={meta.help}
+                                >
+                                  {meta.label}
+                                </span>
+                                {detail && (
+                                  <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                                    {detail}
+                                  </div>
+                                )}
+                                {coach.shared_account && (
+                                  <div
+                                    className="text-[11px] text-amber-700 mt-0.5"
+                                    title={coach.shared_reason || ''}
+                                  >
+                                    &#9888; may be another account
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
@@ -624,9 +657,36 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           {coach.team_count > 0 ? coach.team_count : '0'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          <span className="px-2 py-1 text-xs text-brand-primary border border-brand-primary">
-                            Active
-                          </span>
+                          {/* Same source as the modal table above — two tables in this
+                              file render the same list, so both had the hardcoded
+                              "Active" and both have to move together. */}
+                          {(() => {
+                            const meta = portalStatusMeta(coach.status || 'not_invited');
+                            const detail = portalStatusDetail(coach);
+                            return (
+                              <>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
+                                  title={meta.help}
+                                >
+                                  {meta.label}
+                                </span>
+                                {detail && (
+                                  <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">
+                                    {detail}
+                                  </div>
+                                )}
+                                {coach.shared_account && (
+                                  <div
+                                    className="text-[11px] text-amber-700 mt-0.5"
+                                    title={coach.shared_reason || ''}
+                                  >
+                                    &#9888; may be another account
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button

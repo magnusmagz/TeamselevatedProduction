@@ -55,9 +55,14 @@ try {
                 $params = array_merge($accessibleClubs, $accessibleClubs);
             }
 
+            // Same portal-status columns the Crew page uses, so "has this person
+            // actually signed in" has one answer across both screens.
+            require_once __DIR__ . '/../lib/portal_status.php';
+
             $sql = "
                 SELECT u.id, u.first_name, u.last_name, u.email,
-                       COUNT(DISTINCT t.id) AS team_count
+                       COUNT(DISTINCT t.id) AS team_count,
+                       " . te_portal_status_columns('u.email', 'u') . "
                 FROM users u
                 LEFT JOIN teams t
                        ON t.primary_coach_id = u.id
@@ -73,12 +78,29 @@ try {
                     )
                     OR t.id IS NOT NULL
                 )
-                GROUP BY u.id, u.first_name, u.last_name, u.email
+                GROUP BY u.id, u.first_name, u.last_name, u.email,
+                         u.password_hash, u.last_login_at
                 ORDER BY u.last_name, u.first_name
             ";
             $stmt = $connection->prepare($sql);
             $stmt->execute($params);
-            $coaches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $coaches = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $s = te_portal_status($r, (string)$r['email'], 'coach');
+                $coaches[] = [
+                    'id'             => (int)$r['id'],
+                    'first_name'     => $r['first_name'],
+                    'last_name'      => $r['last_name'],
+                    'email'          => $r['email'],
+                    'team_count'     => (int)$r['team_count'],
+                    'status'         => $s['status'],
+                    'first_login_at' => $s['first_login_at'],
+                    'invited_at'     => $s['invited_at'],
+                    'shared_account' => $s['shared_account'],
+                    'shared_reason'  => $s['shared_reason'],
+                ];
+            }
             echo json_encode($coaches);
             break;
 
