@@ -42,13 +42,33 @@ $pdo = new PDO(
 
 // ── Principals ───────────────────────────────────────────────────────────────
 // Discovered per club, so this keeps working as staff come and go.
+/**
+ * ⚠️ For 'parent' this must exclude anyone who ALSO holds a staff role.
+ *
+ * Plenty of coaches are also parents, and the parent checks below assert that a
+ * parent gets an EMPTY scope — which is false for a coach-parent, correctly. On
+ * 2026-08-03 this picked Cade Butler (coach + parent) and the suite reported a
+ * consent "leak" that was the scope working exactly as designed. The bulk invite
+ * on 2026-07-31 created parent rows on coaches, which is what moved a lower user
+ * id to the front and changed who got picked.
+ */
 function findUser(PDO $pdo, int $club, string $role): ?array
 {
+    $exclusive = $role === 'parent'
+        ? "AND NOT EXISTS (
+               SELECT 1 FROM user_club_access s
+               WHERE s.user_id = u.id AND s.active
+                 AND s.role IN ('club_admin', 'coach', 'treasurer', 'volunteer')
+           )
+           AND COALESCE(u.system_role, '') <> 'super_admin'"
+        : '';
+
     $stmt = $pdo->prepare("
         SELECT u.id, u.email, u.first_name, u.last_name
         FROM users u
         JOIN user_club_access uca ON uca.user_id = u.id
         WHERE uca.active AND uca.role = ? AND uca.club_profile_id = ?
+        {$exclusive}
         ORDER BY u.id LIMIT 1
     ");
     $stmt->execute([$role, $club]);
@@ -83,6 +103,33 @@ function get(string $base, string $path, ?string $tok): array
 
     return ['code' => $code, 'body' => (string) $body,
             'json' => json_decode((string) $body, true), 'error' => $err];
+}
+
+/**
+ * Some read endpoints are POSTs — handleClubParents takes club_id in a JSON body,
+ * not the query string. POST here is still a READ; nothing in this file may create,
+ * change or delete anything.
+ */
+function postRead(string $base, string $path, ?string $tok, array $body): array
+{
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $base . $path,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 45,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($body),
+        CURLOPT_HTTPHEADER => array_filter([
+            'Content-Type: application/json',
+            $tok ? "Authorization: Bearer {$tok}" : null,
+        ]),
+    ]);
+    $out = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    return ['code' => $code, 'body' => (string) $out,
+            'json' => json_decode((string) $out, true), 'error' => ''];
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────────
@@ -140,7 +187,6 @@ echo "\nNo token — every staff endpoint must refuse\n";
 foreach ([
     '/api/inbox.php?action=threads&club_profile_id=51',
     '/api/analytics-gateway.php?action=overview&club_profile_id=51',
-    '/api/auth-gateway.php?action=club-parents',
     '/api/communications-gateway.php?action=log',
     '/api/consent.php?action=summary&club_profile_id=51',
     '/api/sms-numbers.php?action=get&club_profile_id=51',
@@ -190,7 +236,7 @@ foreach ([51 => 'Central Kansas', 32 => 'Teams Elevated'] as $club => $clubName)
     check('consent: summary',          get($base, "/api/consent.php?action=summary&club_profile_id={$club}", $tok), 200);
 
     // Core CRM — untouched by us, but shipped alongside our commits.
-    check('crew: club-parents',        get($base, "/api/auth-gateway.php?action=club-parents&club_id={$club}", $tok), 200);
+    check('crew: club-parents',        postRead($base, '/api/auth-gateway.php?action=club-parents', $tok, ['club_id' => $club]), 200, envelope('parents'));
     check('athletes',                  get($base, "/api/athletes", $tok), 200);
     check('teams',                     get($base, "/api/teams", $tok), 200);
     check('club profile',              get($base, "/legacy/club-profile-gateway.php?club_id={$club}", $tok), [200, 404]);
@@ -207,6 +253,8 @@ if ($kansas) {
     $kTok = token($pdo, $kansas, 51);
     check('Kansas admin cannot read club 32 inbox',
         get($base, '/api/inbox.php?action=threads&club_profile_id=32', $kTok), [401, 403]);
+    check('Kansas admin cannot read club 32 crew',
+        postRead($base, '/api/auth-gateway.php?action=club-parents', $kTok, ['club_id' => 32]), [401, 403]);
     check('Kansas admin cannot read club 32 analytics',
         get($base, '/api/analytics-gateway.php?action=overview&club_profile_id=32', $kTok), [401, 403]);
     // consent/summary derives the club from the token's active context and
@@ -253,7 +301,7 @@ if ($parent) {
             return ($j['counts']['total'] ?? null) === 0 ? null : 'counts disagree with the empty list';
         });
     check('parent is refused the crew list',
-        get($base, '/api/auth-gateway.php?action=club-parents&club_id=51', $pTok), [401, 403]);
+        postRead($base, '/api/auth-gateway.php?action=club-parents', $pTok, ['club_id' => 51]), [401, 403]);
 } else {
     echo "  - no parent in club 51 to test with\n";
 }
