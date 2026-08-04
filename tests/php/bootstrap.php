@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../lib/AthleteScope.php';
 require_once __DIR__ . '/../../lib/jersey_size.php';
 require_once __DIR__ . '/../../lib/consent_capture.php';
 require_once __DIR__ . '/../../lib/parent_invite_token.php';
+require_once __DIR__ . '/../../lib/magic_link.php';
 require_once __DIR__ . '/../../services/MergeFieldService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
 require_once __DIR__ . '/../../services/AttendanceService.php';

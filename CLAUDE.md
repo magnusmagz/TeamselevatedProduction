@@ -460,6 +460,35 @@ first person to hit it was the first coach who was also a parent.
   Re-deriving it is what produced a join against tables nobody had checked existed.
 
 
+### "Send login link" is a different button from "Invite to portal"
+Added 2026-08-04. `api/portal-access.php?action=send-login-link`, surfaced on the Crew
+page as one context-aware control.
+
+**"Invite to portal" does nothing for an existing account.** `ParentInvite::send` returns
+`already_active` before minting anything, and `handleSendParentInvite` only emails inside
+the `invited` branch — so the admin saw "They already have an account" and the parent
+received nothing. The Crew page then rendered **no button at all** for `active` rows, so a
+family who could not get in had no path that did anything. One control now covers all
+four states: active → *Send login link*, invited/invite_expired → *Resend*,
+not_invited → *Invite to portal*, no_email → nothing.
+
+- **Admin-sent links live 24h; the login page's live 15 minutes.** Both TTLs are in
+  `lib/magic_link.php` and the difference is the point — an admin clicks now and the
+  parent reads tonight, so a 15-minute admin link is usually dead on arrival. The
+  response returns the phrase (`expires_in`) and the UI shows it, so what the admin is
+  told cannot drift from what was minted.
+- ⚠️ **This endpoint gates on `hasRole('club_admin')`, NOT `canAccessClub()`.** The latter
+  is club *membership* and a `parent` row satisfies it (see the open `handleClubParents`
+  finding), so using it here would let any parent mail a sign-in link to any other family
+  in their club. Pinned by `MagicLinkTtlTest`.
+- **The token is never in the response** — the email is the channel, which is what stops
+  an admin gaining access to a family's account. Also pinned.
+- The send is audited as `portal_login_link_sent` whether or not the mail left: an admin
+  caused a sign-in link to exist for someone else's account, and that is the fact worth
+  being able to show later.
+- `send-magic-link` on `auth-gateway.php` is deliberately left unauthenticated and
+  untouched — it only ever mails the account owner, so identity proves nothing there.
+
 ### A one-time link needs THREE answers, not one — `lib/parent_invite_token.php`
 Added 2026-08-03 after a parent completed setup, re-clicked his link, was told it had
 expired, and emailed support four minutes later (CHANGELOG). His token had four days

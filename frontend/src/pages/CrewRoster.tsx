@@ -90,6 +90,35 @@ const CrewRoster: React.FC = () => {
     return { ok: res.ok && data.success, data };
   };
 
+  // A crew member who already has an account cannot be "invited" — ParentInvite
+  // returns already_active and sends nothing, so the old UI showed no button at
+  // all for them. This is the path that actually helps: mail them a sign-in link.
+  const handleLoginLink = async (m: CrewMember) => {
+    setInviting(m.guardian_id);
+    try {
+      const res = await fetch(`${API_URL}/api/portal-access.php?action=send-login-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ guardian_id: m.guardian_id, club_id: clubProfileId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // State the expiry the backend actually used. Telling someone "sent!"
+        // without it is how the 2026-08-03 invite ticket happened.
+        alert(`Sign-in link sent to ${data.email}. It is valid for ${data.expires_in}.`);
+      } else if (data.reason === 'no_account') {
+        alert('They do not have an account yet — send them an invite instead.');
+        await load();
+      } else {
+        alert(data.error || 'Could not send the sign-in link.');
+      }
+    } catch {
+      alert('Could not send the sign-in link.');
+    } finally {
+      setInviting(null);
+    }
+  };
+
   const handleInvite = async (m: CrewMember) => {
     setInviting(m.guardian_id);
     try {
@@ -356,20 +385,33 @@ const CrewRoster: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {m.status === 'active' || m.status === 'no_email' ? null : (
+                        {/* One control, four behaviours — the admin should not have
+                            to know which state someone is in. `active` used to
+                            render NOTHING, which is why a family who could not get
+                            in had no path: "Invite to portal" sends nothing to an
+                            existing account, and there was no other button. */}
+                        {m.status === 'no_email' ? null : (
                           <button
-                            // The row opens the panel, so the invite button must not
-                            // also trigger it.
-                            onClick={(e) => { e.stopPropagation(); handleInvite(m); }}
+                            // The row opens the panel, so this must not also trigger it.
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (m.status === 'active') {
+                                handleLoginLink(m);
+                              } else {
+                                handleInvite(m);
+                              }
+                            }}
                             disabled={busy || bulk.running}
                             className={
-                              m.status === 'invited'
+                              m.status === 'invited' || m.status === 'active'
                                 ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
                                 : 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
                             }
                           >
                             {busy
                               ? 'Sending…'
+                              : m.status === 'active'
+                              ? 'Send login link'
                               : m.status === 'invited' || m.status === 'invite_expired'
                               ? 'Resend'
                               : 'Invite to portal'}
