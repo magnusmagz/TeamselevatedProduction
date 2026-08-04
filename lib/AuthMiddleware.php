@@ -186,7 +186,13 @@ class AuthMiddleware {
             }
         }
 
-        return array_unique(array_filter($clubIds));
+        // array_values() is load-bearing: array_unique() and array_filter() both
+        // PRESERVE KEYS, so a user holding two roles in the same club came back as
+        // [0 => 32, 2 => 50] — a gap at index 1. Callers pass this straight to
+        // PDO::execute() as positional parameters, and PDO rejects a non-sequential
+        // array. That 500'd Facilities (and 9 other endpoints) for every user with
+        // two roles in one club: 7 accounts, 6 of them Central Kansas coach+parent.
+        return array_values(array_unique(array_filter($clubIds)));
     }
 
     /**

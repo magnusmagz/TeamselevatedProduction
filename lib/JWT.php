@@ -53,7 +53,11 @@ class JWT {
             SELECT uca.role, uca.club_profile_id as club_id, c.name as club_name
             FROM user_club_access uca
             JOIN club_profile c ON uca.club_profile_id = c.id
-            WHERE uca.user_id = ? AND uca.active = TRUE
+            -- revoked_at is checked as well as active: the two can disagree, and
+            -- when they do the revocation is the newer fact. One live row had
+            -- active = TRUE with revoked_at set (2026-07-08), so a role that had
+            -- been taken away was still being minted into that user's token.
+            WHERE uca.user_id = ? AND uca.active = TRUE AND uca.revoked_at IS NULL
         ");
         $stmt->execute([$userId]);
         $clubRoles = $stmt->fetchAll(PDO::FETCH_ASSOC);

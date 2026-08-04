@@ -439,6 +439,35 @@ how a scope check becomes a data leak. Pinned by `ConsentRollupTest`.
 A missing or unrecognised status renders as **Unknown**, never as a blank cell: blank reads as
 "fine", which is the wrong default for a compliance column.
 
+### `getAccessibleClubIds()` must return a re-indexed list
+Fixed 2026-08-04, reported as "Facilities shows Something went wrong".
+
+`array_unique()` and `array_filter()` both **preserve keys**. A user holding two roles in
+the same club de-duplicated to `[0 => 32, 2 => 50]` — a gap at index 1. All ten callers
+pass that array straight to `PDO::execute()` as positional parameters, and PDO rejects a
+non-sequential array, so the endpoint 500'd. The fix is `array_values(...)` around the
+return; it only re-indexes and cannot change which clubs come back.
+
+- **7 accounts hold two roles in one club** — eli@ (club_admin + coach in 32) and six
+  Central Kansas coach+parent accounts, the same population as the financial-permissions
+  break. Every one of them was broken on venues, teams, programs, coaches, fields,
+  tournaments and chat moderation.
+- The frontend compounded it: `VenueManagement` calls `.map()` on the response without
+  checking it is an array, so a 500 became "Something went wrong" for the whole page
+  rather than an error state on one panel. Not fixed — noted.
+- `AccessibleClubIdsTest` asserts sequential keys AND binds the result through a real PDO
+  statement. The key assertion alone would not have caught it; the shape is what PDO
+  rejects.
+
+**A revoked role was still being minted into tokens.** `lib/JWT.php` filtered
+`uca.active = TRUE` and never checked `revoked_at`. The two columns can disagree — one live
+row had `active = TRUE` with `revoked_at` set 2026-07-08 — and when they do, the revocation
+is the newer fact. Now `AND uca.revoked_at IS NULL`. Exactly one row was affected, so this
+changes access for one user, correctly.
+
+⚠️ **Already-issued tokens keep the revoked role until they expire.** The filter applies at
+mint time only.
+
 ### Club MEMBERSHIP is not club STAFF — `lib/club_standing.php`
 Fixed 2026-08-04. `AuthMiddleware::canAccessClub()` returns true for ANY role scoped to
 the club, `parent` included. `handleClubParents` gated on it, so a parent POSTing their
