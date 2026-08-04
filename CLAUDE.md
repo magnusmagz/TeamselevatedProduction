@@ -296,8 +296,9 @@ SENDGRID_API_KEY=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_FROM_NUMBER=
-SENDGRID_FROM_EMAIL=
-SENDGRID_FROM_NAME=
+SENDGRID_FROM_EMAIL=        # bulk path; all three below are the SAME address now
+EMAIL_FROM=                 # transactional (lib/Email.php) — NOT SENDGRID_FROM_EMAIL
+SMTP_FROM_EMAIL=            # calendar invites (PHPMailer)
 REDIS_URL=                  # Already set — reuse existing connection
 APP_URL=                    # Needed for unsubscribe landing page links
 ```
@@ -1139,6 +1140,35 @@ no one in your session wrote — checking only what you touched is not enough.
 
 
 ## Helpful Context
+
+### Every email comes from ONE address, under the CLUB's name — `lib/email_sender.php`
+Set 2026-08-04. `notifications@teamselevated.com`, display name = the sending club
+("Central Kansas United"), so a parent recognises the sender.
+
+**Before this there were three senders, two on hardcoded fallbacks nobody had chosen:**
+`lib/Email.php` sent as `maggie@eyeinteams.com` / "Teams Elevated", `EmailSendService` as
+`notifications@teamselevated.com` / *the staff member's name*, and `CalendarInviteService`
+as `maggie@eyeinteams.com` / "Maggie - Teams Elevated". A family registering, being invited
+and then getting a club broadcast saw two domains and three names — and never their club's.
+
+- **Resolve through `te_email_from_address()` / `te_email_from_name($pdo, $clubId)`.** No send
+  path may carry its own address; `EmailSenderTest` fails the build if one does.
+- **The address must stay on a SendGrid-authenticated domain.** `teamselevated.com` is the
+  authenticated one — that is why everything consolidated onto it rather than onto
+  `eyeinteams.com`. Moving it is not cosmetic: an unauthenticated From puts password resets
+  in spam.
+- **No club ⇒ "Teams Elevated", never a guess.** Password reset and magic-link sign-in from
+  the login page have no club (the person may span several or none). `EmailBranding` answers
+  `'Your Club'` for an unknown id — fine as a page heading, terrible as a sender — so that
+  value is treated as unknown and never reaches an inbox.
+- **Bulk: FROM is the club, REPLY-TO is the staff member.** Broadcasts used to show the
+  sender's name; they now show the club, and a reply still reaches the person.
+- **Calendar: stamped per event via `sendAsClub()`**, because PHPMailer holds one From for the
+  instance and the constructor runs before any event is known. Every public send path calls
+  it; a new one that forgets sends as the platform.
+- Transactional callers opt in with `(new Email())->forClub($pdo, $clubId)`. Wired for the
+  parent invite and the Crew login link. Others (consent confirmation, team invitation,
+  receipts) still fall back to "Teams Elevated" — correct, just not yet club-branded.
 
 ### ⚠️ There are THREE email send paths, and they behave differently
 Know which one you are touching before you debug a delivery or rendering problem — they fail in

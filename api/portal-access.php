@@ -118,7 +118,7 @@ $name = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))
 
 $sent = false;
 try {
-    $sent = (bool) (new Email())->sendMagicLink($email, $name, $link);
+    $sent = (bool) (new Email())->forClub($pdo, $clubId)->sendMagicLink($email, $name, $link);
 } catch (Throwable $e) {
     error_log('portal-access: sendMagicLink failed for ' . $email . ': ' . $e->getMessage());
 }

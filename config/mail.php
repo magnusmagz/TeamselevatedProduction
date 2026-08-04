@@ -15,8 +15,8 @@ return [
         'encryption' => 'tls',
         'username' => 'apikey',
         'password' => getenv('SENDGRID_API_KEY') ?: 'your-sendgrid-api-key',
-        'from_email' => getenv('SMTP_FROM_EMAIL') ?: 'maggie@eyeinteams.com',
-        'from_name' => getenv('SMTP_FROM_NAME') ?: 'Maggie - Teams Elevated',
+        'from_email' => getenv('SMTP_FROM_EMAIL') ?: 'notifications@teamselevated.com',
+        'from_name' => getenv('SMTP_FROM_NAME') ?: 'Teams Elevated',
 
         // Alternative configurations
 

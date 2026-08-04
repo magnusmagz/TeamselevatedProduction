@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../lib/suppression.php';
 require_once __DIR__ . '/../lib/EmailBranding.php';
+require_once __DIR__ . '/../lib/email_sender.php';
 
 /**
  * Email Send Service
@@ -237,10 +238,11 @@ class EmailSendService {
                     'tracking_id' => $logRecord['tracking_id']
                 ]
             ]],
-            'from' => [
-                'email' => Env::get('SENDGRID_FROM_EMAIL', 'notifications@teamselevated.com'),
-                'name' => $senderName
-            ],
+            // FROM is the CLUB, REPLY-TO is the person. A parent scanning their
+            // inbox should see "Central Kansas United", not the name of whichever
+            // staff member clicked send — but a reply still has to reach a human,
+            // so the sender's own address stays on reply_to.
+            'from' => te_email_from($this->pdo, $logRecord['club_profile_id'] ?? null),
             'reply_to' => [
                 'email' => $senderInfo['email'],
                 'name' => $senderName

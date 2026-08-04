@@ -893,7 +893,8 @@ function handleSendParentInvite($db, $input) {
 
         $appUrl = rtrim(Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/');
         $link = $appUrl . '/set-parent-password?token=' . $inv['token'];
-        (new Email())->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
+        // Send as the club, so the parent recognises the sender. See lib/email_sender.php.
+        (new Email())->forClub($db, $clubId)->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
     }
 
     echo json_encode([

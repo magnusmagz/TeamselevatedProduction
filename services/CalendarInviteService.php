@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../lib/email_sender.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
@@ -54,16 +55,16 @@ class CalendarInviteService {
         $this->mailer->CharSet = PHPMailer::CHARSET_UTF8;
 
         // Default sender
-        $this->mailer->setFrom(
-            $this->config['smtp']['from_email'],
-            $this->config['smtp']['from_name']
-        );
+        // Default sender. Overridden per event by sendAsClub() once the club is
+        // known — the constructor runs before any event is in hand.
+        $this->mailer->setFrom(te_email_from_address(), te_email_from_name());
     }
 
     /**
      * Send event invitations to all recipients
      */
     public function sendEventInvites($event, $recipients) {
+        $this->sendAsClub($event['club_id'] ?? null);
         $results = [
             'sent' => 0,
             'failed' => 0,
@@ -180,6 +181,7 @@ class CalendarInviteService {
      * that UID.
      */
     public function sendSeriesInvites($event, $recipients, $series) {
+        $this->sendAsClub($event['club_id'] ?? null);
         $results = ['sent' => 0, 'failed' => 0, 'errors' => []];
 
         $ical = $this->generateCalendarInvite($event, $series['calendar_uid'], 'REQUEST', 0, $series['rrule']);
@@ -240,6 +242,7 @@ class CalendarInviteService {
 
         $newSequence = ((int) $series['ics_sequence']) + 1;
         $event = $this->getEventDetails($invitations[0]['event_id']);
+        $this->sendAsClub($event['club_id'] ?? null);
         $sent = 0;
 
         foreach ($invitations as $invite) {
@@ -324,6 +327,22 @@ HTML;
         }
 
         return ['sent' => $sent];
+    }
+
+
+    /**
+     * Send subsequent mail as the club rather than the platform.
+     *
+     * PHPMailer holds one From for the instance and this service is reused across
+     * recipients, so this is called per event — right where the branding is
+     * already being fetched — rather than in the constructor, which runs before
+     * any club is known.
+     */
+    private function sendAsClub($clubId) {
+        $this->mailer->setFrom(
+            te_email_from_address(),
+            te_email_from_name($this->pdo ?? null, $clubId !== null ? (int) $clubId : null)
+        );
     }
 
     /**
@@ -419,6 +438,7 @@ HTML;
      * Send an update to an existing calendar invite
      */
     public function sendEventUpdate($event, $recipient, $existingInvite) {
+        $this->sendAsClub($event['club_id'] ?? null);
         // Increment sequence number
         $newSequence = $existingInvite['sequence'] + 1;
 

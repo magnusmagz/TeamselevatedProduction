@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/CalendarInvite.php';
+require_once __DIR__ . '/email_sender.php';
 
 class Email {
     private $provider;
@@ -17,9 +18,31 @@ class Email {
 
     public function __construct() {
         $this->provider = Env::get('EMAIL_PROVIDER', 'mail'); // 'sendgrid' or 'mail'
-        $this->fromEmail = Env::get('EMAIL_FROM', 'noreply@teamselevated.com');
-        $this->fromName = Env::get('EMAIL_FROM_NAME', 'Teams Elevated');
+        // One address for every path — see lib/email_sender.php. The old default
+        // here was noreply@teamselevated.com while production ran on
+        // maggie@eyeinteams.com, so neither the code nor the config said what
+        // families actually saw.
+        $this->fromEmail = te_email_from_address();
+        $this->fromName = te_email_from_name();
         $this->apiKey = Env::get('SENDGRID_API_KEY', '');
+    }
+
+    /**
+     * Send subsequent mail as the club rather than as the platform.
+     *
+     * A parent should recognise "Central Kansas United" in their inbox. Call this
+     * wherever a club is known — invites, consent, team invitations, receipts.
+     * Where it genuinely is not (password reset or magic-link sign-in from the
+     * login page, where the person may span several clubs) leave it alone and the
+     * mail goes out as "Teams Elevated", which is the honest answer.
+     *
+     * @param PDO|null $pdo
+     * @param int|null $clubId
+     * @return $this  chainable: (new Email())->forClub($db, $clubId)->sendParentInvite(...)
+     */
+    public function forClub($pdo, $clubId) {
+        $this->fromName = te_email_from_name($pdo, $clubId !== null ? (int) $clubId : null);
+        return $this;
     }
 
     /**
