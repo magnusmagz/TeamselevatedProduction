@@ -31,6 +31,7 @@ require_once __DIR__ . '/../lib/AuditLogger.php';
 /** Bump when the Terms change so a future revision can require re-acceptance. */
 const TOS_VERSION = '1.0';
 require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/parent_invite_token.php';
 
 // Use existing MySQL database for now (will migrate to Neon later)
 require_once __DIR__ . '/../config/database.php';
@@ -732,42 +733,82 @@ function handleSetParentPassword($db, $input) {
 
     $token = $input['token'];
 
-    // Look up the parent-invite token (':parent_invite' suffix in email field).
+    // Look up the parent-invite token WITHOUT folding used/expiry into the WHERE
+    // clause. Those predicates used to live here, which made a missing row, a
+    // spent row and an expired row indistinguishable — all three answered
+    // "Invalid or expired link". A parent who had already completed setup was
+    // told his link had expired four days before it actually would.
+    // See lib/parent_invite_token.php.
     $stmt = $db->prepare("
         SELECT id, email, expires_at, used_at
         FROM magic_link_tokens
-        WHERE token = ? AND email LIKE '%:parent_invite' AND used_at IS NULL AND expires_at > NOW()
+        WHERE token = ? AND email LIKE '%:parent_invite'
         LIMIT 1
     ");
     $stmt->execute([$token]);
     $tokenData = $stmt->fetch();
 
-    if (!$tokenData) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid or expired link']);
+    $classification = te_classify_parent_invite_token($tokenData ?: null);
+    if ($classification !== TE_INVITE_TOKEN_VALID) {
+        $err = te_parent_invite_token_error($classification);
+        http_response_code($err['status']);
+        echo json_encode(['error' => $err['error'], 'reason' => $err['reason']]);
         return;
     }
 
     // Derive the real email by stripping the trailing ':parent_invite' suffix.
     $email = preg_replace('/:parent_invite$/', '', $tokenData['email']);
 
-    // Set the password and flip the account to password auth.
-    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $db->prepare("UPDATE users SET password_hash = ?, auth_provider = 'password', updated_at = NOW() WHERE email = ?");
-    $stmt->execute([$passwordHash, $email]);
-
-    // Mark token used.
-    $stmt = $db->prepare('UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?');
-    $stmt->execute([$tokenData['id']]);
-
-    // Load the user and auto-log them in.
+    // RESOLVE THE ACCOUNT BEFORE SPENDING THE TOKEN.
+    //
+    // This lookup used to run last, after the password write and after the token
+    // was marked used — and the password UPDATE keyed on email without checking
+    // how many rows it touched. So for any invite whose address had no matching
+    // users row, the parent's FIRST attempt silently wrote nothing, burned their
+    // link, and returned "Invalid or expired link"; every retry then failed for
+    // real. Nothing in the logs distinguished that from an ordinary expiry.
     $stmt = $db->prepare('SELECT id, email, first_name, last_name FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
     if (!$user) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid or expired link']);
+        // The token is left UNSPENT on purpose: nothing was accomplished, so the
+        // parent's link must still work once the missing account is repaired.
+        error_log("set-parent-password: valid token for '$email' but no users row; token left unspent");
+        http_response_code(500);
+        echo json_encode([
+            'error'  => 'Your account is not set up correctly. Please contact your club.',
+            'reason' => 'account_missing',
+        ]);
+        return;
+    }
+
+    // Write the password and spend the token together, keyed on the resolved id
+    // rather than the email string.
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    try {
+        $db->beginTransaction();
+
+        $stmt = $db->prepare("UPDATE users SET password_hash = ?, auth_provider = 'password', updated_at = NOW() WHERE id = ?");
+        $stmt->execute([$passwordHash, $user['id']]);
+        if ($stmt->rowCount() !== 1) {
+            throw new RuntimeException('password update affected ' . $stmt->rowCount() . ' rows');
+        }
+
+        $stmt = $db->prepare('UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?');
+        $stmt->execute([$tokenData['id']]);
+
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('set-parent-password: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode([
+            'error'  => 'We could not finish setting up your account. Please try again.',
+            'reason' => 'write_failed',
+        ]);
         return;
     }
 

@@ -90,7 +90,8 @@ class Email {
                     "You've been invited to set up your Teams Elevated parent account.\n\n" .
                     "Click the link below to set your password and access the parent portal:\n\n" .
                     "$inviteLink\n\n" .
-                    "This link expires in 7 days.\n\n" .
+                    "This link expires in 7 days and can only be used once. Once you've set your\n" .
+                    "password, sign in with it instead of clicking this link again.\n\n" .
                     "If you weren't expecting this invitation, you can safely ignore this email.";
 
         return $this->send($to, $subject, $htmlBody, $textBody);
@@ -465,7 +466,7 @@ HTML;
                 <a href="{$inviteLink}" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;"><span style="color: #ffffff !important; text-decoration: none;">Set Up My Account</span></a>
             </p>
             <div class="warning">
-                <strong>This link expires in 7 days.</strong> If you weren't expecting this invitation, you can safely ignore this email.
+                <strong>This link expires in 7 days and can only be used once.</strong> Once you've set your password, sign in with it instead of clicking this link again. If you weren't expecting this invitation, you can safely ignore this email.
             </div>
             <p style="color: #999; font-size: 12px; word-break: break-all;">
                 Or copy and paste this link: {$inviteLink}

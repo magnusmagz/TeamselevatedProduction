@@ -12,6 +12,7 @@ export default function SetParentPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorReason, setErrorReason] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function SetParentPassword() {
 
     setLoading(true);
     setError(null);
+    setErrorReason(null);
 
     try {
       const response = await fetch(`${API_URL}/api/auth-gateway.php?action=set-parent-password`, {
@@ -82,6 +84,11 @@ export default function SetParentPassword() {
       const data = await response.json();
 
       if (!response.ok) {
+        // `reason` distinguishes what the backend used to flatten into one
+        // "Invalid or expired link". already_used is the common one and is NOT a
+        // failure — the parent has a working account and just needs to sign in,
+        // so give them that route rather than a dead end.
+        setErrorReason(data.reason ?? null);
         throw new Error(data.error || 'Failed to set password');
       }
 
@@ -200,8 +207,25 @@ export default function SetParentPassword() {
             )}
 
             {error && (
-              <div className="bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm">
-                {error}
+              <div
+                className={
+                  errorReason === 'already_used'
+                    ? 'bg-blue-50 border-2 border-blue-200 p-4 text-blue-800 text-sm'
+                    : 'bg-red-50 border-2 border-red-200 p-4 text-red-700 text-sm'
+                }
+              >
+                <p>{error}</p>
+                {/* An already-used link is not an error state — that parent has a
+                    working account. Give them the way in rather than leaving them
+                    on a page that cannot help. */}
+                {errorReason === 'already_used' && (
+                  <Link
+                    to="/login"
+                    className="mt-3 inline-block bg-brand-primary text-white font-semibold py-2 px-4 uppercase text-xs"
+                  >
+                    Go to sign in
+                  </Link>
+                )}
               </div>
             )}
 

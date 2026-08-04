@@ -460,6 +460,38 @@ first person to hit it was the first coach who was also a parent.
   Re-deriving it is what produced a join against tables nobody had checked existed.
 
 
+### A one-time link needs THREE answers, not one — `lib/parent_invite_token.php`
+Added 2026-08-03 after a parent completed setup, re-clicked his link, was told it had
+expired, and emailed support four minutes later (CHANGELOG). His token had four days
+left; it was spent, not expired.
+
+`handleSetParentPassword` had folded `used_at IS NULL AND expires_at > NOW()` into the
+token lookup's WHERE clause, so **not found / already used / expired / invalidated by a
+re-send** were indistinguishable — every one answered `Invalid or expired link`. Classify
+with `te_classify_parent_invite_token()` and never put those predicates back in the query:
+filtering the evidence away is what makes the cases unknowable.
+
+- **Used is checked before expired.** A spent token whose window has since closed is, to
+  the parent, an account they already have — "expired" sends them to the club for an
+  invite they do not need.
+- **Already-used is not an error state.** The response carries `reason: already_used` and
+  `SetParentPassword.tsx` renders it in blue with a *Go to sign in* button, not in red.
+- **The unknown-token branch stays vague on purpose** — it is the only one reachable by
+  someone guessing tokens, so it must not confirm what exists.
+- **The token is spent only after the account is resolved**, inside a transaction with the
+  password write, keyed on the resolved `users.id` rather than the email string, with the
+  UPDATE's row count checked. Previously the order was: write password (row count ignored)
+  → spend token → look up user → fail. For any invite address with no `users` row that
+  burned the parent's link on their first attempt and made every retry genuinely fail.
+  When there is no account the token is deliberately **left unspent** — nothing was
+  accomplished, so the link must still work once the account is repaired.
+- The invite email now states the link is **single-use** as well as 7 days, in both the
+  HTML and plain-text bodies. It previously promised only the 7 days, which is why the
+  parent reasonably concluded the system was wrong.
+
+`ParentInviteTokenTest` covers the ladder and parses the handler to assert both the query
+shape and the spend-after-resolve ordering.
+
 ### Platform access is a DATE, not a badge — `lib/portal_status.php`
 Added 2026-08-03. One predicate, used by the Crew page (`handleClubParents`) and the
 Coaches page (`legacy/coaches-gateway.php?action=available`). Labels are shared too, in
@@ -927,20 +959,6 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       as above, failing in the opposite direction: any account sharing a guardian's email answers
       for them, so the Crew page reports invites nobody sent. Migration 056 removed the bad data
       but not the inference. Full explanation and the cheap interim fix are in Roles & Permissions.
-- [ ] **"Invalid or expired link" means three different things, and it costs support time.**
-      `set-parent-password` in `api/auth-gateway.php` returns that one string for a genuinely
-      expired token, an **already used** one, and one invalidated by a re-send. Single-use is
-      correct; the message is not. On 2026-08-03 a parent completed setup successfully, re-clicked
-      his link, was told it had expired, and emailed support four minutes after it worked (see
-      CHANGELOG). Split the lookup: if a row matches the token but has `used_at` set, say "you have
-      already set this up — sign in" and link to login.
-- [ ] **`set-parent-password` burns the token before confirming the user exists.** Order is:
-      validate token → `UPDATE users … WHERE email = ?` (**row count never checked**) → mark token
-      used → look up the user → return "Invalid or expired link" if missing. So for any email with
-      no matching `users` row, the parent's FIRST attempt consumes their link and every retry
-      genuinely fails. Not the cause of the Mills report, but it produces the identical symptom and
-      would be much harder to diagnose. Check the update's row count and only consume the token
-      after the account is confirmed.
 - [ ] **Scan for crossed guardian emails before the next bulk invite.** The Mills household had the
       two parents' addresses swapped, so each invite went to the other's inbox (fixed 2026-08-03,
       CHANGELOG). Athlete 339 (Leonel Jimenez) looks like the same shape. The tell is a guardian
