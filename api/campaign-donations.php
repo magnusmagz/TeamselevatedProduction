@@ -116,7 +116,7 @@ try {
             if ($paymentResult['success']) {
                 // Send receipt email
                 try {
-                    $email = new Email();
+                    $email = (new Email())->forClub($db, $campaign['club_id'] ?? null);
                     $email->sendDonationReceipt(
                         $data['donor_email'],
                         $data['donor_name'],
@@ -395,7 +395,8 @@ try {
 
             // Get donation details
             $stmt = $db->prepare("
-                SELECT cd.*, fc.title as campaign_title, cp.name AS club_name
+                SELECT cd.*, fc.title as campaign_title, cp.name AS club_name,
+                       fc.club_id AS club_id
                 FROM campaign_donations cd
                 JOIN fundraiser_campaigns fc ON cd.campaign_id = fc.id
                 JOIN club_profile cp ON fc.club_id = cp.id
@@ -411,7 +412,7 @@ try {
             }
 
             // Send receipt email
-            $email = new Email();
+            $email = (new Email())->forClub($db, $donation['club_id'] ?? null);
             $email->sendDonationReceipt(
                 $donation['donor_email'],
                 $donation['donor_name'],

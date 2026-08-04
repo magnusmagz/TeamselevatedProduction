@@ -152,4 +152,51 @@ class EmailSenderTest extends TestCase
             'each public send entry point should stamp the club sender'
         );
     }
+
+    /**
+     * Every transactional send site that HAS a club must brand as it.
+     *
+     * The exceptions are deliberate and listed, so adding a new unbranded send
+     * requires a decision rather than an oversight:
+     *   - auth-gateway's magic link and password reset come from the login page,
+     *     where the person may span several clubs or none.
+     *   - organization-gateway invites people TO the platform; they have no club yet.
+     */
+    public function testEveryClubAwareSendSiteBrandsAsTheClub(): void
+    {
+        $shouldBrand = [
+            'api/consent.php',
+            'api/invitations-gateway.php',
+            'api/calendar-events-gateway.php',
+            'api/campaign-donations.php',
+            'api/webhooks/stripe-connect.php',
+            'api/portal-access.php',
+        ];
+
+        foreach ($shouldBrand as $rel) {
+            $src = file_get_contents(__DIR__ . '/../../' . $rel);
+            $constructs = preg_match_all('/new\s+Email\s*\(\s*\)/', $src);
+            $branded = substr_count($src, '->forClub(');
+
+            $this->assertGreaterThan(0, $constructs, "$rel should construct Email");
+            $this->assertSame(
+                $constructs,
+                $branded,
+                "$rel constructs $constructs Email(s) but brands $branded — every send with a club must call forClub()"
+            );
+        }
+    }
+
+    /** The two platform-level paths stay unbranded on purpose. */
+    public function testPlatformLevelSendsAreDeliberatelyUnbranded(): void
+    {
+        foreach (['api/organization-gateway.php'] as $rel) {
+            $src = file_get_contents(__DIR__ . '/../../' . $rel);
+            $this->assertStringNotContainsString(
+                '->forClub(',
+                $src,
+                "$rel invites people to the platform before they have a club"
+            );
+        }
+    }
 }

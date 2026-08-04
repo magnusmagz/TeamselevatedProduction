@@ -61,6 +61,7 @@ function buildReceiptData(PDO $pdo, ?int $payerUserId, int $clubId, array $invoi
         'amount' => $amount,
         'invoice_numbers' => $numbers,
         'club_name' => $clubName,
+        'club_id' => $clubId,
         'ref' => $ref,
     ];
 }
@@ -247,7 +248,7 @@ try {
     // Stripe retry (and re-litigate) an already-committed payment.
     if ($receiptData !== null) {
         try {
-            (new Email())->sendPaymentReceipt(
+            (new Email())->forClub($pdo, $receiptData['club_id'] ?? null)->sendPaymentReceipt(
                 $receiptData['to'], $receiptData['name'], $receiptData['amount'],
                 $receiptData['invoice_numbers'], $receiptData['club_name'], $receiptData['ref']);
         } catch (Exception $e) {

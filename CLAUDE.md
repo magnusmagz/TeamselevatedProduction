@@ -1191,9 +1191,18 @@ and then getting a club broadcast saw two domains and three names — and never 
 - **Calendar: stamped per event via `sendAsClub()`**, because PHPMailer holds one From for the
   instance and the constructor runs before any event is known. Every public send path calls
   it; a new one that forgets sends as the platform.
-- Transactional callers opt in with `(new Email())->forClub($pdo, $clubId)`. Wired for the
-  parent invite and the Crew login link. Others (consent confirmation, team invitation,
-  receipts) still fall back to "Teams Elevated" — correct, just not yet club-branded.
+- Transactional callers opt in with `(new Email())->forClub($pdo, $clubId)`. **All club-aware
+  sites are wired** (2026-08-04): parent invite, Crew login link, consent confirmation, team
+  invitation + resend, calendar invite, donation receipt + resend, Stripe payment receipt.
+  `EmailSenderTest::testEveryClubAwareSendSiteBrandsAsTheClub` counts `new Email()` against
+  `->forClub(` per file, so a new send that skips branding fails the build.
+- **Two paths stay unbranded on purpose**, and the test asserts it: `auth-gateway`'s magic
+  link and password reset (sent from the login page, where the person may span several clubs
+  or none) and `organization-gateway` (invites people TO the platform, before they have a
+  club). Changing either is a decision, not a fix.
+- The calendar ICS `organizerName` is club-branded too. `organizerEmail` is deliberately
+  left as `events@rsvp.eyeinteams.com` — RSVP REPLY parsing keys off it, so changing it
+  breaks replies.
 
 ### ⚠️ There are THREE email send paths, and they behave differently
 Know which one you are touching before you debug a delivery or rendering problem — they fail in

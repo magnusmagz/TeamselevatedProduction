@@ -166,7 +166,7 @@ try {
             $emailed = false;
             $guardian = $guardianUser; // users row resolved above
 
-            $a = $pdo->prepare('SELECT first_name, last_name FROM athletes WHERE id = ?');
+            $a = $pdo->prepare('SELECT first_name, last_name, club_id FROM athletes WHERE id = ?');
             $a->execute([$athleteId]);
             $athlete = $a->fetch(PDO::FETCH_ASSOC);
 
@@ -174,7 +174,9 @@ try {
                 $appUrl = rtrim(getenv('FRONTEND_URL') ?: 'https://teams-elevated.netlify.app', '/');
                 $confirmLink = $appUrl . '/consent/confirm?token=' . urlencode($token);
                 try {
-                    $mailer = new Email();
+                    // Send as the club — the parent is confirming consent for their child at a
+                    // specific club, so that is the name they should recognise.
+                    $mailer = (new Email())->forClub($pdo, $athlete['club_id'] ?? null);
                     $emailed = (bool) $mailer->sendConsentConfirmation(
                         $guardian['email'],
                         trim(($guardian['first_name'] ?? '') . ' ' . ($guardian['last_name'] ?? '')),

@@ -6,6 +6,7 @@
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/../lib/Cors.php';
+require_once __DIR__ . '/../lib/email_sender.php';
 Cors::handle();
 
 // Allow all origins for CORS
@@ -129,13 +130,13 @@ function handleSendCalendarInvite($conn, $input) {
             'location' => $location,
             'description' => $event['description'] ?? '',
             'status' => strtoupper($event['status']),
-            'organizerName' => 'Teams Elevated',
+            'organizerName' => te_email_from_name($conn, $event['club_id'] ?? null),
             'organizerEmail' => 'events@rsvp.eyeinteams.com',  // RSVP email for calendar REPLY parsing
             'attendees' => $attendeesList
         ];
 
         // Send calendar invite
-        $email = new Email();
+        $email = (new Email())->forClub($conn, $event['club_id'] ?? null);
         $sent = $email->sendCalendarInvite($calendarEvent, $action);
 
         if ($sent) {

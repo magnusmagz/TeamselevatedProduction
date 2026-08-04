@@ -150,8 +150,8 @@ function handleSendInvitations($conn, $input, $userId) {
             $appUrl = getenv('APP_URL') ?: 'https://teams-elevated.netlify.app';
             $invitationLink = "$appUrl/accept-invitation?id=$invitationId";
 
-            // Send email
-            $emailSender = new Email();
+            // Send email as the club, not the platform.
+            $emailSender = (new Email())->forClub($conn, $clubId);
             $emailSender->sendTeamInvitation(
                 $email,
                 $orgName,
@@ -700,8 +700,8 @@ function handleResendInvitation($conn, $input, $userId) {
 
     $orgName = $invitation['club_name'];
 
-    // Send email
-    $emailSender = new Email();
+    // Send email as the club, not the platform.
+    $emailSender = (new Email())->forClub($conn, $invitation['club_profile_id'] ?? null);
     $emailSender->sendTeamInvitation(
         $invitation['email'],
         $orgName,
