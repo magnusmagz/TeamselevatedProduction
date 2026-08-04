@@ -32,6 +32,37 @@ Newest first. Times are Pacific.
 
 ## 2026-08-03
 
+### Parent invite: "used" and "expired" are now different answers
+`b963cf2` · Netlify build of `b963cf2` · Heroku push follows it · **no migration**
+
+Direct follow-up to the Mills ticket below — that parent's link was spent, not expired, and the
+message could not tell him so. Three fixes:
+
+1. **`handleSetParentPassword` no longer folds `used_at IS NULL AND expires_at > NOW()` into the
+   token lookup.** Doing so made not-found / already-used / expired / invalidated-by-re-send
+   indistinguishable; all four answered `Invalid or expired link`. Classification moved to
+   `lib/parent_invite_token.php` (testable without booting the auth gateway). Used is reported
+   ahead of expired when both apply. The response now carries a `reason`, and
+   `SetParentPassword.tsx` renders `already_used` in blue with a *Go to sign in* button — it is
+   not a failure state.
+2. **Ordering bug fixed.** The handler wrote the password keyed on an email string without
+   checking the row count, spent the token, and only then looked up the user. For any invite
+   address with no `users` row that burned the parent's link on the first attempt and made every
+   retry fail for real. Now the account is resolved first, the write and the spend happen together
+   in a transaction keyed on `users.id`, and **the token is left unspent when no account exists** —
+   nothing was accomplished, so the link must still work once the account is repaired.
+3. **The invite email now states the link is single-use**, in both the HTML and plain-text bodies.
+   It previously promised only "7 days", which is why the parent checked the one fact he had,
+   found it held, and reasonably concluded the system was wrong.
+
+**Touches `api/auth-gateway.php`, which CLAUDE.md lists as do-not-modify.** Maggie asked for these
+three specifically. The edit is confined to that one handler; the logic lives in a lib, and
+`ParentInviteTokenTest` parses the file to pin both the query shape and the spend-after-resolve
+ordering. That source guard was mutation-tested — restoring the old WHERE clause fails it.
+
+Deployed **frontend first** so the "sign in" button exists before the backend starts telling people
+to sign in. 547 PHP tests green.
+
 ### Mills household — two parents' emails were crossed; ad-hoc prod data fix
 No code change. Reported by the parent as "our link has expired"; it had not.
 
