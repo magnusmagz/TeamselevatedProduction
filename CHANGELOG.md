@@ -99,6 +99,12 @@ full-page blocking consent screen instead of a dashboard, did not read it as suc
 the email and clicked again. He is the first real family to hit that screen. Worth watching before
 concluding the gate's first-run experience is fine.
 
+**Resolved 2026-08-04.** Erica was re-invited at 00:14:55, set her password at 01:05:37, signed
+in at 01:05:58, and completed the consent gate at 01:06:08 (both types, `source=portal`, email
+confirmation not yet clicked). Colton's password was set 2026-08-03 21:55 but `last_login_at` is
+still null — he has never signed in. Both rows now show `active` on Crew, so the control on each is
+*Send login link*, not *Resend*.
+
 **Other suspected crossed pairs, not actioned:** athlete 339 (Leonel Jimenez) has the same shape —
 Alejandro Jimenez carrying `Monica.82.mh82@gmail.com` while Monica Hernandez has no email. A proper
 scan is still owed before the next bulk invite.
