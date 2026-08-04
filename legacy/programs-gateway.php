@@ -92,7 +92,18 @@ try {
                     $whereClause
                     GROUP BY p.id
                     ORDER BY p.season_year DESC,
-                             FIELD(p.season_type, 'Spring', 'Summer', 'Fall', 'Winter', 'Year-Round'),
+                             -- FIELD() is MySQL. Postgres has no such function, so this
+                             -- ORDER BY threw 42883 and 500'd the Programs list for
+                             -- EVERY user, not just the club-id case fixed alongside it.
+                             -- Same substitution already made in api/athletes-profile.php.
+                             CASE p.season_type
+                                 WHEN 'Spring' THEN 1
+                                 WHEN 'Summer' THEN 2
+                                 WHEN 'Fall' THEN 3
+                                 WHEN 'Winter' THEN 4
+                                 WHEN 'Year-Round' THEN 5
+                                 ELSE 6
+                             END,
                              p.name
                 ");
                 $stmt->execute($params);

@@ -492,6 +492,22 @@ claimed the page was "admin-only in the nav", which was true of the nav and fals
 access. Club-admin pages use `ProtectedClubAdminRoute`; `ProtectedRoute` alone is
 authentication, not authorisation.
 
+### MySQL-only SQL functions 500 on Postgres — `MysqlOnlySqlTest`
+`legacy/programs-gateway.php` ordered by `FIELD(p.season_type, 'Spring', …)`. Postgres has
+no `FIELD()`, so the Programs list threw 42883 for **every user** — not a scoping bug and
+not user-specific, just a query that could never have run. Found 2026-08-04 only because it
+sat behind the same page as a real scoping bug.
+
+The identical substitution had already been made in `api/athletes-profile.php`, comment and
+all — fixed in one file, missed in the other. That is what a scan catches and a review does
+not. `MysqlOnlySqlTest` now scans for `FIELD(`, `GROUP_CONCAT(`, `IFNULL(`, `DATE_FORMAT(`,
+`STR_TO_DATE(` and `DATEDIFF(`.
+
+⚠️ **It requires a SQL keyword near the match, and that is load-bearing.** The first version
+flagged `services/ImportStrategy.php`, which has a PHP method legitimately named `field()`.
+Same lesson as `QueriedTablesExistTest`: scan SQL, not source, or the checker cries wolf and
+gets deleted. `NOW()` and `CONCAT()` are deliberately absent from the list — Postgres has both.
+
 ### A read against a missing table is invisible to SchemaConformanceTest
 `QueriedTablesExistTest` (added 2026-08-03) scans `FROM`/`JOIN` and checks every
 table against `tests/fixtures/production-schema.json`. SchemaConformance only ever
