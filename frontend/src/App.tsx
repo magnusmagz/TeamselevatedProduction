@@ -82,6 +82,7 @@ import BroadcastCompose from './pages/BroadcastCompose';
 import SmsInbox from './pages/SmsInbox';
 import TemplateLibrary from './pages/TemplateLibrary';
 import CrewRoster from './pages/CrewRoster';
+import ProtectedClubAdminRoute from './components/ProtectedClubAdminRoute';
 import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
 import DataImport from './pages/DataImport';
@@ -855,9 +856,9 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/crew" element={
-            <ProtectedRoute>
+            <ProtectedClubAdminRoute>
               <CrewRoster />
-            </ProtectedRoute>
+            </ProtectedClubAdminRoute>
           } />
           <Route path="/email-templates" element={
             <ProtectedRoute>

@@ -32,6 +32,7 @@ require_once __DIR__ . '/../lib/AuditLogger.php';
 const TOS_VERSION = '1.0';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/parent_invite_token.php';
+require_once __DIR__ . '/../lib/club_standing.php';
 
 // Use existing MySQL database for now (will migrate to Neon later)
 require_once __DIR__ . '/../config/database.php';
@@ -857,7 +858,9 @@ function handleSendParentInvite($db, $input) {
     $clubId = (int)$input['club_id'];
     $guardianId = (int)$input['guardian_id'];
 
-    if (!$auth->canAccessClub($clubId)) {
+    // Staff only (club admin or coach). canAccessClub() would also admit a
+    // parent — see lib/club_standing.php.
+    if (!te_is_club_staff($auth, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'You do not have access to this club']);
         return;
@@ -923,7 +926,9 @@ function handleParentPortalStatus($db, $input) {
         echo json_encode(['error' => 'athlete_id and club_id are required']);
         return;
     }
-    if (!$auth->canAccessClub($clubId)) {
+    // Staff only (club admin or coach). canAccessClub() would also admit a
+    // parent — see lib/club_standing.php.
+    if (!te_is_club_staff($auth, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'You do not have access to this club']);
         return;
@@ -979,9 +984,13 @@ function handleClubParents($db, $input) {
         echo json_encode(['error' => 'club_id is required']);
         return;
     }
-    if (!$auth->canAccessClub($clubId)) {
+    // CLUB ADMIN ONLY. canAccessClub() is club MEMBERSHIP — a `parent` row
+    // satisfies it — so this returned every guardian in the club (name, email,
+    // mobile, portal status, children's names) to any parent who posted their own
+    // club_id. Verified against production. See lib/club_standing.php.
+    if (!te_is_club_admin($auth, $clubId)) {
         http_response_code(403);
-        echo json_encode(['error' => 'You do not have access to this club']);
+        echo json_encode(['error' => 'Only club admins can view the crew roster']);
         return;
     }
 

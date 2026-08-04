@@ -439,6 +439,30 @@ how a scope check becomes a data leak. Pinned by `ConsentRollupTest`.
 A missing or unrecognised status renders as **Unknown**, never as a blank cell: blank reads as
 "fine", which is the wrong default for a compliance column.
 
+### Club MEMBERSHIP is not club STAFF — `lib/club_standing.php`
+Fixed 2026-08-04. `AuthMiddleware::canAccessClub()` returns true for ANY role scoped to
+the club, `parent` included. `handleClubParents` gated on it, so a parent POSTing their
+own `club_id` to `auth-gateway.php?action=club-parents` received **every guardian in the
+club** — name, email, mobile phone, portal status, children's names. Verified against
+production with a real parent token. Club 32 exposed 196 guardians to 13 parent accounts;
+club 51, 148 to 2. `volunteer`, `player` and `treasurer` passed the same check.
+
+- **`te_is_club_admin`** — club-wide staff data. Used by `handleClubParents`.
+- **`te_is_club_staff`** — admin OR coach. Used by `handleSendParentInvite` and
+  `handleParentPortalStatus`, which act on one guardian or one athlete and which coaches
+  legitimately reach from `AthleteProfileEnhanced` / `GuardianManagement`.
+- A coach is deliberately NOT admin: they are team-scoped, so the club-wide roster is the
+  same over-sharing with a smaller audience.
+- **No live `canAccessClub()` call remains in `auth-gateway.php`**, and `ClubStandingTest`
+  fails if one comes back. The predicate was never wrong; which one got called was.
+
+⚠️ **`ProtectedRoute` checks only that someone is signed in — it has NO role logic.**
+`/crew` used it, so the page was never admin-gated; it was merely absent from the parent
+nav. Anyone signed in who typed the URL rendered it. An earlier version of this file
+claimed the page was "admin-only in the nav", which was true of the nav and false of the
+access. Club-admin pages use `ProtectedClubAdminRoute`; `ProtectedRoute` alone is
+authentication, not authorisation.
+
 ### A read against a missing table is invisible to SchemaConformanceTest
 `QueriedTablesExistTest` (added 2026-08-03) scans `FROM`/`JOIN` and checks every
 table against `tests/fixtures/production-schema.json`. SchemaConformance only ever
@@ -941,29 +965,6 @@ interface, the mock, and `overviewAggregate()` together or that test fails.
 there (and `git log`) before concluding something is unbuilt. The whole communications feature set,
 the data importer, household combining, recurring events, payments, and the event merge tags are
 all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE above.
-
-- [ ] **⚠️ Any parent can read their club's whole crew roster** (found 2026-07-31 by
-      `scripts/smoke-test.php`; deliberately NOT fixed — `api/auth-gateway.php` is on the
-      do-not-modify list above, so this needs Maggie's go-ahead).
-      `handleClubParents` gates on `$auth->canAccessClub($clubId)`, which is **club
-      membership, not staff standing** — a `user_club_access` row with role `parent`
-      satisfies it. So a parent POSTing `{club_id}` to
-      `auth-gateway.php?action=club-parents` receives every guardian in the club: name,
-      email, mobile phone, portal status, and their children's names.
-      **Verified against production**, not inferred — a real parent token returned the
-      full roster, HTTP 200.
-      Blast radius: club 32 → 196 guardians / 194 emails / 188 phones, reachable by 13
-      parent accounts; club 51 → 148 / 120 / 135, reachable by 2. `volunteer` (1 row in
-      club 32) passes the same check.
-      **Not clickable — the Crew page is admin-only in the nav — and that is exactly the
-      point.** "The absence of a UI is not an access control" is already a lesson in this
-      file from the 2026-07-30 guardian-gateway fix; this is the same shape.
-      Fix is one predicate: require club-admin standing, not `canAccessClub`. Check
-      `handleParentPortalStatus` and every other handler in that file for the same
-      substitution before calling it done — `canAccessClub` is the wrong gate anywhere the
-      answer is club-wide staff data.
-      Pinned in the meantime by `scripts/smoke-test.php` ("parent is refused the crew
-      list"), which currently FAILS on purpose — it is the open finding, not a broken test.
 
 - [ ] **⚠️ Coach accounts are created with a shared literal password** (found 2026-08-03).
       `legacy/coaches-gateway.php:144` does
