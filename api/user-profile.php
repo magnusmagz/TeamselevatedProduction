@@ -6,6 +6,8 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
+require_once __DIR__ . '/../lib/guardian_sync.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 
 // Get database connection
 $pdo = Database::getInstance()->getConnection();
@@ -145,11 +147,50 @@ if ($method === 'GET') {
             // For now, we'll allow the change without re-verification
         }
 
+        // The guardian row still carries the OLD email and name, so the match has
+        // to be made against the pre-update values.
+        $beforeStmt = $pdo->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = :user_id');
+        $beforeStmt->execute(['user_id' => $userId]);
+        $beforeUser = $beforeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
         if (!empty($updateFields)) {
             $updateFields[] = "updated_at = CURRENT_TIMESTAMP";
             $sql = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = :user_id";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
+
+            // Mirror the contact change onto the guardians row, which is what the
+            // club actually sees (Crew page, sends, exports). users holds the
+            // login; guardians holds the club contact. Until 2026-08-04 only the
+            // first was written, so a parent could update their details and the
+            // club would keep the old ones indefinitely.
+            $contactChanges = array_intersect_key(
+                $params,
+                array_flip(['email', 'first_name', 'last_name', 'phone'])
+            );
+
+            if ($contactChanges && $beforeUser) {
+                $sync = te_sync_guardian_contact($pdo, $beforeUser, $contactChanges);
+
+                // Audited either way. A change that matched no guardian row is not
+                // an error, but it means the club still holds the old details, and
+                // that is exactly the thing someone will need to look up later.
+                AuditLogger::log(
+                    $pdo,
+                    $userId,
+                    $sync['updated'] > 0 ? 'profile_guardian_synced' : 'profile_guardian_sync_no_match',
+                    'guardians',
+                    $sync['guardian_ids'][0] ?? null,
+                    [
+                        'fields' => array_keys($contactChanges),
+                        'old_email' => $beforeUser['email'] ?? null,
+                        'new_email' => $contactChanges['email'] ?? null,
+                        'guardian_ids' => $sync['guardian_ids'],
+                        'guardian_rows_updated' => $sync['updated'],
+                        'old_email_shared_with_others' => $sync['shared_email'],
+                    ]
+                );
+            }
         }
 
         $pdo->commit();

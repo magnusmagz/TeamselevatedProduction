@@ -585,6 +585,30 @@ soft-deleted athletes still appear on Crew (153 rows for club 51 where the funne
 Measure the funnel with `scripts/onboarding-funnel.php` (read-only, crew + coaches).
 
 
+### A parent's profile edit syncs to `guardians` — `lib/guardian_sync.php`
+Added 2026-08-04. `users` holds the login; `guardians` holds what the club sees (Crew
+page, sends, exports). `/parent/settings` (`api/user-profile.php`) wrote only `users`, so
+a parent could change their email or name and the club kept the old one indefinitely.
+
+⚠️ **Match on email AND name, never email alone.** Six production addresses are held by
+two guardians each — John & Jane Jones on `thejones@…`, Morgan & Zach Powell on
+`morganbmiles@…`, and four more. Email-only matching rewrites BOTH people's contact record
+when one of them edits theirs, handing the club a wrong address for someone who never
+touched their settings. Pinned by `GuardianSyncTest`.
+
+- Matched against the **pre-update** users row — the guardian row still carries the old
+  email and name at that point.
+- Only submitted keys are written, so a partial save cannot blank a field (same rule as
+  `legacy/guardian-gateway.php`).
+- `phone` on `users` maps to **`mobile_phone`** on `guardians`.
+- **Every sync is audited**, including the misses: `profile_guardian_synced` or
+  `profile_guardian_sync_no_match`, with the old and new email, the guardian ids touched,
+  and `old_email_shared_with_others`. A no-match is not an error — staff-only accounts have
+  no guardian row — but it means the club still holds the old details, which is precisely
+  what someone will need to look up later.
+- This is a workaround for identity-by-email, not a fix. The fix is the `user_guardians`
+  link table on the backlog.
+
 ### Editing a crew member's contact details goes through the POST branch
 `legacy/guardian-gateway.php` PUT updates the **relationship** row only
 (`athlete_guardians`: relationship, is_primary, can_pickup, emergency_contact). It never
