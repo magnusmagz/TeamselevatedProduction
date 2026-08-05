@@ -492,6 +492,37 @@ claimed the page was "admin-only in the nav", which was true of the nav and fals
 access. Club-admin pages use `ProtectedClubAdminRoute`; `ProtectedRoute` alone is
 authentication, not authorisation.
 
+### A missing `response.ok` check is sometimes deliberate — read the page first
+`fetch()` does not reject on 4xx/5xx. It only rejects when the network fails, so
+`const data = await response.json()` happily parses an error body and the page uses it as
+if it were data. That is why `/legacy/venues-gateway.php` returning 500 surfaced as
+`t.map is not a function` and took the whole Facilities page through the ErrorBoundary
+(2026-08-04).
+
+**Do NOT sweep the codebase adding `if (!response.ok) throw`.** Measured 2026-08-05: of
+363 `fetch()` call sites, 22 assign the parsed body straight to state and only **one**
+(the venue detail panel in `VenueManagement.tsx`) is genuinely unguarded. The rest either
+guard nearby — `if (data.error)`, `if (data && data.id)` — or read the error body **on
+purpose**:
+
+- `pages/ConsentConfirm.tsx` branches on `result?.reason === 'invalid_or_expired'`, which
+  arrives on a **400**. Adding an `ok` check there replaces a tailored expired-link message
+  with a generic error and undoes the fix commit "consent confirm: an expired link is not
+  'Something Went Wrong'".
+
+So the rule is: before adding an `ok` check, read what the component does with the body.
+A page that renders a specific message out of a non-2xx response is working as designed.
+
+**Loud beats silent, and the ErrorBoundary is already loud.** A crash on `.map` shows
+"Something went wrong" with a Reload button, and the user reports it within minutes — which
+is exactly how the venues 500 was found. `setVenues([])` on failure would be worse: it
+renders "no facilities", which is indistinguishable from a club that has none. If you do
+guard a site, give it a real error state; never a false empty.
+
+The guards that actually catch this class are server-side — `AccessibleClubIdsTest`,
+`MysqlOnlySqlTest`, `QueriedTablesExistTest` and `scripts/smoke-test.php`. Fix the 500;
+the page then has nothing to mishandle.
+
 ### MySQL-only SQL functions 500 on Postgres — `MysqlOnlySqlTest`
 `legacy/programs-gateway.php` ordered by `FIELD(p.season_type, 'Spring', …)`. Postgres has
 no `FIELD()`, so the Programs list threw 42883 for **every user** — not a scoping bug and
