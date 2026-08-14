@@ -1257,7 +1257,16 @@ function handleChatSearch($connection, $auth, $userId) {
 
     $isAdmin = isClubAdmin($auth, $clubProfileId);
     $coachTeamIds = $isAdmin ? [] : getCoachTeamIds($connection, $userId, $clubProfileId);
-    $isCoach = !$isAdmin && !empty($coachTeamIds);
+
+    // A coach is a coach because of their ROLE, not because a team has been
+    // assigned to them yet. This used to read `!empty($coachTeamIds)`, so a coach
+    // with no team fell through to `$isParent`, matched no athletes, and got an
+    // EMPTY search — they could not find their own club admin, or any other
+    // coach. Nine such accounts are live, four of them at CKU.
+    //
+    // Broken since the typeahead shipped (08396c6, 2026-05-05); it only became
+    // visible when coaches stopped being shown every team in the club.
+    $isCoach = !$isAdmin && ($auth->hasRole('coach', $clubProfileId, 'club') || !empty($coachTeamIds));
     $isParent = !$isAdmin && !$isCoach;
 
     $like = '%' . $q . '%';
@@ -1335,17 +1344,27 @@ function handleChatSearch($connection, $auth, $userId) {
         $teamFilter = '';
         $teamFilterParams = [];
         if ($isCoach) {
-            $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
-            // Coach scope: people on their teams (parents via guardian chain) + all coaches + all club admins
-            $teamFilter = "
-                AND (
+            // Coach scope: people on their teams (parents via guardian chain) + all coaches + all club admins.
+            //
+            // The guardian branch is CONDITIONAL because a coach may have no team
+            // yet. `array_fill(0, 0, '?')` yields `IN ()`, which is a syntax error,
+            // not an empty result — the whole search would 500. The remaining
+            // branches are exactly what a team-less coach needs: every other coach
+            // and every club admin.
+            $branches = [];
+            if (!empty($coachTeamIds)) {
+                $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
+                $branches[] = "
                     EXISTS (
                         SELECT 1 FROM guardians g2
                         JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
                         JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($teamPlaceholders)
                         WHERE g2.email = u.email
-                    )
-                    OR EXISTS (
+                    )";
+                $teamFilterParams = $coachTeamIds;
+            }
+            $branches[] = "
+                    EXISTS (
                         SELECT 1 FROM teams t2
                         WHERE t2.club_id = ? AND t2.primary_coach_id = u.id
                     )
@@ -1358,10 +1377,11 @@ function handleChatSearch($connection, $auth, $userId) {
                         SELECT 1 FROM user_club_access uca_admin
                         WHERE uca_admin.user_id = u.id AND uca_admin.club_profile_id = ?
                           AND uca_admin.role IN ('club_admin', 'super_admin')
-                    )
-                )
-            ";
-            $teamFilterParams = array_merge($coachTeamIds, [$clubProfileId, $clubProfileId, $clubProfileId]);
+                    )";
+            // Params follow placeholder ORDER: the guardian branch's team ids (when
+            // that branch is present) before the three club ids.
+            $teamFilterParams = array_merge($teamFilterParams, [$clubProfileId, $clubProfileId, $clubProfileId]);
+            $teamFilter = ' AND (' . implode(' OR ', $branches) . ')';
         }
 
         $sql = "
@@ -1400,7 +1420,10 @@ function handleChatSearch($connection, $auth, $userId) {
             ");
             $stmt->execute([$clubProfileId]);
             $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } elseif ($isCoach) {
+        } elseif ($isCoach && !empty($coachTeamIds)) {
+            // Same `IN ()` hazard as the filter above: a coach with no team has no
+            // team groups to browse, which is a legitimately empty list rather than
+            // a query to run.
             $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
             $stmt = $connection->prepare("
                 SELECT t.id, t.name, t.age_group

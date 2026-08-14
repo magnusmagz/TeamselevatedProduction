@@ -779,6 +779,27 @@ what removes the collision, because identity stops depending on a unique email.
 
 ---
 
+### ⚠️ A coach with no team is still a coach — chat typeahead (2026-08-14)
+`handleChatSearch` in `api/recipient-search-gateway.php` derived standing from data:
+`$isCoach = !$isAdmin && !empty($coachTeamIds)`. A coach with no team assigned therefore
+fell through to `$isParent`, matched no athletes, and got an **empty** typeahead — HTTP 200,
+no error, unable to find their own club admin or any other coach. Nine live accounts, four
+at CKU. Broken since the typeahead shipped (`08396c6`, 2026-05-05); it only surfaced once
+coaches stopped being shown every team in the club.
+
+- **Role decides standing; team assignment decides which FAMILIES you reach.** Conflating
+  them makes an unstaffed coach indistinguishable from a parent. `$isCoach` now reads
+  `$auth->hasRole('coach', …) || !empty($coachTeamIds)`.
+- **`array_fill(0, 0, '?')` produces `IN ()`, which is a syntax error, not an empty
+  result.** Both the participant filter and the team-groups query would have 500'd once a
+  team-less coach reached them, so each is guarded. `getTeamFilterClause` already returned
+  `AND 1=0` for this case — the newer code just did not copy the precaution.
+- The chat server needed no matching change: `ALLOWED_PARTICIPANTS_SQL`'s second branch
+  already allows any club staff, and `= ANY('{}')` on an empty array is valid SQL.
+- `ChatSearchCoachScopeTest` executes the real handler against SQLite (the gateway loads
+  lib-only under `TE_RECIPIENT_SEARCH_LIB_ONLY`) and was confirmed to fail on the old code
+  with both reported symptoms.
+
 ### ⚠️ Chat team scope — `chat-server/lib/team_scope.js` (2026-08-14)
 Reported on Central Kansas United: every coach saw every team's chat. Root cause was
 `getAccessibleTeamIds` unioning in the whole club whenever `canInitiateConversation(role)`
