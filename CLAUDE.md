@@ -779,6 +779,50 @@ what removes the collision, because identity stops depending on a unique email.
 
 ---
 
+### ⚠️ Chat team scope — `chat-server/lib/team_scope.js` (2026-08-14)
+Reported on Central Kansas United: every coach saw every team's chat. Root cause was
+`getAccessibleTeamIds` unioning in the whole club whenever `canInitiateConversation(role)`
+was true — **that list contains `coach` and `parent`**. It gated the listing, the join
+(`isConversationParticipant`), and nothing at all on `getTeamMembers`, so a coach could
+also read any team conversation in the club and pull any team's roster.
+
+- **The JWT has no team scope, and that is the trap.** `getCoachTeamIds(payload)` filtered
+  `payload.roles` for `scope_type === 'team'`; `JWT::buildOrganizationalContext()` mints
+  every role `scope_type: 'club'`, so it returned `[]` for **every user, always**. The
+  club-wide branch was not supplementing a coach's team list, it WAS the list — removing it
+  alone would have left every coach with nothing. Coach teams now come from the DB
+  (`COACH_TEAM_IDS_SQL`, a port of `lib/coach_scope.php`). Never route team scope back
+  through the token until the token actually carries it.
+- **Use `expandsToWholeClub(role)`, never `canInitiateConversation(role)`, for visibility.**
+  The second is "may start a conversation" and includes coach and parent. Pinned by
+  `__tests__/team_scope.test.js`, which asserts the absence.
+- **Coach and guardian scopes are UNIONed for everyone.** `getUserRole()` collapses a user
+  to one role and prefers coach over parent, so a coach who is also a parent never took the
+  parent branch. Six CKU coaches are in that position and would have lost their own child's
+  team chat — a regression wearing a security fix's clothes.
+- **One scope function serves the list and the join.** They were the same mistake written
+  twice; `isConversationParticipant` now delegates rather than re-deriving.
+- **On a team conversation a `conversation_participants` row is per-user STATE, never a
+  grant.** `ARCHIVE_SQL` / `MARK_READ_SQL` upsert, so merely opening a team chat leaves a
+  permanent row — and both the list query and `isConversationParticipant` consulted it
+  *before* team scope. Scoping coaches down would therefore have exempted precisely the
+  people who had already browsed other teams' chats (**10 live rows** across CKU and club 32,
+  one coach holding three). Team access is now scope-only on both paths, which makes the fix
+  self-healing and avoids a data migration that would need repeating on every scope change.
+  DMs and groups still take membership from the row — that is what it means there.
+- **A team conversation takes its club from the TEAM.** `ensureTeamConversation` used to be
+  handed the *viewer's* club, harmless only while every team list was built by club. Two
+  live teams have `club_id` NULL, and moderation/reporting are club-scoped, so the old form
+  would have invented an association.
+- **`mergeTeamIds` requires a positive integer, not `Number.isFinite`.** `Number(null)` is
+  `0`, which a finite check admits into the accessible-ids list as team 0.
+- Scoping is club-independent on purpose: the question is "is this your team", and
+  club-filtering would depend on `active_context` being right — when it is null the coach
+  gets nothing. Verified 2026-08-14: **no coach's teams span more than one club**, so this
+  has no live effect today.
+- Deploy is its own path — `git subtree split --prefix=chat-server` → remote `chat`
+  (`teamselevated-chat`), NOT the backend push.
+
 ### ⚠️ Chat has archive, and deliberately has NO delete
 Added 2026-07-30 on `feature/chat-archive`. Full rationale in `docs/chat-archive-plan.md`.
 

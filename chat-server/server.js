@@ -18,6 +18,13 @@ const {
 } = require('./lib/archive');
 const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('./lib/participants');
 const {
+  expandsToWholeClub,
+  COACH_TEAM_IDS_SQL,
+  GUARDIAN_TEAM_IDS_SQL,
+  CLUB_TEAM_IDS_SQL,
+  mergeTeamIds,
+} = require('./lib/team_scope');
+const {
   TOMBSTONE_TEXT,
   canModerate,
   isPlatformRole,
@@ -147,18 +154,9 @@ function getClubId(payload) {
  * users.email → guardians.email → athlete_guardians → athletes → team_members
  */
 async function getParentTeamIds(userId) {
-  const query = `
-    SELECT DISTINCT tm.team_id
-    FROM users u
-    JOIN guardians g ON g.email = u.email
-    JOIN athlete_guardians ag ON ag.guardian_id = g.id
-    JOIN athletes a ON a.id = ag.athlete_id
-    JOIN team_members tm ON tm.athlete_id = a.id
-    WHERE u.id = $1
-  `;
   try {
-    const result = await pool.query(query, [userId]);
-    return result.rows.map(r => r.team_id);
+    const result = await pool.query(GUARDIAN_TEAM_IDS_SQL, [userId]);
+    return result.rows.map(r => r.id);
   } catch (error) {
     console.error('Error getting parent team IDs:', error.message);
     return [];
@@ -166,20 +164,32 @@ async function getParentTeamIds(userId) {
 }
 
 /**
- * Get team IDs for a coach/admin based on their JWT roles
+ * Teams this user actually coaches, read from the DATABASE.
+ *
+ * This used to filter `payload.roles` for `scope_type === 'team'`. Our tokens
+ * never carry one — every role is minted club-scoped — so it returned [] for
+ * every user, and the club-wide fallback in getAccessibleTeamIds silently became
+ * every coach's entire team list. See lib/team_scope.js.
+ *
+ * On error this returns [] rather than throwing: the callers treat an empty
+ * scope as "no team access", which is the safe direction for a permission
+ * lookup. A DB blip must never widen what someone can see.
  */
-function getCoachTeamIds(payload) {
-  if (!payload.roles) return [];
-  return payload.roles
-    .filter(r => r.scope_type === 'team')
-    .map(r => r.scope_id);
+async function getCoachTeamIds(userId) {
+  try {
+    const result = await pool.query(COACH_TEAM_IDS_SQL, [userId]);
+    return result.rows.map(r => r.id);
+  } catch (error) {
+    console.error('Error getting coach team IDs:', error.message);
+    return [];
+  }
 }
 
 /**
  * Ensure a team conversation exists. Creates one if it doesn't.
  * Returns the conversation ID.
  */
-async function ensureTeamConversation(teamId, clubId) {
+async function ensureTeamConversation(teamId) {
   // Try to find existing
   const existing = await pool.query(
     `SELECT id FROM conversations WHERE type = 'team' AND team_id = $1`,
@@ -187,13 +197,20 @@ async function ensureTeamConversation(teamId, clubId) {
   );
   if (existing.rows.length > 0) return existing.rows[0].id;
 
-  // Create new — use ON CONFLICT for concurrency safety
+  // The club comes from the TEAM, not from whoever happened to trigger this.
+  // It used to be passed in from the caller's own club, which was harmless only
+  // because the caller's team list was built by club in the first place. Once
+  // coaches are scoped to the teams they actually coach, a coach can hold a team
+  // whose club_id differs from theirs — two live teams have club_id NULL — and
+  // the old form would have stamped the coach's club onto that team's
+  // conversation. Moderation and reporting are club-scoped, so that is an
+  // invented association, not a cosmetic one.
   const result = await pool.query(`
     INSERT INTO conversations (type, team_id, club_id)
-    VALUES ('team', $1, $2)
+    VALUES ('team', $1, (SELECT club_id FROM teams WHERE id = $1))
     ON CONFLICT DO NOTHING
     RETURNING id
-  `, [teamId, clubId]);
+  `, [teamId]);
 
   if (result.rows.length > 0) return result.rows[0].id;
 
@@ -215,21 +232,31 @@ async function ensureTeamConversation(teamId, clubId) {
  * worse, the reverse.
  */
 async function getAccessibleTeamIds(userId, role, payload) {
-  if (role === 'parent') return await getParentTeamIds(userId);
-
-  let teamIds = getCoachTeamIds(payload);
-  if (canInitiateConversation(role)) {
+  // Club-level staff see the whole club. `expandsToWholeClub` is NOT
+  // `canInitiateConversation` — the latter includes `coach` and `parent`, and
+  // using it here is what gave every CKU coach all 16 teams.
+  if (expandsToWholeClub(role)) {
     const clubId = getClubId(payload);
-    if (clubId) {
-      try {
-        const clubTeams = await pool.query(`SELECT id FROM teams WHERE club_id = $1`, [clubId]);
-        teamIds = [...new Set([...teamIds, ...clubTeams.rows.map(r => r.id)])];
-      } catch (e) {
-        console.error('Error fetching club teams:', e.message);
-      }
+    if (!clubId) return [];
+    try {
+      const clubTeams = await pool.query(CLUB_TEAM_IDS_SQL, [clubId]);
+      return clubTeams.rows.map(r => r.id);
+    } catch (e) {
+      console.error('Error fetching club teams:', e.message);
+      return [];
     }
   }
-  return teamIds;
+
+  // Everyone else gets the teams they are actually attached to. Both lookups run
+  // for everyone: getUserRole() collapses a user to ONE role and prefers coach
+  // over parent, so a coach who is also a parent would otherwise lose their own
+  // child's team chat. Six CKU coaches are in that position.
+  const [coachTeams, guardianTeams] = await Promise.all([
+    getCoachTeamIds(userId),
+    getParentTeamIds(userId),
+  ]);
+
+  return mergeTeamIds(coachTeams, guardianTeams);
 }
 
 /**
@@ -244,12 +271,11 @@ async function getAccessibleTeamIds(userId, role, payload) {
 async function getUserConversations(userId, role, payload, { archived = false } = {}) {
   const teamIds = await getAccessibleTeamIds(userId, role, payload);
 
-  // Ensure team conversations exist
-  const clubId = getClubId(payload);
+  // Ensure team conversations exist. No longer gated on the viewer having a
+  // club: the conversation belongs to the team, and a coach with no active club
+  // context used to silently get no conversations created at all.
   for (const tid of teamIds) {
-    if (clubId) {
-      await ensureTeamConversation(tid, clubId);
-    }
+    await ensureTeamConversation(tid);
   }
 
   // Get conversations where user is explicit participant OR is part of a team
@@ -369,38 +395,36 @@ async function saveConversationMessage(conversationId, senderId, senderName, sen
  * Check if a user is a participant in a conversation (or has team access)
  */
 async function isConversationParticipant(conversationId, userId, role, payload) {
-  // Check explicit participation
-  const explicit = await pool.query(
-    `SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
-    [conversationId, userId]
-  );
-  if (explicit.rows.length > 0) return true;
-
-  // Check team-based access
   const conv = await pool.query(
     `SELECT type, team_id FROM conversations WHERE id = $1`,
     [conversationId]
   );
   if (conv.rows.length === 0) return false;
-  if (conv.rows[0].type !== 'team' || !conv.rows[0].team_id) return false;
 
-  const teamId = conv.rows[0].team_id;
-  if (role === 'parent') {
-    const parentTeams = await getParentTeamIds(userId);
-    return parentTeams.includes(teamId);
-  } else {
-    const coachTeams = getCoachTeamIds(payload);
-    if (coachTeams.includes(teamId)) return true;
-    // Club-level admins have access to all teams in their club
-    if (canInitiateConversation(role)) {
-      const clubId = getClubId(payload);
-      if (clubId) {
-        const teamClub = await pool.query(`SELECT club_id FROM teams WHERE id = $1`, [teamId]);
-        return teamClub.rows[0]?.club_id === clubId;
-      }
-    }
+  // For a DM or group, the participant row IS the membership.
+  if (conv.rows[0].type !== 'team' || !conv.rows[0].team_id) {
+    const explicit = await pool.query(
+      `SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL`,
+      [conversationId, userId]
+    );
+    return explicit.rows.length > 0;
   }
-  return false;
+
+  // For a TEAM conversation, team scope is the only authority — the explicit
+  // check deliberately does NOT run. markRead and archive UPSERT a participant
+  // row, so simply opening a team chat leaves one behind permanently; checking
+  // it first meant anyone who had already browsed another team's chat kept
+  // access after being scoped out. The row is per-user state, not a grant.
+  const teamId = Number(conv.rows[0].team_id);
+
+  // Delegate to the ONE scope function rather than re-deriving it here. The old
+  // inline copy had its own club-wide branch gated on canInitiateConversation,
+  // so a coach could join and read any team conversation in their club — the
+  // listing bug and this one were the same mistake written twice. Keeping a
+  // single source means a future scope change cannot fix the list and miss the
+  // door.
+  const teamIds = await getAccessibleTeamIds(userId, role, payload);
+  return teamIds.includes(teamId);
 }
 
 /**
@@ -938,6 +962,18 @@ io.on('connection', (socket) => {
     }
 
     const { teamId } = data;
+
+    // The teamId comes from the client, so role alone is not a gate — a coach
+    // could ask for any team's roster, including teams in other clubs. Bound
+    // what the endpoint ACCEPTS, not what the UI happens to send.
+    const accessible = await getAccessibleTeamIds(
+      userInfo.userId, userInfo.role, userInfo.payload
+    );
+    if (!accessible.includes(Number(teamId))) {
+      socket.emit('error', { message: 'You do not have access to that team' });
+      return;
+    }
+
     try {
       const members = await getTeamMembersForPicker(teamId);
       // Filter out the requesting user

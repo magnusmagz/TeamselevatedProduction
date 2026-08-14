@@ -32,6 +32,21 @@
  * The archive predicate MUST sit outside the OR group. Inside it, the team
  * branch re-admits an archived team conversation and archiving a team chat
  * appears to do nothing.
+ *
+ * ─── For a TEAM conversation, team scope is the ONLY authority ────────────────
+ * The participant branch is restricted to `c.type <> 'team'`, and that
+ * restriction is load-bearing. Because ARCHIVE_SQL and MARK_READ_SQL below
+ * UPSERT, merely OPENING a team chat leaves a permanent participant row — so
+ * under the old shape, anyone who ever viewed a team chat kept it in their list
+ * forever, no matter what their team scope later said. When coaches were scoped
+ * down on 2026-08-14 that would have exempted precisely the people who had
+ * already browsed other teams' chats: 10 live rows across CKU and club 32,
+ * including three teams for one coach.
+ *
+ * On a team conversation a participant row is per-user STATE (read watermark,
+ * archive flag), never a grant. Keeping the two separate here is what makes the
+ * scope fix self-healing and avoids a data migration that would have to be
+ * repeated every time scope changes.
  */
 function buildConversationsQuery({ archived = false } = {}) {
   const archiveFilter = archived ? 'cp.archived_at IS NOT NULL' : 'cp.archived_at IS NULL';
@@ -51,7 +66,7 @@ function buildConversationsQuery({ archived = false } = {}) {
     LEFT JOIN teams t ON t.id = c.team_id
     LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = $1
     WHERE (
-      (cp.user_id IS NOT NULL AND cp.left_at IS NULL)
+      (c.type <> 'team' AND cp.user_id IS NOT NULL AND cp.left_at IS NULL)
       OR
       (c.type = 'team' AND c.team_id = ANY($2::int[]))
     )
