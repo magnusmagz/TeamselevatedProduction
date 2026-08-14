@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/JWT.php';
+require_once __DIR__ . '/impersonation.php';
 
 class AuthMiddleware {
     private $payload;
@@ -336,6 +337,29 @@ class AuthMiddleware {
             'roles' => $m->roles,
         ];
         return $m;
+    }
+
+    /**
+     * The super admin behind an impersonated session, or null for an ordinary one.
+     *
+     * Read from the token's `imp` claim, NOT from the refreshed DB context —
+     * refreshRolesFromDb() re-derives everything for the token's user_id, which
+     * during an impersonation is the TARGET. That is deliberate (the session must
+     * be authorized as the target); this is the only place the real operator is
+     * recoverable, so audit writes should carry it.
+     *
+     * Never grant anything on the strength of this being set. It records who is
+     * responsible for a session; it is not a role.
+     *
+     * @return array|null See te_read_impersonation().
+     */
+    public function getImpersonator() {
+        return te_read_impersonation($this->payload);
+    }
+
+    /** @return bool Whether this request is running inside an impersonation. */
+    public function isImpersonating() {
+        return $this->getImpersonator() !== null;
     }
 
     // Getters

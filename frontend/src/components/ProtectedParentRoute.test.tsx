@@ -40,6 +40,9 @@ describe('ProtectedParentRoute', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
       updateUser: jest.fn(),
     });
     mockUseFinancialPermissions.mockReturnValue({
@@ -76,6 +79,9 @@ describe('ProtectedParentRoute', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
       updateUser: jest.fn(),
     });
     mockUseFinancialPermissions.mockReturnValue({
@@ -112,6 +118,9 @@ describe('ProtectedParentRoute', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
       updateUser: jest.fn(),
     });
     mockUseFinancialPermissions.mockReturnValue({
@@ -148,6 +157,9 @@ describe('ProtectedParentRoute', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
       updateUser: jest.fn(),
     });
     mockUseFinancialPermissions.mockReturnValue({
@@ -184,6 +196,9 @@ describe('ProtectedParentRoute', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
       updateUser: jest.fn(),
     });
     mockUseFinancialPermissions.mockReturnValue({

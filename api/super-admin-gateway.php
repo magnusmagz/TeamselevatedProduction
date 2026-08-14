@@ -13,6 +13,9 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/JWT.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/impersonation.php';
 
 // Require authentication
 $auth = AuthMiddleware::requireAuth();
@@ -182,6 +185,12 @@ try {
             $stmt = $pdo->prepare("INSERT INTO user_club_access (user_id, club_profile_id, role, active) VALUES (?, ?, ?, true)");
             $stmt->execute([$userId, $clubId, $role]);
             echo json_encode(['success' => true]);
+            break;
+
+        case 'impersonate':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            $data = json_decode(file_get_contents('php://input'), true);
+            handleImpersonate($pdo, $data, $auth);
             break;
 
         default:
@@ -526,5 +535,94 @@ function handleGetAthletes($pdo) {
     $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(['success' => true, 'athletes' => $athletes]);
+}
+
+/**
+ * Start impersonating a user — mint a token that IS that user.
+ *
+ * The returned token carries the target's user_id, so every downstream
+ * authorization check treats the session as the target with no special-casing.
+ * See lib/impersonation.php for why that, and not an "acting as" hint, is the
+ * shape. The `imp` claim only records who is responsible and when the window
+ * closes.
+ *
+ * Impersonation permits WRITES. That is the point — support cases are usually
+ * "this save doesn't work for me", which a read-only view cannot reproduce. The
+ * protections are therefore accountability-shaped, not capability-shaped: a
+ * one-hour ceiling, a permanent banner, an audit row at start and at stop, and a
+ * refusal to impersonate another super admin.
+ */
+function handleImpersonate($pdo, $data, $auth) {
+    // Belt and braces: an impersonated session already fails the isSuperAdmin()
+    // gate at the top of this file (roles are re-derived for the TARGET), but
+    // chaining impersonations must be impossible for a reason stated out loud
+    // rather than as a side effect of another check.
+    if ($auth->isImpersonating()) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Stop the current impersonation before starting another']);
+        return;
+    }
+
+    $targetId = isset($data['user_id']) ? (int) $data['user_id'] : 0;
+    if ($targetId <= 0) {
+        badRequest('user_id is required');
+    }
+
+    $stmt = $pdo->prepare('SELECT id, email, first_name, last_name, system_role FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$targetId]);
+    $target = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $adminId = (int) $auth->getUserId();
+    $refusal = te_impersonation_refusal($target, $adminId);
+    if ($refusal !== null) {
+        http_response_code($refusal === 'user_not_found' ? 404 : 403);
+        echo json_encode([
+            'error' => te_impersonation_refusal_message($refusal),
+            'reason' => $refusal,
+        ]);
+        return;
+    }
+
+    $stmt = $pdo->prepare('SELECT email, first_name, last_name FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$adminId]);
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $adminName = trim(($admin['first_name'] ?? '') . ' ' . ($admin['last_name'] ?? ''));
+    $adminEmail = $admin['email'] ?? ($auth->getPayload()->email ?? null);
+
+    $targetName = trim($target['first_name'] . ' ' . $target['last_name']);
+    $claims = array_merge(
+        JWT::buildOrganizationalContext($pdo, $target['id'], null, null),
+        te_impersonation_claims($adminId, $adminEmail, $adminName)
+    );
+    $token = JWT::generate($target['id'], $target['email'], $targetName, $claims);
+    $payload = JWT::decode($token);
+
+    // Audited BEFORE the token reaches the client, and with the target on the
+    // resource columns so "who was signed in as me" is answerable from either end.
+    AuditLogger::log($pdo, $adminId, 'impersonation_started', 'user', (int) $target['id'], [
+        'target_email' => $target['email'],
+        'target_name' => $targetName,
+        'expires_at' => $claims['imp']['exp'],
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'token' => $token,
+        'expires_at' => $claims['imp']['exp'],
+        'user' => [
+            'id' => (int) $target['id'],
+            'email' => $target['email'],
+            'name' => $targetName,
+            'system_role' => $payload->system_role ?? 'user',
+            'organization' => [
+                'orgId' => $payload->org_id ?? null,
+                'orgType' => $payload->org_type ?? null,
+                'orgName' => $payload->org_name ?? null,
+            ],
+            'roles' => $payload->roles ?? [],
+            'activeRole' => $payload->active_context ?? null,
+            'impersonation' => $claims['imp'],
+        ],
+    ]);
 }
 ?>

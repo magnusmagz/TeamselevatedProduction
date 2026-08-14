@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PlatformStats from '../components/superadmin/PlatformStats';
 import ClubsList from '../components/superadmin/ClubsList';
 import ClubDetails from '../components/superadmin/ClubDetails';
@@ -7,6 +7,7 @@ import UsersList from '../components/superadmin/UsersList';
 import UserDetails from '../components/superadmin/UserDetails';
 import AthletesList from '../components/superadmin/AthletesList';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -104,6 +105,8 @@ const TE_DEFAULT_PRIMARY = '#12443e';
 
 const SuperAdminDashboard: React.FC = () => {
   const { colors, updateTheme } = useTheme();
+  const { impersonate } = useAuth();
+  const navigate = useNavigate();
   const savedColorsRef = useRef(colors.primary);
 
   // Override to TE default branding on mount, restore on unmount
@@ -470,6 +473,28 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
+  // Start impersonating a user, then land on the dashboard as them.
+  //
+  // The confirm is not ceremony: from the click onwards every action is taken as
+  // that person against their real data, and the only difference on screen is the
+  // banner.
+  const handleImpersonate = async (target: { id: number; first_name: string; last_name: string; email: string }) => {
+    const name = `${target.first_name} ${target.last_name}`.trim();
+    const confirmed = window.confirm(
+      `Sign in as ${name} (${target.email})?\n\n` +
+      'You will see and act on their real data for up to 1 hour. ' +
+      'Anything you do is recorded against your admin account.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await impersonate(target.id);
+      navigate('/dashboard');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not start impersonation');
+    }
+  };
+
   // Remove from club
   const handleRemoveFromClub = async (userId: number, clubId: number) => {
     try {
@@ -583,6 +608,7 @@ const SuperAdminDashboard: React.FC = () => {
           onToggleSuperAdmin={handleToggleSuperAdmin}
           onSearch={fetchUsers}
           onCreateUser={handleCreateUser}
+          onImpersonate={handleImpersonate}
         />
       )}
 

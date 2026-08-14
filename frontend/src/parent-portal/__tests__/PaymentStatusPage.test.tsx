@@ -85,6 +85,9 @@ describe('PaymentStatusPage', () => {
       switchContext: jest.fn(),
       hasPermission: jest.fn(),
       isSuperAdmin: jest.fn(),
+      impersonation: null,
+      impersonate: jest.fn(),
+      stopImpersonation: jest.fn(),
     });
 
     (global.fetch as jest.Mock).mockResolvedValue({

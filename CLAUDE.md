@@ -326,6 +326,40 @@ Set via Heroku config vars in production. Locally, loaded from `.env` file via c
   scope before sending
 - Roles are stored in `user_club_access` table (user_id, club_profile_id, role). Role values per the live CHECK constraint: `club_admin`, `coach`, `parent`, `player`, `volunteer`, `treasurer` — the last two were undocumented here until 2026-07-29, and `volunteer` is in active use (2 rows). This table is authoritative — NOT `users.role`. Coaches are scoped to teams via `team_members` table.
 
+### Impersonation: the token IS the target — `lib/impersonation.php` (2026-08-14)
+Super admin only. `super-admin-gateway.php?action=impersonate` mints a token whose
+`user_id` is the **target's**, so `refreshRolesFromDb()` derives the target's roles and
+every existing scope check applies unchanged. There is no "acting as" flag for gateways to
+honour, and therefore no gateway that can forget to.
+
+The `imp` claim (`by`, `by_email`, `by_name`, `started_at`, `exp`) records who is behind
+the session. **It is evidence and an exit route, never a grant** — nothing anywhere reads
+it to allow something.
+
+- **`imp.exp` and the JWT's `exp` are the same value** (1h, `TE_IMPERSONATION_TTL`).
+  Otherwise an abandoned impersonation is a 24h key to someone else's account.
+- **Every re-mint must call `te_carry_impersonation()`.** `verify-session` and
+  `switch-context` both issue a fresh token on every call; dropping the claim there
+  converts an impersonation into a permanent, unmarked, unrevertible login as the target.
+  `ImpersonationTest` parses both handlers and fails if one stops carrying it. The
+  original expiry rides along, so refreshing the page cannot extend the window.
+- **`stop-impersonation` lives on `auth-gateway.php`, not the super-admin gateway** — the
+  caller holds a token whose re-derived `system_role` is the target's, so it would fail
+  that file's own gate and strand the admin until expiry. The admin's id comes off the
+  signature-verified claim; nothing is read from the body.
+- **A super admin cannot be impersonated**, so revoking someone's badge can't be undone by
+  anyone who still has one, and the audit trail can always say which admin acted.
+- **Writes are permitted.** Support cases are usually "this save doesn't work for me",
+  which a read-only view cannot reproduce. The protections are accountability-shaped
+  instead: the 1h ceiling, `impersonation_started` / `impersonation_stopped` audit rows, and
+  a banner with no dismiss control (`ImpersonationBanner`) — it is the only thing on screen
+  distinguishing the session from a real login, and it renders on the parent portal too.
+- Frontend parks the admin's own token at `auth_token_impersonator` purely so an **expired**
+  impersonation returns them to their account instead of the login screen. `stopImpersonation`
+  prefers the server round-trip; the parked token is the fallback, never the primary path.
+- `AuthMiddleware::getImpersonator()` is where the real operator is recoverable — the
+  refreshed DB context is all target.
+
 ### ⚠️ Reading an athlete and writing one are different permissions (2026-07-30)
 `AthleteScope` exposes two predicates and they are not interchangeable:
 

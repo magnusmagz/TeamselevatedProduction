@@ -45,6 +45,7 @@ import CoachProfile from './pages/CoachProfile';
 import { useParams } from 'react-router-dom';
 // Payment components
 import { DemoModeBanner } from './components/DemoModeBanner';
+import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { RevenueDashboard } from './pages/RevenueDashboard';
 import { PaymentItemsList } from './pages/PaymentItemsList';
 import { AthletePaymentsDashboard } from './pages/AthletePaymentsDashboard';
@@ -375,6 +376,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
+        <ImpersonationBanner />
         <DemoModeBanner />
         {/* Install prompt for the main app shell only. The parent portal renders
             its own InstallPrompt inside ParentPortalLayout, so it is excluded

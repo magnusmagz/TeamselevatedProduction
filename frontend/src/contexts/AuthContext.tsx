@@ -13,6 +13,15 @@ interface Organization {
   orgName: string | null;
 }
 
+export interface Impersonation {
+  by: number;
+  by_email: string | null;
+  by_name: string | null;
+  started_at: number;
+  /** Unix seconds. The token expires at the same moment. */
+  exp: number;
+}
+
 interface User {
   id: number;
   email: string;
@@ -22,7 +31,20 @@ interface User {
   organization?: Organization;
   roles?: RoleContext[];
   activeRole?: RoleContext | null;
+  /** Set only while a super admin is signed in as this user. */
+  impersonation?: Impersonation | null;
 }
+
+/**
+ * The super admin's own token, parked here for the length of an impersonation.
+ *
+ * The server can always end an impersonation while its token is still valid
+ * (`stop-impersonation` reads the admin's id off the `imp` claim). This exists
+ * for the case where it CANNOT: the impersonation token expired, so the claim is
+ * unreadable and the admin would otherwise be bounced to the login screen for
+ * doing nothing but taking an hour. It is a fallback, never the primary path.
+ */
+const IMPERSONATOR_TOKEN_KEY = 'auth_token_impersonator';
 
 interface AuthContextType {
   user: User | null;
@@ -35,18 +57,51 @@ interface AuthContextType {
   switchContext: (scopeId: number, scopeType: 'club') => Promise<void>;
   hasPermission: (permission: string) => boolean;
   isSuperAdmin: () => boolean;
+  impersonation: Impersonation | null;
+  impersonate: (userId: number) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
+/**
+ * Verify one token with the server.
+ *
+ * Split out of checkAuth() so the impersonator fallback is a second call rather
+ * than a recursive one, and kept at module scope so checkAuth() closes over
+ * nothing unstable — an in-component helper makes checkAuth a reactive value and
+ * adds an exhaustive-deps warning, and the lint ceiling only goes down.
+ */
+const verifySession = async (token: string): Promise<{ user: User; token?: string } | null> => {
+  const response = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-session`, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  console.log('[AuthContext] verifySession - Response status:', response.status);
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (!data.authenticated || !data.user) {
+    return null;
+  }
+
+  return { user: data.user, token: data.token };
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const checkAuth = async () => {
+  const checkAuth = async (): Promise<void> => {
     try {
       console.log('[AuthContext] checkAuth - Starting...');
       setIsLoading(true);
@@ -62,35 +117,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=verify-session`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      let result = await verifySession(token);
 
-      console.log('[AuthContext] checkAuth - Response status:', response.status);
+      if (!result) {
+        localStorage.removeItem('auth_token'); // Clear invalid token
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[AuthContext] checkAuth - Response data:', data);
-        if (data.authenticated && data.user) {
-          console.log('[AuthContext] checkAuth - User authenticated:', data.user);
-          setUser(data.user);
-
-          // If a fresh token is returned, update it in localStorage
-          if (data.token) {
-            localStorage.setItem('auth_token', data.token);
+        // An impersonation token dies at the one-hour mark, so "session
+        // invalid" is the expected end of every abandoned one. Fall back to the
+        // admin's parked token rather than bouncing them to the login screen
+        // for doing nothing but taking an hour.
+        const parked = localStorage.getItem(IMPERSONATOR_TOKEN_KEY);
+        if (parked) {
+          localStorage.removeItem(IMPERSONATOR_TOKEN_KEY);
+          result = await verifySession(parked);
+          if (result) {
+            localStorage.setItem('auth_token', parked);
           }
-        } else {
-          console.log('[AuthContext] checkAuth - Not authenticated');
-          setUser(null);
-          localStorage.removeItem('auth_token'); // Clear invalid token
+        }
+      }
+
+      if (result) {
+        console.log('[AuthContext] checkAuth - User authenticated:', result.user);
+        setUser(result.user);
+
+        // If a fresh token is returned, update it in localStorage
+        if (result.token) {
+          localStorage.setItem('auth_token', result.token);
         }
       } else {
-        console.log('[AuthContext] checkAuth - Response not OK');
+        console.log('[AuthContext] checkAuth - Not authenticated');
         setUser(null);
-        localStorage.removeItem('auth_token'); // Clear invalid token
       }
     } catch (err) {
       console.error('[AuthContext] checkAuth - Error:', err);
@@ -118,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Clear token from localStorage
       localStorage.removeItem('auth_token');
+      localStorage.removeItem(IMPERSONATOR_TOKEN_KEY);
       setUser(null);
 
       // Optional: notify backend (though token is already removed locally)
@@ -137,6 +194,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('auth_token');
       setUser(null);
     }
+  };
+
+  /**
+   * Start impersonating a user. Super admin only — enforced server-side; this
+   * only drives the UI.
+   */
+  const impersonate = async (userId: number) => {
+    const adminToken = localStorage.getItem('auth_token');
+    if (!adminToken) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_URL}/api/super-admin-gateway.php?action=impersonate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ user_id: userId })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.token) {
+      throw new Error(data.error || 'Could not start impersonation');
+    }
+
+    // Park the admin's own token BEFORE overwriting it, or an expired
+    // impersonation has nothing to fall back to.
+    localStorage.setItem(IMPERSONATOR_TOKEN_KEY, adminToken);
+    localStorage.setItem('auth_token', data.token);
+    setUser(data.user);
+  };
+
+  /** End an impersonation and return to the super admin's own session. */
+  const stopImpersonation = async () => {
+    const token = localStorage.getItem('auth_token');
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth-gateway.php?action=stop-impersonation`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok && data.token) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.removeItem(IMPERSONATOR_TOKEN_KEY);
+        setUser(data.user);
+        return;
+      }
+    } catch (err) {
+      console.error('[AuthContext] stopImpersonation - Error:', err);
+    }
+
+    // The server could not end it — most likely the token expired mid-session.
+    // Fall back to the parked admin token rather than leaving the operator
+    // stuck inside someone else's account with a dead Exit button.
+    const parked = localStorage.getItem(IMPERSONATOR_TOKEN_KEY);
+    if (parked) {
+      localStorage.setItem('auth_token', parked);
+      localStorage.removeItem(IMPERSONATOR_TOKEN_KEY);
+      await checkAuth();
+      return;
+    }
+
+    await logout();
   };
 
   const switchContext = async (scopeId: number, scopeType: 'club') => {
@@ -230,7 +357,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       switchContext,
       hasPermission,
-      isSuperAdmin
+      isSuperAdmin,
+      impersonation: user?.impersonation ?? null,
+      impersonate,
+      stopImpersonation
     }}>
       {children}
     </AuthContext.Provider>

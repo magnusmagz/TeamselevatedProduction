@@ -18,6 +18,7 @@ interface UsersListProps {
   onToggleSuperAdmin: (userId: number, makeSuperAdmin: boolean) => void;
   onSearch: (search: string) => void;
   onCreateUser?: (data: { first_name: string; last_name: string; email: string; password: string; system_role: string }) => Promise<boolean>;
+  onImpersonate?: (user: User) => void;
 }
 
 const UsersList: React.FC<UsersListProps> = ({
@@ -27,6 +28,7 @@ const UsersList: React.FC<UsersListProps> = ({
   onToggleSuperAdmin,
   onSearch,
   onCreateUser,
+  onImpersonate,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -219,6 +221,17 @@ const UsersList: React.FC<UsersListProps> = ({
                       >
                         Details
                       </button>
+                      {/* Super admins are deliberately not impersonable — the
+                          server refuses it, so offering the button would only
+                          produce an error. */}
+                      {onImpersonate && user.system_role !== 'super_admin' && (
+                        <button
+                          onClick={() => onImpersonate(user)}
+                          className="text-amber-700 hover:underline text-sm"
+                        >
+                          View As
+                        </button>
+                      )}
                       {user.system_role === 'super_admin' ? (
                         <button
                           onClick={() => {

@@ -33,6 +33,7 @@ const TOS_VERSION = '1.0';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/parent_invite_token.php';
 require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/impersonation.php';
 
 // Use existing MySQL database for now (will migrate to Neon later)
 require_once __DIR__ . '/../config/database.php';
@@ -94,6 +95,14 @@ try {
 
         case 'switch-context':
             handleSwitchContext($db, $input);
+            break;
+
+        // Deliberately NOT on super-admin-gateway.php: the caller is holding an
+        // impersonated token, whose re-derived system_role is the target's, so it
+        // would fail that file's super-admin gate and strand the admin inside the
+        // session with no way out but expiry.
+        case 'stop-impersonation':
+            handleStopImpersonation($db);
             break;
 
         default:
@@ -315,9 +324,19 @@ function handleVerifySession() {
     $activeContextScopeId = $payload->active_context->scope_id ?? null;
     $activeContextType = $payload->active_context->scope_type ?? null;
 
-    // Generate fresh JWT with updated data from database
+    // Generate fresh JWT with updated data from database.
+    //
+    // te_carry_impersonation() copies an in-flight `imp` claim (and its expiry)
+    // onto the new token. Without it, the first page load after an admin starts
+    // impersonating would re-mint a plain 24h token for the target — a silent,
+    // unmarked, unrevertible login as another user. The original expiry rides
+    // along, so refreshing cannot extend the window.
     $userName = trim($user['first_name'] . ' ' . $user['last_name']);
-    $freshJwt = JWT::generateEnhanced($db, $user['id'], $user['email'], $userName, $activeContextScopeId, $activeContextType);
+    $claims = te_carry_impersonation(
+        JWT::buildOrganizationalContext($db, $user['id'], $activeContextScopeId, $activeContextType),
+        $payload
+    );
+    $freshJwt = JWT::generate($user['id'], $user['email'], $userName, $claims);
 
     // Decode the fresh token to get updated payload
     $freshPayload = JWT::decode($freshJwt);
@@ -337,7 +356,84 @@ function handleVerifySession() {
                 'orgName' => $freshPayload->org_name ?? null
             ],
             'roles' => $freshPayload->roles ?? [],
-            'activeRole' => $freshPayload->active_context ?? null
+            'activeRole' => $freshPayload->active_context ?? null,
+            'impersonation' => te_read_impersonation($freshPayload)
+        ]
+    ]);
+}
+
+/**
+ * End an impersonation and hand the super admin their own session back.
+ *
+ * The identity of the admin comes from the `imp` claim on a signature-verified
+ * token — nothing is taken from the request body, so this cannot be used to
+ * become someone else. The new token is built from the database as usual, which
+ * means an admin whose super-admin badge was revoked mid-impersonation comes
+ * back as whatever they now are, not as what they were.
+ */
+function handleStopImpersonation($db) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $jwt = null;
+    if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        $jwt = $matches[1];
+    }
+
+    if (!$jwt) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required']);
+        return;
+    }
+
+    $payload = JWT::verify($jwt);
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid or expired token']);
+        return;
+    }
+
+    $imp = te_read_impersonation($payload);
+    if (!$imp) {
+        http_response_code(400);
+        echo json_encode(['error' => 'This session is not an impersonation', 'reason' => 'not_impersonating']);
+        return;
+    }
+
+    $stmt = $db->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$imp['by']]);
+    $admin = $stmt->fetch();
+
+    if (!$admin) {
+        // The admin account was deleted while impersonating. There is no session
+        // to return to, so end this one rather than leaving them as the target.
+        http_response_code(401);
+        echo json_encode(['error' => 'Original account no longer exists', 'reason' => 'impersonator_missing']);
+        return;
+    }
+
+    $adminName = trim($admin['first_name'] . ' ' . $admin['last_name']);
+    $token = JWT::generateEnhanced($db, $admin['id'], $admin['email'], $adminName);
+    $newPayload = JWT::decode($token);
+
+    AuditLogger::log($db, (int) $admin['id'], 'impersonation_stopped', 'user', (int) ($payload->user_id ?? 0), [
+        'started_at' => $imp['started_at'],
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => (int) $admin['id'],
+            'email' => $admin['email'],
+            'name' => $adminName,
+            'system_role' => $newPayload->system_role ?? 'user',
+            'organization' => [
+                'orgId' => $newPayload->org_id ?? null,
+                'orgType' => $newPayload->org_type ?? null,
+                'orgName' => $newPayload->org_name ?? null
+            ],
+            'roles' => $newPayload->roles ?? [],
+            'activeRole' => $newPayload->active_context ?? null,
+            'impersonation' => null
         ]
     ]);
 }
@@ -1108,9 +1204,16 @@ function handleSwitchContext($db, $input) {
         return;
     }
 
-    // Generate new JWT with the requested active context
+    // Generate new JWT with the requested active context. An in-flight
+    // impersonation carries across unchanged — switching clubs is something the
+    // impersonated user can legitimately do, and dropping `imp` here would turn
+    // one click into a permanent unmarked session as them.
     $userName = trim($user['first_name'] . ' ' . $user['last_name']);
-    $newJwt = JWT::generateEnhanced($db, $user['id'], $user['email'], $userName, $scopeId, $scopeType);
+    $claims = te_carry_impersonation(
+        JWT::buildOrganizationalContext($db, $user['id'], $scopeId, $scopeType),
+        $payload
+    );
+    $newJwt = JWT::generate($user['id'], $user['email'], $userName, $claims);
 
     // Decode to get updated user context
     $newPayload = JWT::decode($newJwt);
@@ -1130,7 +1233,8 @@ function handleSwitchContext($db, $input) {
                 'orgName' => $newPayload->org_name ?? null
             ],
             'roles' => $newPayload->roles ?? [],
-            'activeRole' => $newPayload->active_context ?? null
+            'activeRole' => $newPayload->active_context ?? null,
+            'impersonation' => te_read_impersonation($newPayload)
         ]
     ]);
 }
