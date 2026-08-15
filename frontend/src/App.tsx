@@ -12,6 +12,7 @@ import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
 import ProtectedSuperAdminRoute from './components/ProtectedSuperAdminRoute';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import { ChatWidget } from './components/chat';
+import { SupportButton } from './components/support/SupportButton';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -1113,6 +1114,10 @@ function AppContent() {
 
         {/* Chat Widget - visible when logged in, but not on parent portal (has its own chat) */}
         {user && !isParentPortal && <ChatWidget />}
+        {/* Bottom-LEFT so it never sits on the chat launcher, and not on the
+            parent portal at all — that surface's bottom strip is the nav +
+            sponsor marquee, so its entry point is a row in the More menu. */}
+        {user && !isParentPortal && <SupportButton />}
       </div>
   );
 }

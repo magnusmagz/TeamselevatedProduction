@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { ParentHeader } from '../components/ParentHeader';
+import { SupportDialog } from '../../components/support/SupportDialog';
 
 interface MenuItem {
   label: string;
@@ -17,6 +18,7 @@ export const MoreMenuPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -75,10 +77,26 @@ export const MoreMenuPage: React.FC = () => {
         </svg>
       ),
     },
+    {
+      // The floating support button is deliberately absent from the portal — its
+      // bottom strip is the nav plus the sponsor marquee. This is the entry point
+      // here, matching how every other portal destination is reached.
+      label: 'Report an issue',
+      description: 'Something not working? Tell us',
+      onClick: () => setSupportOpen(true),
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" strokeWidth={2} />
+          <circle cx="12" cy="12" r="3.5" strokeWidth={2} />
+          <path strokeWidth={2} d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9" />
+        </svg>
+      ),
+    },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
       <ParentHeader title="More" />
 
       <div className="pt-14 pb-4">
