@@ -11,14 +11,37 @@ require_once __DIR__ . '/jersey_size.php';
 
 if (!function_exists('te_create_athlete')) {
     /**
-     * Create an athlete, and (if an email is supplied) link it to a `player` user.
+     * Create an athlete. Athletes get NO login identity.
+     *
+     * ─── Athletes do not have accounts (decided 2026-08-15) ───────────────────
+     * This used to find-or-create a `player` user from `$input['email']`, and the
+     * email on a youth athlete's form is the PARENT's — the old comment here said
+     * so outright. Because `users.email` is unique, that address then belonged to
+     * the CHILD's account, and the parent had no account of their own. When the
+     * parent signed in with a magic link they authenticated **as their own child**,
+     * into a row with no club roles, which routed them to the staff app.
+     *
+     * That is how CKU parents reported "I logged in and saw the coach's portal".
+     * 24 such accounts existed; one had already been signed into and had COPPA
+     * consent recorded against it.
+     *
+     * An earlier fix (2026-07-30) stopped these rows getting a default password,
+     * which closed the password door but not the magic-link one — a passwordless
+     * account is still an account, and `send-magic-link` resolves purely by email.
+     * **The account itself was the bug**, so it is not created at all now.
+     *
+     * Athletes may log in again some day; when that changes, the identity must be
+     * the athlete's OWN address, and it must not be minted silently as a side
+     * effect of saving a roster record. Nothing depends on these rows today:
+     * `user_club_access` has zero `player` entries, and `lib/participants.js` in
+     * the chat server already documents that `athletes.user_id` mostly points at a
+     * guardian and must never be read as "this account is the child".
      *
      * Fixes two long-standing crashes in the old create path:
      *   1. It reused an existing user's email → users_email_key unique violation.
-     *      Now: reuse the existing user instead of blindly inserting.
      *   2. It set athletes.id = users.id, colliding with sequence-generated athlete
      *      ids → athletes_pkey unique violation. Now: athletes.id is ALWAYS
-     *      sequence-generated; the user link lives in athletes.user_id.
+     *      sequence-generated.
      *
      * Also stamps athletes.club_id when the caller supplies one. Without it a
      * team-less athlete is invisible to club admins: AthleteScope derives club
@@ -27,9 +50,11 @@ if (!function_exists('te_create_athlete')) {
      * honors club_id).
      *
      * @param PDO   $pdo   Connection (caller owns the transaction).
-     * @param array $input Athlete fields (first_name, last_name required; email,
-     *                     club_id optional).
-     * @return array{athlete_id:int, user_id:?int}
+     * @param array $input Athlete fields (first_name, last_name required;
+     *                     club_id optional). Any `email` is ignored — it belongs
+     *                     on the guardian record, which is where the club already
+     *                     reads contact details from.
+     * @return array{athlete_id:int, user_id:null}
      * @throws InvalidArgumentException when required fields are missing.
      */
     function te_create_athlete(PDO $pdo, array $input): array
@@ -40,40 +65,12 @@ if (!function_exists('te_create_athlete')) {
             throw new InvalidArgumentException('First name and last name are required');
         }
 
-        $email = $input['email'] ?? null;
-
-        // Find-or-create the linked player user. Reusing an existing email is the fix
-        // for the users_email_key crash — two athletes/guardians can share an email.
-        //
-        // The row is created with NO password_hash, deliberately. It used to default to
-        // password_hash('defaultpass'), which was wrong twice over:
-        //   1. Security — every athlete created with an email got a live, loginable
-        //      account whose password was a constant in this file. For a youth athlete
-        //      the email on the form is the PARENT's, so the credential sat on a real
-        //      adult's address. 31 such accounts existed in prod before 2026-07-30.
-        //   2. Correctness — the crew/parent-portal status endpoints in api/auth-gateway.php
-        //      define "active" as "a users row for this email has a password_hash", joined
-        //      on email alone. A child's auto-created account therefore made the parent
-        //      read as having accepted a portal invite they were never sent.
-        // Athletes reach the portal the same way guardians do: an invite / magic link.
-        // Leaving password_hash NULL routes them there (handlePasswordLogin returns
-        // "No password set for this account" rather than accepting a known constant).
+        // No user row, ever. See the docblock: an athlete has no login identity, and
+        // linking to an EXISTING user by email would be worse than creating one — the
+        // account on a youth athlete's email is the parent's, so `athletes.user_id`
+        // would point at the parent and every "is this account the child" question
+        // would answer wrong.
         $user_id = null;
-        if ($email) {
-            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
-            $stmt->execute([$email]);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($existing) {
-                $user_id = (int) $existing['id'];
-            } else {
-                $stmt = $pdo->prepare(
-                    "INSERT INTO users (first_name, last_name, email, role)
-                     VALUES (?, ?, ?, 'player') RETURNING id"
-                );
-                $stmt->execute([$first_name, $last_name, $email]);
-                $user_id = (int) $stmt->fetch(PDO::FETCH_ASSOC)['id'];
-            }
-        }
 
         $club_id = (isset($input['club_id']) && is_numeric($input['club_id']))
             ? (int) $input['club_id']
@@ -84,8 +81,9 @@ if (!function_exists('te_create_athlete')) {
             "INSERT INTO athletes (
                 first_name, middle_initial, last_name, preferred_name,
                 date_of_birth, gender, home_address_line1, city, state, zip_code,
-                school_name, grade_level, jersey_size, user_id, club_id, active_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+                school_name, grade_level, jersey_size, email, phone,
+                user_id, club_id, active_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
             RETURNING id"
         );
         $stmt->execute([
@@ -105,6 +103,11 @@ if (!function_exists('te_create_athlete')) {
             // constraint — te_normalize_jersey_size is idempotent, so running it
             // here as well as in the gateway is safe.
             te_normalize_jersey_size($input['jersey_size'] ?? null),
+            // The email now lands on the ATHLETE, not on a minted account. It was
+            // previously write-only into `users`, which is why athletes.email is
+            // NULL for every athlete in production while the form displayed a value.
+            ($input['email'] ?? '') !== '' ? $input['email'] : null,
+            ($input['phone'] ?? '') !== '' ? $input['phone'] : null,
             $user_id,
             $club_id,
         ]);

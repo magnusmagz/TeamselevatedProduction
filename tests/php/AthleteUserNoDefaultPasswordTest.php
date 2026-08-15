@@ -6,25 +6,30 @@ use PHPUnit\Framework\TestCase;
 use PDO;
 
 /**
- * Regression guard for the 2026-07-30 "crew says invited when they weren't" bug.
+ * Athletes have NO login identity (decided 2026-08-15).
  *
- * te_create_athlete() used to seed the athlete's linked users row with
- * password_hash('defaultpass', PASSWORD_DEFAULT) — a constant literal in the source.
- * That broke two things at once:
+ * This file previously guarded a narrower rule — that the athlete's auto-created
+ * `users` row carried no password (the 2026-07-30 fix, migration 056, after 31
+ * accounts shipped with `password_hash('defaultpass')` published in the source).
+ * That closed the password door and left the magic-link one open, because
+ * `send-magic-link` resolves purely by email and a passwordless account is still
+ * an account.
  *
- *   1. Security. handlePasswordLogin does a plain password_verify with no extra gate,
- *      so every one of those rows was a live account whose password was published in
- *      the repo. A youth athlete's form carries the PARENT's email, so the credential
- *      landed on a real adult's address — 14 of them in club 51 before the fix.
+ * The account itself was the bug. A youth athlete's form carries the PARENT's
+ * email, and `users.email` is unique, so the child's row OWNED that address and
+ * the parent had none of their own. Signing in with their own email logged the
+ * parent in AS THEIR CHILD, into a row with no club roles — which routed them to
+ * the staff app. That is what CKU parents reported as "I saw the coach's portal".
  *
- *   2. Correctness. handleClubParents / handleParentPortalStatus define portal state as
- *      "a users row for this email has a password_hash", joined on email ALONE. The
- *      child's auto-created account therefore made the parent read as "active", i.e.
- *      as having accepted an invite nobody ever sent them.
+ * So te_create_athlete now creates no user row at all, and links to no existing
+ * one. Nothing depends on these rows: `user_club_access` holds zero `player`
+ * entries, and the chat server's lib/participants.js already documents that
+ * `athletes.user_id` mostly points at a guardian and must never be read as "this
+ * account is the child".
  *
- * Migration 056 cleared the 31 affected production rows. This test stops the generating
- * bug from being reintroduced: an auto-created player user must have NO password. Portal
- * access for athletes goes through the invite / magic-link path, same as guardians.
+ * If athletes are given accounts later, the identity must be the athlete's OWN
+ * address and must be created deliberately — never as a side effect of saving a
+ * roster record.
  *
  * Runs entirely against in-memory SQLite — never touches production Neon.
  */
@@ -51,6 +56,7 @@ class AthleteUserNoDefaultPasswordTest extends TestCase
                 last_name TEXT, preferred_name TEXT, date_of_birth TEXT, gender TEXT,
                 home_address_line1 TEXT, city TEXT, state TEXT, zip_code TEXT,
                 school_name TEXT, grade_level TEXT, jersey_size TEXT,
+                email TEXT, phone TEXT,
                 user_id INTEGER, club_id INTEGER, active_status INTEGER
             );
         ");
@@ -59,7 +65,8 @@ class AthleteUserNoDefaultPasswordTest extends TestCase
         require_once __DIR__ . '/../../lib/athlete_writes.php';
     }
 
-    public function testAutoCreatedPlayerUserHasNoPassword(): void
+    /** The rule, stated plainly. */
+    public function testCreatingAnAthleteWithAnEmailCreatesNoAccount(): void
     {
         $created = te_create_athlete($this->pdo, [
             'first_name' => 'Emmett',
@@ -68,50 +75,77 @@ class AthleteUserNoDefaultPasswordTest extends TestCase
             'club_id'    => 51,
         ]);
 
-        $this->assertNotNull($created['user_id'], 'an email should still link a user row');
+        $this->assertNull($created['user_id'], 'athletes get no login identity');
 
-        $stmt = $this->pdo->prepare('SELECT role, password_hash FROM users WHERE id = ?');
-        $stmt->execute([$created['user_id']]);
-        $user = $stmt->fetch();
-
-        $this->assertSame('player', $user['role']);
-        $this->assertNull(
-            $user['password_hash'],
-            'Auto-created athlete accounts must have no password. A non-null hash here is '
-            . 'both a live credential on the parent\'s email address and the thing that '
-            . 'makes the crew page report an invite that was never sent.'
+        // The email is not discarded — it lands on the athlete row, where the form
+        // reads it back from. Previously it was write-only into the users table.
+        $stmt = $this->pdo->prepare('SELECT email FROM athletes WHERE id = ?');
+        $stmt->execute([$created['athlete_id']]);
+        $this->assertSame('parent@example.com', $stmt->fetchColumn());
+        $this->assertSame(
+            0,
+            (int) $this->pdo->query('SELECT count(*) FROM users')->fetchColumn(),
+            'The email on a youth athlete form is the PARENT\'s. Minting a users row on '
+            . 'it gives the child that address, and the parent then signs in as their '
+            . 'own child.'
         );
     }
 
     /**
-     * The specific value that shipped. Named explicitly so a reintroduction fails with
-     * an obvious message rather than a generic null assertion.
+     * Linking to an EXISTING account is worse than creating one: the account on a
+     * youth athlete's email belongs to the parent, so athletes.user_id would point
+     * at the parent and every "is this account the child" question answers wrong.
+     */
+    public function testAnExistingAccountOnThatEmailIsNotLinkedEither(): void
+    {
+        $this->pdo->exec(
+            "INSERT INTO users (id, first_name, last_name, email, role)
+             VALUES (7, 'Jess', 'Ziegler', 'parent@example.com', 'parent')"
+        );
+
+        $created = te_create_athlete($this->pdo, [
+            'first_name' => 'Bonnie',
+            'last_name'  => 'Ziegler',
+            'email'      => 'parent@example.com',
+        ]);
+
+        $this->assertNull($created['user_id'], 'must not adopt the parent\'s account as the athlete\'s');
+
+        $stmt = $this->pdo->prepare('SELECT user_id FROM athletes WHERE id = ?');
+        $stmt->execute([$created['athlete_id']]);
+        $this->assertNull($stmt->fetchColumn());
+    }
+
+    /**
+     * The literal that shipped. Named explicitly so a reintroduction of the whole
+     * account-minting block fails with an obvious message.
+     * See migration 056_clear_default_player_passwords.sql.
      */
     public function testDefaultpassIsNeverAccepted(): void
     {
-        $created = te_create_athlete($this->pdo, [
+        te_create_athlete($this->pdo, [
             'first_name' => 'Sebastian',
             'last_name'  => 'Luns',
             'email'      => 'another-parent@example.com',
         ]);
 
-        $stmt = $this->pdo->prepare('SELECT password_hash FROM users WHERE id = ?');
-        $stmt->execute([$created['user_id']]);
-        $hash = $stmt->fetchColumn();
+        $hashes = $this->pdo->query('SELECT password_hash FROM users')->fetchAll(PDO::FETCH_COLUMN);
 
-        $this->assertFalse(
-            is_string($hash) && $hash !== '' && password_verify('defaultpass', $hash),
-            "The literal 'defaultpass' is back in the athlete-create path. See migration "
-            . '056_clear_default_player_passwords.sql for why that is not survivable.'
-        );
+        foreach ($hashes as $hash) {
+            $this->assertFalse(
+                is_string($hash) && $hash !== '' && password_verify('defaultpass', $hash),
+                "The literal 'defaultpass' is back in the athlete-create path."
+            );
+        }
+        $this->assertSame([], $hashes, 'no account should exist at all');
     }
 
     /**
-     * The find-or-create half must keep working: a second athlete on the same email
-     * reuses the existing user rather than tripping users_email_key. That was an
-     * earlier prod crash, and the fix must not regress it.
+     * Two siblings on one household email was an early users_email_key crash. With
+     * no account minted the collision cannot occur — kept as a guard because the
+     * shared-email shape is what drove the original find-or-create.
      */
-    public function testSecondAthleteOnSameEmailReusesUser(): void
+    public function testTwoSiblingsOnOneHouseholdEmailDoNotCollide(): void
     {
         $a = te_create_athlete($this->pdo, [
             'first_name' => 'Sibling', 'last_name' => 'One', 'email' => 'shared@example.com',
@@ -120,14 +154,11 @@ class AthleteUserNoDefaultPasswordTest extends TestCase
             'first_name' => 'Sibling', 'last_name' => 'Two', 'email' => 'shared@example.com',
         ]);
 
-        $this->assertSame($a['user_id'], $b['user_id']);
+        $this->assertNull($a['user_id']);
+        $this->assertNull($b['user_id']);
         $this->assertNotSame($a['athlete_id'], $b['athlete_id']);
     }
 
-    /**
-     * No email means no user row at all — not a row with a blank email, which would
-     * collide on the second athlete.
-     */
     public function testNoEmailCreatesNoUser(): void
     {
         $created = te_create_athlete($this->pdo, [

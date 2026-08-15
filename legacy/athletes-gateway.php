@@ -196,9 +196,11 @@ try {
                 }
 
                 $stmt = $pdo->prepare("
-                    SELECT a.*, u.email
+                    -- Email comes from the athlete row. It used to be selected from
+                    -- the linked `player` account (which shadowed a.email via the
+                    -- alias), and that account was minted on the PARENT's address.
+                    SELECT a.*
                     FROM athletes a
-                    LEFT JOIN users u ON u.id = a.user_id AND u.role = 'player'
                     WHERE a.id = ?
                 ");
                 $stmt->execute([$id]);
@@ -261,14 +263,13 @@ try {
                 $stmt = $pdo->prepare("
                     SELECT a.id, a.first_name, a.middle_initial, a.last_name, a.preferred_name,
                            a.date_of_birth, a.gender, a.school_name, a.grade_level, a.active_status,
-                           a.jersey_size, a.created_at, u.email,
+                           a.jersey_size, a.created_at, a.email,
                            g.first_name as guardian_first_name, g.last_name as guardian_last_name,
                            CONCAT(g.first_name, ' ', g.last_name) as primary_guardian_name,
                            g.email as primary_guardian_email,
                            g.mobile_phone as primary_guardian_phone,
                            COALESCE(ateams.teams, '[]'::json) as teams
                     FROM athletes a
-                    LEFT JOIN users u ON u.id = a.user_id AND u.role = 'player'
                     -- One row per athlete: pick a single primary guardian. A plain
                     -- JOIN multiplies rows when an athlete has >1 is_primary guardian
                     -- (two-parent / blended households), which duplicated athlete ids
@@ -425,7 +426,13 @@ try {
                     'state' => 'state',
                     'zip_code' => 'zip_code',
                     'photo_url' => 'photo_url',
-                    'jersey_size' => 'jersey_size'
+                    'jersey_size' => 'jersey_size',
+                    // Athletes have no account since 2026-08-15, so the email lives
+                    // on the athlete row. It used to be written ONLY to the linked
+                    // `player` users row, which is why athletes.email is NULL for
+                    // every athlete in production while the form showed a value.
+                    'email' => 'email',
+                    'phone' => 'phone'
                 ];
 
                 foreach ($athlete_mapping as $input_key => $db_field) {
@@ -447,34 +454,11 @@ try {
                     $stmt->execute($athlete_values);
                 }
 
-                // Update user table if email, first_name, or last_name changed
-                $user_fields = [];
-                $user_values = [];
-
-                $user_mapping = [
-                    'first_name' => 'first_name',
-                    'last_name' => 'last_name',
-                    'email' => 'email'
-                ];
-
-                foreach ($user_mapping as $input_key => $db_field) {
-                    if (isset($input[$input_key])) {
-                        $user_fields[] = "$db_field = ?";
-                        $user_values[] = $input[$input_key];
-                    }
-                }
-
-                if (!empty($user_fields)) {
-                    // The linked user lives at athletes.user_id (NOT the athlete id).
-                    $linkStmt = $pdo->prepare("SELECT user_id FROM athletes WHERE id = ?");
-                    $linkStmt->execute([$id]);
-                    $linkedUserId = $linkStmt->fetchColumn();
-                    if ($linkedUserId) {
-                        $user_values[] = $linkedUserId;
-                        $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $user_fields) . " WHERE id = ? AND role = 'player'");
-                        $stmt->execute($user_values);
-                    }
-                }
+                // No user-table write. Editing an athlete used to UPDATE the linked
+                // `player` account's name and email — an account that sat on the
+                // PARENT's address, so renaming a child renamed the row their parent
+                // signs in through. Athletes have no account now; name and email are
+                // athlete columns, handled by $athlete_mapping above.
 
                 te_prune_guardian_links($pdo, $id, $input['guardian_link_ids'] ?? null);
                 te_save_emergency_contacts($pdo, $id, $input['emergency_contacts'] ?? null);
