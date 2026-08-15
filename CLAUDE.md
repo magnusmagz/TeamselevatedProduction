@@ -395,6 +395,66 @@ Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateway
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
 
+### ⚠️ "A parent logged in and saw the coach's portal" — the diagnosis (2026-08-15)
+Reported by CKU. If it happens again, this is the checklist. **Left UNFIXED deliberately**
+after both live cases were repaired by hand — the decision was to wait for a third report
+rather than change routing. So expect it to recur.
+
+**The mechanism.** `Login.tsx` (and `VerifyMagicLink.tsx`) choose the landing page from the
+JWT's `roles` array, and `JWT::buildOrganizationalContext()` builds that array **only from
+`user_club_access`**:
+
+```js
+const isParent = userRoles.some(r => r.role === 'parent');
+… isParent ? navigate('/parent') : navigate('/dashboard');
+```
+
+No `parent` role row ⇒ `/dashboard` ⇒ the staff app. `ParentRedirect` then asks a
+**different** source — `api/financial-permissions.php`, which derives `is_parent` from the
+guardian chain **by email** — and bounces them to `/parent`. Two definitions of "is this a
+parent", and they disagree.
+
+- **The staff NAV renders during the bounce.** `AppContent` draws it outside the route
+  element, so while `ParentRedirect` waits on the permissions API the family is looking at
+  *My Teams / Programs / Communications / Calendar*. That is what gets reported.
+- **If `financial-permissions` fails, there is no rescue at all** — its catch does
+  `setRoles(defaultRoles)` (`is_parent: false`) and they stay in the staff app.
+- **`ParentRedirect` only wraps `/dashboard`.** Any other route has no bounce.
+
+**Diagnosing a new report — the two live causes were different:**
+1. **The account is the CHILD's.** `te_create_athlete()` used to mint a `player` users row
+   from the athlete form's email, which for a youth athlete is the parent's. `users.email`
+   is unique, so the child owned the address and the parent signed in *as their own child*.
+   Fixed at source and all 33 rows removed (migration 067) — but check
+   `SELECT * FROM users WHERE role='player'` before assuming.
+2. **users.email ≠ guardians.email.** Allix Boyce logged in on `@gmail` while her guardian
+   record said `@yahoo`, so nothing could derive her parent standing. She also turned out to
+   have **two accounts** — an invited `@yahoo` one carrying the CKU role that she had never
+   used, and a self-created `@gmail` one with no role. **Always check for a second account
+   on the other address before editing either.**
+
+**Query to run first:**
+```sql
+SELECT u.id, u.email, u.last_login_at,
+  (SELECT string_agg(role,',') FROM user_club_access c
+    WHERE c.user_id=u.id AND c.active AND c.revoked_at IS NULL) AS jwt_roles,
+  (SELECT COUNT(ag.athlete_id) FROM guardians g JOIN athlete_guardians ag ON ag.guardian_id=g.id
+    WHERE lower(g.email)=lower(u.email)) AS athletes_by_email
+FROM users u WHERE u.email ILIKE '%<their address>%';
+```
+`jwt_roles` without `parent` ⇒ they land on `/dashboard`. `athletes_by_email = 0` ⇒
+`ParentRedirect` cannot rescue them either, and they are **stuck**, not merely flashed.
+
+**Repair:** add the `parent` `user_club_access` row for their club on the account they
+actually sign in with, and make the `guardians` row carry that same address. Match guardians
+on **email AND name** when editing (`lib/guardian_sync.php` — six addresses are held by two
+guardians each).
+
+**Root cause, unfixed:** identity is an email string. `ParentInvite` creates the role row, so
+invited families are fine; anyone who self-signs-up is not. The durable fixes are deriving
+`parent` in `buildOrganizationalContext()` the way `coach` is already derived from team
+membership, and the `user_guardians` link table. Neither is scheduled.
+
 ### ⚠️ Parental consent is captured in the PARENT PORTAL, and nowhere else (2026-07-30)
 `ConsentGate` wraps `ParentPortalLayout` and records via `api/consent.php?action=record`.
 
