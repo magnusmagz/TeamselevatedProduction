@@ -441,9 +441,13 @@ children — and `ConsentGate` asked them to give **parental consent for other p
 **It was a lockout, not a cosmetic leak.** `consent.php?action=record` correctly 422s a
 non-guardian, `handleSubmit` throws on the first failure, and the gate renders *instead of*
 the portal — so those accounts could not enter the parent portal at all. Luis Escamilla
-(157, coach of team 79 with 11 athletes, father of one) pressed Submit five times on
-2026-08-17, re-recording his own son's consent each time. Six coach-parents at club 51 were
-in that state; the write guard held, so no false consent was ever stored.
+(157, father of one, reached by **20** athletes' worth of coaching scope) pressed Submit five
+times on 2026-08-17, re-recording his own son's consent each time. **Seven** coach-parent
+accounts were in that state; the write guard held, so no false consent was ever stored.
+
+⚠️ Count the roster with `getCoachTeamIds()`, not `teams.primary_coach_id` — the endpoint
+does, and it also counts `assistant_coach` / `team_manager` memberships. Using the column
+undercounted Luis at 11 and reported Samantha Archer (196) as unaffected when she was not.
 
 - **`my_children` / `my_children_ids`** are guardian-derived only. Everything in the parent
   portal reads those; `accessible_athletes` is unchanged and still serves payments.
