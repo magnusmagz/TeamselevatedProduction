@@ -58,6 +58,30 @@ class JWT {
             -- active = TRUE with revoked_at set (2026-07-08), so a role that had
             -- been taken away was still being minted into that user's token.
             WHERE uca.user_id = ? AND uca.active = TRUE AND uca.revoked_at IS NULL
+            -- ORDER BY is load-bearing. The active context is picked as roles[0]
+            -- below, and without this that was PHYSICAL ROW ORDER — so which role
+            -- a dual-role user 'is' was undefined and could change after a row
+            -- update or a vacuum, with nothing in the code or their access having
+            -- changed. Seven accounts hold two roles in one club.
+            --
+            -- Most privileged wins, so the answer is never a downgrade:
+            -- club_admin > treasurer > coach > volunteer > parent > player.
+            -- The frontend's OrgContext derives isClubAdmin (and therefore the
+            -- whole admin nav) from this pick; backend authorization does NOT —
+            -- AuthMiddleware::hasRole() checks every role and is unaffected.
+            --
+            -- club_profile_id breaks ties so a user in several clubs also lands
+            -- somewhere stable rather than wherever the rows happened to sit.
+            ORDER BY CASE uca.role
+                        WHEN 'club_admin' THEN 1
+                        WHEN 'treasurer'  THEN 2
+                        WHEN 'coach'      THEN 3
+                        WHEN 'volunteer'  THEN 4
+                        WHEN 'parent'     THEN 5
+                        WHEN 'player'     THEN 6
+                        ELSE 99
+                     END,
+                     uca.club_profile_id
         ");
         $stmt->execute([$userId]);
         $clubRoles = $stmt->fetchAll(PDO::FETCH_ASSOC);
