@@ -20,6 +20,41 @@ $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 /**
+ * Roles this gateway may invite people into.
+ *
+ * There was no whitelist: `$role = $input['role'] ?? 'coach'` went straight into
+ * invitations / invitation_links and then into user_club_access. A typo reached the
+ * table's CHECK constraint and failed at ACCEPT time — after the invitation had been
+ * sent — so the club learned about it from a family who could not get in.
+ *
+ * `parent` is here because Crew are invited through this form too (2026-08-17). The
+ * other user_club_access values (player, volunteer, treasurer) are deliberately absent:
+ * nothing invites into them today, and a whitelist that lists everything is not one.
+ */
+const TE_INVITABLE_ROLES = ['coach', 'club_admin', 'parent'];
+
+/**
+ * How many athletes will this person actually see when they accept?
+ *
+ * Parent standing is derived from guardians.email = users.email — there is no
+ * user_guardians link table. So a Crew invite only reaches their family if they accept
+ * on the SAME address their guardian record carries. Zero is not an error (staff have
+ * no guardian row) but for a `parent` invite it means they will land in an empty portal,
+ * which is exactly the Allix Boyce case in CLAUDE.md. Report it rather than let them
+ * discover it.
+ */
+function te_linked_athlete_count($conn, string $email): int {
+    $stmt = $conn->prepare('
+        SELECT COUNT(DISTINCT ag.athlete_id)
+        FROM guardians g
+        JOIN athlete_guardians ag ON ag.guardian_id = g.id
+        WHERE LOWER(g.email) = LOWER(:email)
+    ');
+    $stmt->execute(['email' => $email]);
+    return (int) $stmt->fetchColumn();
+}
+
+/**
  * Get authenticated user from JWT
  */
 function getAuthenticatedUser($headers) {
@@ -66,6 +101,11 @@ function handleSendInvitations($conn, $input, $userId) {
     $role = $input['role'] ?? 'coach';
     $clubId = $input['clubId'] ?? null;
     $personalMessage = $input['personalMessage'] ?? '';
+
+    if (!in_array($role, TE_INVITABLE_ROLES, true)) {
+        http_response_code(400);
+        return ['error' => 'Unsupported role: ' . $role];
+    }
 
     // Validate: must have clubId
     if (!$clubId) {
@@ -193,6 +233,11 @@ function handleCreateLink($conn, $input, $userId) {
     if (!$clubId) {
         http_response_code(400);
         return ['error' => 'clubId is required'];
+    }
+
+    if (!in_array($role, TE_INVITABLE_ROLES, true)) {
+        http_response_code(400);
+        return ['error' => 'Unsupported role: ' . $role];
     }
 
     // Generate unique code
@@ -612,12 +657,25 @@ function handleAcceptInvitation($conn, $input) {
 
     $token = JWT::generate($userId, $invitationEmail, $userName, $additionalClaims);
 
+    // For a Crew invite, say whether they actually reached their family.
+    //
+    // Parent standing is derived from guardians.email = users.email; there is no
+    // user_guardians link table. So this is 0 whenever they accepted on a different
+    // address than their guardian record carries, or when the guardian row does not
+    // exist yet — and the parent portal will be empty for them. The caller needs to
+    // know that here, because by the time the family notices they are already stuck.
+    $linkedAthletes = null;
+    if ($role === 'parent') {
+        $linkedAthletes = te_linked_athlete_count($conn, $invitationEmail);
+    }
+
     return [
         'success' => true,
         'message' => 'Invitation accepted successfully',
         'token' => $token,
         'userId' => $userId,
-        'role' => $role
+        'role' => $role,
+        'linked_athletes' => $linkedAthletes
     ];
 }
 

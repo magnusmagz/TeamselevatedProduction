@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface InviteUsersFormProps {
   clubId?: number;
@@ -199,6 +200,9 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
+                {/* Value is `parent` (the user_club_access CHECK value); the LABEL is
+                    Crew, which is what this product calls guardians everywhere. */}
+                <option value="parent">Crew</option>
               </select>
             </div>
 
@@ -230,6 +234,9 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
               >
                 <option value="coach">Coach</option>
                 <option value="club_admin">Club Admin</option>
+                {/* Value is `parent` (the user_club_access CHECK value); the LABEL is
+                    Crew, which is what this product calls guardians everywhere. */}
+                <option value="parent">Crew</option>
               </select>
             </div>
 
@@ -271,6 +278,31 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                   >
                     Copy
                   </button>
+                </div>
+
+                {/*
+                  QR of the same link, so an admin standing at a table can hold up
+                  their phone and have a parent scan it — no typing, no email.
+
+                  On WHITE with padding, always. A QR needs a light background and a
+                  quiet zone around it; rendered straight onto the brand-secondary
+                  panel it scans unreliably or not at all. level="M" tolerates a
+                  scuffed or partly-obscured phone screen better than the default "L"
+                  at a cost of a slightly denser code.
+                */}
+                <div className="mt-4 flex flex-col items-center">
+                  <div className="bg-white p-3 rounded-md border border-brand-secondary">
+                    <QRCodeSVG
+                      value={generatedLink}
+                      size={180}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                    />
+                  </div>
+                  <p className="text-xs text-brand-primary mt-2 text-center">
+                    Have them scan this to sign up
+                  </p>
                 </div>
               </div>
             )}

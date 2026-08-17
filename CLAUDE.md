@@ -1358,6 +1358,23 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
          `last_login_at IS NULL` so it cannot lock out anyone actually using the account.
       Clearing hashes without (1) just regenerates the problem on the next coach added.
 
+- [ ] **⚠️ `api/invitations-gateway.php` authenticates but does not AUTHORIZE** (found 2026-08-17).
+      `create-link` and `send` require a token (401 without one) and then check nothing
+      else: `clubId` comes from the request body and the caller's standing in that club
+      is never verified. So any signed-in user — parent, player, volunteer — can mint a
+      **`club_admin`** invitation link for **any club** and redeem it. Same shape as the
+      `handleClubParents` finding but worse: there is not even a membership check.
+      Role values are now whitelisted (`TE_INVITABLE_ROLES`), which stops junk reaching
+      the CHECK constraint at accept time but does nothing about who may invite.
+      Fix: gate both handlers on `te_is_club_admin($pdo, $auth, $clubId)`, and treat a
+      `parent`-role invite as club-admin-only too.
+- [ ] **Crew invited by link land on their family only if the email matches** (2026-08-17).
+      `parent` is now an invitable role and needs no new linking code, because parent
+      standing is derived from `guardians.email = users.email`. The accept response
+      returns `linked_athletes` so a zero is visible. **Not yet built** (agreed with
+      Maggie, in this order): (1) parent portal empty state telling them to ask their
+      club admin to connect them to their athlete, (2) a club-admin tool to make that
+      connection. Until then a mismatched address means a silently empty portal.
 - [ ] **Shared-email remaining case** — `users.email ≠ guardians.email` loses the parent role; needs Phase 2 `user_guardians` link table (the read-side fixes in the 3 legacy files are DONE, verified 2026-07-06)
 - [ ] **Portal status is still inferred from a shared email** — same missing `user_guardians` table
       as above, failing in the opposite direction: any account sharing a guardian's email answers
