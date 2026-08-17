@@ -77,21 +77,6 @@ export const MoreMenuPage: React.FC = () => {
         </svg>
       ),
     },
-    {
-      // The floating support button is deliberately absent from the portal — its
-      // bottom strip is the nav plus the sponsor marquee. This is the entry point
-      // here, matching how every other portal destination is reached.
-      label: 'Report an issue',
-      description: 'Something not working? Tell us',
-      onClick: () => setSupportOpen(true),
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" strokeWidth={2} />
-          <circle cx="12" cy="12" r="3.5" strokeWidth={2} />
-          <path strokeWidth={2} d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9" />
-        </svg>
-      ),
-    },
   ];
 
   return (
@@ -192,25 +177,33 @@ export const MoreMenuPage: React.FC = () => {
           })}
         </div>
 
-        {/* Support Link */}
+        {/* Report an issue — replaced a mailto:support@ link on 2026-08-17.
+            A mailto asks the family to describe a bug from memory, in a mail
+            client, with none of the context we actually need. This opens the same
+            form the rest of the app uses and carries the page, device and an
+            optional screenshot with it. It keeps the old link's prominent slot
+            precisely because burying it in the list above is what we were trying
+            to avoid. */}
         <div className="px-4 pt-6">
-          <a
-            href="mailto:support@teamselevated.com"
-            className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          <button
+            onClick={() => setSupportOpen(true)}
+            className="w-full text-left flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <span className="text-gray-400">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9" />
               </svg>
             </span>
             <div className="flex-1">
-              <p className="font-medium text-gray-900">Get Help</p>
-              <p className="text-sm text-gray-500">Contact support</p>
+              <p className="font-medium text-gray-900">Report an issue</p>
+              <p className="text-sm text-gray-500">Something not working? Tell us</p>
             </div>
             <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </button>
         </div>
 
         {/* Logout Button */}

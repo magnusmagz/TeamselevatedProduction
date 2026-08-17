@@ -98,11 +98,28 @@ describe('MoreMenuPage', () => {
     expect(screen.getByText('Account Settings').closest('a')).toHaveAttribute('href', '/parent/settings');
   });
 
-  test('renders Get Help link', () => {
+  /**
+   * Replaced the mailto:support@ "Get Help" link on 2026-08-17. It must stay a
+   * BUTTON that opens the in-app form: a mailto asks the family to describe a bug
+   * from memory and arrives with none of the page, device or screenshot context.
+   */
+  test('renders Report an issue as an in-app action, not a mailto', () => {
     render(<MoreMenuPage />);
 
-    expect(screen.getByText('Get Help')).toBeInTheDocument();
-    expect(screen.getByText('Contact support')).toBeInTheDocument();
+    const report = screen.getByText('Report an issue');
+    expect(report).toBeInTheDocument();
+    expect(screen.getByText('Something not working? Tell us')).toBeInTheDocument();
+    expect(report.closest('button')).toBeInTheDocument();
+    expect(report.closest('a')).toBeNull();
+  });
+
+  test('opens the report form when tapped', () => {
+    render(<MoreMenuPage />);
+
+    fireEvent.click(screen.getByText('Report an issue'));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText(/what went wrong/i)).toBeInTheDocument();
   });
 
   test('renders logout button', () => {
