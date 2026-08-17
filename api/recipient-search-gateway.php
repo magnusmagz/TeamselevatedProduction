@@ -121,6 +121,28 @@ function isClubAdmin($auth, $clubProfileId) {
     return $auth->hasRole('club_admin', $clubProfileId, 'club');
 }
 
+/**
+ * Teams this user reaches as a GUARDIAN, within one club.
+ *
+ * The counterpart to getCoachTeamIds(). Extracted 2026-08-17 so the chat search
+ * and the team resolver cannot disagree about what a parent can reach — they
+ * previously each had their own copy, and only one of them was reached by a
+ * coach-parent.
+ */
+function te_chat_parent_team_ids(PDO $connection, $userId, $clubProfileId): array {
+    $stmt = $connection->prepare("
+        SELECT DISTINCT tm.team_id
+        FROM users u
+        JOIN guardians g ON g.email = u.email
+        JOIN athlete_guardians ag ON ag.guardian_id = g.id
+        JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
+        JOIN teams t ON t.id = tm.team_id AND t.club_id = ? AND t.deleted_at IS NULL
+        WHERE u.id = ?
+    ");
+    $stmt->execute([$clubProfileId, $userId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
 // ============================================
 // Helper: Build team filter SQL + params
 // ============================================
@@ -1256,184 +1278,178 @@ function handleChatSearch($connection, $auth, $userId) {
     }
 
     $isAdmin = isClubAdmin($auth, $clubProfileId);
-    $coachTeamIds = $isAdmin ? [] : getCoachTeamIds($connection, $userId, $clubProfileId);
 
-    // A coach is a coach because of their ROLE, not because a team has been
-    // assigned to them yet. This used to read `!empty($coachTeamIds)`, so a coach
-    // with no team fell through to `$isParent`, matched no athletes, and got an
-    // EMPTY search — they could not find their own club admin, or any other
-    // coach. Nine such accounts are live, four of them at CKU.
+    // ─── Standing is ADDITIVE ────────────────────────────────────────────────
+    // Someone can be a coach AND a parent, and the two grant different reach.
+    // This used to read `$isParent = !$isAdmin && !$isCoach`, so a coach with a
+    // child on a team they do NOT coach was treated as coach-only: they could
+    // find every coach and admin in the club but not one parent from their own
+    // child's team, and could not pick that team as a group.
     //
-    // Broken since the typeahead shipped (08396c6, 2026-05-05); it only became
-    // visible when coaches stopped being shown every team in the club.
-    $isCoach = !$isAdmin && ($auth->hasRole('coach', $clubProfileId, 'club') || !empty($coachTeamIds));
-    $isParent = !$isAdmin && !$isCoach;
+    // The conversation list already merges both (chat-server getAccessibleTeamIds).
+    // This is the same rule applied to who you can find.
+    $coachTeamIds  = $isAdmin ? [] : getCoachTeamIds($connection, $userId, $clubProfileId);
+    $parentTeamIds = $isAdmin ? [] : te_chat_parent_team_ids($connection, $userId, $clubProfileId);
+
+    // A coach is a coach by ROLE, not by having been given a team yet — see the
+    // 2026-08-15 fix. Team assignment decides which FAMILIES they reach.
+    $isCoach  = !$isAdmin && ($auth->hasRole('coach', $clubProfileId, 'club') || !empty($coachTeamIds));
+    $isParent = !$isAdmin && !empty($parentTeamIds);
+
+    // Every team this person can see, from either hat.
+    $visibleTeamIds = array_values(array_unique(array_merge($coachTeamIds, $parentTeamIds)));
 
     $like = '%' . $q . '%';
     $people = [];
     $teamGroups = [];
 
+    // ─── Who this requester may find ─────────────────────────────────────────
+    // One query, with the access branches OR-ed. Each branch is added only when
+    // the standing behind it applies, so a pure parent never gains club-wide
+    // reach and a team-less coach still finds their colleagues.
+    $branches = [];
+    $params = [];
+
+    if (!empty($coachTeamIds)) {
+        // Coach → the crew of the teams they coach.
+        $ph = implode(',', array_fill(0, count($coachTeamIds), '?'));
+        $branches[] = "EXISTS (
+                SELECT 1 FROM guardians g2
+                JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
+                JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($ph)
+                WHERE g2.email = u.email
+            )";
+        $params = array_merge($params, $coachTeamIds);
+    }
+
+    if ($isCoach) {
+        // Staff → every other coach and club admin. Colleagues, regardless of team.
+        $branches[] = "EXISTS (
+                SELECT 1 FROM teams t2 WHERE t2.club_id = ? AND t2.primary_coach_id = u.id
+            )";
+        $params[] = $clubProfileId;
+        $branches[] = "EXISTS (
+                SELECT 1 FROM team_members tm3
+                JOIN teams t3 ON t3.id = tm3.team_id AND t3.club_id = ?
+                WHERE tm3.user_id = u.id AND tm3.role IN ('assistant_coach','team_manager') AND tm3.status = 'active'
+            )";
+        $params[] = $clubProfileId;
+        $branches[] = "EXISTS (
+                SELECT 1 FROM user_club_access uca_admin
+                WHERE uca_admin.user_id = u.id AND uca_admin.club_profile_id = ?
+                  AND uca_admin.role IN ('club_admin', 'super_admin')
+            )";
+        $params[] = $clubProfileId;
+    }
+
     if ($isParent) {
-        // Find teams the requester's athletes are on
-        $stmt = $connection->prepare("
-            SELECT DISTINCT tm.team_id
-            FROM users u
-            JOIN guardians g ON g.email = u.email
-            JOIN athlete_guardians ag ON ag.guardian_id = g.id
-            JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
-            JOIN teams t ON t.id = tm.team_id AND t.club_id = ? AND t.deleted_at IS NULL
-            WHERE u.id = ?
-        ");
-        $stmt->execute([$clubProfileId, $userId]);
-        $parentTeamIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        // Parent → the coaches of their children's teams, and the other families
+        // on them. This is the branch a coach-parent was missing.
+        $ph = implode(',', array_fill(0, count($parentTeamIds), '?'));
+        $branches[] = "EXISTS (
+                SELECT 1 FROM teams t4
+                LEFT JOIN team_members tm4 ON tm4.team_id = t4.id
+                     AND tm4.role IN ('assistant_coach','team_manager') AND tm4.status = 'active'
+                WHERE t4.id IN ($ph) AND u.id = COALESCE(tm4.user_id, t4.primary_coach_id)
+            )";
+        $params = array_merge($params, $parentTeamIds);
 
-        if (!empty($parentTeamIds)) {
-            $teamPlaceholders = implode(',', array_fill(0, count($parentTeamIds), '?'));
-            // Parents can chat with: coaches of their athletes' teams (primary +
-            // assistant) AND other parents who have an athlete on those same teams.
-            // Coach role takes precedence if a person is both.
-            $sql = "
-                WITH coaches AS (
-                    SELECT u.id AS user_id, u.first_name, u.last_name, u.email,
-                           'coach' AS role,
-                           STRING_AGG(DISTINCT t.name, ', ') AS team_names
-                    FROM teams t
-                    LEFT JOIN team_members tm
-                      ON tm.team_id = t.id
-                     AND tm.role IN ('assistant_coach','team_manager')
-                     AND tm.status = 'active'
-                    JOIN users u ON u.id = COALESCE(tm.user_id, t.primary_coach_id)
-                    WHERE t.id IN ($teamPlaceholders)
-                      AND u.id != ?
-                      AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
-                    GROUP BY u.id, u.first_name, u.last_name, u.email
-                ),
-                parents AS (
-                    SELECT u.id AS user_id, u.first_name, u.last_name, u.email,
-                           'parent' AS role,
-                           STRING_AGG(DISTINCT t.name, ', ') AS team_names
-                    FROM teams t
-                    JOIN team_members tm2 ON tm2.team_id = t.id
-                                          AND tm2.athlete_id IS NOT NULL
-                                          AND tm2.status = 'active'
-                    JOIN athlete_guardians ag ON ag.athlete_id = tm2.athlete_id
-                    JOIN guardians g ON g.id = ag.guardian_id
-                    JOIN users u ON u.email = g.email
-                    WHERE t.id IN ($teamPlaceholders)
-                      AND u.id != ?
-                      AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
-                    GROUP BY u.id, u.first_name, u.last_name, u.email
-                )
-                SELECT user_id, first_name, last_name, email, role, team_names FROM coaches
-                UNION ALL
-                SELECT user_id, first_name, last_name, email, role, team_names
-                FROM parents
-                WHERE user_id NOT IN (SELECT user_id FROM coaches)
-                ORDER BY last_name, first_name
-            ";
-            $params = array_merge(
-                $parentTeamIds, [$userId, $like, $like, $like],
-                $parentTeamIds, [$userId, $like, $like, $like]
-            );
-            $stmt = $connection->prepare($sql);
-            $stmt->execute($params);
-            $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } else {
-        // Admin or coach: search across people they can see
-        $teamFilter = '';
-        $teamFilterParams = [];
-        if ($isCoach) {
-            // Coach scope: people on their teams (parents via guardian chain) + all coaches + all club admins.
-            //
-            // The guardian branch is CONDITIONAL because a coach may have no team
-            // yet. `array_fill(0, 0, '?')` yields `IN ()`, which is a syntax error,
-            // not an empty result — the whole search would 500. The remaining
-            // branches are exactly what a team-less coach needs: every other coach
-            // and every club admin.
-            $branches = [];
-            if (!empty($coachTeamIds)) {
-                $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
-                $branches[] = "
-                    EXISTS (
-                        SELECT 1 FROM guardians g2
-                        JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
-                        JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($teamPlaceholders)
-                        WHERE g2.email = u.email
-                    )";
-                $teamFilterParams = $coachTeamIds;
-            }
-            $branches[] = "
-                    EXISTS (
-                        SELECT 1 FROM teams t2
-                        WHERE t2.club_id = ? AND t2.primary_coach_id = u.id
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM team_members tm3
-                        JOIN teams t3 ON t3.id = tm3.team_id AND t3.club_id = ?
-                        WHERE tm3.user_id = u.id AND tm3.role IN ('assistant_coach','team_manager') AND tm3.status = 'active'
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM user_club_access uca_admin
-                        WHERE uca_admin.user_id = u.id AND uca_admin.club_profile_id = ?
-                          AND uca_admin.role IN ('club_admin', 'super_admin')
-                    )";
-            // Params follow placeholder ORDER: the guardian branch's team ids (when
-            // that branch is present) before the three club ids.
-            $teamFilterParams = array_merge($teamFilterParams, [$clubProfileId, $clubProfileId, $clubProfileId]);
-            $teamFilter = ' AND (' . implode(' OR ', $branches) . ')';
-        }
+        $ph2 = implode(',', array_fill(0, count($parentTeamIds), '?'));
+        $branches[] = "EXISTS (
+                SELECT 1 FROM guardians g5
+                JOIN athlete_guardians ag5 ON ag5.guardian_id = g5.id
+                JOIN team_members tm5 ON tm5.athlete_id = ag5.athlete_id
+                     AND tm5.team_id IN ($ph2) AND tm5.status = 'active'
+                WHERE g5.email = u.email
+            )";
+        $params = array_merge($params, $parentTeamIds);
+    }
 
-        $sql = "
-            SELECT DISTINCT u.id AS user_id, u.first_name, u.last_name, u.email,
-                            CASE
-                                WHEN EXISTS (SELECT 1 FROM teams tt WHERE tt.primary_coach_id = u.id AND tt.club_id = ?) THEN 'coach'
-                                WHEN EXISTS (SELECT 1 FROM team_members tmm JOIN teams ttt ON ttt.id = tmm.team_id WHERE tmm.user_id = u.id AND tmm.role IN ('assistant_coach','team_manager') AND ttt.club_id = ?) THEN 'coach'
-                                ELSE 'parent'
-                            END AS role
-            FROM users u
-            WHERE u.id != ?
-              AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
-              AND EXISTS (
-                  SELECT 1 FROM user_club_access uca
-                  WHERE uca.user_id = u.id AND uca.club_profile_id = ?
+    // A non-admin with no standing at all reaches nobody. `AND 1=0` rather than
+    // an unfiltered query — the same precaution getTeamFilterClause takes.
+    $accessFilter = $isAdmin ? '' : ' AND (' . ($branches ? implode(' OR ', $branches) : '1=0') . ')';
+
+    // Teams shared with the requester, shown under the name. Optional in the UI,
+    // and previously only present for parents.
+    // CAST(...) rather than NULL::text — the Postgres cast syntax is unparseable
+    // by the SQLite the tests run against, and this SELECT is exercised there.
+    $teamNamesSelect = "CAST(NULL AS text) AS team_names";
+    $teamNameParams = [];
+    if (!empty($visibleTeamIds)) {
+        $ph = implode(',', array_fill(0, count($visibleTeamIds), '?'));
+        $teamNamesSelect = "(
+            -- No DISTINCT: this selects FROM teams, so each team is already one
+            -- row. DISTINCT would also make it unportable — SQLite rejects a
+            -- DISTINCT aggregate with a separator, and the tests run on SQLite.
+            SELECT STRING_AGG(t6.name, ', ')
+            FROM teams t6
+            WHERE t6.id IN ($ph)
+              AND (
+                t6.primary_coach_id = u.id
+                OR EXISTS (SELECT 1 FROM team_members tm6 WHERE tm6.team_id = t6.id AND tm6.user_id = u.id
+                           AND tm6.role IN ('assistant_coach','team_manager') AND tm6.status = 'active')
+                OR EXISTS (SELECT 1 FROM guardians g6
+                           JOIN athlete_guardians ag6 ON ag6.guardian_id = g6.id
+                           JOIN team_members tm7 ON tm7.athlete_id = ag6.athlete_id AND tm7.team_id = t6.id
+                           WHERE g6.email = u.email)
               )
-              $teamFilter
-            ORDER BY u.last_name, u.first_name
-            LIMIT 50
-        ";
-        $params = array_merge(
-            [$clubProfileId, $clubProfileId, $userId, $like, $like, $like, $clubProfileId],
-            $teamFilterParams
-        );
-        $stmt = $connection->prepare($sql);
-        $stmt->execute($params);
-        $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        ) AS team_names";
+        $teamNameParams = $visibleTeamIds;
+    }
 
-        // Team groups (admins see all club teams; coaches see only theirs)
-        if ($isAdmin) {
-            $stmt = $connection->prepare("
-                SELECT t.id, t.name, t.age_group
-                FROM teams t
-                WHERE t.club_id = ? AND t.deleted_at IS NULL
-                ORDER BY t.age_group, t.name
-            ");
-            $stmt->execute([$clubProfileId]);
-            $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } elseif ($isCoach && !empty($coachTeamIds)) {
-            // Same `IN ()` hazard as the filter above: a coach with no team has no
-            // team groups to browse, which is a legitimately empty list rather than
-            // a query to run.
-            $teamPlaceholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
-            $stmt = $connection->prepare("
-                SELECT t.id, t.name, t.age_group
-                FROM teams t
-                WHERE t.id IN ($teamPlaceholders) AND t.deleted_at IS NULL
-                ORDER BY t.age_group, t.name
-            ");
-            $stmt->execute($coachTeamIds);
-            $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
+    $sql = "
+        SELECT DISTINCT u.id AS user_id, u.first_name, u.last_name, u.email,
+                        CASE
+                            WHEN EXISTS (SELECT 1 FROM teams tt WHERE tt.primary_coach_id = u.id AND tt.club_id = ?) THEN 'coach'
+                            WHEN EXISTS (SELECT 1 FROM team_members tmm JOIN teams ttt ON ttt.id = tmm.team_id WHERE tmm.user_id = u.id AND tmm.role IN ('assistant_coach','team_manager') AND ttt.club_id = ?) THEN 'coach'
+                            ELSE 'parent'
+                        END AS role,
+                        $teamNamesSelect
+        FROM users u
+        WHERE u.id != ?
+          AND (LOWER(u.first_name) LIKE LOWER(?) OR LOWER(u.last_name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+          AND EXISTS (
+              SELECT 1 FROM user_club_access uca
+              WHERE uca.user_id = u.id AND uca.club_profile_id = ?
+          )
+          $accessFilter
+        ORDER BY u.last_name, u.first_name
+        LIMIT 50
+    ";
+    // Order matters and follows the placeholders above: role CASE (x2),
+    // team_names, the excluded self, the three LIKEs, the club, then the access
+    // branches.
+    $stmt = $connection->prepare($sql);
+    $stmt->execute(array_merge(
+        [$clubProfileId, $clubProfileId],
+        $teamNameParams,
+        [$userId, $like, $like, $like, $clubProfileId],
+        $isAdmin ? [] : $params
+    ));
+    $people = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ─── Team groups ─────────────────────────────────────────────────────────
+    // Admins browse the whole club; everyone else browses the teams they can see
+    // from EITHER hat, which is what lets a coach-parent pick their child's team.
+    if ($isAdmin) {
+        $stmt = $connection->prepare("
+            SELECT t.id, t.name, t.age_group
+            FROM teams t
+            WHERE t.club_id = ? AND t.deleted_at IS NULL
+            ORDER BY t.age_group, t.name
+        ");
+        $stmt->execute([$clubProfileId]);
+        $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } elseif (!empty($visibleTeamIds)) {
+        $ph = implode(',', array_fill(0, count($visibleTeamIds), '?'));
+        $stmt = $connection->prepare("
+            SELECT t.id, t.name, t.age_group
+            FROM teams t
+            WHERE t.id IN ($ph) AND t.deleted_at IS NULL
+            ORDER BY t.age_group, t.name
+        ");
+        $stmt->execute($visibleTeamIds);
+        $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     foreach ($people as &$p) {
@@ -1505,22 +1521,14 @@ function handleChatResolveTeams($connection, $auth, $userId) {
 
     $isAdmin = isClubAdmin($auth, $clubProfileId);
     if (!$isAdmin) {
-        $coachTeamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
-        $allowedIds = $coachTeamIds;
-        if (empty($allowedIds)) {
-            // Parent: their athletes' teams
-            $stmt = $connection->prepare("
-                SELECT DISTINCT tm.team_id
-                FROM users u
-                JOIN guardians g ON g.email = u.email
-                JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
-                JOIN teams t ON t.id = tm.team_id AND t.club_id = ?
-                WHERE u.id = ?
-            ");
-            $stmt->execute([$clubProfileId, $userId]);
-            $allowedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        }
+        // UNION, not either/or. This used to fall back to the parent's teams only
+        // when the coach list was empty, so a coach whose child plays on a team
+        // they do not coach was refused that team — the group-select half of the
+        // same bug as the search.
+        $allowedIds = array_values(array_unique(array_merge(
+            array_map('intval', getCoachTeamIds($connection, $userId, $clubProfileId)),
+            te_chat_parent_team_ids($connection, $userId, $clubProfileId)
+        )));
         $allowedSet = array_flip(array_map('intval', $allowedIds));
         foreach ($teamIds as $tid) {
             if (!isset($allowedSet[(int)$tid])) {

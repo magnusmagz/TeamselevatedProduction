@@ -92,6 +92,30 @@ class ChatSearchCoachScopeTest extends TestCase
         $p->exec("INSERT INTO athlete_guardians (id,athlete_id,guardian_id) VALUES (1,900,1)");
         $p->exec("INSERT INTO team_members (id,team_id,athlete_id,user_id,role,status)
                   VALUES (1,1,900,NULL,'player','active')");
+
+        // ── The coach-parent case ──────────────────────────────────────────────
+        // Team 2 is coached by Luis. Jed does NOT coach it, but his daughter Ruby
+        // plays on it, and Sarah's child is on it too. Jed coaches team 3.
+        $p->exec("INSERT INTO users (id,first_name,last_name,email) VALUES
+            (160,'Jed','Phillips','jed@example.com'),
+            (157,'Luis','Escamilla','luis@example.com'),
+            (600,'Sarah','Nolan','sarah@example.com')");
+        $p->exec("INSERT INTO user_club_access (id,user_id,club_profile_id,role,active) VALUES
+            (10,160,51,'coach',1), (11,160,51,'parent',1),
+            (12,157,51,'coach',1), (13,600,51,'parent',1)");
+        $p->exec("INSERT INTO teams (id,name,age_group,club_id,primary_coach_id,deleted_at) VALUES
+            (2,'Team Escamilla','1st-2nd',51,157,NULL),
+            (3,'Sunflower Strikers','2nd-4th',51,160,NULL)");
+        $p->exec("INSERT INTO athletes (id,first_name,last_name,club_id,deleted_at,active_status) VALUES
+            (901,'Ruby','Phillips',51,NULL,1),
+            (902,'Mia','Nolan',51,NULL,1)");
+        $p->exec("INSERT INTO guardians (id,first_name,last_name,email) VALUES
+            (2,'Jed','Phillips','jed@example.com'),
+            (3,'Sarah','Nolan','sarah@example.com')");
+        $p->exec("INSERT INTO athlete_guardians (id,athlete_id,guardian_id) VALUES (2,901,2), (3,902,3)");
+        $p->exec("INSERT INTO team_members (id,team_id,athlete_id,user_id,role,status) VALUES
+            (2,2,901,NULL,'player','active'),
+            (3,2,902,NULL,'player','active')");
     }
 
     private function chatSearch(string $q, int $userId, array $roles): array
@@ -161,6 +185,61 @@ class ChatSearchCoachScopeTest extends TestCase
      * `array_fill(0, 0, '?')` yields `IN ()`, a syntax error rather than an empty
      * result, so the guard is what stops the whole search 500ing.
      */
+    // ─── Coach AND parent ─────────────────────────────────────────────────────
+
+    /**
+     * The reported case. Jed coaches the Sunflower Strikers; his daughter Ruby is
+     * on Team Escamilla, which Luis coaches. On Ruby's team Jed is a parent like
+     * anyone else, but the search asked "coach or parent?" and accepted one
+     * answer — so he could reach every coach in the club and not one parent from
+     * his own child's team.
+     */
+    public function testCoachParentReachesTheOtherParentsOnTheirChildsTeam(): void
+    {
+        $names = $this->names($this->chatSearch('', 160, ['coach', 'parent']));
+
+        $this->assertContains('Sarah Nolan', $names, 'a parent on his own child\'s team must be reachable');
+    }
+
+    public function testCoachParentStillReachesTheirColleagues(): void
+    {
+        $names = $this->names($this->chatSearch('', 160, ['coach', 'parent']));
+
+        $this->assertContains('Luis Escamilla', $names);
+        $this->assertContains('Leya Devora', $names, 'club admins stay reachable');
+    }
+
+    /** Both hats' teams are selectable as groups, not just the coached one. */
+    public function testCoachParentSeesBothTeamsAsGroups(): void
+    {
+        $res = $this->chatSearch('', 160, ['coach', 'parent']);
+        $names = array_column($res['team_groups'] ?? [], 'name');
+        sort($names);
+
+        $this->assertSame(['Sunflower Strikers', 'Team Escamilla'], $names);
+    }
+
+    /**
+     * Additive must not mean club-wide. Jed gains his child's team, not every
+     * family in the club.
+     */
+    public function testCoachParentDoesNotGainUnrelatedFamilies(): void
+    {
+        $names = $this->names($this->chatSearch('', 160, ['coach', 'parent']));
+
+        $this->assertNotContains('Pat Parent', $names, 'Pat is on a team Jed neither coaches nor parents on');
+    }
+
+    /** A plain parent is unchanged: their child's team's coach and families. */
+    public function testAPlainParentReachesTheirChildsTeamOnly(): void
+    {
+        $names = $this->names($this->chatSearch('', 600, ['parent']));
+
+        $this->assertContains('Luis Escamilla', $names, 'the coach of their child\'s team');
+        $this->assertContains('Jed Phillips', $names, 'another family on that team');
+        $this->assertNotContains('Kyle Smith', $names, 'a coach of an unrelated team');
+    }
+
     public function testTeamlessCoachGetsNoTeamGroupsAndNoError(): void
     {
         $res = $this->chatSearch('', self::TEAMLESS_COACH, ['coach']);
@@ -185,6 +264,7 @@ class ChatSearchCoachScopeTest extends TestCase
         $this->assertContains('Pat Parent', $names);
         $this->assertContains('Kyle Smith', $names);
         $this->assertContains('Morgan Long', $names);
-        $this->assertCount(1, $res['team_groups'] ?? []);
+        // All three club teams — admins browse the whole club.
+        $this->assertCount(3, $res['team_groups'] ?? []);
     }
 }
