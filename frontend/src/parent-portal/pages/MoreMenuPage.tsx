@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { ParentHeader } from '../components/ParentHeader';
 import { SupportDialog } from '../../components/support/SupportDialog';
+import { useFinancialPermissions } from '../../contexts/FinancialPermissionsContext';
 
 interface MenuItem {
   label: string;
@@ -19,6 +20,22 @@ export const MoreMenuPage: React.FC = () => {
   const navigate = useNavigate();
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
   const [supportOpen, setSupportOpen] = useState(false);
+  const { roles } = useFinancialPermissions();
+
+  /**
+   * The way back for someone who wears both hats.
+   *
+   * The staff ProfileMenu now links INTO the portal; without this the trip is
+   * one-way, and a coach who came here to check their own child's schedule would
+   * be stuck on a surface with no route to the team they coach.
+   *
+   * Staff-only, so an ordinary parent never sees a door into an app that would
+   * show them nothing.
+   */
+  const hasStaffAccess = Boolean(
+    roles.is_coach || roles.is_club_admin || roles.is_treasurer ||
+    user?.system_role === 'super_admin'
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -176,6 +193,28 @@ export const MoreMenuPage: React.FC = () => {
             return null;
           })}
         </div>
+
+        {hasStaffAccess && (
+          <div className="px-4 pt-6">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-gray-400">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </span>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Staff view</p>
+                <p className="text-sm text-gray-500">Teams, schedules and club tools</p>
+              </div>
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        )}
 
         {/* Report an issue — replaced a mailto:support@ link on 2026-08-17.
             A mailto asks the family to describe a bug from memory, in a mail

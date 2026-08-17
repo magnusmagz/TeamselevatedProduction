@@ -2,13 +2,34 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
+import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
 
 const ProfileMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
   const { isClubAdmin } = useOrg();
+  const { roles } = useFinancialPermissions();
   const navigate = useNavigate();
+
+  /**
+   * Staff who are also parents had NO way into the parent portal.
+   *
+   * ParentRedirect deliberately leaves anyone holding a staff role on the staff
+   * dashboard, and nothing in the app linked to /parent — the only reference in
+   * the frontend was a catch-all redirect inside the portal itself. So a coach who
+   * is also a parent could not reach their own child's schedule, invoices,
+   * documents or RSVPs at all without typing the URL. 12 accounts are in that
+   * position (7 CKU, 3 club 32, 2 club 50).
+   *
+   * The predicate is deliberately IDENTICAL to ProtectedParentRoute's. If this
+   * were any broader the link would appear for someone the route then bounces,
+   * which is worse than no link.
+   */
+  const jwtIsParent =
+    user?.roles?.some((r: { role: string }) => r.role === 'parent') ||
+    user?.activeRole?.role === 'parent';
+  const hasParentAccess = Boolean(roles.is_parent || jwtIsParent);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -59,6 +80,15 @@ const ProfileMenu: React.FC = () => {
             >
               My Profile
             </Link>
+            {hasParentAccess && (
+              <Link
+                to="/parent"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-3 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+              >
+                Parent Portal
+              </Link>
+            )}
             {isClubAdmin && (
               <Link
                 to="/club-profile"
