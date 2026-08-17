@@ -272,4 +272,47 @@ class SupportTicketTest extends TestCase
     {
         $this->assertSame(90, TE_SUPPORT_LINK_TTL_DAYS);
     }
+
+    // ─── Screenshot link host ─────────────────────────────────────────────────
+
+    /**
+     * The first end-to-end test posted a Slack link built from APP_URL — which is
+     * the FRONTEND (Netlify) — so it 404'd. The attachment endpoint is PHP on
+     * Heroku. This must resolve to the API's own host.
+     */
+    public function testApiBaseUrlPrefersExplicitConfig(): void
+    {
+        putenv('API_BASE_URL=https://api.example.com/');
+        $_ENV['API_BASE_URL'] = 'https://api.example.com/';
+        try {
+            $this->assertSame('https://api.example.com', te_support_api_base_url());
+        } finally {
+            putenv('API_BASE_URL');
+            unset($_ENV['API_BASE_URL']);
+        }
+    }
+
+    public function testApiBaseUrlFallsBackToTheRequestHost(): void
+    {
+        putenv('API_BASE_URL');
+        unset($_ENV['API_BASE_URL']);
+        $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+        $_SERVER['HTTP_HOST'] = 'teamselevated-backend.herokuapp.com';
+
+        $this->assertSame(
+            'https://teamselevated-backend.herokuapp.com',
+            te_support_api_base_url()
+        );
+    }
+
+    /** Heroku can send a comma-joined proto list; only the first is ours. */
+    public function testApiBaseUrlHandlesAForwardedProtoList(): void
+    {
+        putenv('API_BASE_URL');
+        unset($_ENV['API_BASE_URL']);
+        $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https,http';
+        $_SERVER['HTTP_HOST'] = 'example.org';
+
+        $this->assertSame('https://example.org', te_support_api_base_url());
+    }
 }

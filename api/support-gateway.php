@@ -201,7 +201,7 @@ function handleCreateTicket($db): void
     }
 
     $screenshotUrl = $token
-        ? rtrim(Env::get('APP_URL', ''), '/') . '/api/support-gateway.php?action=attachment&token=' . $token
+        ? te_support_api_base_url() . '/api/support-gateway.php?action=attachment&token=' . $token
         : null;
 
     te_slack_post(te_slack_support_ticket_payload([

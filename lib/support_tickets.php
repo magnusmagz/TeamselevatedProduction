@@ -30,6 +30,33 @@ const TE_SUPPORT_ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image
 
 if (!function_exists('te_support_client_ip')) {
     /**
+     * Base URL of THIS API, for building the screenshot link.
+     *
+     * Not `APP_URL` — that is the FRONTEND (teams-elevated.netlify.app), and the
+     * attachment endpoint is PHP on Heroku. Using it produced a Slack link that
+     * 404'd on Netlify, which the first end-to-end test caught.
+     *
+     * Prefers an explicit `API_BASE_URL`. The request-derived fallback exists so a
+     * missing config var degrades to a working link rather than a broken one, but
+     * `Host` is client-supplied: a poisoned header would put an attacker's domain
+     * in front of a support link in our own Slack. Set API_BASE_URL in production
+     * and the header is never consulted.
+     */
+    function te_support_api_base_url(): string
+    {
+        $configured = getenv('API_BASE_URL') ?: ($_ENV['API_BASE_URL'] ?? '');
+        if (is_string($configured) && trim($configured) !== '') {
+            return rtrim(trim($configured), '/');
+        }
+
+        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? (!empty($_SERVER['HTTPS']) ? 'https' : 'http');
+        $proto = str_contains($proto, ',') ? trim(explode(',', $proto)[0]) : $proto;
+        $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+
+        return $host !== '' ? rtrim("$proto://$host", '/') : '';
+    }
+
+    /**
      * Originating client IP.
      *
      * Behind Heroku's router REMOTE_ADDR is the proxy, so prefer the first entry
