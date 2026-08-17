@@ -395,6 +395,43 @@ Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateway
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
 
+### Dual roles: capabilities accumulate, surface is a choice (2026-08-17)
+7 accounts hold two roles in one club (6 `coach+parent`, 1 `club_admin+coach`), and **12
+staff are also guardians** — the larger number, because parent standing is usually derived
+from the guardian chain rather than a `user_club_access` row. Any audit keyed on role rows
+undercounts this population by half.
+
+**Never write `$isParent = !$isCoach`.** Evaluate each independently. Three separate bugs
+came from that one line shape:
+- `handleChatSearch` — a coach-parent could not reach one parent on their own child's team
+- `handleChatResolveTeams` — and could not select that team as a group (403)
+- the same file, 2026-08-15 — a coach with no team was classed as a parent and got an
+  **empty** search
+
+`api/financial-permissions.php:86` is the reference implementation: loop every role setting
+each flag independently, then add `$isParent` if any guardian row yields athletes.
+`AthleteScope` and the chat server's `getAccessibleTeamIds` are also correct.
+
+**Additive is not club-wide.** A coach-parent gains *their child's team*, not every family in
+the club. Pinned by `testCoachParentDoesNotGainUnrelatedFamilies`.
+
+**Standing comes from ROLE, never from having data.** "No team assigned yet" does not stop
+someone being a coach — conflating the two is what emptied the typeahead for nine accounts.
+
+**Where one answer IS required, make it explicit, never arbitrary.** Which app to show can
+only be one at a time:
+- `lib/JWT.php` orders roles `club_admin > treasurer > coach > volunteer > parent > player`
+  so `roles[0]` is deterministic. Without it the active role was physical row order and could
+  flip after a vacuum, silently removing an admin's nav. All six live CHECK values are
+  ordered — omitting any re-randomises those. `ActiveRolePrecedenceTest`.
+- Staff `ProfileMenu` → "Parent Portal", portal More menu → "Staff view". Before this the
+  12 staff-guardians could not reach the portal **at all**: `ParentRedirect` leaves anyone
+  with a staff role on the dashboard, and nothing linked to `/parent`. The link's predicate
+  is deliberately IDENTICAL to `ProtectedParentRoute`'s — broader would mean a link that
+  leads to a bounce.
+
+Full investigation: `SCOPE-Dual-Role-Parent-Coach.md`.
+
 ### ⚠️ "A parent logged in and saw the coach's portal" — the diagnosis (2026-08-15)
 Reported by CKU. If it happens again, this is the checklist. **Left UNFIXED deliberately**
 after both live cases were repaired by hand — the decision was to wait for a third report
