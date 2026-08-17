@@ -432,6 +432,33 @@ only be one at a time:
 
 Full investigation: `SCOPE-Dual-Role-Parent-Coach.md`.
 
+### ⚠️ "My children" is not "athletes I can see" — `financial-permissions.php` (2026-08-17)
+`accessible_athletes` is a user's own children **UNION every athlete on the teams they
+coach**. Correct for payment screens, wrong for anything meaning family. The parent portal
+read it, so a coach-parent got their whole roster wherever the portal asked about their
+children — and `ConsentGate` asked them to give **parental consent for other people's kids**.
+
+**It was a lockout, not a cosmetic leak.** `consent.php?action=record` correctly 422s a
+non-guardian, `handleSubmit` throws on the first failure, and the gate renders *instead of*
+the portal — so those accounts could not enter the parent portal at all. Luis Escamilla
+(157, coach of team 79 with 11 athletes, father of one) pressed Submit five times on
+2026-08-17, re-recording his own son's consent each time. Six coach-parents at club 51 were
+in that state; the write guard held, so no false consent was ever stored.
+
+- **`my_children` / `my_children_ids`** are guardian-derived only. Everything in the parent
+  portal reads those; `accessible_athletes` is unchanged and still serves payments.
+- Four files had it, not one — `ConsentGate`, `useParentAthletes` (which feeds the
+  dashboard, athlete detail and medical pages), `AthleteDetailPage`, `MedicalInfoPage`.
+  Fixing one and missing three is why the guard is a **scan**, not a unit test:
+  `ParentPortalChildScopeTest` fails if any non-test file under `parent-portal/` mentions
+  `accessibleAthletes`, and if a coach roster is ever `array_merge`d into `$myChildren`.
+- ⚠️ **The context falls back with `??`, never `||`.** An ABSENT `my_children` means an old
+  backend (`main` is shared, deploys are by push) and must fall back to the wider list —
+  visibly wrong for minutes. Treating it as "no children" would silently stop prompting
+  every family for consent. An EMPTY list is a real answer and must survive.
+- Same shape as `userCanAccessAthlete` vs `staffCanManageAthlete` and `canAccessClub` vs
+  `te_is_club_admin`: the predicate was never wrong, which one got called was.
+
 ### ⚠️ "A parent logged in and saw the coach's portal" — the diagnosis (2026-08-15)
 Reported by CKU. If it happens again, this is the checklist. **Left UNFIXED deliberately**
 after both live cases were repaired by hand — the decision was to wait for a third report

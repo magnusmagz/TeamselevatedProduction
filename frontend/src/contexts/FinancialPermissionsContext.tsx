@@ -30,8 +30,21 @@ interface AccessibleAthlete {
 interface FinancialPermissionsContextType {
   permissions: FinancialPermissions;
   roles: UserRoles;
+  /**
+   * Athletes whose FINANCES this user may view: their own children plus every
+   * athlete on the teams they coach. Use for payment screens.
+   */
   accessibleAthleteIds: number[];
   accessibleAthletes: AccessibleAthlete[];
+  /**
+   * Athletes this user is a GUARDIAN of. Their family, and nothing else.
+   *
+   * Anything in the parent portal that means "my children" reads these. Reading
+   * accessibleAthletes there is what showed a coach-parent their whole roster and
+   * asked them to give parental consent for other people's kids (2026-08-17).
+   */
+  myChildrenIds: number[];
+  myChildren: AccessibleAthlete[];
   loading: boolean;
   canViewAthletePayments: (athleteId: number) => boolean;
   canViewAthleteAmounts: (athleteId: number) => boolean;
@@ -64,6 +77,8 @@ const FinancialPermissionsContext = createContext<FinancialPermissionsContextTyp
   roles: defaultRoles,
   accessibleAthleteIds: [],
   accessibleAthletes: [],
+  myChildrenIds: [],
+  myChildren: [],
   loading: true,
   canViewAthletePayments: () => false,
   canViewAthleteAmounts: () => false,
@@ -84,6 +99,8 @@ export const FinancialPermissionsProvider: React.FC<Props> = ({ children }) => {
   const [roles, setRoles] = useState<UserRoles>(defaultRoles);
   const [accessibleAthleteIds, setAccessibleAthleteIds] = useState<number[]>([]);
   const [accessibleAthletes, setAccessibleAthletes] = useState<AccessibleAthlete[]>([]);
+  const [myChildrenIds, setMyChildrenIds] = useState<number[]>([]);
+  const [myChildren, setMyChildren] = useState<AccessibleAthlete[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPermissions = async () => {
@@ -94,6 +111,8 @@ export const FinancialPermissionsProvider: React.FC<Props> = ({ children }) => {
       setRoles(defaultRoles);
       setAccessibleAthleteIds([]);
       setAccessibleAthletes([]);
+      setMyChildrenIds([]);
+      setMyChildren([]);
       setLoading(false);
       return;
     }
@@ -112,6 +131,21 @@ export const FinancialPermissionsProvider: React.FC<Props> = ({ children }) => {
         setRoles(data.roles);
         setAccessibleAthleteIds(data.accessible_athlete_ids || []);
         setAccessibleAthletes(data.accessible_athletes || []);
+
+        // ⚠️ `??`, not `||`, and the distinction is load-bearing.
+        //
+        // ABSENT my_children means the backend predates this field — `main` is
+        // shared and deploys are by push, so the frontend can be live before the
+        // backend is. Falling back to accessible_athletes there reinstates the old
+        // (wrong) behaviour for a few minutes, which is visible and known. Treating
+        // it as "no children" instead would silently stop prompting EVERY family for
+        // consent, which is a compliance gap nobody would notice.
+        //
+        // EMPTY my_children is a real answer — a staff-only account with no guardian
+        // row — and must be respected. `||` would collapse the two and hand a coach
+        // their whole roster forever.
+        setMyChildrenIds(data.my_children_ids ?? data.accessible_athlete_ids ?? []);
+        setMyChildren(data.my_children ?? data.accessible_athletes ?? []);
       } else {
         setPermissions(defaultPermissions);
         setRoles(defaultRoles);
@@ -149,6 +183,8 @@ export const FinancialPermissionsProvider: React.FC<Props> = ({ children }) => {
     roles,
     accessibleAthleteIds,
     accessibleAthletes,
+    myChildrenIds,
+    myChildren,
     loading,
     canViewAthletePayments,
     canViewAthleteAmounts,

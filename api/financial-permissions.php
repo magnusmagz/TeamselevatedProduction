@@ -137,7 +137,30 @@ try {
                 'view_amounts' => $isLeagueAdmin || $isClubAdmin || $isTreasurer || $isParent
             ];
 
-            // Get athletes this user can view
+            // ⚠️ TWO LISTS, AND THEY ARE NOT THE SAME QUESTION (2026-08-17).
+            //
+            //   $myChildren          — athletes this user is a GUARDIAN of. Family.
+            //   $accessibleAthletes  — the above PLUS every athlete on the teams they
+            //                          coach. "Whose finances may I look at."
+            //
+            // The union is correct for what this endpoint was built for (a coach
+            // seeing payment status across their roster) and wrong for anything that
+            // means "my family". The parent portal took the union, so a coach who is
+            // also a parent got their whole team wherever the portal asked "who are
+            // your children" — including ConsentGate, which then asked them to give
+            // parental consent for ten other people's kids.
+            //
+            // That was not merely cosmetic. ConsentGate records one row per child and
+            // throws on the first refusal, and consent.php?action=record correctly
+            // 422s a non-guardian — so the gate could never be satisfied and the
+            // parent portal was UNREACHABLE for those accounts. Luis Escamilla (157)
+            // pressed Submit five times on 2026-08-17, writing his own son's consent
+            // five times over and failing on the first teammate each time.
+            //
+            // Six live coach-parent accounts at club 51 were affected, each coaching
+            // 2–11 athletes. Keep the lists separate; a caller must say which one it
+            // means.
+            $myChildren = [];
             $accessibleAthletes = [];
 
             if ($isParent && !empty($guardianIds)) {
@@ -151,7 +174,8 @@ try {
                       AND a.active_status = true
                 ");
                 $athleteStmt->execute($guardianIds);
-                $accessibleAthletes = $athleteStmt->fetchAll(PDO::FETCH_ASSOC);
+                $myChildren = $athleteStmt->fetchAll(PDO::FETCH_ASSOC);
+                $accessibleAthletes = $myChildren;
             }
 
             if ($isCoach) {
@@ -213,6 +237,18 @@ try {
                 }
             }
 
+            // my_children is already DISTINCT per the query, but a guardian can hold
+            // two rows on the same email (six such households live), so a child can
+            // arrive twice. De-duplicate the same way rather than trusting the query.
+            $myChildIds = [];
+            $uniqueChildren = [];
+            foreach ($myChildren as $child) {
+                if (!in_array($child['id'], $myChildIds)) {
+                    $myChildIds[] = $child['id'];
+                    $uniqueChildren[] = $child;
+                }
+            }
+
             echo json_encode([
                 'success' => true,
                 'authenticated' => true,
@@ -226,7 +262,12 @@ try {
                 ],
                 'permissions' => $permissions,
                 'accessible_athlete_ids' => $athleteIds,
-                'accessible_athletes' => $uniqueAthletes
+                'accessible_athletes' => $uniqueAthletes,
+
+                // Guardian-derived only. Anything meaning "my family" reads THESE —
+                // never accessible_athletes, which includes a coach's whole roster.
+                'my_children_ids' => $myChildIds,
+                'my_children' => $uniqueChildren
             ]);
             break;
 

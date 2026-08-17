@@ -16,7 +16,7 @@ const mockPerms = useFinancialPermissions as jest.MockedFunction<typeof useFinan
 const mockLogout = jest.fn();
 
 const setAthletes = (athletes: Array<{ id: number; first_name: string; last_name: string }>) =>
-  mockPerms.mockReturnValue({ accessibleAthletes: athletes, loading: false } as any);
+  mockPerms.mockReturnValue({ myChildren: athletes, loading: false } as any);
 
 /** consent.php?action=status shape, reduced to what the gate reads. */
 const statusRows = (rows: unknown[]) => ({ success: true, consents: rows });
@@ -290,5 +290,52 @@ describe('ConsentGate', () => {
 
     expect(await screen.findByText('PORTAL')).toBeInTheDocument();
     expect(screen.getByText(/Check your email to confirm/i)).toBeInTheDocument();
+  });
+
+  /**
+   * A coach who is also a parent must be asked about their OWN child only.
+   *
+   * accessibleAthletes on FinancialPermissionsContext is "whose finances may I see"
+   * and includes every athlete on the teams this user coaches. The gate used to read
+   * it, so Luis Escamilla (coach of team 79, father of one athlete on it) was asked
+   * to give parental consent for eleven children. That was not just a disclosure of
+   * the roster: consent.php?action=record correctly 422s a non-guardian, handleSubmit
+   * throws on the first failure, and the gate is what stands between him and the
+   * portal — so the parent portal was UNREACHABLE for him. He pressed Submit five
+   * times on 2026-08-17, re-recording his own son's consent each time.
+   *
+   * This test fails on the old code, which is the point of it.
+   */
+  test('a coach-parent is asked about their own child, never their roster', async () => {
+    mockPerms.mockReturnValue({
+      myChildren: [{ id: 448, first_name: 'Luis', last_name: 'Escamilla' }],
+      // Deliberately WIDER, exactly as the endpoint returns for a coach-parent.
+      accessibleAthletes: [
+        { id: 448, first_name: 'Luis', last_name: 'Escamilla' },
+        { id: 500, first_name: 'Teammate', last_name: 'One' },
+        { id: 501, first_name: 'Teammate', last_name: 'Two' },
+      ],
+      loading: false,
+    } as any);
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => statusRows([]),
+    });
+    global.fetch = fetchMock as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText('Parental consent')).toBeInTheDocument();
+    expect(screen.getByText('Luis Escamilla')).toBeInTheDocument();
+
+    // Neither teammate is named on a screen asking for PARENTAL consent.
+    expect(screen.queryByText('Teammate One')).not.toBeInTheDocument();
+    expect(screen.queryByText('Teammate Two')).not.toBeInTheDocument();
+
+    // And nothing was even asked about them. One athlete, one status call — this is
+    // the assertion that fails loudest if the gate goes back to the wider list.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0][0]).toContain('athlete_id=448');
   });
 });

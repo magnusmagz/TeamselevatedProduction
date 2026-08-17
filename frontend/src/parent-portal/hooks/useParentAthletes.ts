@@ -42,7 +42,12 @@ interface UseParentAthletesReturn {
 
 export function useParentAthletes(): UseParentAthletesReturn {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const { accessibleAthletes, loading: permissionsLoading } = useFinancialPermissions();
+  // myChildren, NOT accessibleAthletes — this hook answers "who are this parent's
+  // children" for the whole portal (dashboard, athlete detail, medical). The other
+  // list adds every athlete on the teams a coach runs, so a coach-parent saw their
+  // entire roster presented as their family. Coaching a child is not guardianship of
+  // one; the staff app is where a coach looks at their roster.
+  const { myChildren, loading: permissionsLoading } = useFinancialPermissions();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,10 +65,9 @@ export function useParentAthletes(): UseParentAthletesReturn {
         throw new Error('Not authenticated');
       }
 
-      // Use accessible athletes from financial permissions as base
-      // Then fetch additional details for each
+      // Use this parent's own children as the base, then fetch details for each.
       const athletesWithDetails = await Promise.all(
-        accessibleAthletes.map(async (athlete) => {
+        myChildren.map(async (athlete) => {
           try {
             const response = await fetch(
               `${API_URL}/api/athletes/?action=get&id=${athlete.id}`,
@@ -105,7 +109,7 @@ export function useParentAthletes(): UseParentAthletesReturn {
     } finally {
       setLoading(false);
     }
-  }, [API_URL, accessibleAthletes, permissionsLoading, selectedAthleteId]);
+  }, [API_URL, myChildren, permissionsLoading, selectedAthleteId]);
 
   useEffect(() => {
     fetchAthletes();

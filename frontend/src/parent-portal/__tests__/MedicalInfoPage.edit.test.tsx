@@ -28,7 +28,7 @@ describe('MedicalInfoPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.setItem('auth_token', 'test-token');
-    mockPerms.mockReturnValue({ accessibleAthleteIds: [7], loading: false } as any);
+    mockPerms.mockReturnValue({ myChildrenIds: [7], loading: false } as any);
   });
 
   /**

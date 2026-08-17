@@ -23,6 +23,7 @@ const basePerms = {
   permissions: {} as any,
   roles: { is_club_admin: false, is_treasurer: false, is_coach: false, is_parent: true },
   accessibleAthletes: [],
+  myChildren: [],
   loading: false,
   canViewAthletePayments: () => false,
   canViewAthleteAmounts: () => false,
@@ -39,7 +40,7 @@ describe('MedicalInfoPage access control', () => {
 
   test('renders Access-denied and does NOT fetch medical data for an out-of-scope athlete', async () => {
     mockId = '999';
-    mockUsePerms.mockReturnValue({ ...basePerms, accessibleAthleteIds: [1, 2] } as any);
+    mockUsePerms.mockReturnValue({ ...basePerms, myChildrenIds: [1, 2] } as any);
 
     render(<MedicalInfoPage />);
 
@@ -49,7 +50,7 @@ describe('MedicalInfoPage access control', () => {
 
   test('fetches medical data when athlete IS accessible', async () => {
     mockId = '1';
-    mockUsePerms.mockReturnValue({ ...basePerms, accessibleAthleteIds: [1, 2] } as any);
+    mockUsePerms.mockReturnValue({ ...basePerms, myChildrenIds: [1, 2] } as any);
 
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,

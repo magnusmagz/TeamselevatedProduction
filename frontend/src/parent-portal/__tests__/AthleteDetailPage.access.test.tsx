@@ -34,6 +34,7 @@ const basePerms = {
   permissions: {} as any,
   roles: { is_club_admin: false, is_treasurer: false, is_coach: false, is_parent: true },
   accessibleAthletes: [],
+  myChildren: [],
   loading: false,
   canViewAthletePayments: () => false,
   canViewAthleteAmounts: () => false,
@@ -49,11 +50,11 @@ describe('AthleteDetailPage access control', () => {
     mockUseAuth.mockReturnValue({ user: { id: 1, email: 'parent@example.com', name: 'P' } } as any);
   });
 
-  test('renders Access-denied and does NOT fetch when id is not in accessibleAthletes', async () => {
+  test('renders Access-denied and does NOT fetch for an athlete who is not this user\'s child', async () => {
     mockId = '999';
     mockUsePerms.mockReturnValue({
       ...basePerms,
-      accessibleAthleteIds: [1, 2],
+      myChildrenIds: [1, 2],
     } as any);
 
     render(<AthleteDetailPage />);
@@ -63,11 +64,11 @@ describe('AthleteDetailPage access control', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('fetches when id IS in accessibleAthletes', async () => {
+  test('fetches when the athlete IS this user\'s child', async () => {
     mockId = '2';
     mockUsePerms.mockReturnValue({
       ...basePerms,
-      accessibleAthleteIds: [1, 2],
+      myChildrenIds: [1, 2],
     } as any);
 
     (global.fetch as jest.Mock).mockResolvedValue({

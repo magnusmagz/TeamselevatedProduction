@@ -73,7 +73,12 @@ const truthy = (v: boolean | string): boolean =>
 export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { user, logout } = useAuth();
-  const { accessibleAthletes, loading: permissionsLoading } = useFinancialPermissions();
+  // myChildren, NOT accessibleAthletes. The latter includes every athlete on the
+  // teams this user coaches, and a coach-parent was therefore asked to give
+  // PARENTAL CONSENT for their whole roster — which consent.php correctly refuses,
+  // so the gate could never be satisfied and the portal was unreachable for them.
+  // Consent is a guardian relationship; coaching is not. See FinancialPermissionsContext.
+  const { myChildren, loading: permissionsLoading } = useFinancialPermissions();
 
   const [states, setStates] = useState<AthleteConsentState[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +90,7 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadStatus = useCallback(async () => {
     if (permissionsLoading) return;
-    if (!accessibleAthletes || accessibleAthletes.length === 0) {
+    if (!myChildren || myChildren.length === 0) {
       setStates([]);
       setLoading(false);
       return;
@@ -95,7 +100,7 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
     const token = localStorage.getItem('auth_token');
 
     const results = await Promise.all(
-      accessibleAthletes.map(async (a) => {
+      myChildren.map(async (a) => {
         const base: AthleteConsentState = {
           athleteId: a.id,
           name: `${a.first_name} ${a.last_name}`.trim(),
@@ -140,7 +145,7 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setStates(results);
     setLoading(false);
-  }, [API_URL, accessibleAthletes, permissionsLoading]);
+  }, [API_URL, myChildren, permissionsLoading]);
 
   useEffect(() => {
     loadStatus();

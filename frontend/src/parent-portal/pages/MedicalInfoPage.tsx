@@ -77,13 +77,15 @@ const asDateInput = (v: string | null | undefined): string =>
 export const MedicalInfoPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { id } = useParams<{ id: string }>();
-  const { accessibleAthleteIds, loading: permissionsLoading } = useFinancialPermissions();
+  // myChildrenIds -- a parent-portal page authorizes on FAMILY, not on the roster a
+  // coach happens to run. accessibleAthleteIds includes the latter.
+  const { myChildrenIds, loading: permissionsLoading } = useFinancialPermissions();
 
   // Defense-in-depth: medical data is the most sensitive record in the system —
   // only fetch/show it for an athlete this parent actually has access to. The
   // backend enforces this too (medicalRequireAccess).
   const accessAllowed =
-    permissionsLoading || (!!id && accessibleAthleteIds.includes(Number(id)));
+    permissionsLoading || (!!id && myChildrenIds.includes(Number(id)));
   const accessDenied = !permissionsLoading && !accessAllowed;
 
   const [medical, setMedical] = useState<MedicalRecord | null>(null);

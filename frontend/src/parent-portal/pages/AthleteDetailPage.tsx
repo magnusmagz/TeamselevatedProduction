@@ -66,12 +66,14 @@ export const AthleteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { accessibleAthleteIds, loading: permissionsLoading } = useFinancialPermissions();
+  // myChildrenIds — a parent-portal page authorizes on FAMILY, not on the roster a
+  // coach happens to run. accessibleAthleteIds includes the latter.
+  const { myChildrenIds, loading: permissionsLoading } = useFinancialPermissions();
   // Defense-in-depth: only fetch/show an athlete this parent actually has
   // access to. The backend enforces this too; this avoids a wasted request and
   // shows a clear Access-denied state for a tampered/guessed :id.
   const accessAllowed =
-    permissionsLoading || (!!id && accessibleAthleteIds.includes(Number(id)));
+    permissionsLoading || (!!id && myChildrenIds.includes(Number(id)));
   const accessDenied = !permissionsLoading && !accessAllowed;
   const [athlete, setAthlete] = useState<AthleteDetails | null>(null);
   const [loading, setLoading] = useState(true);
