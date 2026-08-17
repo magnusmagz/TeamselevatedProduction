@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/athlete_medical.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/db_actor.php';
 
 class AthleteController {
     protected $db;
@@ -28,7 +29,36 @@ class AthleteController {
         return AuthMiddleware::requireAuth();
     }
 
+    /**
+     * Does the requester have standing to create athletes at all?
+     *
+     * Mirrors requesterCanCreateAthletes() in legacy/athletes-gateway.php — super
+     * admin, any club admin, or a coach of any team. Kept in the same shape so the
+     * two creation paths cannot drift into disagreeing about who may create.
+     */
+    protected function canCreateAthletes($auth): bool {
+        if ($auth->isSuperAdmin()) {
+            return true;
+        }
+        if (!empty(\AthleteScope::clubAdminClubIds($auth))) {
+            return true;
+        }
+        $uid = (int) $auth->getUserId();
+        return $uid > 0 && !empty(\AthleteScope::coachTeamIdsForUser($this->db, $uid));
+    }
+
     public function createAthlete() {
+        // Until 2026-08-17 this method had NO auth. index.php performs none either,
+        // so POST /api/athletes created athlete records — and guardian rows carrying
+        // whatever email the body supplied — for anyone on the internet.
+        $auth = $this->resolveAuth();
+        if (!$this->canCreateAthletes($auth)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            return;
+        }
+        \te_db_set_actor($this->db, (int) $auth->getUserId());
+
         $data = json_decode(file_get_contents('php://input'), true);
 
         // Validate required fields
@@ -341,6 +371,21 @@ class AthleteController {
     }
 
     public function addGuardian($athleteId) {
+        // staffCanManageAthlete, NOT userCanAccessAthlete: attaching an adult to a
+        // child is a write, and the read predicate's guardian branch would let one
+        // parent add anyone to their child — or, combined with the missing auth this
+        // method had until 2026-08-17, let an anonymous caller attach a guardian row
+        // carrying their own email to any athlete and thereby gain that child's
+        // record through the read predicate. Same hole CLAUDE.md records for
+        // legacy/guardian-gateway.php, except this route required no token at all.
+        $auth = $this->resolveAuth();
+        if (!\AthleteScope::staffCanManageAthlete($this->db, $auth, (int) $athleteId)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            return;
+        }
+        \te_db_set_actor($this->db, (int) $auth->getUserId());
+
         $data = json_decode(file_get_contents('php://input'), true);
 
         try {
@@ -395,6 +440,18 @@ class AthleteController {
     }
 
     public function removeGuardian($athleteId, $guardianId) {
+        // This route answered 200 to an unauthenticated DELETE until 2026-08-17 —
+        // two integers in a URL detached a parent from a child, with no token, no
+        // scope check and no record. It is the most plausible mechanism for the
+        // guardian link that appeared on athlete 435 and vanished untraceably.
+        $auth = $this->resolveAuth();
+        if (!\AthleteScope::staffCanManageAthlete($this->db, $auth, (int) $athleteId)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            return;
+        }
+        \te_db_set_actor($this->db, (int) $auth->getUserId());
+
         try {
             // athlete_guardians has no active_status column — this UPDATE threw
             // 42703, so "remove guardian" reported success and removed nothing.

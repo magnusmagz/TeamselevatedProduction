@@ -463,6 +463,52 @@ undercounted Luis at 11 and reported Samantha Archer (196) as unaffected when sh
 - Same shape as `userCanAccessAthlete` vs `staffCanManageAthlete` and `canAccessClub` vs
   `te_is_club_admin`: the predicate was never wrong, which one got called was.
 
+### ⚠️ `index.php` performs NO authentication — the controller must (2026-08-17)
+There is no auth layer in the router. Every route it dispatches is as open as the method
+it lands on, and `AthleteController` called `resolveAuth()` in exactly one of its methods.
+Verified against production with no token:
+
+```
+POST   /api/athletes/999/guardians      -> 500
+DELETE /api/athletes/999/guardians/999  -> 200
+```
+
+That DELETE reached `DELETE FROM athlete_guardians` with both ids taken from the URL.
+**Two integers detached a parent from a child**, anonymously. `createAthlete` was equally
+open and creates guardian rows from the request body. Now fixed: all three authenticate,
+and `addGuardian` / `removeGuardian` gate on **`staffCanManageAthlete`** — the read
+predicate's guardian branch would let one parent remove the other.
+
+- **No frontend code calls these routes**, which is exactly why it survived; the guardian
+  UI goes through `legacy/guardian-gateway.php`. Same lesson that file already taught:
+  the absence of a UI is not an access control. **When adding a route to `index.php`,
+  the auth is yours to write — nothing upstream does it.**
+- `GuardianLinkWriteScopeTest` parses the controller and fails if any of the three stops
+  authenticating, gates on the read predicate, or skips attribution. It was confirmed to
+  fail on the pre-fix code.
+
+### Guardian link changes are audited by TRIGGER — migration 070 (2026-08-17)
+Attaching or detaching an adult from a child decides who may read a minor's record and
+whose click counts as parental consent. It was the only sensitive mutation writing no
+audit trail at all, which is why the link that let a non-guardian record consent for
+athlete 435 on 2026-07-31 is permanently unexplainable.
+
+- **A trigger, not `AuditLogger` calls, and that is a deliberate exception to the
+  no-raw-INSERT rule.** 16 mutation sites across 6 files, plus the case that actually
+  matters — a link changed by hand in psql, which this team does regularly — goes through
+  no PHP at all. The trigger sees every writer including ones not yet written.
+- Actions: `guardian_link_added` / `_removed` / `_changed`.
+- **Attribution is best-effort by design.** `lib/db_actor.php`'s `te_db_set_actor()` sets
+  `app.user_id`; the trigger reads it with the **missing_ok** form of `current_setting`
+  (the strict form throws and would fail every insert on an uninstrumented path). A NULL
+  actor is a signal, not a gap: it means the change did not come through a request path.
+- `set_config(..., false)` is **session** scope. `SET LOCAL` would be discarded outside a
+  transaction, which is where most of these gateways write.
+- `registrations-api.php` deliberately does not set an actor — a public sign-up has no
+  operator, and NULL is the honest record.
+- No backfill is possible. The 197 pre-existing links show no origin, and inventing one
+  would be worse than the blank.
+
 ### ⚠️ "A parent logged in and saw the coach's portal" — the diagnosis (2026-08-15)
 Reported by CKU. If it happens again, this is the checklist. **Left UNFIXED deliberately**
 after both live cases were repaired by hand — the decision was to wait for a third report

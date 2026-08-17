@@ -30,6 +30,73 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-17
+
+### Parent portal scoped to a user's own children, not a coach's roster
+`8bdc8e3` · Netlify `ready` on `8bdc8e38` · **Heroku v503** · no migration
+
+`financial-permissions.php?action=check` now also returns `my_children` /
+`my_children_ids` (guardian-derived only). `accessible_athletes` is unchanged and still
+serves payments. `ConsentGate`, `useParentAthletes`, `AthleteDetailPage` and
+`MedicalInfoPage` read the new list.
+
+**Prod state discovered:** seven coach-parent accounts were being shown their whole
+roster in the parent portal, and `ConsentGate` asked them for parental consent over it.
+Because `consent.php?action=record` correctly 422s a non-guardian and the gate throws on
+the first failure, **the parent portal was unreachable for all seven**. Luis Escamilla
+(157) pressed Submit five times on 2026-08-17 20:38–21:37, writing `consent_records`
+231–238 — ten rows, all legitimately for his own son (448), five duplicate pairs. Left in
+place; they are genuine, just repeated.
+
+Verified post-deploy by minting a token per account against the deployed endpoint: all
+eight coach-parents return `my_children` narrower than `accessible_athlete_ids` (Elias
+Ulvi 69 identical at 5/5 — he coaches no one). Luis: 1 child vs 20.
+
+⚠️ Roster sizes here were first miscounted from `teams.primary_coach_id`;
+`getCoachTeamIds()` also counts `assistant_coach` / `team_manager`, which is what the
+endpoint uses. That undercount initially reported Samantha Archer (196) as unaffected.
+Corrected in `6f7b479`.
+
+### consent_records 23 and 24 revoked — recorded by a non-guardian
+ad-hoc fix, no commit · 2 rows · **not reversible from the app**
+
+Jaia Hanks (user 241) recorded portal consent for **Sebastian Luna (athlete 435)** on
+2026-07-31 22:50. His only guardian is Eva Estrada (guardian 443 / user 174). These were
+athlete 435's **only** consent rows, so he read as consented on a stranger's click while
+his actual mother — who last signed in 2026-08-16 — was never prompted.
+
+`revoked_at` set on both (not deleted; a consent record is evidence). Two
+`consent_revoked_wrong_guardian` audit rows written with `user_id` NULL, audit_log
+1406–1407. Athlete 435 now has no active consent, so Eva gets the gate on her next
+portal visit.
+
+**Cause not determined, and now unknowable.** `AthleteScope::isGuardianOfAthlete` is an
+exact email match and shipped 2026-07-29, two days before — so it ran and *passed*,
+meaning a `guardians` row carrying `jaiahanks@icloud.com` really was linked to athlete
+435 at that moment. That link no longer exists and nothing recorded its removal. Swept
+all of `consent_records`: this was the only such case.
+
+### Migration 070 applied — athlete_guardians audit trigger
+`070_athlete_guardians_audit.sql` · applied to Neon 2026-08-17 · lesson in `CLAUDE.md`
+
+Trigger on `athlete_guardians` writing `guardian_link_added` / `_removed` / `_changed` to
+`audit_log`. Rehearsed in a rolled-back transaction against live Neon: attributed writes
+carry `user_id`, hand-run SQL records NULL, rollback left 0 audit rows and athlete 435's
+single guardian intact. 426 guardian links exist and none carry an origin — no backfill
+is possible.
+
+### Unauthenticated guardian-link routes closed
+**no migration** · backend only, no frontend caller existed
+
+`index.php` performs no authentication, and `AthleteController` authenticated in only one
+method. Probed against production with no token:
+`DELETE /api/athletes/999/guardians/999` → **200**. Athlete 999 does not exist, so nothing
+was modified (426 links before and after). `createAthlete`, `addGuardian` and
+`removeGuardian` now authenticate; the two guardian methods gate on
+`staffCanManageAthlete`.
+
+---
+
 ## 2026-08-03
 
 ### Parent invite: "used" and "expired" are now different answers

@@ -24,6 +24,12 @@ try {
 // records (incl. guardian PII) must never be readable or mutable without auth.
 $auth = AuthMiddleware::requireAuth();
 
+// Attribution for migration 070's athlete_guardians audit trigger. This gateway
+// bulk-DELETEs guardian links when an athlete is saved (the "delete the ones no longer
+// submitted" branch), which is the highest-volume way a link disappears.
+require_once __DIR__ . '/../lib/db_actor.php';
+te_db_set_actor($pdo, (int) $auth->getUserId());
+
 /**
  * Does the requester have any admin/coach standing that lets them create
  * athletes? (super_admin, any club_admin, or a coach of any team.)

@@ -8,6 +8,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/db_actor.php';
 
 try {
     $db = Database::getInstance();
@@ -21,6 +22,11 @@ try {
 // Require an authenticated user — this gateway returns and edits guardian PII
 // (names, emails, phone numbers), so it must not be reachable without a valid token.
 $auth = AuthMiddleware::requireAuth();
+
+// Tell the connection who is acting, so migration 070's athlete_guardians trigger can
+// attribute the change. This gateway both creates and DELETES guardian links, which is
+// the mutation that went unrecorded on 2026-07-31.
+te_db_set_actor($pdo, (int) $auth->getUserId());
 
 $method = $_SERVER['REQUEST_METHOD'];
 
