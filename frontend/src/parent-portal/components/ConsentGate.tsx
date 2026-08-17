@@ -371,7 +371,6 @@ export const ConsentGate: React.FC<{ children: React.ReactNode }> = ({ children 
           <p className="text-xs text-amber-900 max-w-lg mx-auto">
             Check your email to confirm your consent
             {awaitingConfirmation.length === 1 ? ` for ${awaitingConfirmation[0].name}` : ''}.
-            Everything works in the meantime.
           </p>
         </div>
       )}
