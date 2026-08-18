@@ -99,7 +99,7 @@ try {
                 SELECT g.id, COUNT(ag.athlete_id) as athlete_count
                 FROM guardians g
                 LEFT JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                WHERE g.email = :email
+                WHERE LOWER(g.email) = LOWER(:email)
                 GROUP BY g.id
             ");
             $guardianStmt->execute(['email' => $userEmail]);
@@ -316,7 +316,7 @@ try {
                 SELECT g.id
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                WHERE g.email = :email AND ag.athlete_id = :athlete_id
+                WHERE LOWER(g.email) = LOWER(:email) AND ag.athlete_id = :athlete_id
             ");
             $guardianCheck->execute([
                 'email' => $payload['email'] ?? '',

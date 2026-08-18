@@ -143,7 +143,7 @@ try {
             }
 
             // Find guardian by email
-            $stmt = $pdo->prepare("SELECT id FROM guardians WHERE email = :email LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id FROM guardians WHERE LOWER(email) = LOWER(:email) LIMIT 1");
             $stmt->execute(['email' => $guardianEmail]);
             $guardian = $stmt->fetch(PDO::FETCH_ASSOC);
 

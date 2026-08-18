@@ -49,7 +49,7 @@ try {
             } elseif ($guardian_id) {
                 // Resolve ALL guardian rows matching the authenticated user's email — shared-household support.
                 $userEmail = $auth->getPayload()->email ?? '';
-                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email");
+                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE LOWER(g.email) = LOWER(:email)");
                 $guardianStmt->execute(['email' => $userEmail]);
                 $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -462,7 +462,7 @@ try {
             // Get all invoices for the authenticated user's family.
             // Resolve ALL guardian rows matching the JWT email — shared-household support.
             $userEmail = $auth->getPayload()->email ?? '';
-            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE g.email = :email");
+            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE LOWER(g.email) = LOWER(:email)");
             $guardianStmt->execute(['email' => $userEmail]);
             $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
 

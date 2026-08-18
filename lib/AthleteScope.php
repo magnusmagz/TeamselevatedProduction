@@ -123,7 +123,7 @@ class AthleteScope {
             SELECT 1
             FROM guardians g
             JOIN athlete_guardians ag ON ag.guardian_id = g.id
-            WHERE g.email = :email AND ag.athlete_id = :aid
+            WHERE LOWER(g.email) = LOWER(:email) AND ag.athlete_id = :aid
             LIMIT 1
         ";
         $stmt = $pdo->prepare($sql);
@@ -299,7 +299,7 @@ class AthleteScope {
                 SELECT DISTINCT ag.athlete_id
                 FROM guardians g
                 JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                WHERE g.email = ?
+                WHERE LOWER(g.email) = LOWER(?)
             ";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$email]);

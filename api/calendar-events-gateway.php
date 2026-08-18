@@ -421,7 +421,7 @@ try {
                   SELECT 1
                   FROM guardians g
                   JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                  WHERE g.email = u.email AND ag.athlete_id = :aid
+                  WHERE LOWER(g.email) = LOWER(u.email) AND ag.athlete_id = :aid
               )
         ");
         $stmt->execute(['uid' => $userId, 'aid' => $athlete_id]);

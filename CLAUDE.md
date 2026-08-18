@@ -463,6 +463,28 @@ undercounted Luis at 11 and reported Samantha Archer (196) as unaffected when sh
 - Same shape as `userCanAccessAthlete` vs `staffCanManageAthlete` and `canAccessClub` vs
   `te_is_club_admin`: the predicate was never wrong, which one got called was.
 
+### ⚠️ Guardian email comparisons must be LOWER() on both sides (2026-08-18)
+Reported by CKU: Emily Govier could sign in but the parent portal said no athletes were
+registered to her. Her `guardians` row read `Emilygovier0@gmail.com`, her `users` row
+`emilygovier0@gmail.com`. One capital letter.
+
+Parent standing is derived by comparing those two columns, and **ten** query sites used
+`=`, which is case-sensitive in Postgres. Verified against prod:
+`g.email = 'emilygovier0@gmail.com'` returned **0**, `lower(...)` returned **1**.
+Three accounts were in that state (users 152, 235, 253), each holding a valid `parent`
+role — so nothing looked broken to staff, the family just saw an empty portal. Same
+shape as the coach told "no athletes are registered to you" for months.
+
+- All ten now normalise: `api/financial-permissions.php` (x2), `lib/AthleteScope.php`
+  (x2), `api/invoices.php` (x2), `api/recipient-search-gateway.php` (x2),
+  `api/calendar-events-gateway.php`, `api/sibling-discount.php`.
+- Migration 071 adds functional indexes on `LOWER(email)` for both tables, so nobody is
+  tempted to optimise the LOWER() back out.
+- **The stored data was deliberately NOT lowercased.** Normalising those three rows
+  would fix the symptom and hide the class — the next capital letter typed anywhere
+  would break again at whichever site was missed. The comparison was wrong, so the
+  comparison changed. `GuardianEmailCaseTest` scans the runtime tree for a regression.
+
 ### ⚠️ `index.php` performs NO authentication — the controller must (2026-08-17)
 There is no auth layer in the router. Every route it dispatches is as open as the method
 it lands on, and `AthleteController` called `resolveAuth()` in exactly one of its methods.

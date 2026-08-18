@@ -30,6 +30,35 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-18
+
+### Guardian email matching made case-insensitive — migration 071
+`071_guardian_email_case_index.sql` applied to Neon 2026-08-18 · lesson in `CLAUDE.md`
+
+Two CKU support reports investigated:
+
+- **Emily Govier — real bug, fixed.** guardians `Emilygovier0@gmail.com` vs users
+  `emilygovier0@gmail.com`. Ten query sites compared them with case-sensitive `=`, so
+  her guardian chain returned nothing and the parent portal was empty despite a valid
+  `parent` role and a successful login (2026-08-18 12:19). **Three accounts affected:
+  users 152 (maggie+tracey), 235 (Emily Govier), 253 (Monica).** Stored emails were NOT
+  normalised — see CLAUDE.md for why.
+
+- **Morgan Powell — no code fault found.** guardian 325 carries a valid email and the
+  invite resolver was dry-run against prod in a rolled-back transaction: returns
+  `status: invited`, so "Invite to portal" works today (the earlier "no email" was
+  before her record was corrected). Her "no emails received" is not a send failure —
+  `communication_log` shows two emails to her, both `delivered` by SendGrid
+  (2026-07-29 and the Fall practice schedule 2026-08-18 12:15), no
+  `email_suppressions` row, and `EMAIL_PROVIDER=sendgrid` is set. Points at her inbox
+  (spam/promotions), not the platform. Nothing changed for her.
+
+Note: `invitation_links` holds one `league_admin` row, a role absent from
+`user_club_access`'s CHECK constraint and from `TE_INVITABLE_ROLES`. If anyone redeems
+that link it will fail at accept time. Pre-existing, untouched.
+
+---
+
 ## 2026-08-17
 
 ### Parent portal scoped to a user's own children, not a coach's roster

@@ -133,7 +133,7 @@ function te_chat_parent_team_ids(PDO $connection, $userId, $clubProfileId): arra
     $stmt = $connection->prepare("
         SELECT DISTINCT tm.team_id
         FROM users u
-        JOIN guardians g ON g.email = u.email
+        JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
         JOIN athlete_guardians ag ON ag.guardian_id = g.id
         JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
         JOIN teams t ON t.id = tm.team_id AND t.club_id = ? AND t.deleted_at IS NULL
@@ -1549,7 +1549,7 @@ function handleChatResolveTeams($connection, $auth, $userId) {
             SELECT tm.user_id FROM team_members tm WHERE tm.team_id IN ($teamPlaceholders) AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active' AND tm.user_id IS NOT NULL
             UNION
             SELECT u2.id FROM users u2
-              JOIN guardians g ON g.email = u2.email
+              JOIN guardians g ON LOWER(g.email) = LOWER(u2.email)
               JOIN athlete_guardians ag ON ag.guardian_id = g.id
               JOIN team_members tm2 ON tm2.athlete_id = ag.athlete_id AND tm2.team_id IN ($teamPlaceholders) AND tm2.status = 'active'
         ) src
