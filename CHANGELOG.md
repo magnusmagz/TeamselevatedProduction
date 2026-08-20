@@ -32,6 +32,50 @@ Newest first. Times are Pacific.
 
 ## 2026-08-20
 
+### Schedule Practices scheduled everything one day late — fixed, no data change
+Reported by CKU · commit `4284e20` · Netlify deploy `ready` 09:15 UTC · frontend only
+
+A coach picked **Tuesdays** in the Schedule Practices button and got **Wednesdays**.
+Scheduling the same sessions through the calendar produced the right days, which is what
+made it look intermittent — the calendar sends the typed date string and never builds a
+`Date`, so it was never exposed.
+
+`PracticeScheduler.tsx` asked `.getDay()` (local) and wrote `.toISOString()` (UTC) in the
+same loop. Reproduced exactly with the shipped code:
+
+```
+TZ=America/Chicago  ->  label: tuesday   stored: 2026-08-26  (a Wednesday)
+TZ=UTC              ->  label: tuesday   stored: 2026-08-25  (a Tuesday)
+```
+
+**Prod state — nothing was migrated, on purpose.** The fix only changes date generation in
+the browser; stored `event_date` values are untouched. Six club 51 teams show the
+fingerprint of a scheduler batch (staggered `created_at`, one POST per practice) followed
+by hand edits row by row, hours later:
+
+```
+5th-6th Purple              9 practices,  9 edited after   (created 08-19 14:53)
+Prek-K Blue                 9 practices,  8 edited after   (created 08-19 14:56)
+1st-2nd Tigers             10 practices, 10 edited after   (created 08-17 23:10)
+1st-2nd Young Warriors      9 practices,  9 edited after   (created 08-18 14:31)
+Prek-K Sharks               8 practices,  7 edited after   (created 08-16 23:44)
+Girls Prek-1st Wild Fires   9 practices,  8 edited after   (created 08-17 00:11)
+```
+
+Coaches had been repairing this by hand for about a week before it was reported.
+
+⚠️ **Batches created by the scheduler and never edited may still be on the wrong day**, and
+the data cannot say what day was intended — `calendar_events` writes no audit rows, so the
+original dates are unrecoverable. Needs a coach to confirm, then a manual edit:
+Girls Prek-1st Dash (Sun/Mon/Wed), Girls Prek-1st Crushers (Mon), 1st-2nd Tigers' second
+Wed batch, Girls 2nd-4th Sunflower Strikers (Fri), 3rd-4th Red (Tue and Thu).
+Girls 5th-8th Orange came through the recurring-calendar path (single `created_at` for all
+10 rows), not the scheduler, and is unaffected.
+
+Durable lesson and the utils to use are in CLAUDE.md, "A date-only value must be read and
+written in the SAME timezone".
+
+
 ### user_guardians created and backfilled — migration 072
 `072_user_guardians.sql` applied to Neon (see note) · backfill run 2026-08-20 ·
 **176 rows** · actor user 118 · plan in `docs/user-guardians-identity-plan.md`
