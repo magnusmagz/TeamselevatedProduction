@@ -12,7 +12,7 @@ const serverSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8
 // ─── The allowlist shape ─────────────────────────────────────────────────────
 
 test('allowed set is built from guardians and club staff', () => {
-  assert.match(ALLOWED_PARTICIPANTS_SQL, /JOIN guardians g ON g\.email = u\.email/);
+  assert.match(ALLOWED_PARTICIPANTS_SQL, /JOIN guardians g ON LOWER\(g\.email\) = LOWER\(u\.email\)/);
   assert.match(ALLOWED_PARTICIPANTS_SQL, /FROM user_club_access uca/);
   assert.match(ALLOWED_PARTICIPANTS_SQL, /UNION/);
 });

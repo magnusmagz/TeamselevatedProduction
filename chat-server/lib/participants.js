@@ -50,7 +50,7 @@ const ALLOWED_PARTICIPANTS_SQL = `
   -- Guardians of athletes on teams the creator can access
   SELECT DISTINCT u.id AS user_id
   FROM users u
-  JOIN guardians g ON g.email = u.email
+  JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
   JOIN athlete_guardians ag ON ag.guardian_id = g.id
   JOIN athletes a ON a.id = ag.athlete_id
   JOIN team_members tm ON tm.athlete_id = a.id

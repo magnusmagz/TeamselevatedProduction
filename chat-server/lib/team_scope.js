@@ -86,11 +86,20 @@ const COACH_TEAM_IDS_SQL = `
  * Joins guardians on email, which is the identity-by-email workaround recorded
  * in CLAUDE.md. It is what the rest of the product does today; the fix is the
  * `user_guardians` link table on the backlog, not a different join here.
+ *
+ * LOWER() on BOTH sides is load-bearing. Postgres `=` is case-sensitive, and the
+ * two columns are independently editable, so one capital letter severs a family:
+ * Emily Govier's guardian row read `Emilygovier0@gmail.com` against a login of
+ * `emilygovier0@gmail.com` and her portal was empty. The PHP side was fixed on
+ * 2026-08-18 (migration 071); this app was missed and stayed broken for two more
+ * days. Four accounts are in that state today, three with children on teams.
+ * Stored emails are deliberately NOT normalised — the comparison was wrong, so
+ * the comparison changed. Guarded by __tests__/guardian_email_case.test.js.
  */
 const GUARDIAN_TEAM_IDS_SQL = `
   SELECT DISTINCT tm.team_id AS id
   FROM users u
-  JOIN guardians g ON g.email = u.email
+  JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
   JOIN athlete_guardians ag ON ag.guardian_id = g.id
   JOIN athletes a ON a.id = ag.athlete_id
   JOIN team_members tm ON tm.athlete_id = a.id

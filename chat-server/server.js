@@ -437,7 +437,7 @@ async function getTeamMembersForPicker(teamId) {
   const parents = await pool.query(`
     SELECT DISTINCT u.id AS "userId", CONCAT(u.first_name, ' ', u.last_name) AS "displayName", 'parent' AS role
     FROM users u
-    JOIN guardians g ON g.email = u.email
+    JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
     JOIN athlete_guardians ag ON ag.guardian_id = g.id
     JOIN athletes a ON a.id = ag.athlete_id
     JOIN team_members tm ON tm.athlete_id = a.id

@@ -64,7 +64,7 @@ test('coach scope does not admit player memberships', () => {
 });
 
 test('guardian scope walks the athlete chain, not team_members.user_id', () => {
-  assert.match(GUARDIAN_TEAM_IDS_SQL, /JOIN guardians g ON g\.email = u\.email/);
+  assert.match(GUARDIAN_TEAM_IDS_SQL, /JOIN guardians g ON LOWER\(g\.email\) = LOWER\(u\.email\)/);
   assert.match(GUARDIAN_TEAM_IDS_SQL, /athlete_guardians/);
   assert.match(GUARDIAN_TEAM_IDS_SQL, /tm\.athlete_id = a\.id/);
 });
