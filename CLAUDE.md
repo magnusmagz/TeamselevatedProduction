@@ -157,6 +157,35 @@ sync"). Emails and SMS actually send in production.
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
 
+### ⚠️ A date-only value must be read and written in the SAME timezone (2026-08-20)
+Reported by CKU: a coach used **Schedule Practices**, picked Tuesdays, and the practices
+landed on Wednesdays. Scheduling the same sessions through the calendar worked.
+
+`PracticeScheduler.tsx` generated the dates client-side and mixed the two zones in one
+loop — `new Date("2026-08-25")` parses as **UTC** midnight, `.getDay()` answers in
+**local** time, and `.toISOString()` writes the **UTC** day back out. In Central those
+disagree all evening, so the day it matched as Tuesday was written as Wednesday's date.
+Every US timezone hits it; it is not intermittent and not data-dependent.
+
+- **The review screen hid it.** The preview rendered `new Date(practice.date)
+  .toLocaleDateString()`, which shifted the wrong date back a day for display — so the
+  confirmation table showed "Tue 8/25" while posting `2026-08-26`. A formatter that
+  reverses the bug is how it reached production and survived there.
+- **Use `frontend/src/utils/dateFormat.ts` and nothing else.** `formatDateOnly` to display,
+  `parseDateOnly` to ask a calendar question (day-of-week, iterate day by day),
+  `toDateOnlyString` to write one back. Never `new Date(str)` on a `YYYY-MM-DD`, and never
+  `toISOString().split('T')[0]` to produce one.
+- **Date expansion lives in `utils/practiceDates.ts`**, extracted out of the component so it
+  is testable at all. `practiceDates.test.ts` was confirmed to fail 5 ways on the old code.
+- **The frontend suite is pinned to `America/Chicago`** (`frontend/jest.globalSetup.js`). In
+  UTC this whole bug class passes. It must be a `globalSetup`, not `setupTests` — Node caches
+  the zone before setupTests runs, which was verified by watching the guard assertion fail,
+  not assumed.
+- Prod damage: six CKU teams were scheduled through this button and repaired **by hand**, row
+  by row, over about a week before it was reported. The fix is client-side only — stored
+  `event_date` values are untouched, so corrected events stay corrected and any uncorrected
+  ones stay wrong until someone edits them.
+
 ---
 
 ## Database

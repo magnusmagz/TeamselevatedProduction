@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateOnly, toDateOnlyString } from '../utils/dateFormat';
+import { generatePracticeDates } from '../utils/practiceDates';
 
 interface Team {
   id: number;
@@ -82,8 +84,10 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
     const threeMonths = new Date();
     threeMonths.setMonth(threeMonths.getMonth() + 3);
 
-    setStartDate(today.toISOString().split('T')[0]);
-    setEndDate(threeMonths.toISOString().split('T')[0]);
+    // Local calendar day, not UTC — toISOString() rolls over to tomorrow after
+    // ~7pm Central, so the form would default to starting a day late.
+    setStartDate(toDateOnlyString(today));
+    setEndDate(toDateOnlyString(threeMonths));
   }, []);
 
   useEffect(() => {
@@ -199,58 +203,44 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
 
       // Generate practices on the client side for now
       const practices: Practice[] = [];
-      const start = new Date(startDate);
-      const end = new Date(endDate);
       let conflictDetected = 0;
 
-      // Map day names to JavaScript day numbers (0 = Sunday, 6 = Saturday)
-      const dayMap: { [key: string]: number } = {
-        'sunday': 0,
-        'monday': 1,
-        'tuesday': 2,
-        'wednesday': 3,
-        'thursday': 4,
-        'friday': 5,
-        'saturday': 6
-      };
+      // Date expansion lives in generatePracticeDates so it can be tested under
+      // a real timezone — see utils/practiceDates.ts for what went wrong here.
+      const scheduled = generatePracticeDates(startDate, endDate, selectedDays);
+      if (scheduled.length === 0) {
+        alert('No practices fall in that date range — check the start and end dates');
+        setLoading(false);
+        return;
+      }
 
-      // Iterate through each day from start to end
-      for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-        const dayOfWeek = date.getDay();
-        const dayName = Object.keys(dayMap).find(key => dayMap[key] === dayOfWeek);
+      for (const { date: dateStr, dayName } of scheduled) {
+        // Create datetime strings for start and end
+        const startDateTime = `${dateStr}T${startTime}:00`;
+        const endDateTime = `${dateStr}T${endTime}:00`;
 
-        if (dayName && selectedDays.includes(dayName)) {
-          // Create a practice for this day
-          const practiceDate = new Date(date);
-          const dateStr = practiceDate.toISOString().split('T')[0];
+        const newPractice: Practice = {
+          date: dateStr,
+          day: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+          start_time: startTime,
+          end_time: endTime,
+          start_datetime: startDateTime,
+          end_datetime: endDateTime,
+          venue_id: selectedVenue!,
+          field_id: selectedField,
+          has_conflict: false,
+          skip: false
+        };
 
-          // Create datetime strings for start and end
-          const startDateTime = `${dateStr}T${startTime}:00`;
-          const endDateTime = `${dateStr}T${endTime}:00`;
-
-          const newPractice: Practice = {
-            date: dateStr,
-            day: dayName.charAt(0).toUpperCase() + dayName.slice(1),
-            start_time: startTime,
-            end_time: endTime,
-            start_datetime: startDateTime,
-            end_datetime: endDateTime,
-            venue_id: selectedVenue!,
-            field_id: selectedField,
-            has_conflict: false,
-            skip: false
-          };
-
-          // Check for conflicts with existing practices
-          const conflictCheck = checkForConflicts(newPractice, existingPractices);
-          if (conflictCheck.hasConflict) {
-            newPractice.has_conflict = true;
-            newPractice.conflict_details = conflictCheck.conflictDetails;
-            conflictDetected++;
-          }
-
-          practices.push(newPractice);
+        // Check for conflicts with existing practices
+        const conflictCheck = checkForConflicts(newPractice, existingPractices);
+        if (conflictCheck.hasConflict) {
+          newPractice.has_conflict = true;
+          newPractice.conflict_details = conflictCheck.conflictDetails;
+          conflictDetected++;
         }
+
+        practices.push(newPractice);
       }
 
       setGeneratedPractices(practices);
@@ -559,7 +549,7 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                             />
                           </td>
                           <td className="px-4 py-2 text-brand-primary">
-                            {new Date(practice.date).toLocaleDateString()}
+                            {formatDateOnly(practice.date, { weekday: 'short', month: 'short', day: 'numeric' })}
                           </td>
                           <td className="px-4 py-2 text-brand-primary">{practice.day}</td>
                           <td className="px-4 py-2 text-brand-primary">
