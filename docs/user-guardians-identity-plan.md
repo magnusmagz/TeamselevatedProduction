@@ -254,6 +254,14 @@ guess wrong about a child.
 - **Auto-link only accounts matching exactly ONE guardian — 173 rows, zero judgement.**
 - **Hold all 6 shared-email accounts** (12 candidate rows) and print them as a review
   list for a human to confirm.
+
+> **RESOLVED 2026-08-20 — user 69 (`eli@teamselevated.com`) is never linked.** Maggie:
+> Eli is an employee, and the account is a test one. Verified before recording: all
+> five athlete links under g210/g300 sit in clubs **32 and 50** (internal/demo), none
+> is soft-deleted, and **no other guardian is attached to any of them** — so no real
+> family's contact details route through his address and nothing is misrouted today.
+> At phase 4 he loses derived access to those five test athletes, which is the
+> intended outcome. **Five accounts remain held**, all genuine households.
 - This costs nothing operationally, because the email fallback stays live through phases
   1–3: those 6 keep behaving exactly as they do today until someone decides. They must be
   resolved before phase 4, and six is a tractable list.

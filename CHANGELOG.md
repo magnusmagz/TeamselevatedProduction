@@ -32,6 +32,99 @@ Newest first. Times are Pacific.
 
 ## 2026-08-20
 
+### user_guardians created and backfilled — migration 072
+`072_user_guardians.sql` applied to Neon (see note) · backfill run 2026-08-20 ·
+**176 rows** · actor user 118 · plan in `docs/user-guardians-identity-plan.md`
+
+⚠️ **072's table already existed when this session applied it.** An earlier,
+interrupted session had created it and left no CHANGELOG entry, so the file read as
+unapplied. The table was empty with no audit rows, and its live structure matches
+the committed file exactly (columns, both FKs, the UNIQUE pair, the reverse index).
+Re-applying was idempotent — `IF NOT EXISTS` on table and index, `CREATE OR REPLACE`
+on the audit function, `DROP TRIGGER IF EXISTS` before the trigger.
+
+Backfill: **176 linked, 6 held, 0 athlete-set mismatches.** The plan predicted 173
+and 6 — three more accounts became linkable in the two days between measuring and
+running, which is the normal drift of a live club, not a rule change.
+
+Held for a human (shared address, `--apply` writes nothing for these):
+
+```
+user 69   eli@teamselevated.com       -> Arturo Alvarez (g210) | Elias Ulvi (g300)
+user 223  clovis_2011@hotmail.com     -> Taylor Cox (g351)     | Kyle Cox (g352)
+user 238  carmenlynnhawk@gmail.com    -> Carmen Haej (g322)    | Carmen Hawk (g341)
+user 254  thejones@example.com        -> John Jones (g246)     | Jane Jones (g247)
+user 282  morganbmiles@gmail.com      -> Morgan Powell (g325)  | Zach Powell (g326)
+user 284  briannaquinley6@gmail.com   -> Brianna Quinley (g399)| Kevin Quinley (g400)
+```
+
+**`eli@` resolved same day: never link.** Maggie — Eli is an employee and the account
+is a test one. All five of its athlete links are in clubs 32 and 50 (internal/demo),
+none soft-deleted, and no other guardian is attached to any of them, so no real
+family's mail routes through that address. Phase 4 removes his derived access to
+those five test athletes, as intended. **Five accounts remain held**, all households.
+
+`eli@` was the one that is not a household — a staff address on two guardian rows
+reaching four children across four surnames. Surname difference does not identify
+it: `carmenlynnhawk@` also spans two surnames and is one family (both athletes are
+Hawks). All six keep working unchanged through the email fallback and must be
+resolved before phase 4 retires it.
+
+Parent-role accounts with no guardian row — already broken, unchanged by this run,
+**8 not the 7 the plan measured**:
+
+```
+101-105  seed/demo rows (@email.com, never logged in)
+208  Allix Boyce      allix12boyce@yahoo.com     (yahoo login, gmail guardian row)
+265  Maddison Mathis  jbaughman1972@yahoo.com    (NEW since the plan was written)
+369  Nancy De Santiago nancyberenice124@gnail.com ("gnail" typo)
+```
+
+**Nothing reads the table yet**, so this changed no behaviour and needed no deploy.
+Verified after the run: 176 rows / 176 distinct users / 176 distinct guardians, 176
+`user_guardian_linked` audit rows all attributed to actor 118 rather than NULL, and
+a second `--apply` wrote 0 (`ON CONFLICT DO NOTHING`).
+
+⚠️ **Re-run the backfill immediately before phase 4.** Anyone who accepts an invite
+between now and phase 3 has no link row and is carried only by the email fallback;
+dropping it without a re-run would strand exactly those families.
+
+### Prod state discovered: the worker's Neon connection dies when idle
+No deploy · no migration · **UNFIXED as of this entry**
+
+Found while scoping chat notifications. `workers/queue-worker.php:23` opens one PDO
+handle at boot and shares it with `EmailSendService`, `SmsSendService`,
+`ImportJobProcessor` and `CalendarSyncService` for the dyno's whole life. Neon's
+pooler drops idle connections, PDO does not reconnect, and `config/database.php` has
+no ping-or-reconnect path, so after a quiet stretch the handle is dead until the dyno
+cycles.
+
+Observed at 09:01 UTC: 226 consecutive worker log lines, one per minute, of
+`[Worker] import reconciliation error: SQLSTATE[HY000]: General error: 7 no connection to the server`.
+The 60s import reconciliation sweep is the only thing that *reports* it; every service
+holds the same dead handle, so a job enqueued during a dead window fails three times
+over ~8 minutes and lands in `failed_jobs` with no automated recovery.
+
+Redis is **not** the problem and was cleared explicitly: addon
+`heroku-redis (redis-graceful-48200)` mini, `REDIS_URL` set, predis vendored, live
+`PING` → `PONG`, and all four queues (`email_queue`, `sms_queue`, `import_queue`,
+`calendar_sync_queue`) empty with nothing in retry.
+
+`failed_jobs` holds exactly one entry — `2026-07-09T18:01:15+00:00`,
+`General error: 7 SSL connection has been closed unexpectedly` — the same class. So
+this has already cost one real send.
+
+Masked because Heroku cycles dynos roughly daily, so it self-heals each morning, and
+queued email only breaks if someone happens to send inside a dead window. Timeline
+fits: worker booted 15:37 on 08-19, last email delivered 19:27, dead by 05:10 on 08-20.
+The 189 emails delivered in the preceding 14 days all went out during healthy windows.
+
+Fix agreed but not yet written: a reconnect path in `Database` called at the top of the
+worker loop, and resolving `$db` per job instead of sharing the boot-time handle. It is
+a prerequisite for chat notifications, whose dispatcher would run on a timer and fail
+every night.
+
+
 ### Chat server got the case-insensitive guardian match it was missed by
 Heroku `teamselevated-chat` **v19** · no migration · lesson in `CLAUDE.md`
 
