@@ -102,6 +102,40 @@ user 282  morganbmiles@gmail.com      -> Morgan Powell (g325)  | Zach Powell (g3
 user 284  briannaquinley6@gmail.com   -> Brianna Quinley (g399)| Kevin Quinley (g400)
 ```
 
+### The five held households linked — 6 rows, not 10
+`user_guardians` now holds **182** rows · actor 118 · no deploy, nothing reads it yet
+
+Maggie confirmed the five remaining held accounts are genuine households and asked
+for them to be linked. Checking the account holder's NAME against the two guardian
+rows changed the answer, and "link both rows" would have been wrong for four of five:
+
+```
+223 Taylor Cox      g351 Taylor  | g352 Kyle    (spouse)  both -> same child Rhett
+238 Carmen Hawk     g341 Hawk    | g322 Haej    (SAME human, misspelt) -> different children
+254 Jane Jones      g247 Jane    | g246 John    (spouse)  both -> same athlete (seed)
+282 Morgan Powell   g325 Morgan  | g326 Zach    (spouse)  Hank / NO athletes
+284 Brianna Quinley g399 Brianna | g400 Kevin   (spouse)  both -> same child Kai
+```
+
+Only **238** is one human holding two guardian rows, and it is the only one needing
+both: g322 and g341 reach *different* children (Sloane and Jader), which is the case
+the plan warned name-matching would silently drop. The other four are two different
+people sharing an address — linking the spouse's row would assert Taylor *is* Kyle,
+Morgan *is* Zach, Brianna *is* Kevin, durably and under audit, and it buys nothing:
+in all four the spouse's row reaches the same child or none at all.
+
+So the self row for each, plus both of Carmen's: **6 rows, `source='admin_link'`,
+`confidence='household'`.** Verified before writing that every account's athlete set
+is byte-identical before and after — `{364}`, `{345,356}`, `{271,333}`, `{347}`,
+`{397}`. Nobody gained or lost a child.
+
+**Every account the email fallback answers for now has a link row except user 69**
+(eli, deliberately never linked). That is the phase 4 precondition met for today's
+data — it still needs a re-run immediately before the fallback is retired.
+
+254 is seed data (`@example.com`, never logged in, its club-51 athlete soft-deleted).
+Linked anyway so phase 4's divergence log reads zero rather than needing a footnote.
+
 **`eli@` resolved same day: never link.** Maggie — Eli is an employee and the account
 is a test one. All five of its athlete links are in clubs 32 and 50 (internal/demo),
 none soft-deleted, and no other guardian is attached to any of them, so no real
