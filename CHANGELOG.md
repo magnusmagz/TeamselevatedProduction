@@ -30,6 +30,47 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-20
+
+### Chat server got the case-insensitive guardian match it was missed by
+Heroku `teamselevated-chat` **v19** · no migration · lesson in `CLAUDE.md`
+
+Migration 071 fixed ten case-sensitive `guardians.email = users.email`
+comparisons in the PHP tree on 2026-08-18. The chat server is a separate Heroku
+app on its own subtree deploy and was not included, so it carried the bug for two
+more days. **Three sites**, not the two first counted: `lib/team_scope.js`
+(guardian team scope), `lib/participants.js` (DM participant allowlist) and
+`server.js:440` (participant picker).
+
+Verified against prod before the fix — **four** accounts have a guardian row
+differing from their login by case alone, one more than the three found on 08-18:
+
+| user | login | guardian row | teams before → after |
+|---|---|---|---|
+| 152 | `maggie+tracey@4msquared.com` | `Maggie+tracey@…` | test athlete, no team |
+| 235 | `emilygovier0@gmail.com` | `Emilygovier0@…` | 0 → 1 |
+| 253 | `monica.82.mh82@gmail.com` | `Monica.82.mh82@…` | 0 → 1 |
+| 370 | `mailrebekah@hotmail.com` | `Mailrebekah@…` | 0 → 2 |
+
+235, 253 and 370 are Central Kansas families (club 51) with children on teams.
+All four hold `parent` and only `parent`, so no coach or admin branch rescued
+them: guardian-derived team ids resolved empty, giving no team chat and absence
+from other people's participant pickers. HTTP 200 throughout.
+
+User 370 (Rebekah Phillips, two children on two teams) appeared **after** the
+08-18 investigation — the class is still producing cases, which is expected:
+stored emails were deliberately not normalised.
+
+Change is strictly widening, confirmed against prod: distinct (user, team) pairs
+reachable through the guardian chain went 194 → 198, exactly the four recovered.
+Nobody lost access.
+
+No data was changed. Guarded by `chat-server/__tests__/guardian_email_case.test.js`,
+a scan of every `.js` in the app rather than three assertions about three known
+constants, confirmed to fail on the pre-fix code.
+
+---
+
 ## 2026-08-18
 
 ### Guardian email matching made case-insensitive — migration 071

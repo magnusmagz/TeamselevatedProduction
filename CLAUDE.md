@@ -484,6 +484,15 @@ shape as the coach told "no athletes are registered to you" for months.
   would fix the symptom and hide the class — the next capital letter typed anywhere
   would break again at whichever site was missed. The comparison was wrong, so the
   comparison changed. `GuardianEmailCaseTest` scans the runtime tree for a regression.
+- ⚠️ **The PHP tree is not the whole product.** The chat server carried the same
+  comparison at three more sites and was missed on 08-18, staying broken two extra days
+  (fixed 2026-08-20, chat v19). It is a separate Heroku app on a **subtree** deploy, so
+  `git push heroku` never ships it — when a fix touches identity, sweep `chat-server/`
+  and deploy it separately. Guarded there by
+  `chat-server/__tests__/guardian_email_case.test.js`.
+- **A fourth account appeared two days later** (user 370, two children), which is the
+  point of not normalising: the class keeps producing cases and the comparison keeps
+  absorbing them. Counting affected users is a snapshot, never a fix.
 
 ### ⚠️ `index.php` performs NO authentication — the controller must (2026-08-17)
 There is no auth layer in the router. Every route it dispatches is as open as the method
