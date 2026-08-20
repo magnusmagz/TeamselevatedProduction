@@ -147,6 +147,16 @@ by construction and unreachable regardless of this work.
 `participants.js` still join `g.email = u.email` case-sensitively. Same bug as Emily's,
 still live, separate Heroku app and subtree deploy. Fix and ship on its own.
 
+> **RAN 2026-08-20.** Migration 072 was already on Neon from the interrupted session
+> (empty, no audit rows, structure identical to the committed file); re-applying was
+> idempotent. Backfill wrote **176** rows, not the 173 predicted here — three more
+> accounts became linkable in the two days between measuring and running. 6 held as
+> planned, 0 athlete-set mismatches. Parent-role accounts with no guardian row are
+> **8**, not 7: user 265 (Maddison Mathis, `jbaughman1972@yahoo.com`) is new. The
+> held list and the audit attribution are in `CHANGELOG.md` under 2026-08-20.
+> **Phase 0 also shipped** — chat-server had three case-sensitive joins, fixed and
+> deployed as chat v19.
+
 **Phase 1.** Migration **072** + backfill script + its own audit trigger (070 covers `athlete_guardians` only, not this table). Writes the table, changes no
 behaviour, reads nothing. Fully reversible by dropping the table.
 
