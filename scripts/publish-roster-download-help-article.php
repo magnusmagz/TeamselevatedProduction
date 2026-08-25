@@ -175,8 +175,14 @@ curl_setopt_array($ch, [
         'title'           => $title,
         'summary'         => $summary,
         'body_markdown'   => $body,
-        'role_tags'       => ['club_admin', 'coach'],
-        'related_feature' => 'roster-export',
+        // This DB's vocabulary is admin / coach / parent — NOT the
+        // user_club_access value 'club_admin'. Tagging it club_admin would
+        // file it under a role the Help sidebar does not filter on.
+        'role_tags'       => ['admin', 'coach'],
+        // Matches the existing roster article rather than inventing a new
+        // feature key, so both surface together if contextual help ever
+        // keys on it.
+        'related_feature' => 'roster-management',
         'search_keywords' => ['roster', 'download', 'export', 'csv', 'spreadsheet',
                               'excel', 'contact list', 'crew', 'team list', 'print roster'],
         'sort_order'      => 0,
