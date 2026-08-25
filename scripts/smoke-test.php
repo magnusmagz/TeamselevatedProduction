@@ -132,6 +132,37 @@ function postRead(string $base, string $path, ?string $tok, array $body): array
             'json' => json_decode((string) $out, true), 'error' => ''];
 }
 
+/**
+ * The roster download answers text/csv, not JSON, so it needs its own fetch:
+ * check()'s shape callback insists on a JSON body and would fail every healthy
+ * CSV. Returns the response headers too — the truncation notice and the
+ * filename ride on them.
+ *
+ * Still a read. The endpoint only SELECTs (it writes an audit_log row, which is
+ * the endpoint's own record of the read, not a change to club data).
+ */
+function getCsv(string $base, string $path, ?string $tok): array
+{
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $base . $path,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_TIMEOUT => 45,
+        CURLOPT_HTTPHEADER => $tok ? ["Authorization: Bearer {$tok}"] : [],
+    ]);
+    $raw = (string) curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    curl_close($ch);
+
+    $head = substr($raw, 0, $headerSize);
+    $body = substr($raw, $headerSize);
+
+    return ['code' => $code, 'body' => $body, 'head' => $head,
+            'json' => json_decode($body, true), 'error' => ''];
+}
+
 // ── Checks ───────────────────────────────────────────────────────────────────
 $pass = 0; $fail = 0; $failures = [];
 
@@ -304,6 +335,84 @@ if ($parent) {
         postRead($base, '/api/auth-gateway.php?action=club-parents', $pTok, ['club_id' => 51]), [401, 403]);
 } else {
     echo "  - no parent in club 51 to test with\n";
+}
+
+// ── Roster download ──────────────────────────────────────────────────────────
+// Staff only. The refusals matter more than the success here: the crew flavour
+// is a contact list for other people's families, and the team page's VIEW
+// predicate (which a parent passes) must not be what gates this.
+echo "\nRoster download\n";
+check('no token is refused the roster download',
+    getCsv($base, '/api/roster-export.php?team_id=1&include=athletes', null), [401, 403]);
+
+$rosterTeam = $pdo->query("
+    SELECT t.id, t.name, t.club_id
+    FROM teams t
+    JOIN team_members tm ON tm.team_id = t.id
+    WHERE t.club_id = 51 AND t.deleted_at IS NULL
+      AND (tm.role = 'player' OR tm.role IS NULL) AND tm.leave_date IS NULL
+    GROUP BY t.id, t.name, t.club_id
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+")->fetch(PDO::FETCH_ASSOC);
+
+if ($rosterTeam) {
+    $tid = (int) $rosterTeam['id'];
+    $admin51 = findUser($pdo, 51, 'club_admin');
+
+    if ($admin51) {
+        $aTok = token($pdo, $admin51, 51);
+        foreach (['athletes', 'crew'] as $flavour) {
+            $res = getCsv($base, "/api/roster-export.php?team_id={$tid}&include={$flavour}", $aTok);
+            check("club admin downloads team {$tid} ({$flavour})", $res, 200);
+            if ($res['code'] === 200) {
+                $head = strtolower($res['head']);
+                $isCsv = str_contains($head, 'text/csv');
+                $isAttachment = str_contains($head, 'content-disposition: attachment');
+                $firstLine = strtok(ltrim($res['body'], "\xEF\xBB\xBF"), "\n");
+                $hasCrewCols = str_contains((string) $firstLine, 'Crew 1 Name');
+
+                check("  ...as a CSV attachment ({$flavour})",
+                    ['code' => $isCsv && $isAttachment ? 200 : 500, 'body' => $res['head'], 'json' => null, 'error' => ''], 200);
+                check("  ...with the roster header row ({$flavour})",
+                    ['code' => str_starts_with((string) $firstLine, 'Jersey #,Last Name,First Name,Date of Birth,Age') ? 200 : 500,
+                     'body' => (string) $firstLine, 'json' => null, 'error' => ''], 200);
+                // The whole point of the two flavours: athletes-only must carry
+                // no crew columns, and crew must carry them.
+                check("  ...crew columns " . ($flavour === 'crew' ? 'present' : 'absent') . " ({$flavour})",
+                    ['code' => ($hasCrewCols === ($flavour === 'crew')) ? 200 : 500,
+                     'body' => (string) $firstLine, 'json' => null, 'error' => ''], 200);
+            }
+        }
+    } else {
+        echo "  - no club_admin in club 51 to test with\n";
+    }
+
+    // A parent of a child on this very team can SEE the roster on screen and
+    // must not be able to download it.
+    $parent51 = findUser($pdo, 51, 'parent');
+    if ($parent51) {
+        check('parent is refused the roster download',
+            getCsv($base, "/api/roster-export.php?team_id={$tid}&include=crew", token($pdo, $parent51, 51)), [401, 403]);
+    }
+
+    // A coach is scoped per team, not per club.
+    $coach51 = findUser($pdo, 51, 'coach');
+    if ($coach51) {
+        check('coach gets a definite answer (200 own team / 403 not theirs)',
+            getCsv($base, "/api/roster-export.php?team_id={$tid}&include=athletes", token($pdo, $coach51, 51)), [200, 403]);
+    }
+
+    // An unknown flavour must be refused, not silently downgraded — the
+    // difference decides whether families' contact details leave the building.
+    if (!empty($aTok)) {
+        check('an unrecognised include= is refused',
+            getCsv($base, "/api/roster-export.php?team_id={$tid}&include=everything", $aTok), 400);
+        check('a missing team_id is refused',
+            getCsv($base, '/api/roster-export.php?include=athletes', $aTok), 400);
+    }
+} else {
+    echo "  - no club 51 team with players to test with\n";
 }
 
 // ── Public surface ───────────────────────────────────────────────────────────

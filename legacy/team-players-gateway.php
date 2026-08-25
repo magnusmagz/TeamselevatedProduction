@@ -8,6 +8,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/team_roster_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -53,34 +54,22 @@ function tpg_requireAuth() {
 function tpg_requireTeamAccess($pdo, $auth, $teamId) {
     $teamId = (int)$teamId;
 
-    $stmt = $pdo->prepare("SELECT club_id FROM teams WHERE id = ?");
-    $stmt->execute([$teamId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$row) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Team not found']);
-        exit;
+    // The predicate itself lives in lib/team_roster_scope.php so the roster
+    // download (api/roster-export.php) gates on the SAME rule. Do not
+    // re-implement it here — an export that disagreed with the edit gate is
+    // exactly the drift that predicate exists to prevent.
+    switch (te_team_roster_staff_standing($pdo, $auth, $teamId)) {
+        case TE_TEAM_ROSTER_OK:
+            return $teamId;
+        case TE_TEAM_ROSTER_NOT_FOUND:
+            http_response_code(404);
+            echo json_encode(['error' => 'Team not found']);
+            exit;
+        default:
+            http_response_code(403);
+            echo json_encode(['error' => 'You do not have permission to edit this team\'s roster']);
+            exit;
     }
-
-    $clubId = $row['club_id'] !== null ? (int)$row['club_id'] : null;
-
-    if ($auth->isSuperAdmin()) {
-        return $teamId;
-    }
-    if ($clubId !== null && $auth->hasRole('club_admin', $clubId, 'club')) {
-        return $teamId;
-    }
-
-    $userId = (int)$auth->getUserId();
-    $coachTeamIds = AthleteScope::coachTeamIdsForUser($pdo, $userId);
-    if (in_array($teamId, $coachTeamIds, true)) {
-        return $teamId;
-    }
-
-    http_response_code(403);
-    echo json_encode(['error' => 'You do not have permission to edit this team\'s roster']);
-    exit;
 }
 
 /**

@@ -4,6 +4,7 @@ import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
 import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
+import RosterDownloadButton from './RosterDownloadButton';
 
 interface Team {
   id: number;
@@ -587,12 +588,15 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
           </h2>
           <p className="text-gray-600 mt-2">{roster.length} players total</p>
         </div>
-        <Link
-          to={`/teams/${team.id}/player-cards`}
-          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
-        >
-          Player Cards
-        </Link>
+        <div className="flex items-center gap-4">
+          <RosterDownloadButton teamId={team.id} />
+          <Link
+            to={`/teams/${team.id}/player-cards`}
+            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
+          >
+            Player Cards
+          </Link>
+        </div>
       </div>
 
       {loading ? (

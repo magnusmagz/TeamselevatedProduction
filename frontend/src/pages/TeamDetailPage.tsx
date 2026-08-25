@@ -2,6 +2,7 @@ import React from 'react';
 import { ageGroup } from '../utils/ageGroup';
 import { useParams, Link } from 'react-router-dom';
 import TeamFormWithTabs from '../components/TeamFormWithTabs';
+import RosterDownloadButton from '../components/RosterDownloadButton';
 
 interface Team {
   id: number;
@@ -505,12 +506,15 @@ export const TeamDetailPage: React.FC = () => {
           <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">
             Roster ({players.length})
           </h2>
-          <Link
-            to={`/teams/${teamId}/roster`}
-            className="text-sm text-brand-primary hover:underline uppercase font-medium"
-          >
-            Manage Roster
-          </Link>
+          <div className="flex items-center gap-4">
+            <RosterDownloadButton teamId={teamId || ''} />
+            <Link
+              to={`/teams/${teamId}/roster`}
+              className="text-sm text-brand-primary hover:underline uppercase font-medium"
+            >
+              Manage Roster
+            </Link>
+          </div>
         </div>
 
         {players.length === 0 ? (

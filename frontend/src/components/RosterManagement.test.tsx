@@ -6,6 +6,17 @@ import RosterManagement from './RosterManagement';
 
 jest.mock('./AthletePhotoUpload', () => () => null);
 
+// RosterManagement now renders RosterDownloadButton, which reads the signed-in
+// user's roles from AuthContext. This suite renders the component without an
+// AuthProvider, so supply the hook rather than the whole provider tree — the
+// download control has its own suite (RosterDownloadButton.test.tsx).
+jest.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 1, email: 'coach@club.test', name: 'Coach', roles: [{ role: 'coach' }] },
+    isLoading: false,
+  }),
+}));
+
 const team = { id: 5, name: 'U12 Blue', age_group: 'U12' };
 
 // id 4 is already on THIS team, so it comes back in the roster fetch and must be

@@ -424,6 +424,48 @@ Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateway
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
 
+### Roster download is STAFF-gated — `lib/team_roster_scope.php` (2026-08-25)
+`api/roster-export.php` streams a team's roster as CSV in two flavours:
+`?include=athletes` (jersey #, name, DOB, age, position, status) and
+`?include=crew` (the same, widened with each athlete's crew — name, relationship,
+email, mobile).
+
+- **It gates on `te_team_roster_staff_standing()`, the predicate that gates roster
+  EDITS, not the wider `tpg_requireTeamViewAccess()` that gates the team page.**
+  A guardian passes the view predicate — correctly, they need to see their child's
+  team — and must not pass this one: the crew flavour is a contact list for the
+  other families on the team, and a downloaded file outlives both the session and
+  the permission. Same shape as `userCanAccessAthlete` vs `staffCanManageAthlete`.
+  `legacy/team-players-gateway.php` now delegates to the same function, so the
+  download and the edit gate cannot drift apart.
+- **The caps are reported, never silent.** 1000 rows and 25 columns (provisional,
+  set 2026-08-25). A CSV is a download — nothing is rendered back to the person who
+  asked — so a file that stops at row 1000 is indistinguishable from a team that
+  has 1000 players. `te_roster_export_truncation_notice()` is the one sentence, and
+  it reaches the audit row, the `X-Roster-Export-Truncated` response header and the
+  UI. 25 columns leaves room for 4 crew groups (7 + 4x4 = 23).
+- **Crew columns are built from the widest family actually on the team**, not a
+  fixed Guardian 1 / Guardian 2 pair. A fixed pair drops the third contact on a
+  blended family with nothing on screen to say so.
+- **`include=` is validated, not defaulted.** An unrecognised value is a 400. The
+  difference between the flavours is whether families' contact details leave the
+  building, so a typo must not decide it.
+- **DOB is emitted as the stored `YYYY-MM-DD` and never parsed**, and age is
+  computed from integer date parts — so this path has no timezone behaviour to get
+  wrong (see the date-only rule above).
+- The CSV opens with a UTF-8 BOM. Without it Excel reads the file as the local
+  codepage and every accented name arrives mangled.
+- The frontend fetches with the bearer token and turns the response into a
+  download (`RosterDownloadButton`). A plain `<a href>` cannot carry an
+  Authorization header — it would save a JSON 401 as a `.csv` that opens empty.
+- ⚠️ `controllers/CoachController@exportRoster` (route `/api/coach/teams/{id}/export`)
+  is an older, unreachable roster CSV whose auth admits neither club admins nor
+  `team_manager` coaches. Nothing in the frontend calls it. Extend
+  `api/roster-export.php`; do not revive that one.
+
+Guarded by `tests/php/RosterExportTest.php`, `RosterDownloadButton.test.tsx`, and a
+staff/parent/coach walk in `scripts/smoke-test.php`.
+
 ### Dual roles: capabilities accumulate, surface is a choice (2026-08-17)
 7 accounts hold two roles in one club (6 `coach+parent`, 1 `club_admin+coach`), and **12
 staff are also guardians** — the larger number, because parent standing is usually derived

@@ -30,6 +30,36 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-25
+
+### Roster download (CSV) — new feature, shipped
+Requested by Maggie · new `api/roster-export.php` · frontend + backend
+
+Coaches and club admins can download a team's roster from the **Team Detail** page and the
+**Manage Roster** page. Two flavours, chosen from one Download control:
+
+| `include=` | Columns |
+|---|---|
+| `athletes` | Jersey #, Last Name, First Name, Date of Birth, Age, Position, Status |
+| `crew` | The above, plus Name / Relationship / Email / Phone per crew member |
+
+- **Caps: 1000 rows, 25 columns** — provisional numbers agreed in the request, all in
+  `TE_ROSTER_EXPORT_MAX_ROWS` / `_MAX_COLUMNS`. 25 columns is 4 crew groups. Anything the cap
+  drops is reported in the audit row, the `X-Roster-Export-Truncated` response header and the
+  UI. Measured against prod at build time: no live team is near either cap.
+- **Staff only**, via the new `lib/team_roster_scope.php`. A guardian on the team can see the
+  roster on screen and cannot download it. `legacy/team-players-gateway.php` was refactored to
+  delegate its edit gate to the same function — no behaviour change, one definition.
+- Every download writes an `audit_log` row (`roster_exported`, action target = the team) with
+  the flavour and row count. Nothing else is written.
+- Pre-existing and unrelated: `SchemaConformanceTest` / `QueriedTablesExistTest` fail on
+  `lib/CanvaClient.php` (`canva_integrations` is not in `production-schema.json`) — another
+  session's in-flight work, untracked at the time of this commit.
+
+Lesson and invariants: `../CLAUDE.md` → "Roster download is STAFF-gated".
+
+---
+
 ## 2026-08-20
 
 ### Schedule Practices scheduled everything one day late — fixed, no data change
