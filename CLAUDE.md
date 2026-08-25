@@ -186,6 +186,28 @@ Every US timezone hits it; it is not intermittent and not data-dependent.
   `event_date` values are untouched, so corrected events stay corrected and any uncorrected
   ones stay wrong until someone edits them.
 
+### ⚠️ The queue worker's DB handle dies overnight — rebuild services, don't just reconnect (2026-08-25)
+Neon's pooler drops idle connections and PDO never notices: the handle stays a perfectly
+ordinary object and every query on it throws `no connection to the server`. The worker
+opened one handle at boot and shared it with all four services for the dyno's life, so a
+quiet night left it dead until Heroku cycled the dyno — 226 consecutive
+`import reconciliation error` lines, and any job enqueued in that window burned three
+retries into `failed_jobs`. One such row from 2026-07-09 proves it had already cost a send.
+
+- `Database::isAlive()` probes with a real `SELECT 1` — there is no flag to read.
+  `Database::ensureConnection()` reopens and **returns true when the handle was replaced**.
+- ⚠️ **That return value is the whole point.** A fresh PDO does nothing for services still
+  holding the old one, so `workers/queue-worker.php` rebuilds all four through
+  `$buildServices()`. **Adding a service to the worker means adding it to that factory** —
+  constructing one at boot means that queue alone keeps using the dead connection after a
+  reconnect, which is worse than the original bug because three queues recover and one
+  silently does not.
+- `connect()` throws instead of `die()`ing so a transient outage cannot exit the dyno; the
+  constructor keeps the 500-and-die path, which is right for a web request.
+- Verified before each job AND in the once-a-minute import sweep — a job may be the first
+  database work in hours. Guarded by `tests/php/WorkerDbReconnectTest.php`, confirmed to
+  fail 7 ways on the pre-fix code.
+
 ---
 
 ## Database

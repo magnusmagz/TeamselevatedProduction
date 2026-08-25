@@ -21,11 +21,46 @@ require_once __DIR__ . '/../services/CalendarSyncService.php';
 echo "[Worker] Starting queue worker...\n";
 
 $queue = RedisQueue::getInstance();
-$db = Database::getInstance()->getConnection();
-$emailService = new EmailSendService($db);
-$smsService = new SmsSendService($db);
-$importProcessor = ImportJobProcessor::buildDefault($db);
-$calendarSyncService = new CalendarSyncService($db);
+$database = Database::getInstance();
+$db = $database->getConnection();
+
+/**
+ * Every service holds the PDO handle it was constructed with. Neon's pooler
+ * drops idle connections, so the boot-time handle dies overnight and PDO never
+ * notices — which is why a quiet night used to leave the worker logging
+ * "no connection to the server" once a minute until the dyno cycled, with any
+ * job enqueued in that window failing three times into failed_jobs.
+ *
+ * Reconnecting is therefore only half the fix: a new PDO object does nothing
+ * for services still pointing at the old one. They must be rebuilt together.
+ */
+$buildServices = function (PDO $db) {
+    return [
+        'email'    => new EmailSendService($db),
+        'sms'      => new SmsSendService($db),
+        'import'   => ImportJobProcessor::buildDefault($db),
+        'calendar' => new CalendarSyncService($db),
+    ];
+};
+
+$services = $buildServices($db);
+
+/**
+ * Call before ANY database work. Cheap when the connection is healthy (one
+ * SELECT 1); rebuilds $db and every service when it is not.
+ *
+ * Throws PDOException if the database is genuinely unreachable. That is
+ * deliberate: at the job site the existing catch turns it into a normal retry
+ * with backoff, which is what should happen during a brief outage.
+ */
+$ensureDb = function () use ($database, $buildServices, &$db, &$services) {
+    if ($database->ensureConnection()) {
+        $db = $database->getConnection();
+        $services = $buildServices($db);
+        echo "[Worker] Database connection had dropped — reconnected, services rebuilt\n";
+        error_log('[Worker] Neon connection was dead and has been re-established');
+    }
+};
 
 $queues = ['email_queue', 'sms_queue', 'import_queue', 'calendar_sync_queue'];
 
@@ -64,6 +99,7 @@ while ($running) {
         if (time() - $lastImportSweep > 60) {
             $lastImportSweep = time();
             try {
+                $ensureDb();
                 $stuck = $db->query(
                     "SELECT id FROM import_jobs
                      WHERE status = 'queued' AND started_at IS NULL
@@ -72,7 +108,7 @@ while ($running) {
                 )->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($stuck as $stuckId) {
                     echo "[Worker] Recovering orphaned import job {$stuckId}\n";
-                    $importProcessor->processJob(['job_id' => (int) $stuckId]);
+                    $services['import']->processJob(['job_id' => (int) $stuckId]);
                 }
             } catch (Exception $e) {
                 error_log("[Worker] import reconciliation error: " . $e->getMessage());
@@ -91,15 +127,20 @@ while ($running) {
 
         echo "[Worker] Processing job {$payload['id']} from {$fromQueue} (attempt {$payload['attempts']})\n";
 
+        // A job may be the first database work in hours. Verify the handle before
+        // handing it to a service, or the send fails on a dead connection and
+        // burns a retry attempt for a reason that has nothing to do with the job.
+        $ensureDb();
+
         // Dispatch to the appropriate service
         if ($fromQueue === 'email_queue') {
-            $emailService->processJob($payload);
+            $services['email']->processJob($payload);
         } elseif ($fromQueue === 'sms_queue') {
-            $smsService->processJob($payload);
+            $services['sms']->processJob($payload);
         } elseif ($fromQueue === 'import_queue') {
-            $importProcessor->processJob($payload);
+            $services['import']->processJob($payload);
         } elseif ($fromQueue === 'calendar_sync_queue') {
-            $calendarSyncService->syncSubscription($payload['subscription_id']);
+            $services['calendar']->syncSubscription($payload['subscription_id']);
         } else {
             echo "[Worker] Unknown queue: {$fromQueue}, skipping\n";
             continue;
