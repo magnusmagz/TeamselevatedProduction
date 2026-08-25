@@ -370,12 +370,17 @@ if ($rosterTeam) {
                 $isCsv = str_contains($head, 'text/csv');
                 $isAttachment = str_contains($head, 'content-disposition: attachment');
                 $firstLine = strtok(ltrim($res['body'], "\xEF\xBB\xBF"), "\n");
-                $hasCrewCols = str_contains((string) $firstLine, 'Crew 1 Name');
+                $hasCrewCols = in_array('Crew 1 Name', str_getcsv((string) $firstLine), true);
 
                 check("  ...as a CSV attachment ({$flavour})",
                     ['code' => $isCsv && $isAttachment ? 200 : 500, 'body' => $res['head'], 'json' => null, 'error' => ''], 200);
+                // Parse the row rather than string-matching it: PHP 8.5 quotes
+                // fields containing a space ("Jersey #") where 8.4 did not, so a
+                // literal comparison fails on a perfectly good file.
+                $cols = str_getcsv((string) $firstLine);
+                $wanted = ['Jersey #', 'Last Name', 'First Name', 'Date of Birth', 'Age', 'Position', 'Status'];
                 check("  ...with the roster header row ({$flavour})",
-                    ['code' => str_starts_with((string) $firstLine, 'Jersey #,Last Name,First Name,Date of Birth,Age') ? 200 : 500,
+                    ['code' => array_slice($cols, 0, 7) === $wanted ? 200 : 500,
                      'body' => (string) $firstLine, 'json' => null, 'error' => ''], 200);
                 // The whole point of the two flavours: athletes-only must carry
                 // no crew columns, and crew must carry them.
