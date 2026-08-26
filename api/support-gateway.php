@@ -134,6 +134,11 @@ function handleCreateTicket($db): void
 
     $device = is_array($input['device_info'] ?? null) ? $input['device_info'] : [];
     $device['server_time'] = gmdate('c');
+    // Same redaction as the trail. `route` is a URL like any other, and
+    // /reset-password?token=… is reachable from the report button.
+    if (!empty($device['route']) && is_string($device['route'])) {
+        $device['route'] = te_support_redact_url($device['route']);
+    }
 
     $attachment = null;
     if (!empty($input['screenshot'])) {
@@ -146,13 +151,21 @@ function handleCreateTicket($db): void
         }
     }
 
+    // Resolved from the database against the token's user, never from the body.
+    // A role in a request body is a claim; the whole point of putting it on the
+    // ticket is that it is not one.
+    $roles = te_support_reporter_roles($db, $reporter['user_id'], $reporter['club_id']);
+    $rolesSummary = te_support_roles_summary($roles, $reporter['user_id'] !== null);
+
+    $pageTrail = te_support_sanitize_page_trail($input['page_history'] ?? null);
+
     $db->beginTransaction();
     try {
         $stmt = $db->prepare('
             INSERT INTO support_tickets
                 (user_id, club_id, reporter_name, reporter_email, description,
-                 page_url, device_info, ip_address)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 page_url, device_info, ip_address, reporter_roles, page_trail)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id
         ');
         $stmt->execute([
@@ -161,9 +174,11 @@ function handleCreateTicket($db): void
             $name,
             $email,
             $description,
-            substr((string) ($input['page_url'] ?? ''), 0, 500) ?: null,
+            te_support_redact_url((string) ($input['page_url'] ?? '')) ?: null,
             json_encode($device),
             $ip,
+            $rolesSummary,
+            $pageTrail ? json_encode($pageTrail) : null,
         ]);
         $ticketId = (int) $stmt->fetchColumn();
 
@@ -211,8 +226,10 @@ function handleCreateTicket($db): void
         'reporter_email' => $email,
         'club_name'      => $clubName,
         'description'    => $description,
-        'page_url'       => $input['page_url'] ?? null,
+        'page_url'       => te_support_redact_url((string) ($input['page_url'] ?? '')) ?: null,
         'device_summary' => te_support_device_summary($device),
+        'roles_summary'  => $rolesSummary,
+        'page_trail_text' => te_support_format_page_trail($pageTrail),
     ], $screenshotUrl));
 
     echo json_encode(['success' => true, 'ticket_id' => $ticketId]);

@@ -22,13 +22,20 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    `api/payment-*`, `api/checkout-sessions.php`, `api/contribute*.php`,
    `api/webhooks/stripe-connect.php` from other sessions. See auto-memory
    `project-payment-processor-decision.md` and `docs/payments-stripe-implementation-plan.md`.
-2. **Migration numbers**: 041–051 are taken, with COLLISIONS at 044 (payment_allocations /
+2. **Support ticketing (role + page trail)** lives on branch
+   `feature/support-ticket-context` in the worktree
+   `/Users/maggiemae_1/TeamsElevated/te-support-context/`. Migration **075 is applied to
+   Neon**; the code is not yet deployed. Do support-ticket work THERE, not in the main
+   checkout — on 2026-08-26 a `git commit -a` from another session swept an in-progress
+   `App.tsx` edit into its commit, leaving that branch importing a module that only
+   existed in a third working tree. **A shared working tree is not a lane; a worktree is.**
+3. **Migration numbers**: 041–051 are taken, with COLLISIONS at 044 (payment_allocations /
    program_participant_type), 045 (codify_audit_log / event_recurrence), 047 (stripe_payouts /
    venues_club_id), and 046
    (contribution_links / comms_tables_baseline / series_invites) — three sessions numbering
    independently. All are applied; filenames differ so nothing clobbers. **Claim the next number
-   by checking `ls database/migrations/ | sort` in BOTH the main checkout and the
-   te-stripe-payments worktree before creating one.** Next free as of 2026-07-30: **059**
+   by checking `ls database/migrations/ | sort` in EVERY checkout — the main one and the
+   te-stripe-payments / te-support-context worktrees — before creating one.** Next free as of 2026-07-30: **059**
    (048–056 taken: athlete_gender_nullable, club_logo_png,
    emergency_contact_authorize_medical, athlete_medical, program_season_fields,
    users_tos_acceptance, athlete_jersey_size, registration_jersey_size_field,
@@ -37,8 +44,18 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
    **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
    **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
-   Next free number is therefore **064**.
-3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
+   **064–075** are taken (sms_inbox_capture, sms_suppression_unique, thread_existing_sms,
+   remove_athlete_accounts, support_tickets, canva_integration, athlete_guardians_audit,
+   guardian_email_case_index, user_guardians, chat_notifications, chat_moderation_alerts,
+   support_ticket_role_and_trail), and **076** (`push_subscriptions`) is claimed by the chat
+   notifications session. **075 applied to Neon 2026-08-26.**
+   ⚠️ **069 (`canva_integration`) is NOT applied** — `canva_integrations` is absent from both
+   live Neon and the schema fixture, which is why `SchemaConformanceTest` and
+   `QueriedTablesExistTest` fail on `lib/CanvaClient.php` in a checkout that has that file.
+   Those failures are pre-existing and unrelated to whatever you are changing; do not "fix"
+   them by editing the fixture. Applying the migration is the fix.
+   Next free number is therefore **077**.
+4. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
 
@@ -70,7 +87,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    push. If something genuinely must not ship yet, keep it off `main`, not merely unpushed.
 
    `eit-crm.netlify.app` is a stale April 2026 site, NOT production. Do not deploy to it.
-4. **Stripe webhook endpoint** (`we_1TqHljRuWVRricRVa8loa9WV`) is subscribed to: account.updated,
+5. **Stripe webhook endpoint** (`we_1TqHljRuWVRricRVa8loa9WV`) is subscribed to: account.updated,
    checkout.session.completed, charge.refunded, payout.paid, payout.failed. Update via API, not
    the dashboard, and keep this list current.
 
@@ -423,6 +440,30 @@ inside the gateway, the way `staffCanManageAthlete` splits the athlete one.
 Guarded by `tests/php/AthleteWriteScopeTest.php`, which also parses both gateways and asserts the
 write handlers call the stricter predicate — the bug was never in the predicate, it was in which
 one got called.
+
+### Support tickets carry the reporter's role and their last 5 pages (2026-08-26)
+Added to the lite support feature (migration 075). `SCOPE-Support-Tickets.md` has the full
+reasoning; the two rules that bite:
+
+- **The role is resolved from the DATABASE against the token's user, never from the request
+  body** — `support-gateway.php?action=create` is deliberately reachable unauthenticated, so
+  anything in the body is a claim. `te_support_reporter_roles()` lists **every** role rather
+  than the most privileged one: `lib/JWT.php` collapses a dual-role user because the nav can
+  only show one app, and support is the opposite problem — which surface a coach-parent was
+  looking at is usually the question. Guardian-derived parent standing is reported separately
+  as `parent (via guardian record)`, `LOWER()` on both sides. `no roles assigned` is a real
+  answer, distinct from `not signed in`.
+- ⚠️ **A page trail is redacted on BOTH sides, and the server's copy is the one that counts.**
+  `/reset-password?token=…` and `/verify-magic-link?token=…` carry a live credential and
+  `/contribute/<token>` puts one in the path; a support trail is read by more people, for
+  longer, than a session is ever meant to be. `te_support_redact_url()` also now covers
+  `page_url` and `device_info.route`, which stored raw URLs before. Harmless query keys survive
+  deliberately — which filter someone was on is frequently the bug itself.
+
+Recorded client-side in `frontend/src/components/support/pageHistory.ts` from one `useEffect`
+in `AppContent`, in **sessionStorage** so a crash-and-reload — the case most worth capturing —
+keeps the steps that led to it. Six entries are kept and five are sent: the newest is the page
+they are on, which is already the ticket's `page_url`.
 
 ### Roster download is STAFF-gated — `lib/team_roster_scope.php` (2026-08-25)
 `api/roster-export.php` streams a team's roster as CSV in two flavours:

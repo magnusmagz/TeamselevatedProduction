@@ -88,6 +88,9 @@ if (!function_exists('te_slack_configured')) {
 
         $fields = [
             ['type' => 'mrkdwn', 'text' => "*From*\n" . $who],
+            // Always present, including the empty answers. "no roles assigned"
+            // is a diagnosis; a missing Role field just looks like an omission.
+            ['type' => 'mrkdwn', 'text' => "*Role*\n" . (($t['roles_summary'] ?? '') ?: '—')],
             ['type' => 'mrkdwn', 'text' => "*Club*\n" . (($t['club_name'] ?? '') ?: '—')],
         ];
         if (!empty($t['page_url'])) {
@@ -108,6 +111,18 @@ if (!function_exists('te_slack_configured')) {
             ],
             ['type' => 'section', 'fields' => $fields],
         ];
+
+        // The walk up to the problem, oldest first. Its own block rather than a
+        // field: fields render in two columns and truncate, and a path is long.
+        if (!empty($t['page_trail_text'])) {
+            $blocks[] = [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => "*Pages before this one*\n" . $t['page_trail_text'],
+                ],
+            ];
+        }
 
         if ($screenshotUrl) {
             $blocks[] = [
