@@ -45,15 +45,23 @@ require_once __DIR__ . '/../config/database.php';
 const TE_CHAT_NOTIFY_QUIET_MINUTES = 5;
 
 /**
- * How long a PUSH waits. Deliberately much shorter.
+ * How long a PUSH waits: nothing.
  *
- * A push is the channel people expect to feel immediate — five minutes late is
- * indistinguishable from broken. But it is not zero either: a coach firing off
- * six messages in a row would otherwise be six buzzes, which is how people learn
- * to mute. One minute collapses a burst while still arriving while the
- * conversation is live.
+ * Chat has to feel immediate, and anything that reads as a delay reads as
+ * broken. Set to 0 with Maggie 2026-08-26 after a 1-minute window still felt
+ * slow in testing.
+ *
+ * ⚠️ **With this at zero the DISPATCH TICK is the floor, not this constant.**
+ * The worker notices messages on a timer, so push latency is
+ * 0..TE_CHAT_NOTIFY_TICK_SECONDS. Making push faster means shortening that tick,
+ * not this. Truly instant needs the chat server to send the push itself at
+ * message time rather than a worker noticing afterwards — see the scope doc.
+ *
+ * Not collapsing bursts is deliberate (Maggie, 2026-08-26): every message
+ * alerts, matching iMessage and WhatsApp. That is what `renotify: true` in the
+ * service worker is for.
  */
-const TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES = 1;
+const TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES = 0;
 
 /** Nothing older than this is ever a candidate. See the note above — this is the guard. */
 const TE_CHAT_NOTIFY_LOOKBACK_MINUTES = 60;

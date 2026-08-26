@@ -238,6 +238,21 @@ Then:
 - **One digest per conversation per window**, never one per message.
 - **~5 minute email delay**, so an active back-and-forth never emails
   mid-exchange.
+- **Push waits for nothing** (`TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES = 0`, set
+  2026-08-26). Chat has to feel immediate; anything that reads as a delay reads
+  as broken.
+  ⚠️ **The DISPATCH TICK is therefore the floor on push latency**, not the quiet
+  period — `TE_CHAT_NOTIFY_TICK_SECONDS = 10`, so a push lands in 0-10s.
+  Shortening that constant is what makes push faster. **Truly instant needs the
+  chat server to send the push itself at message time** rather than a worker
+  noticing afterwards; that is the real fix and is NOT built — it needs a push
+  library in `chat-server/`, the VAPID keys shared to that app, and its own
+  subtree deploy.
+  Moderation alerts stay on a separate 60s throttle: that sweep does more work
+  per pass and none of it is latency-sensitive.
+- **Bursts are NOT collapsed** — every message alerts, matching iMessage and
+  WhatsApp (Maggie, 2026-08-26). `renotify: true` in the service worker is what
+  does that. Considered and rejected; do not "improve" it back.
 - **Push collapsed over a shorter window** — `TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES`
   is **1 minute**, against 5 for email. Shorter than the email window, not zero.
   ⚠️ Shipped 2026-08-26 resolving BOTH channels from one call, so push inherited

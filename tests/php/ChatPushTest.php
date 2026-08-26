@@ -257,10 +257,17 @@ class ChatPushTest extends TestCase
         $this->assertSame([], $emails);
     }
 
-    /** Inside the push window too, nothing goes at all — it is short, not zero. */
-    public function testAVeryFreshMessageDoesNotEvenPush(): void
+    /**
+     * A brand-new message pushes immediately — chat has to feel immediate, and
+     * anything that reads as a delay reads as broken (Maggie, 2026-08-26).
+     *
+     * Bursts are deliberately NOT collapsed: every message alerts, matching
+     * iMessage and WhatsApp. Also confirms the email pass is not dragged along
+     * with it — the fallback keeps its own 5-minute window.
+     */
+    public function testABrandNewMessagePushesImmediately(): void
     {
-        // 30 seconds old: inside the 1-minute push window.
+        // 30 seconds old.
         $this->pdo->exec("UPDATE chat_messages SET created_at = '2026-08-26 11:59:30' WHERE id = 1");
 
         $result = te_chat_dispatch_notifications($this->pdo, [
@@ -269,8 +276,27 @@ class ChatPushTest extends TestCase
             'pusher' => fn() => ['delivered' => 1, 'pruned' => 0, 'failed' => 0],
         ]);
 
-        $this->assertSame(0, $result['pushed'], 'A burst must collapse — six messages is not six buzzes.');
-        $this->assertSame(0, $result['sent']);
+        $this->assertSame(1, $result['pushed'], 'Push waits for nothing.');
+        $this->assertSame(0, $result['sent'], 'Email still holds its own window.');
+    }
+
+    /**
+     * The push quiet period is zero, so the DISPATCH TICK is what actually
+     * bounds latency. If someone raises the quiet period again to "collapse
+     * bursts", this fails and says why that was decided against.
+     */
+    public function testThePushQuietPeriodIsZero(): void
+    {
+        $this->assertSame(
+            0,
+            TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES,
+            'Push must not wait. Burst collapsing was considered and rejected — every message alerts.'
+        );
+        $this->assertGreaterThan(
+            TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES,
+            TE_CHAT_NOTIFY_QUIET_MINUTES,
+            'Email must still wait longer than push, or it stops being the fallback.'
+        );
     }
 
     /**

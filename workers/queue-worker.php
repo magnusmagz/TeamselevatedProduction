@@ -77,7 +77,28 @@ $lastImportSweep = 0;
 // scheduler process hits the cost wall that keeps calendar-sync-scheduler and
 // waitlist-expiry-scheduler switched off.
 $lastChatNotifySweep = 0;
-const TE_CHAT_NOTIFY_TICK_SECONDS = 60;
+$lastModAlertSweep = 0;
+
+/**
+ * How often we look for chat messages to notify about.
+ *
+ * ⚠️ **This is the floor on push latency**, not the quiet period, which is now
+ * zero. A push lands somewhere in 0..10s. Shortening this is what makes push
+ * faster; truly instant needs the chat server to send it at message time
+ * instead of a worker noticing afterwards.
+ *
+ * The query behind it is one indexed read over a short window, so 10s is cheap.
+ */
+const TE_CHAT_NOTIFY_TICK_SECONDS = 10;
+
+/**
+ * Moderation alerts stay on the slower cadence deliberately.
+ *
+ * That sweep does more work per pass (reports, then club admins per report) and
+ * none of it is latency-sensitive — a flag reviewed 60 seconds later is no worse
+ * than 10. Only chat notifications needed to get faster.
+ */
+const TE_CHAT_MOD_TICK_SECONDS = 60;
 
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
@@ -151,10 +172,13 @@ while ($running) {
                 error_log('[Worker] chat notification sweep error: ' . $e->getMessage());
             }
 
-            // Moderation alerts ride the same tick but are caught SEPARATELY.
-            // Sharing one catch would mean a failure in the family-facing digests
-            // silently skips the child-safety alerts, which is the wrong thing to
-            // couple together.
+        }
+
+        // Moderation alerts: their own throttle AND their own catch. Sharing a
+        // catch would mean a failure in the family-facing digests silently skips
+        // the child-safety alerts, which is the wrong thing to couple together.
+        if (time() - $lastModAlertSweep > TE_CHAT_MOD_TICK_SECONDS) {
+            $lastModAlertSweep = time();
             try {
                 $ensureDb();
                 $modAlerts = te_chat_dispatch_moderation_alerts($db);
