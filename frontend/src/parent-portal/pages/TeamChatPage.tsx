@@ -5,6 +5,7 @@ import ConversationList from '../../components/chat/ConversationList';
 import NewConversationDialog from '../../components/chat/NewConversationDialog';
 import ReportMessageButton from '../../components/chat/ReportMessageButton';
 import { ParentHeader } from '../components/ParentHeader';
+import { sameUser } from '../../components/chat/sameUser';
 
 export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -214,7 +215,7 @@ export const TeamChatPage: React.FC = () => {
           {messages.length > 0 && (
             <div className="space-y-4">
               {messages.map((message) => {
-                const isOwnMessage = message.senderId === user?.id;
+                const isOwnMessage = sameUser(message.senderId, user?.id);
 
                 // Removed by an admin: a tombstone, not a gap. The server nulls
                 // the text, so without this branch crew would see a blank bubble.

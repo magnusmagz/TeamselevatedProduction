@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useOrg } from '../../contexts/OrgContext';
 import { connectChat, chatSocket } from './chatSocket';
 import type { Conversation, ChatMessage, TypingUser, ChatUser } from './types';
+import { sameUser } from './sameUser';
 
 interface UseChatReturn {
   conversations: Conversation[];
@@ -120,7 +121,7 @@ export function useChat(): UseChatReturn {
           const tempIdx = prev.findIndex(
             m =>
               m.pending &&
-              m.senderId === msg.senderId &&
+              sameUser(m.senderId, msg.senderId) &&
               m.conversationId === msg.conversationId &&
               m.text === msg.text
           );

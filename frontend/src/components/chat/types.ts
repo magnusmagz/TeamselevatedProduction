@@ -26,7 +26,11 @@ export interface ChatMessage {
   conversationId: number;
   text: string;
   sender: string;
-  senderId: number;
+  // ⚠️ STRING at runtime, despite what you'd expect. lib/JWT.php mints the
+  // user_id claim as (string)$userId and the chat server echoes it unchanged.
+  // Declaring this `number` is what let "75" === 75 hide from the compiler and
+  // ship two visible bugs. Compare with sameUser(), never with ===.
+  senderId: string | number;
   timestamp: string;
   time?: string;
   role?: string;
