@@ -54,6 +54,11 @@ class ChatNotificationDispatcherTest extends TestCase
                                         created_at TEXT, updated_at TEXT, UNIQUE (user_id, conversation_id));
             CREATE TABLE chat_notification_prefs (user_id INTEGER PRIMARY KEY, email_enabled INTEGER DEFAULT 1,
                                         push_enabled INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
+            CREATE TABLE push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+                                        endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL,
+                                        user_agent TEXT, created_at TEXT, last_used_at TEXT, UNIQUE (endpoint));
+            CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT,
+                                        title TEXT, message TEXT, data TEXT, read_at TEXT, created_at TEXT);
         ");
 
         // Coach 1 (staff in club 51) and parent 2 (guardian of athlete 100) on team 10.
@@ -238,8 +243,20 @@ class ChatNotificationDispatcherTest extends TestCase
         $result = $this->dispatch();
 
         $this->assertSame(1, $result['sent'], 'The parent is still notified.');
-        $this->assertSame(0, $result['failed'], 'No address is an ordinary skip, not an error to log every minute.');
-        $this->assertSame(1, $result['skipped'], 'The addressless assistant coach is skipped.');
+        $this->assertSame(0, $result['failed'], 'No address is an ordinary outcome, not an error to log every minute.');
+
+        // Since the notification centre landed (phase 5) this is no longer a
+        // silent skip: they are told IN THE APP, which also closes the item so
+        // the dispatcher does not re-derive it as owed on every tick forever.
+        $this->assertSame(1, $result['in_app'], 'The addressless assistant coach is told in-app.');
+        $this->assertSame(0, $result['skipped']);
+
+        // BOTH get a centre row — the emailed parent and the addressless coach.
+        // The centre is the record of what the product told someone, not a
+        // consolation prize for the people no channel could reach.
+        $recorded = $this->pdo->query('SELECT user_id, type FROM notifications ORDER BY user_id')->fetchAll();
+        $this->assertSame([2, 3], array_map(fn($r) => (int) $r['user_id'], $recorded));
+        $this->assertSame(['chat_message', 'chat_message'], array_column($recorded, 'type'));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

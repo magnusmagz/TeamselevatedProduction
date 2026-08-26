@@ -244,7 +244,10 @@ function te_chat_mark_notified(
     string $channel,
     ?string $at = null
 ): void {
-    if (!in_array($channel, ['email', 'push'], true)) {
+    // 'in_app' joined the list with the notification centre (migration 077): a
+    // person with no address and no device is still told, in the app, and that
+    // has to close the item or the dispatcher re-derives it as owed every tick.
+    if (!in_array($channel, ['email', 'push', 'in_app'], true)) {
         throw new InvalidArgumentException("Unknown notification channel: {$channel}");
     }
 

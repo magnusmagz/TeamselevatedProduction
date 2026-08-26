@@ -152,6 +152,21 @@ and timing. Engineering cannot absorb it as a checkbox.
 
 **5. In-app notification centre** using the currently-dead `notifications` table.
 
+**5a. No notification bell — decided 2026-08-26.** A bell was built and then
+removed. Maggie's question was the right one: staff already see unread chat in
+the `ChatWidget` bubble, families in the parent portal's bottom nav, and admins
+got a Reported Messages count badge in phase 3. A bell showed the same three
+things a second time.
+
+What survives is server-side and invisible: the dispatcher writes one
+`notifications` row per notification it closes, and `api/notifications.php` can
+read them back. That is worth keeping for one concrete reason — a person with no
+email address and no push device has to be marked as told, or the dispatcher
+re-derives them as owed on every tick forever. `in_app` is a real channel in
+`chat_notification_state.last_notified_channel` (migration 077) for exactly that
+case. If a non-chat notification type ever needs a surface, the record is already
+there and the bell can come back.
+
 ---
 
 ## 7. Invariants

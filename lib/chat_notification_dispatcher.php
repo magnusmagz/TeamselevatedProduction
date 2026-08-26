@@ -27,6 +27,7 @@
 
 require_once __DIR__ . '/chat_notification_scope.php';
 require_once __DIR__ . '/chat_push.php';
+require_once __DIR__ . '/notification_centre.php';
 require_once __DIR__ . '/Email.php';
 
 /**
@@ -35,13 +36,13 @@ require_once __DIR__ . '/Email.php';
  * @param PDO      $pdo
  * @param array    $opts  passed through to te_chat_pending_notifications, plus
  *                        'mailer' (callable) to substitute the sender in tests
- * @return array{sent:int,pushed:int,failed:int,skipped:int,errors:array}
+ * @return array{sent:int,pushed:int,in_app:int,failed:int,skipped:int,errors:array}
  */
 function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
 {
     $pending = te_chat_pending_notifications($pdo, $opts);
 
-    $result = ['sent' => 0, 'pushed' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
+    $result = ['sent' => 0, 'pushed' => 0, 'in_app' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
 
     // The mailer is injectable so the dispatcher can be tested without reaching
     // SendGrid. Production passes nothing and gets the real transactional path.
@@ -87,6 +88,7 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
                 ]);
 
                 if (($push['delivered'] ?? 0) > 0) {
+                    te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
                     te_chat_mark_notified(
                         $pdo,
                         $item['user_id'],
@@ -104,14 +106,28 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
                 // what the fallback is for.
             }
 
+            // Nothing can leave the building for this person — no address, or
+            // they turned email off. They are still told, in the app, and that
+            // CLOSES the item: leaving it open would make the dispatcher
+            // re-derive it as owed on every tick forever.
             if (!$item['email_enabled'] || $envelope['to'] === '') {
-                $result['skipped']++;
+                te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
+                te_chat_mark_notified(
+                    $pdo,
+                    $item['user_id'],
+                    $item['conversation_id'],
+                    $item['latest_message_id'],
+                    'in_app',
+                    $opts['now'] ?? null
+                );
+                $result['in_app']++;
                 continue;
             }
 
             $ok = $mailer($envelope);
 
             if ($ok) {
+                te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
                 te_chat_mark_notified(
                     $pdo,
                     $item['user_id'],
@@ -280,4 +296,36 @@ function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): 
     }
 
     return $isStaff ? $appUrl . '/dashboard' : $appUrl . '/parent/chat';
+}
+
+/**
+ * Mirror a delivered notification into the in-app centre.
+ *
+ * Called only when an item is CLOSED, never per attempt — one row per
+ * notification. Writing on every tick would stack duplicates for anyone the
+ * dispatcher keeps re-deriving as owed.
+ *
+ * A failure here must not undo a notification that was genuinely delivered, so
+ * it is logged and swallowed: the person has already had their push or their
+ * email, and throwing would mark the item unsent and send it a second time.
+ */
+function te_chat_record_in_app(PDO $pdo, array $item, array $envelope, ?string $now = null): void
+{
+    try {
+        te_notify_create(
+            $pdo,
+            (int) $item['user_id'],
+            'chat_message',
+            $envelope['conversation_label'],
+            $envelope['push_body'],
+            [
+                'url'             => $envelope['link'],
+                'conversation_id' => (int) $item['conversation_id'],
+                'message_count'   => (int) $item['message_count'],
+            ],
+            $now
+        );
+    } catch (Throwable $e) {
+        error_log('[ChatNotify] in-app record failed: ' . $e->getMessage());
+    }
 }

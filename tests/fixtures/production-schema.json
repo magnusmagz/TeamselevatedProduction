@@ -1269,6 +1269,16 @@
     "season_year",
     "is_recurring"
   ],
+  "push_subscriptions": [
+    "id",
+    "user_id",
+    "endpoint",
+    "p256dh",
+    "auth",
+    "user_agent",
+    "created_at",
+    "last_used_at"
+  ],
   "registrations": [
     "id",
     "program_id",
@@ -1446,7 +1456,9 @@
     "slack_ts",
     "status",
     "created_at",
-    "resolved_at"
+    "resolved_at",
+    "reporter_roles",
+    "page_trail"
   ],
   "team_audit_log": [
     "id",
