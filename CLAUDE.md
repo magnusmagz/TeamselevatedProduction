@@ -44,17 +44,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
    **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
    **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
-   **064–075** are taken (sms_inbox_capture, sms_suppression_unique, thread_existing_sms,
-   remove_athlete_accounts, support_tickets, canva_integration, athlete_guardians_audit,
-   guardian_email_case_index, user_guardians, chat_notifications, chat_moderation_alerts,
-   support_ticket_role_and_trail), and **076** (`push_subscriptions`) is claimed by the chat
-   notifications session. **075 applied to Neon 2026-08-26.**
-   ⚠️ **069 (`canva_integration`) is NOT applied** — `canva_integrations` is absent from both
-   live Neon and the schema fixture, which is why `SchemaConformanceTest` and
-   `QueriedTablesExistTest` fail on `lib/CanvaClient.php` in a checkout that has that file.
-   Those failures are pre-existing and unrelated to whatever you are changing; do not "fix"
-   them by editing the fixture. Applying the migration is the fix.
-   Next free number is therefore **077**.
+   Next free number is therefore **064**.
 4. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
