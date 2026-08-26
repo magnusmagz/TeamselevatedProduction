@@ -26,6 +26,7 @@
  */
 
 require_once __DIR__ . '/chat_notification_scope.php';
+require_once __DIR__ . '/chat_push.php';
 require_once __DIR__ . '/Email.php';
 
 /**
@@ -34,13 +35,13 @@ require_once __DIR__ . '/Email.php';
  * @param PDO      $pdo
  * @param array    $opts  passed through to te_chat_pending_notifications, plus
  *                        'mailer' (callable) to substitute the sender in tests
- * @return array{sent:int,failed:int,skipped:int,errors:array}
+ * @return array{sent:int,pushed:int,failed:int,skipped:int,errors:array}
  */
 function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
 {
     $pending = te_chat_pending_notifications($pdo, $opts);
 
-    $result = ['sent' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
+    $result = ['sent' => 0, 'pushed' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
 
     // The mailer is injectable so the dispatcher can be tested without reaching
     // SendGrid. Production passes nothing and gets the real transactional path.
@@ -56,20 +57,54 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
         );
     };
 
+    $pusher = $opts['pusher'] ?? fn(int $userId, array $payload) => te_push_send_to_user($pdo, $userId, $payload, $opts);
+
     foreach ($pending as $item) {
         // Per item, not per batch. See the warning above — this tick shares a
         // process with every other queue.
         try {
-            if (!$item['email_enabled']) {
-                // Push-only will be a real branch in phase 4. Until it exists,
-                // count it rather than silently dropping it.
+            $envelope = te_chat_build_envelope($pdo, $item);
+
+            if ($envelope === null) {
                 $result['skipped']++;
                 continue;
             }
 
-            $envelope = te_chat_build_envelope($pdo, $item);
+            // ── Push first, email as the fallback ────────────────────────────
+            //
+            // Not both. Someone with the app installed would otherwise get a
+            // buzz AND an email for every message, which is the fastest way to
+            // make them turn all of it off.
+            //
+            // The marker in chat_notification_state is ONE watermark shared by
+            // both channels, so whichever gets there first closes the item.
+            if ($item['push_enabled']) {
+                $push = $pusher($item['user_id'], [
+                    'title' => $envelope['conversation_label'],
+                    'body'  => $envelope['push_body'],
+                    'url'   => $envelope['link'],
+                    'tag'   => 'chat-' . $item['conversation_id'],
+                ]);
 
-            if ($envelope === null) {
+                if (($push['delivered'] ?? 0) > 0) {
+                    te_chat_mark_notified(
+                        $pdo,
+                        $item['user_id'],
+                        $item['conversation_id'],
+                        $item['latest_message_id'],
+                        'push',
+                        $opts['now'] ?? null
+                    );
+                    $result['pushed']++;
+                    continue;
+                }
+
+                // Nothing delivered — no device, or every endpoint was dead and
+                // has just been pruned. Fall through to email, which is exactly
+                // what the fallback is for.
+            }
+
+            if (!$item['email_enabled'] || $envelope['to'] === '') {
                 $result['skipped']++;
                 continue;
             }
@@ -125,9 +160,13 @@ function te_chat_build_envelope(PDO $pdo, array $item): ?array
     $stmt->execute([$item['user_id']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$user || empty($user['email'])) {
+    if (!$user) {
         return null;
     }
+
+    // A missing address is NOT fatal here any more: with web push in the mix a
+    // person may be perfectly reachable without one. The email branch checks it.
+    $address = trim((string) ($user['email'] ?? ''));
 
     $stmt = $pdo->prepare('SELECT id, type, team_id, club_id FROM conversations WHERE id = ?');
     $stmt->execute([$item['conversation_id']]);
@@ -152,8 +191,17 @@ function te_chat_build_envelope(PDO $pdo, array $item): ?array
         $recipientName = 'there';
     }
 
+    $count = (int) $item['message_count'];
+    $senderPhrase = $senderNames ? (' from ' . $senderNames[0] . (count($senderNames) > 1 ? ' and others' : '')) : '';
+
     return [
-        'to'                 => $user['email'],
+        'to'                 => $address,
+        // Deliberately the same shape as the email: sender and count, no message
+        // text. A push notification renders on a lock screen, where the content
+        // is MORE exposed than an inbox, not less.
+        'push_body'          => $count === 1
+            ? 'You have 1 new message' . $senderPhrase . '.'
+            : "You have {$count} new messages" . $senderPhrase . '.',
         'recipient_name'     => $recipientName,
         'conversation_label' => te_chat_conversation_label($pdo, $conversation, (int) $item['user_id']),
         'sender_names'       => $senderNames,

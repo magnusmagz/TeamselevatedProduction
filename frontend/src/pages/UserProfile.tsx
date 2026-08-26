@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import PushNotificationToggle from '../components/PushNotificationToggle';
 
 interface UserProfileData {
   id: number;
@@ -328,6 +329,13 @@ const UserProfile: React.FC = () => {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Notifications. Rendered for staff and families alike — this page serves
+          both routes (/profile and /parent/settings). */}
+      <div className="bg-white border border-brand-secondary rounded-md p-6 mb-6">
+        <h2 className="text-lg font-semibold text-brand-primary mb-4">Notifications</h2>
+        <PushNotificationToggle />
       </div>
 
       {profileData && (
