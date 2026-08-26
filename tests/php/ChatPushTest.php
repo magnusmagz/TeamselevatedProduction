@@ -54,6 +54,8 @@ class ChatPushTest extends TestCase
                                         created_at TEXT, updated_at TEXT, UNIQUE (user_id, conversation_id));
             CREATE TABLE chat_notification_prefs (user_id INTEGER PRIMARY KEY, email_enabled INTEGER DEFAULT 1,
                                         push_enabled INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
+            CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT,
+                                        title TEXT, message TEXT, data TEXT, read_at TEXT, created_at TEXT);
             CREATE TABLE push_subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL,
                 p256dh TEXT NOT NULL, auth TEXT NOT NULL, user_agent TEXT,
@@ -222,6 +224,71 @@ class ChatPushTest extends TestCase
         $this->assertSame(1, $result['pushed']);
         $this->assertSame(0, $result['sent']);
         $this->assertSame([], $emails, 'A buzz AND an email for every message is how people turn it all off.');
+    }
+
+    /**
+     * Push and email do NOT share a delay, and this is the test that says so.
+     *
+     * A push five minutes late reads as broken; an email arriving mid-exchange
+     * is noise. So a message two minutes old is owed to push and NOT yet to
+     * email. Shipped 2026-08-26 resolving both from one call, which left push
+     * waiting the full email delay — not what was agreed.
+     */
+    public function testPushFiresLongBeforeEmailWould(): void
+    {
+        // Two minutes old: past the 1-minute push window, inside the 5-minute email one.
+        $this->pdo->exec("UPDATE chat_messages SET created_at = '2026-08-26 11:58:00' WHERE id = 1");
+
+        $emails = [];
+        $pushes = [];
+
+        $result = te_chat_dispatch_notifications($this->pdo, [
+            'now' => self::NOW,
+            'mailer' => function (array $e) use (&$emails) { $emails[] = $e; return true; },
+            'pusher' => function ($userId, array $payload) use (&$pushes) {
+                $pushes[] = $payload;
+                return ['delivered' => 1, 'pruned' => 0, 'failed' => 0];
+            },
+        ]);
+
+        $this->assertSame(1, $result['pushed'], 'Push must not wait for the email window.');
+        $this->assertSame(0, $result['sent'], 'Email must still be holding at two minutes.');
+        $this->assertCount(1, $pushes);
+        $this->assertSame([], $emails);
+    }
+
+    /** Inside the push window too, nothing goes at all — it is short, not zero. */
+    public function testAVeryFreshMessageDoesNotEvenPush(): void
+    {
+        // 30 seconds old: inside the 1-minute push window.
+        $this->pdo->exec("UPDATE chat_messages SET created_at = '2026-08-26 11:59:30' WHERE id = 1");
+
+        $result = te_chat_dispatch_notifications($this->pdo, [
+            'now' => self::NOW,
+            'mailer' => fn() => true,
+            'pusher' => fn() => ['delivered' => 1, 'pruned' => 0, 'failed' => 0],
+        ]);
+
+        $this->assertSame(0, $result['pushed'], 'A burst must collapse — six messages is not six buzzes.');
+        $this->assertSame(0, $result['sent']);
+    }
+
+    /**
+     * A failed push must NOT let email fire early. The fallback belongs on the
+     * email schedule, not the push one.
+     */
+    public function testAFailedPushDoesNotPullTheEmailForward(): void
+    {
+        $this->pdo->exec("UPDATE chat_messages SET created_at = '2026-08-26 11:58:00' WHERE id = 1");
+
+        $result = te_chat_dispatch_notifications($this->pdo, [
+            'now' => self::NOW,
+            'mailer' => fn() => true,
+            'pusher' => fn() => ['delivered' => 0, 'pruned' => 1, 'failed' => 0],
+        ]);
+
+        $this->assertSame(0, $result['pushed']);
+        $this->assertSame(0, $result['sent'], 'Email still waits its full window; it is not a push retry.');
     }
 
     /** No device, or every device dead — this is exactly what email is for. */

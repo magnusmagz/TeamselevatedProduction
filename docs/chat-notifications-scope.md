@@ -238,7 +238,12 @@ Then:
 - **One digest per conversation per window**, never one per message.
 - **~5 minute email delay**, so an active back-and-forth never emails
   mid-exchange.
-- **Push collapsed over a shorter window** — see the throttle invariant in
-  section 7. Shorter than the email window, not zero.
+- **Push collapsed over a shorter window** — `TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES`
+  is **1 minute**, against 5 for email. Shorter than the email window, not zero.
+  ⚠️ Shipped 2026-08-26 resolving BOTH channels from one call, so push inherited
+  the full 5-minute email delay — not what was agreed. Fixed the same day: the
+  dispatcher now runs two passes, push on the short window and email on the long
+  one, re-resolving between them so the shared watermark still prevents both.
+  Pinned by `testPushFiresLongBeforeEmailWould`.
 
 These are settled. Changing one is a product decision, not a refactor.

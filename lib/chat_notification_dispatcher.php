@@ -40,7 +40,17 @@ require_once __DIR__ . '/Email.php';
  */
 function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
 {
-    $pending = te_chat_pending_notifications($pdo, $opts);
+    // ── The two channels do NOT share a delay ────────────────────────────────
+    //
+    // A push is the channel people expect to feel immediate; five minutes late
+    // reads as broken. An email arriving mid-conversation is noise. So push is
+    // resolved on the short quiet period and email on the long one.
+    //
+    // Shipped 2026-08-26 resolving both from ONE call, which left push waiting
+    // the full email delay — not what was agreed.
+    $pushPending = te_chat_pending_notifications($pdo, array_merge($opts, [
+        'quiet_minutes' => $opts['push_quiet_minutes'] ?? TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES,
+    ]));
 
     $result = ['sent' => 0, 'pushed' => 0, 'in_app' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
 
@@ -60,6 +70,60 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
 
     $pusher = $opts['pusher'] ?? fn(int $userId, array $payload) => te_push_send_to_user($pdo, $userId, $payload, $opts);
 
+    // ── Pass 1: push, on the SHORT window ────────────────────────────────────
+    foreach ($pushPending as $item) {
+        if (!$item['push_enabled']) {
+            continue;
+        }
+
+        try {
+            $envelope = te_chat_build_envelope($pdo, $item);
+            if ($envelope === null) {
+                continue;
+            }
+
+            $push = $pusher($item['user_id'], [
+                'title' => $envelope['conversation_label'],
+                'body'  => $envelope['push_body'],
+                'url'   => $envelope['link'],
+                'tag'   => 'chat-' . $item['conversation_id'],
+            ]);
+
+            if (($push['delivered'] ?? 0) > 0) {
+                te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
+                te_chat_mark_notified(
+                    $pdo,
+                    $item['user_id'],
+                    $item['conversation_id'],
+                    $item['latest_message_id'],
+                    'push',
+                    $opts['now'] ?? null
+                );
+                $result['pushed']++;
+            }
+            // Nothing delivered — no device, or every endpoint was dead and has
+            // just been pruned. Deliberately NOT marked: the email pass picks it
+            // up once the LONGER quiet period has elapsed. The fallback must not
+            // fire early just because push failed early.
+        } catch (Throwable $e) {
+            $result['failed']++;
+            $result['errors'][] = sprintf(
+                'push user %d conversation %d: %s',
+                $item['user_id'] ?? 0,
+                $item['conversation_id'] ?? 0,
+                $e->getMessage()
+            );
+            error_log('[ChatNotify] ' . end($result['errors']));
+        }
+    }
+
+    // ── Pass 2: email, and the in-app last resort, on the FULL window ────────
+    //
+    // Re-resolved AFTER the push pass so anything just pushed is already marked
+    // and no longer reads as owed. That, not an if/else, is what stops one
+    // person getting both.
+    $pending = te_chat_pending_notifications($pdo, $opts);
+
     foreach ($pending as $item) {
         // Per item, not per batch. See the warning above — this tick shares a
         // process with every other queue.
@@ -69,41 +133,6 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
             if ($envelope === null) {
                 $result['skipped']++;
                 continue;
-            }
-
-            // ── Push first, email as the fallback ────────────────────────────
-            //
-            // Not both. Someone with the app installed would otherwise get a
-            // buzz AND an email for every message, which is the fastest way to
-            // make them turn all of it off.
-            //
-            // The marker in chat_notification_state is ONE watermark shared by
-            // both channels, so whichever gets there first closes the item.
-            if ($item['push_enabled']) {
-                $push = $pusher($item['user_id'], [
-                    'title' => $envelope['conversation_label'],
-                    'body'  => $envelope['push_body'],
-                    'url'   => $envelope['link'],
-                    'tag'   => 'chat-' . $item['conversation_id'],
-                ]);
-
-                if (($push['delivered'] ?? 0) > 0) {
-                    te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
-                    te_chat_mark_notified(
-                        $pdo,
-                        $item['user_id'],
-                        $item['conversation_id'],
-                        $item['latest_message_id'],
-                        'push',
-                        $opts['now'] ?? null
-                    );
-                    $result['pushed']++;
-                    continue;
-                }
-
-                // Nothing delivered — no device, or every endpoint was dead and
-                // has just been pruned. Fall through to email, which is exactly
-                // what the fallback is for.
             }
 
             // Nothing can leave the building for this person — no address, or

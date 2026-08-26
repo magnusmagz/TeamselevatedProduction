@@ -38,8 +38,22 @@
 
 require_once __DIR__ . '/../config/database.php';
 
-/** A message must be at least this old before it can trigger a notification. */
+/**
+ * How long an EMAIL waits, so an active back-and-forth is never mailed
+ * mid-exchange. An email that arrives during a live conversation is noise.
+ */
 const TE_CHAT_NOTIFY_QUIET_MINUTES = 5;
+
+/**
+ * How long a PUSH waits. Deliberately much shorter.
+ *
+ * A push is the channel people expect to feel immediate — five minutes late is
+ * indistinguishable from broken. But it is not zero either: a coach firing off
+ * six messages in a row would otherwise be six buzzes, which is how people learn
+ * to mute. One minute collapses a burst while still arriving while the
+ * conversation is live.
+ */
+const TE_CHAT_NOTIFY_PUSH_QUIET_MINUTES = 1;
 
 /** Nothing older than this is ever a candidate. See the note above — this is the guard. */
 const TE_CHAT_NOTIFY_LOOKBACK_MINUTES = 60;
