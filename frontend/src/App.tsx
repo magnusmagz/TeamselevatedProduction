@@ -12,7 +12,9 @@ import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
 import ProtectedSuperAdminRoute from './components/ProtectedSuperAdminRoute';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import { ChatWidget } from './components/chat';
+import { useModerationOpenCount } from './hooks/useModerationOpenCount';
 import { SupportButton } from './components/support/SupportButton';
+import { recordPageVisit } from './components/support/pageHistory';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -225,12 +227,17 @@ const TeamRosterPage: React.FC = () => {
 
 function AppContent() {
   const { user } = useAuth();
-  const { isClubAdmin } = useOrg();
+  const { isClubAdmin, currentClubId } = useOrg();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   // Determine if user has admin capabilities (super_admin always gets full admin view)
   const isAdmin = isClubAdmin || user?.system_role === 'super_admin';
+
+  // Reported-messages badge. Admin-only; the endpoint enforces that server-side
+  // too, since a client flag is not an access control.
+  const moderationCount = useModerationOpenCount(isAdmin, currentClubId);
+  const openReports = moderationCount?.openTotal ?? 0;
 
   // Hide floating chat widget on parent portal (has its own chat in bottom nav)
   const isParentPortal = location.pathname.startsWith('/parent');
@@ -239,6 +246,14 @@ function AppContent() {
   React.useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Breadcrumb trail for support tickets — "what were you doing before this?"
+  // answered without asking. Recorded here, in the one component every route
+  // renders inside, so the staff app and the parent portal are both covered by
+  // a single call. Redaction and the cap live in pageHistory.ts.
+  React.useEffect(() => {
+    recordPageVisit(location.pathname + location.search);
+  }, [location.pathname, location.search]);
 
   const [peopleDropdownOpen, setPeopleDropdownOpen] = React.useState(false);
   const peopleDropdownRef = React.useRef<HTMLDivElement>(null);
@@ -527,13 +542,21 @@ function AppContent() {
                               <Link
                                 key={cLink.to}
                                 to={cLink.to}
-                                className={`block px-4 py-2 text-sm font-medium ${
+                                className={`flex items-center justify-between px-4 py-2 text-sm font-medium ${
                                   isCommsLinkActive(cLink)
                                     ? 'text-brand-primary bg-brand-secondary'
                                     : 'text-brand-primary hover:bg-brand-secondary'
                                 }`}
                               >
-                                {cLink.label}
+                                <span>{cLink.label}</span>
+                                {cLink.to === '/chat-moderation' && openReports > 0 && (
+                                  <span
+                                    className="ml-3 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-xs font-semibold"
+                                    aria-label={`${openReports} reported ${openReports === 1 ? 'message' : 'messages'} waiting for review`}
+                                  >
+                                    {openReports > 99 ? '99+' : openReports}
+                                  </span>
+                                )}
                               </Link>
                             ))}
                           </div>

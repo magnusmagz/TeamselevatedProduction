@@ -298,6 +298,117 @@ HTML;
     }
 
     /**
+     * Tell a club admin that chat needs their attention.
+     *
+     * Two kinds, per docs/chat-moderation-plan.md:328 — an individual alert for
+     * a high-severity flag, and a routine digest of what is still open.
+     *
+     * ⚠️ **Carries no message text and no names**, for a stronger version of the
+     * reason sendChatDigest() does not: this is content that has been FLAGGED,
+     * possibly for hate speech or an attempt to move a child off-platform.
+     * Copying it into several admins' inboxes spreads the material, survives the
+     * moderation removal that may follow, and puts it outside the retention
+     * rules and the access log that make admin review accountable. The alert's
+     * job is to get an admin to the review screen, where reading it is gated and
+     * recorded.
+     *
+     * @param string $to            Recipient email
+     * @param string $recipientName Who we are writing to
+     * @param string $kind          'high_severity' | 'digest'
+     * @param array  $detail        high_severity: rule, source. digest: open_total, open_high
+     * @param string $link          The Reported Messages screen
+     * @return bool Success status
+     */
+    public function sendModerationAlert($to, $recipientName, $kind, array $detail, $link) {
+        $safeName = htmlspecialchars((string) $recipientName, ENT_QUOTES, 'UTF-8');
+        $safeLink = htmlspecialchars((string) $link, ENT_QUOTES, 'UTF-8');
+
+        if ($kind === 'high_severity') {
+            $subject = 'A chat message needs review';
+            $heading = 'Flagged for review';
+            $reason = $this->describeFlagRule($detail['rule'] ?? '');
+            $bySystem = (($detail['source'] ?? '') === 'auto');
+
+            $lead = $bySystem
+                ? "A message in your club's chat was automatically flagged ({$reason}) and is waiting for review."
+                : "A member of your club reported a chat message ({$reason}). It is waiting for review.";
+
+            $tail = 'The message is not shown here on purpose. Opening it in the app keeps the review '
+                  . 'gated and recorded, which is what makes it defensible later.';
+        } else {
+            $openTotal = max(0, (int) ($detail['open_total'] ?? 0));
+            $openHigh = max(0, (int) ($detail['open_high'] ?? 0));
+            $plural = $openTotal === 1 ? 'report is' : 'reports are';
+
+            $subject = $openTotal === 1
+                ? '1 chat report is waiting for review'
+                : "{$openTotal} chat reports are waiting for review";
+            $heading = 'Still waiting for review';
+
+            $lead = "{$openTotal} chat {$plural} still open in your club.";
+            if ($openHigh > 0) {
+                $lead .= " {$openHigh} of them "
+                       . ($openHigh === 1 ? 'is' : 'are')
+                       . ' high severity.';
+            }
+
+            $tail = 'You are getting this weekly because reports stay open until someone reviews them.';
+        }
+
+        $safeHeading = htmlspecialchars($heading, ENT_QUOTES, 'UTF-8');
+        $safeLead = htmlspecialchars($lead, ENT_QUOTES, 'UTF-8');
+        $safeTail = htmlspecialchars($tail, ENT_QUOTES, 'UTF-8');
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:20px 12px;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+    <tr><td style="background-color:#12443E;padding:18px 24px;">
+      <div style="color:#ffffff;font-weight:800;font-size:16px;">Teams Elevated</div>
+      <div style="color:#c3cdd6;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">{$safeHeading}</div>
+    </td></tr>
+    <tr><td style="padding:30px;">
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">Hi {$safeName},</p>
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">{$safeLead}</p>
+      <p style="text-align:center;margin:26px 0;">
+        <a href="{$safeLink}" style="background-color:#12443E;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;display:inline-block;"><span style="color:#ffffff;">Review reported messages</span></a>
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#777777;">{$safeTail}</p>
+    </td></tr>
+    <tr><td style="background-color:#12443E;color:#ffffff;padding:20px;text-align:center;font-size:11px;">
+      Powered by Teams Elevated
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>
+HTML;
+
+        $textBody = "Hi {$recipientName},\n\n{$lead}\n\nReview reported messages: {$link}\n\n{$tail}";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * Plain-English name for an auto-flag rule.
+     *
+     * Deliberately vague on the specifics — an admin needs to know it is worth
+     * opening, not to be able to reconstruct the message from the subject line.
+     */
+    private function describeFlagRule($rule) {
+        $map = [
+            'hate_speech'          => 'hateful language',
+            'secrecy'              => 'asking a member to keep something secret',
+            'off_platform_contact' => 'moving the conversation off the platform',
+            'profanity'            => 'strong language',
+            'external_app'         => 'pointing to an outside app',
+        ];
+        $key = (string) $rule;
+        return $map[$key] ?? 'flagged content';
+    }
+
+    /**
      * Send team invitation email
      *
      * @param string $to Recipient email

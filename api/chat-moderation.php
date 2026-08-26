@@ -232,6 +232,42 @@ switch ($action) {
      * returned here, so the summary can be shared without carrying the thing
      * that was reported.
      */
+    /**
+     * Cheap count for the nav badge.
+     *
+     * Deliberately NOT `summary`, which runs three queries over a 90-day window
+     * to build the oversight report. This is polled by every admin's navigation,
+     * so it has to stay one indexed count — idx_chat_reports_club_status_created
+     * already covers (club_id, status).
+     *
+     * A flag nobody is told about is the gap this and the email alerts close
+     * together: auto-flagging has fired on every message since 2026-07-30 and
+     * ChatModeration.tsx is pull-only.
+     */
+    case 'open-count': {
+        $clubId = isset($_GET['club_id']) ? (int) $_GET['club_id'] : null;
+        te_mod_require_admin($auth, $clubId);
+
+        $clubFilter = $clubId !== null ? 'AND club_id = :club_id' : '';
+        $bind = $clubId !== null ? [':club_id' => $clubId] : [];
+
+        $stmt = $pdo->prepare("
+            SELECT count(*)::int AS open_total,
+                   count(*) FILTER (WHERE severity = 'high')::int AS open_high
+              FROM chat_message_reports
+             WHERE status = 'open' $clubFilter
+        ");
+        $stmt->execute($bind);
+        $counts = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['open_total' => 0, 'open_high' => 0];
+
+        echo json_encode([
+            'success'    => true,
+            'open_total' => (int) $counts['open_total'],
+            'open_high'  => (int) $counts['open_high'],
+        ]);
+        break;
+    }
+
     case 'summary': {
         $clubId = isset($_GET['club_id']) ? (int) $_GET['club_id'] : null;
         te_mod_require_admin($auth, $clubId);

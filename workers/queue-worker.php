@@ -18,6 +18,7 @@ require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/ImportJobProcessor.php';
 require_once __DIR__ . '/../services/CalendarSyncService.php';
 require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
+require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -148,6 +149,28 @@ while ($running) {
                 }
             } catch (Throwable $e) {
                 error_log('[Worker] chat notification sweep error: ' . $e->getMessage());
+            }
+
+            // Moderation alerts ride the same tick but are caught SEPARATELY.
+            // Sharing one catch would mean a failure in the family-facing digests
+            // silently skips the child-safety alerts, which is the wrong thing to
+            // couple together.
+            try {
+                $ensureDb();
+                $modAlerts = te_chat_dispatch_moderation_alerts($db);
+                if ($modAlerts['alerts_sent'] || $modAlerts['digests_sent'] || $modAlerts['failed']) {
+                    echo sprintf(
+                        "[Worker] moderation alerts: %d high-severity, %d digests, %d failed\n",
+                        $modAlerts['alerts_sent'],
+                        $modAlerts['digests_sent'],
+                        $modAlerts['failed']
+                    );
+                }
+                foreach ($modAlerts['errors'] as $modError) {
+                    error_log('[Worker] moderation alert error: ' . $modError);
+                }
+            } catch (Throwable $e) {
+                error_log('[Worker] moderation alert sweep error: ' . $e->getMessage());
             }
         }
 

@@ -446,6 +446,14 @@
     "deleted_by",
     "removal_reason"
   ],
+  "chat_moderation_alert_state": [
+    "id",
+    "user_id",
+    "report_id",
+    "club_id",
+    "kind",
+    "sent_at"
+  ],
   "chat_notification_prefs": [
     "user_id",
     "email_enabled",
