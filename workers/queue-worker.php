@@ -157,10 +157,17 @@ while ($running) {
             try {
                 $ensureDb();
                 $notified = te_chat_dispatch_notifications($db);
-                if ($notified['sent'] || $notified['failed']) {
+                // Count PUSHED and IN_APP too. The first version tested only
+                // sent/failed, so a push — now the common case — printed nothing
+                // at all and the log read as though the tick had done no work.
+                // A delivery channel that leaves no trace is the one you cannot
+                // debug at 11pm when a family says they got nothing.
+                if ($notified['sent'] || $notified['pushed'] || $notified['in_app'] || $notified['failed']) {
                     echo sprintf(
-                        "[Worker] chat notifications: %d sent, %d failed, %d skipped\n",
+                        "[Worker] chat notifications: %d pushed, %d emailed, %d in-app, %d failed, %d skipped\n",
+                        $notified['pushed'],
                         $notified['sent'],
+                        $notified['in_app'],
                         $notified['failed'],
                         $notified['skipped']
                     );
