@@ -37,7 +37,18 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
    **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
    **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
-   Next free number is therefore **064**.
+   **064–072** applied since. **073** (`chat_notifications`), **074**
+   (`chat_moderation_alerts`), **076** (`push_subscriptions`) and **077**
+   (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
+   2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
+   session and is applied. Next free number is therefore **078**.
+
+   ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
+   2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
+   commit — the commit carried the pre-refresh file, and `QueriedTablesExistTest` then failed
+   against a table that genuinely existed in Neon. Regenerate
+   `tests/fixtures/production-schema.json` from `information_schema` on the dyno **and check
+   `git diff` actually shows your table** before committing.
 3. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
@@ -1193,6 +1204,40 @@ connects to Neon at load, so a test that required it would have hit the producti
   decision, not a number to guess at in code.
 - `chat_messages_removed` is **inert until admin moderation removal ships** (Phase 2). Nothing writes
   `chat_messages.deleted_at` yet, so it reports zero. Correct, not broken.
+
+### Chat notifications — email + web push (2026-08-26)
+Full scope: `docs/chat-notifications-scope.md`. Dispatched from a throttled tick inside
+`workers/queue-worker.php`, not a new dyno.
+
+- **"Who missed what" is `lib/chat_notification_scope.php`, and the LOOKBACK WINDOW is the
+  guard — not the read watermark.** `ensureTeamConversation()` creates team conversations
+  with no participant rows, and `chat-server/server.js:305` falls back to `|| 0`, so a
+  parent who never opened a team chat has *every* message unread. Nothing older than 60
+  minutes is ever a candidate, which turns that into "the last hour" instead of "the entire
+  history". `testTheLookbackWindowIsWhatPreventsTheReplay` widens the window on the same
+  fixture and gets the whole history back, so which guard is load-bearing is pinned.
+- **Push first, email as the fallback, never both.** One shared watermark in
+  `chat_notification_state`; whichever channel lands closes the item and records itself.
+  `in_app` is the third channel, for someone with no address and no device — without it the
+  dispatcher re-derives them as owed every tick forever.
+- ⚠️ **Send via `lib/Email.php` + `->forClub()`, never `EmailSendService`.** The latter logs a
+  `communication_log` row per send (floods Email Reporting) and applies `email_suppressions`
+  — the club's *marketing* opt-out — so an unsubscribed parent would silently stop hearing
+  that their coach messaged them. Both failures are invisible.
+- **No message text in any of it** — not the email, not the push. A push renders on a lock
+  screen, and moderation can remove a message but cannot recall an email. Admin flag alerts
+  carry neither text nor names, for a stronger version of the same reason.
+- **The audience mirrors `chat-server/lib/team_scope.js` exactly**, filters and omissions
+  included, or we mail someone a link to a 403. Club admins are NOT notified about team chats
+  they merely oversee: access is not a subscription.
+- **Web push needs a PSR-18 client** (`guzzlehttp/guzzle`) — without one `minishlink/web-push`
+  fails at runtime, not at install. Heroku has no `gmp`/`bcmath`; those are optional
+  performance extras only. VAPID keys are Heroku config vars and the public one is served from
+  `api/push-subscriptions.php?action=vapid-public-key` so no Netlify build var can drift.
+- ⚠️ **Prune on 404/410, but never on a 503.** A dead endpoint is gone for good; a transient
+  failure is not a reason to forget someone's phone.
+- **There is deliberately no notification bell** — see the scope doc. The chat bubble, the
+  parent bottom nav and the Reported Messages badge already cover it.
 
 ---
 
