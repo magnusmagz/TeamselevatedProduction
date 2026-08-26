@@ -43,9 +43,12 @@ so roughly 1,500–2,500 emails/month.
 | Web push delivery | $0 — there is no per-message charge |
 | SendGrid | $0–20, depending on current plan tier |
 
-**Estimate $0–20/month, most likely $0.** The only real variable is whether
-added volume tips SendGrid to the next tier. Confirm the current plan before
-building — it is the one number that decides.
+**Estimate $0–20/month, most likely $0.**
+
+⚠️ **Settled 2026-08-26 — cost is not a risk here.** The figures above assumed 30
+parents; 274 users are actually opted in (on by default). Maggie confirmed the
+platform already sends thousands of emails and has SendGrid headroom, so volume
+is not a constraint on this feature. Do not re-raise it.
 
 ---
 
