@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ReportMessageButton from './ReportMessageButton';
+import { sameUser } from './sameUser';
 
 interface Message {
   id: string;
@@ -66,7 +67,7 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
   };
 
   const isOwnMessage = (msg: Message) => {
-    return String(msg.senderId) === String(currentUser.id) ||
+    return sameUser(msg.senderId, currentUser.id) ||
            msg.sender === currentUser.name ||
            msg.sender === currentUser.email;
   };
