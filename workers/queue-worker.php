@@ -17,15 +17,52 @@ require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/ImportJobProcessor.php';
 require_once __DIR__ . '/../services/CalendarSyncService.php';
+require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
+require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
 
 echo "[Worker] Starting queue worker...\n";
 
 $queue = RedisQueue::getInstance();
-$db = Database::getInstance()->getConnection();
-$emailService = new EmailSendService($db);
-$smsService = new SmsSendService($db);
-$importProcessor = ImportJobProcessor::buildDefault($db);
-$calendarSyncService = new CalendarSyncService($db);
+$database = Database::getInstance();
+$db = $database->getConnection();
+
+/**
+ * Every service holds the PDO handle it was constructed with. Neon's pooler
+ * drops idle connections, so the boot-time handle dies overnight and PDO never
+ * notices — which is why a quiet night used to leave the worker logging
+ * "no connection to the server" once a minute until the dyno cycled, with any
+ * job enqueued in that window failing three times into failed_jobs.
+ *
+ * Reconnecting is therefore only half the fix: a new PDO object does nothing
+ * for services still pointing at the old one. They must be rebuilt together.
+ */
+$buildServices = function (PDO $db) {
+    return [
+        'email'    => new EmailSendService($db),
+        'sms'      => new SmsSendService($db),
+        'import'   => ImportJobProcessor::buildDefault($db),
+        'calendar' => new CalendarSyncService($db),
+    ];
+};
+
+$services = $buildServices($db);
+
+/**
+ * Call before ANY database work. Cheap when the connection is healthy (one
+ * SELECT 1); rebuilds $db and every service when it is not.
+ *
+ * Throws PDOException if the database is genuinely unreachable. That is
+ * deliberate: at the job site the existing catch turns it into a normal retry
+ * with backoff, which is what should happen during a brief outage.
+ */
+$ensureDb = function () use ($database, $buildServices, &$db, &$services) {
+    if ($database->ensureConnection()) {
+        $db = $database->getConnection();
+        $services = $buildServices($db);
+        echo "[Worker] Database connection had dropped — reconnected, services rebuilt\n";
+        error_log('[Worker] Neon connection was dead and has been re-established');
+    }
+};
 
 $queues = ['email_queue', 'sms_queue', 'import_queue', 'calendar_sync_queue'];
 
@@ -34,6 +71,13 @@ $running = true;
 
 // Throttle (unix seconds) for the orphaned-import-job reconciliation sweep below.
 $lastImportSweep = 0;
+
+// Throttle for the chat-notification dispatch tick. A tick inside this worker
+// rather than a new dyno — same reasoning as the scheduled-SMS scope: a separate
+// scheduler process hits the cost wall that keeps calendar-sync-scheduler and
+// waitlist-expiry-scheduler switched off.
+$lastChatNotifySweep = 0;
+const TE_CHAT_NOTIFY_TICK_SECONDS = 60;
 
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
@@ -64,6 +108,7 @@ while ($running) {
         if (time() - $lastImportSweep > 60) {
             $lastImportSweep = time();
             try {
+                $ensureDb();
                 $stuck = $db->query(
                     "SELECT id FROM import_jobs
                      WHERE status = 'queued' AND started_at IS NULL
@@ -72,10 +117,60 @@ while ($running) {
                 )->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($stuck as $stuckId) {
                     echo "[Worker] Recovering orphaned import job {$stuckId}\n";
-                    $importProcessor->processJob(['job_id' => (int) $stuckId]);
+                    $services['import']->processJob(['job_id' => (int) $stuckId]);
                 }
             } catch (Exception $e) {
                 error_log("[Worker] import reconciliation error: " . $e->getMessage());
+            }
+        }
+
+        // Chat notifications: tell people about messages they have missed.
+        //
+        // ⚠️ The catch is not optional. This worker also drives email, SMS,
+        // imports and calendar sync; an uncaught throw here stops all four. The
+        // dispatcher already guards each individual send, so anything reaching
+        // this handler is a failure of the whole sweep (a dead connection, a
+        // missing table) and must still leave the queues running.
+        if (time() - $lastChatNotifySweep > TE_CHAT_NOTIFY_TICK_SECONDS) {
+            $lastChatNotifySweep = time();
+            try {
+                $ensureDb();
+                $notified = te_chat_dispatch_notifications($db);
+                if ($notified['sent'] || $notified['failed']) {
+                    echo sprintf(
+                        "[Worker] chat notifications: %d sent, %d failed, %d skipped\n",
+                        $notified['sent'],
+                        $notified['failed'],
+                        $notified['skipped']
+                    );
+                }
+                foreach ($notified['errors'] as $chatError) {
+                    error_log('[Worker] chat notification error: ' . $chatError);
+                }
+            } catch (Throwable $e) {
+                error_log('[Worker] chat notification sweep error: ' . $e->getMessage());
+            }
+
+            // Moderation alerts ride the same tick but are caught SEPARATELY.
+            // Sharing one catch would mean a failure in the family-facing digests
+            // silently skips the child-safety alerts, which is the wrong thing to
+            // couple together.
+            try {
+                $ensureDb();
+                $modAlerts = te_chat_dispatch_moderation_alerts($db);
+                if ($modAlerts['alerts_sent'] || $modAlerts['digests_sent'] || $modAlerts['failed']) {
+                    echo sprintf(
+                        "[Worker] moderation alerts: %d high-severity, %d digests, %d failed\n",
+                        $modAlerts['alerts_sent'],
+                        $modAlerts['digests_sent'],
+                        $modAlerts['failed']
+                    );
+                }
+                foreach ($modAlerts['errors'] as $modError) {
+                    error_log('[Worker] moderation alert error: ' . $modError);
+                }
+            } catch (Throwable $e) {
+                error_log('[Worker] moderation alert sweep error: ' . $e->getMessage());
             }
         }
 
@@ -91,15 +186,20 @@ while ($running) {
 
         echo "[Worker] Processing job {$payload['id']} from {$fromQueue} (attempt {$payload['attempts']})\n";
 
+        // A job may be the first database work in hours. Verify the handle before
+        // handing it to a service, or the send fails on a dead connection and
+        // burns a retry attempt for a reason that has nothing to do with the job.
+        $ensureDb();
+
         // Dispatch to the appropriate service
         if ($fromQueue === 'email_queue') {
-            $emailService->processJob($payload);
+            $services['email']->processJob($payload);
         } elseif ($fromQueue === 'sms_queue') {
-            $smsService->processJob($payload);
+            $services['sms']->processJob($payload);
         } elseif ($fromQueue === 'import_queue') {
-            $importProcessor->processJob($payload);
+            $services['import']->processJob($payload);
         } elseif ($fromQueue === 'calendar_sync_queue') {
-            $calendarSyncService->syncSubscription($payload['subscription_id']);
+            $services['calendar']->syncSubscription($payload['subscription_id']);
         } else {
             echo "[Worker] Unknown queue: {$fromQueue}, skipping\n";
             continue;

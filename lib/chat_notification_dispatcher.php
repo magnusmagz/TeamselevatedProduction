@@ -1,0 +1,331 @@
+<?php
+/**
+ * Send the notifications that te_chat_pending_notifications() says are owed.
+ *
+ * Phase 2 of docs/chat-notifications-scope.md. Email only; web push slots in at
+ * the same call site in phase 4, which is why the "already told" marker in
+ * chat_notification_state is one watermark shared by both channels rather than
+ * one per channel.
+ *
+ * ⚠️ **Sends through lib/Email.php with ->forClub(), never EmailSendService.**
+ * Two reasons, both silent failures:
+ *   1. EmailSendService writes a communication_log row per send, so Email
+ *      Reporting would fill with chat noise and every campaign metric on that
+ *      page would be measuring something else.
+ *   2. It applies email_suppressions — which is the club's MARKETING opt-out. A
+ *      parent who unsubscribed from club broadcasts would silently stop being
+ *      told their coach had messaged them. Suppression must not reach this path;
+ *      the opt-out for chat is conversation_participants.muted and
+ *      chat_notification_prefs, and nothing else.
+ * Pinned by ChatNotificationDispatcherTest.
+ *
+ * ⚠️ **One conversation failing must not stop the rest.** This runs as a tick
+ * inside workers/queue-worker.php, which also drives email, SMS, imports and
+ * calendar sync. An uncaught throw here stops all four. Every send is wrapped
+ * individually and failures are logged and counted, never rethrown.
+ */
+
+require_once __DIR__ . '/chat_notification_scope.php';
+require_once __DIR__ . '/chat_push.php';
+require_once __DIR__ . '/notification_centre.php';
+require_once __DIR__ . '/Email.php';
+
+/**
+ * Deliver everything currently owed.
+ *
+ * @param PDO      $pdo
+ * @param array    $opts  passed through to te_chat_pending_notifications, plus
+ *                        'mailer' (callable) to substitute the sender in tests
+ * @return array{sent:int,pushed:int,in_app:int,failed:int,skipped:int,errors:array}
+ */
+function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
+{
+    $pending = te_chat_pending_notifications($pdo, $opts);
+
+    $result = ['sent' => 0, 'pushed' => 0, 'in_app' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
+
+    // The mailer is injectable so the dispatcher can be tested without reaching
+    // SendGrid. Production passes nothing and gets the real transactional path.
+    $mailer = $opts['mailer'] ?? function (array $envelope) use ($pdo): bool {
+        $email = (new Email())->forClub($pdo, $envelope['club_id']);
+        return (bool) $email->sendChatDigest(
+            $envelope['to'],
+            $envelope['recipient_name'],
+            $envelope['conversation_label'],
+            $envelope['sender_names'],
+            $envelope['message_count'],
+            $envelope['link']
+        );
+    };
+
+    $pusher = $opts['pusher'] ?? fn(int $userId, array $payload) => te_push_send_to_user($pdo, $userId, $payload, $opts);
+
+    foreach ($pending as $item) {
+        // Per item, not per batch. See the warning above — this tick shares a
+        // process with every other queue.
+        try {
+            $envelope = te_chat_build_envelope($pdo, $item);
+
+            if ($envelope === null) {
+                $result['skipped']++;
+                continue;
+            }
+
+            // ── Push first, email as the fallback ────────────────────────────
+            //
+            // Not both. Someone with the app installed would otherwise get a
+            // buzz AND an email for every message, which is the fastest way to
+            // make them turn all of it off.
+            //
+            // The marker in chat_notification_state is ONE watermark shared by
+            // both channels, so whichever gets there first closes the item.
+            if ($item['push_enabled']) {
+                $push = $pusher($item['user_id'], [
+                    'title' => $envelope['conversation_label'],
+                    'body'  => $envelope['push_body'],
+                    'url'   => $envelope['link'],
+                    'tag'   => 'chat-' . $item['conversation_id'],
+                ]);
+
+                if (($push['delivered'] ?? 0) > 0) {
+                    te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
+                    te_chat_mark_notified(
+                        $pdo,
+                        $item['user_id'],
+                        $item['conversation_id'],
+                        $item['latest_message_id'],
+                        'push',
+                        $opts['now'] ?? null
+                    );
+                    $result['pushed']++;
+                    continue;
+                }
+
+                // Nothing delivered — no device, or every endpoint was dead and
+                // has just been pruned. Fall through to email, which is exactly
+                // what the fallback is for.
+            }
+
+            // Nothing can leave the building for this person — no address, or
+            // they turned email off. They are still told, in the app, and that
+            // CLOSES the item: leaving it open would make the dispatcher
+            // re-derive it as owed on every tick forever.
+            if (!$item['email_enabled'] || $envelope['to'] === '') {
+                te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
+                te_chat_mark_notified(
+                    $pdo,
+                    $item['user_id'],
+                    $item['conversation_id'],
+                    $item['latest_message_id'],
+                    'in_app',
+                    $opts['now'] ?? null
+                );
+                $result['in_app']++;
+                continue;
+            }
+
+            $ok = $mailer($envelope);
+
+            if ($ok) {
+                te_chat_record_in_app($pdo, $item, $envelope, $opts['now'] ?? null);
+                te_chat_mark_notified(
+                    $pdo,
+                    $item['user_id'],
+                    $item['conversation_id'],
+                    $item['latest_message_id'],
+                    'email',
+                    $opts['now'] ?? null
+                );
+                $result['sent']++;
+            } else {
+                // Deliberately NOT marked as notified — an unsent digest must be
+                // retried on the next tick, and the lookback window bounds how
+                // long that can go on for.
+                $result['failed']++;
+                $result['errors'][] = sprintf(
+                    'user %d conversation %d: mailer reported failure',
+                    $item['user_id'],
+                    $item['conversation_id']
+                );
+            }
+        } catch (Throwable $e) {
+            $result['failed']++;
+            $result['errors'][] = sprintf(
+                'user %d conversation %d: %s',
+                $item['user_id'] ?? 0,
+                $item['conversation_id'] ?? 0,
+                $e->getMessage()
+            );
+            error_log('[ChatNotify] ' . end($result['errors']));
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Gather everything one digest needs, or null if it cannot be sent.
+ *
+ * Returning null (rather than throwing) for a missing address is deliberate:
+ * plenty of accounts legitimately have no usable email, and that is a skip, not
+ * an error worth logging every minute.
+ */
+function te_chat_build_envelope(PDO $pdo, array $item): ?array
+{
+    $stmt = $pdo->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = ?');
+    $stmt->execute([$item['user_id']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        return null;
+    }
+
+    // A missing address is NOT fatal here any more: with web push in the mix a
+    // person may be perfectly reachable without one. The email branch checks it.
+    $address = trim((string) ($user['email'] ?? ''));
+
+    $stmt = $pdo->prepare('SELECT id, type, team_id, club_id FROM conversations WHERE id = ?');
+    $stmt->execute([$item['conversation_id']]);
+    $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$conversation) {
+        return null;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($item['message_ids']), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT DISTINCT sender_name FROM chat_messages WHERE id IN ({$placeholders})"
+    );
+    $stmt->execute($item['message_ids']);
+    $senderNames = array_values(array_filter(
+        $stmt->fetchAll(PDO::FETCH_COLUMN),
+        fn($n) => trim((string) $n) !== ''
+    ));
+
+    $recipientName = trim((string) ($user['first_name'] ?? ''));
+    if ($recipientName === '') {
+        $recipientName = 'there';
+    }
+
+    $count = (int) $item['message_count'];
+    $senderPhrase = $senderNames ? (' from ' . $senderNames[0] . (count($senderNames) > 1 ? ' and others' : '')) : '';
+
+    return [
+        'to'                 => $address,
+        // Deliberately the same shape as the email: sender and count, no message
+        // text. A push notification renders on a lock screen, where the content
+        // is MORE exposed than an inbox, not less.
+        'push_body'          => $count === 1
+            ? 'You have 1 new message' . $senderPhrase . '.'
+            : "You have {$count} new messages" . $senderPhrase . '.',
+        'recipient_name'     => $recipientName,
+        'conversation_label' => te_chat_conversation_label($pdo, $conversation, (int) $item['user_id']),
+        'sender_names'       => $senderNames,
+        'message_count'      => $item['message_count'],
+        'club_id'            => $conversation['club_id'] !== null ? (int) $conversation['club_id'] : null,
+        'link'               => te_chat_notification_link($pdo, (int) $item['user_id'], $conversation),
+    ];
+}
+
+/** What to call this conversation in a subject line. */
+function te_chat_conversation_label(PDO $pdo, array $conversation, int $recipientId): string
+{
+    if (($conversation['type'] ?? '') === 'team' && !empty($conversation['team_id'])) {
+        $stmt = $pdo->prepare('SELECT name FROM teams WHERE id = ?');
+        $stmt->execute([$conversation['team_id']]);
+        $name = $stmt->fetchColumn();
+        if ($name) {
+            return (string) $name;
+        }
+        return 'your team';
+    }
+
+    if (($conversation['type'] ?? '') === 'direct') {
+        // Name the other person, not "Direct message" — in an inbox the useful
+        // part of the subject is who it is from.
+        $stmt = $pdo->prepare(
+            'SELECT display_name FROM conversation_participants
+              WHERE conversation_id = ? AND user_id <> ? AND display_name IS NOT NULL
+              ORDER BY id LIMIT 1'
+        );
+        $stmt->execute([$conversation['id'], $recipientId]);
+        $name = $stmt->fetchColumn();
+        if ($name) {
+            return (string) $name;
+        }
+        return 'your messages';
+    }
+
+    return 'your group';
+}
+
+/**
+ * Where to send them.
+ *
+ * Staff and families reach chat through two different surfaces — parents have a
+ * route (/parent/chat), staff use the ChatWidget which is only mounted on the
+ * staff app — so one URL cannot serve both.
+ *
+ * Standing is read from user_club_access, which CLAUDE.md is explicit is the
+ * authoritative source for roles. It is deliberately NOT derived from the
+ * guardian-email chain: that comparison is the fragile one this codebase has
+ * been repeatedly bitten by, and here a wrong answer only means a slightly wrong
+ * landing page, so the simple authoritative table is the right source.
+ *
+ * A staff link wins for someone holding both, matching lib/JWT.php's role
+ * precedence (club_admin > treasurer > coach > volunteer > parent > player) and
+ * ParentRedirect's behaviour of leaving staff on the dashboard.
+ */
+function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): string
+{
+    $appUrl = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/');
+
+    $clubId = $conversation['club_id'] ?? null;
+    $isStaff = false;
+
+    if ($clubId !== null) {
+        $stmt = $pdo->prepare(
+            "SELECT 1 FROM user_club_access
+              WHERE user_id = ? AND club_profile_id = ?
+                AND active = TRUE AND revoked_at IS NULL
+                AND role IN ('club_admin', 'coach', 'treasurer', 'volunteer')
+              LIMIT 1"
+        );
+        $stmt->execute([$userId, $clubId]);
+        $isStaff = (bool) $stmt->fetchColumn();
+    }
+
+    return $isStaff ? $appUrl . '/dashboard' : $appUrl . '/parent/chat';
+}
+
+/**
+ * Mirror a delivered notification into the in-app centre.
+ *
+ * Called only when an item is CLOSED, never per attempt — one row per
+ * notification. Writing on every tick would stack duplicates for anyone the
+ * dispatcher keeps re-deriving as owed.
+ *
+ * A failure here must not undo a notification that was genuinely delivered, so
+ * it is logged and swallowed: the person has already had their push or their
+ * email, and throwing would mark the item unsent and send it a second time.
+ */
+function te_chat_record_in_app(PDO $pdo, array $item, array $envelope, ?string $now = null): void
+{
+    try {
+        te_notify_create(
+            $pdo,
+            (int) $item['user_id'],
+            'chat_message',
+            $envelope['conversation_label'],
+            $envelope['push_body'],
+            [
+                'url'             => $envelope['link'],
+                'conversation_id' => (int) $item['conversation_id'],
+                'message_count'   => (int) $item['message_count'],
+            ],
+            $now
+        );
+    } catch (Throwable $e) {
+        error_log('[ChatNotify] in-app record failed: ' . $e->getMessage());
+    }
+}

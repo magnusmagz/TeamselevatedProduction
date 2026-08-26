@@ -30,6 +30,68 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-08-26
+
+### Chat notifications shipped — email + web push (Heroku v513, Netlify 24106c6)
+
+Merged `feature/chat-notifications` to `main` and deployed both halves, frontend
+first (the service worker is a frontend change and only reaches people on their
+next visit). Peer session `feature/support-ticket-context` held its merge until
+this landed.
+
+**Migrations applied to Neon by hand:**
+- **073** `chat_notifications` — `chat_notification_state`, `chat_notification_prefs` (2026-08-25)
+- **074** `chat_moderation_alerts` — creates `chat_moderation_alert_state` (2026-08-26).
+  ⚠️ The filename is not the table name; a peer session reported it missing from the
+  schema fixture on that basis and it was not.
+- **076** `push_subscriptions` (2026-08-26). Renumbered off 075, which the support-ticketing
+  session had claimed within the hour.
+- **077** `notification_centre` (2026-08-26) — creates NO table. Two indexes on the existing
+  `notifications` table, and widens `chat_notification_state.last_notified_channel` to admit
+  `in_app`.
+
+Next free migration number: **078**.
+
+**Heroku config vars set:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+`VAPID_SUBJECT` (v512). The private key exists only there — it is not in the repo
+and not in any Netlify build variable. The public key is served from
+`api/push-subscriptions.php?action=vapid-public-key` so no build-time copy can
+drift out of sync with it.
+
+**Composer:** added `minishlink/web-push` and `guzzlehttp/guzzle`. Guzzle is not
+optional decoration — web-push discovers a PSR-18 client at runtime and there was
+none, so it would have failed on the first send rather than at install. Heroku has
+no `gmp` or `bcmath`; both are listed by web-push as optional performance extras
+only, and the crypto path was verified working without them.
+
+**First production tick, and the number that matters.** The worker booted at
+23:09:59 UTC and immediately sent 13 chat digests, 4 high-severity moderation
+alerts and 2 weekly digests. Verified against Neon straight after:
+
+> Conversation 75 holds **11 messages**. Exactly **1** was inside the 60-minute
+> lookback window, and all 13 recipients were notified about that one message
+> only.
+
+That is the whole design working on real data. Team conversations have no
+`conversation_participants` rows, so the read watermark falls back to zero — the
+naive implementation would have emailed 13 families the entire 11-message history
+of a chat most of them had never opened. Nobody was pushed (no subscriptions exist
+yet), so all 13 went by email, and 13 in-app rows were written: one per closed
+notification, not one per attempt.
+
+**Prod state discovered:** 4 high-severity chat flags were sitting open and
+un-alerted at deploy time. Auto-flagging has fired on every message since
+moderation shipped 2026-07-30 and nothing had ever told an admin.
+
+**Smoke test:** 75 passed, 0 failed against deployed prod. New endpoints checked
+separately — `vapid-public-key` public and configured, and `notifications.php`,
+`push-subscriptions.php?action=status` and `chat-moderation.php?action=open-count`
+all 401 without a token.
+
+**Also in this deploy:** the queue worker's Neon reconnect fix. The worker had been
+dying overnight since at least 2026-07-09 and self-healing only when Heroku cycled
+the dyno.
+
 ## 2026-08-25
 
 ### Roster download (CSV) — new feature, shipped

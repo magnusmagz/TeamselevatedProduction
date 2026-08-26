@@ -26,9 +26,13 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    `feature/support-ticket-context` in the worktree
    `/Users/maggiemae_1/TeamsElevated/te-support-context/`. Migration **075 is applied to
    Neon**; the code is not yet deployed. Do support-ticket work THERE, not in the main
-   checkout — on 2026-08-26 a `git commit -a` from another session swept an in-progress
-   `App.tsx` edit into its commit, leaving that branch importing a module that only
-   existed in a third working tree. **A shared working tree is not a lane; a worktree is.**
+   checkout — on 2026-08-26 another session's commit swept an in-progress `App.tsx` edit
+   into itself, leaving that branch importing a module that existed only in a third
+   working tree. ⚠️ **That commit named its files explicitly and still did it** — it was
+   not `git commit -a`. Excluding untracked files is not enough; a file you are
+   legitimately editing can hold another session's hunks, so `git diff` it before staging.
+   The same applies in reverse: `git checkout -- <shared file>` discards their in-flight
+   work as silently. **A shared working tree is not a lane; a worktree is.**
 3. **Migration numbers**: 041–051 are taken, with COLLISIONS at 044 (payment_allocations /
    program_participant_type), 045 (codify_audit_log / event_recurrence), 047 (stripe_payouts /
    venues_club_id), and 046
@@ -44,7 +48,18 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
    **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
    **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
-   Next free number is therefore **064**.
+   **064–072** applied since. **073** (`chat_notifications`), **074**
+   (`chat_moderation_alerts`), **076** (`push_subscriptions`) and **077**
+   (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
+   2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
+   session and is applied. Next free number is therefore **078**.
+
+   ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
+   2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
+   commit — the commit carried the pre-refresh file, and `QueriedTablesExistTest` then failed
+   against a table that genuinely existed in Neon. Regenerate
+   `tests/fixtures/production-schema.json` from `information_schema` on the dyno **and check
+   `git diff` actually shows your table** before committing.
 4. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
@@ -192,6 +207,28 @@ Every US timezone hits it; it is not intermittent and not data-dependent.
   by row, over about a week before it was reported. The fix is client-side only — stored
   `event_date` values are untouched, so corrected events stay corrected and any uncorrected
   ones stay wrong until someone edits them.
+
+### ⚠️ The queue worker's DB handle dies overnight — rebuild services, don't just reconnect (2026-08-25)
+Neon's pooler drops idle connections and PDO never notices: the handle stays a perfectly
+ordinary object and every query on it throws `no connection to the server`. The worker
+opened one handle at boot and shared it with all four services for the dyno's life, so a
+quiet night left it dead until Heroku cycled the dyno — 226 consecutive
+`import reconciliation error` lines, and any job enqueued in that window burned three
+retries into `failed_jobs`. One such row from 2026-07-09 proves it had already cost a send.
+
+- `Database::isAlive()` probes with a real `SELECT 1` — there is no flag to read.
+  `Database::ensureConnection()` reopens and **returns true when the handle was replaced**.
+- ⚠️ **That return value is the whole point.** A fresh PDO does nothing for services still
+  holding the old one, so `workers/queue-worker.php` rebuilds all four through
+  `$buildServices()`. **Adding a service to the worker means adding it to that factory** —
+  constructing one at boot means that queue alone keeps using the dead connection after a
+  reconnect, which is worse than the original bug because three queues recover and one
+  silently does not.
+- `connect()` throws instead of `die()`ing so a transient outage cannot exit the dyno; the
+  constructor keeps the 500-and-die path, which is right for a web request.
+- Verified before each job AND in the once-a-minute import sweep — a job may be the first
+  database work in hours. Guarded by `tests/php/WorkerDbReconnectTest.php`, confirmed to
+  fail 7 ways on the pre-fix code.
 
 ---
 
@@ -1202,6 +1239,40 @@ connects to Neon at load, so a test that required it would have hit the producti
   decision, not a number to guess at in code.
 - `chat_messages_removed` is **inert until admin moderation removal ships** (Phase 2). Nothing writes
   `chat_messages.deleted_at` yet, so it reports zero. Correct, not broken.
+
+### Chat notifications — email + web push (2026-08-26)
+Full scope: `docs/chat-notifications-scope.md`. Dispatched from a throttled tick inside
+`workers/queue-worker.php`, not a new dyno.
+
+- **"Who missed what" is `lib/chat_notification_scope.php`, and the LOOKBACK WINDOW is the
+  guard — not the read watermark.** `ensureTeamConversation()` creates team conversations
+  with no participant rows, and `chat-server/server.js:305` falls back to `|| 0`, so a
+  parent who never opened a team chat has *every* message unread. Nothing older than 60
+  minutes is ever a candidate, which turns that into "the last hour" instead of "the entire
+  history". `testTheLookbackWindowIsWhatPreventsTheReplay` widens the window on the same
+  fixture and gets the whole history back, so which guard is load-bearing is pinned.
+- **Push first, email as the fallback, never both.** One shared watermark in
+  `chat_notification_state`; whichever channel lands closes the item and records itself.
+  `in_app` is the third channel, for someone with no address and no device — without it the
+  dispatcher re-derives them as owed every tick forever.
+- ⚠️ **Send via `lib/Email.php` + `->forClub()`, never `EmailSendService`.** The latter logs a
+  `communication_log` row per send (floods Email Reporting) and applies `email_suppressions`
+  — the club's *marketing* opt-out — so an unsubscribed parent would silently stop hearing
+  that their coach messaged them. Both failures are invisible.
+- **No message text in any of it** — not the email, not the push. A push renders on a lock
+  screen, and moderation can remove a message but cannot recall an email. Admin flag alerts
+  carry neither text nor names, for a stronger version of the same reason.
+- **The audience mirrors `chat-server/lib/team_scope.js` exactly**, filters and omissions
+  included, or we mail someone a link to a 403. Club admins are NOT notified about team chats
+  they merely oversee: access is not a subscription.
+- **Web push needs a PSR-18 client** (`guzzlehttp/guzzle`) — without one `minishlink/web-push`
+  fails at runtime, not at install. Heroku has no `gmp`/`bcmath`; those are optional
+  performance extras only. VAPID keys are Heroku config vars and the public one is served from
+  `api/push-subscriptions.php?action=vapid-public-key` so no Netlify build var can drift.
+- ⚠️ **Prune on 404/410, but never on a 503.** A dead endpoint is gone for good; a transient
+  failure is not a reason to forget someone's phone.
+- **There is deliberately no notification bell** — see the scope doc. The chat bubble, the
+  parent bottom nav and the Reported Messages badge already cover it.
 
 ---
 
