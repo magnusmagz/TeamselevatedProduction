@@ -32,6 +32,20 @@ Newest first. Times are Pacific.
 
 ## 2026-08-26
 
+### Chat: own message appeared twice, and as somebody else's (Netlify `cf5c960`)
+
+Found while Maggie tested chat after the notifications deploy. **Pre-existing, not from that
+deploy** — verified: the notifications merge changed 8 frontend files, none of them chat, and
+the chat send path was last touched 2026-07-30.
+
+`senderId` arrives from the chat server as a **string** (`lib/JWT.php:201` casts the claim),
+the client compared it against a `number`, and `"75" === 75` is false. Broke `isOwnMessage`
+and the optimistic-message reconciliation together. **No data was affected** — one row per
+message throughout; both copies were a rendering artifact.
+
+Fixed frontend-only with a single `sameUser()` predicate at all three comparison sites, plus
+a scan test. No Heroku or chat-server deploy. Heroku stays at v513.
+
 ### Chat notifications shipped — email + web push (Heroku v513, Netlify 24106c6)
 
 Merged `feature/chat-notifications` to `main` and deployed both halves, frontend

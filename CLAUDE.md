@@ -1205,6 +1205,34 @@ connects to Neon at load, so a test that required it would have hit the producti
 - `chat_messages_removed` is **inert until admin moderation removal ships** (Phase 2). Nothing writes
   `chat_messages.deleted_at` yet, so it reports zero. Correct, not broken.
 
+### ⚠️ `senderId` from the chat server is a STRING — compare with `sameUser()` (2026-08-26)
+Reported from prod: sending a chat message showed it **twice** — one copy stuck on
+"Sending…", and in the parent portal the other came back left-aligned with the sender's own
+avatar and name, as if a stranger had sent it. **Nothing was stored twice**; the database
+held one row per message and both copies were a rendering artifact.
+
+`lib/JWT.php:201` mints the claim as `(string)$userId` ("Neon expects string"),
+`chat-server/server.js` passes `payload.user_id` through unchanged as `senderId`, and the
+client compared it against a `number`. `"75" === 75` is false, which broke two things at once:
+`isOwnMessage` (own message renders as incoming) and the optimistic-message reconciliation in
+`useChat` (the echo never matches the temp bubble, so it is never replaced and the echo
+appends as a second message).
+
+- **`frontend/src/components/chat/sameUser.ts` is the only comparison.** Never write
+  `senderId ===` anywhere. `sameUser.test.ts` is a **scan** that fails if any of the three
+  sites regresses — confirmed to fail when one is reverted.
+- **The type was the reason it hid.** `types.ts` declared `senderId: number` while the runtime
+  value was a string, so the compiler could not see it. It is now `string | number`. A type
+  that asserts something false is worse than no type.
+- **It was already patched in ONE file** — `ChatMessageList` had a local
+  `String(a) === String(b)` while `useChat` and `TeamChatPage` were missed, which is why the
+  staff widget and the parent portal showed *different symptoms for one cause*. Same
+  fixed-one-missed-three shape as `ParentPortalChildScopeTest` and `MysqlOnlySqlTest`.
+- **`sameUser` refuses to match a missing id on either side.** Two unknowns are not the same
+  person; matching them would render a stranger's message as your own.
+- **Do not "fix" this at the JWT.** `lib/JWT.php` is on the do-not-modify list and every other
+  consumer of that claim expects a string today.
+
 ### Chat notifications — email + web push (2026-08-26)
 Full scope: `docs/chat-notifications-scope.md`. Dispatched from a throttled tick inside
 `workers/queue-worker.php`, not a new dyno.
