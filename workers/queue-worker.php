@@ -17,6 +17,7 @@ require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/ImportJobProcessor.php';
 require_once __DIR__ . '/../services/CalendarSyncService.php';
+require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -70,6 +71,13 @@ $running = true;
 // Throttle (unix seconds) for the orphaned-import-job reconciliation sweep below.
 $lastImportSweep = 0;
 
+// Throttle for the chat-notification dispatch tick. A tick inside this worker
+// rather than a new dyno — same reasoning as the scheduled-SMS scope: a separate
+// scheduler process hits the cost wall that keeps calendar-sync-scheduler and
+// waitlist-expiry-scheduler switched off.
+$lastChatNotifySweep = 0;
+const TE_CHAT_NOTIFY_TICK_SECONDS = 60;
+
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
 
@@ -112,6 +120,34 @@ while ($running) {
                 }
             } catch (Exception $e) {
                 error_log("[Worker] import reconciliation error: " . $e->getMessage());
+            }
+        }
+
+        // Chat notifications: tell people about messages they have missed.
+        //
+        // ⚠️ The catch is not optional. This worker also drives email, SMS,
+        // imports and calendar sync; an uncaught throw here stops all four. The
+        // dispatcher already guards each individual send, so anything reaching
+        // this handler is a failure of the whole sweep (a dead connection, a
+        // missing table) and must still leave the queues running.
+        if (time() - $lastChatNotifySweep > TE_CHAT_NOTIFY_TICK_SECONDS) {
+            $lastChatNotifySweep = time();
+            try {
+                $ensureDb();
+                $notified = te_chat_dispatch_notifications($db);
+                if ($notified['sent'] || $notified['failed']) {
+                    echo sprintf(
+                        "[Worker] chat notifications: %d sent, %d failed, %d skipped\n",
+                        $notified['sent'],
+                        $notified['failed'],
+                        $notified['skipped']
+                    );
+                }
+                foreach ($notified['errors'] as $chatError) {
+                    error_log('[Worker] chat notification error: ' . $chatError);
+                }
+            } catch (Throwable $e) {
+                error_log('[Worker] chat notification sweep error: ' . $e->getMessage());
             }
         }
 

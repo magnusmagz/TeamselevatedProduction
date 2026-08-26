@@ -189,6 +189,115 @@ HTML;
     }
 
     /**
+     * Tell someone they have unread chat messages.
+     *
+     * ⚠️ **This email deliberately carries NO message text.** Sender names and a
+     * count only, decided with Maggie 2026-08-25.
+     *
+     * Chat has archive and deliberately no delete: the only removal path is admin
+     * moderation, which tombstones the message and writes audit_log. An email
+     * cannot be recalled, so a digest containing the text would leave a moderated
+     * message sitting in every recipient's inbox permanently — outside the
+     * retention rules in lib/retention_plans.php and outside moderation's reach.
+     * In a product carrying minors' communications that is the wrong trade for a
+     * bit of convenience. The digest exists to get the person back into the app,
+     * where all of that still applies.
+     *
+     * @param string   $to               Recipient email
+     * @param string   $recipientName    Who we are writing to
+     * @param string   $conversationLabel e.g. "U12 Blue" — the team or group name
+     * @param string[] $senderNames      Distinct senders, already de-duplicated
+     * @param int      $messageCount     How many unread messages this covers
+     * @param string   $link             Where to open the conversation
+     * @return bool Success status
+     */
+    public function sendChatDigest($to, $recipientName, $conversationLabel, array $senderNames, $messageCount, $link) {
+        $count = max(1, (int) $messageCount);
+        $plural = $count === 1 ? 'message' : 'messages';
+
+        $safeName = htmlspecialchars((string) $recipientName, ENT_QUOTES, 'UTF-8');
+        $safeLabel = htmlspecialchars((string) $conversationLabel, ENT_QUOTES, 'UTF-8');
+        $safeLink = htmlspecialchars((string) $link, ENT_QUOTES, 'UTF-8');
+
+        $fromWhom = $this->describeSenders($senderNames);
+        $safeFromWhom = htmlspecialchars($fromWhom, ENT_QUOTES, 'UTF-8');
+
+        $subject = $count === 1
+            ? "New message in {$conversationLabel}"
+            : "{$count} new messages in {$conversationLabel}";
+
+        $line = $fromWhom === ''
+            ? "You have {$count} new {$plural}."
+            : "You have {$count} new {$plural} from {$fromWhom}.";
+        $safeLine = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:20px 12px;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+    <tr><td style="background-color:#12443E;padding:18px 24px;">
+      <div style="color:#ffffff;font-weight:800;font-size:16px;">{$safeLabel}</div>
+      <div style="color:#c3cdd6;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;">New messages</div>
+    </td></tr>
+    <tr><td style="padding:30px;">
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">Hi {$safeName},</p>
+      <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#333333;">{$safeLine}</p>
+      <p style="text-align:center;margin:26px 0;">
+        <a href="{$safeLink}" style="background-color:#12443E;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;display:inline-block;"><span style="color:#ffffff;">Open chat</span></a>
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#777777;">
+        You are getting this because you are on this team. You can mute this conversation,
+        or turn these emails off, from the app at any time.
+      </p>
+    </td></tr>
+    <tr><td style="background-color:#12443E;color:#ffffff;padding:20px;text-align:center;font-size:11px;">
+      Powered by Teams Elevated
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>
+HTML;
+
+        $textBody = "Hi {$recipientName},\n\n" .
+                    "{$line}\n\n" .
+                    "Open chat: {$link}\n\n" .
+                    "You are getting this because you are on this team. You can mute this " .
+                    "conversation, or turn these emails off, from the app at any time.";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * "Cora Coach", "Cora Coach and Pat Parent", "Cora Coach and 3 others".
+     *
+     * Listing every sender of a busy team chat would put a dozen names in one
+     * sentence, so it caps at two and counts the rest.
+     */
+    private function describeSenders(array $names) {
+        $clean = [];
+        foreach ($names as $n) {
+            $n = trim((string) $n);
+            if ($n !== '' && !in_array($n, $clean, true)) {
+                $clean[] = $n;
+            }
+        }
+
+        $total = count($clean);
+        if ($total === 0) {
+            return '';
+        }
+        if ($total === 1) {
+            return $clean[0];
+        }
+        if ($total === 2) {
+            return $clean[0] . ' and ' . $clean[1];
+        }
+        return $clean[0] . ' and ' . ($total - 1) . ' others';
+    }
+
+    /**
      * Send team invitation email
      *
      * @param string $to Recipient email
