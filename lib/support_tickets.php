@@ -28,6 +28,22 @@ const TE_SUPPORT_RATE_LIMIT = 5;
  */
 const TE_SUPPORT_ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
+/** Pages of history kept ahead of the one the ticket was filed from. */
+const TE_SUPPORT_MAX_TRAIL = 5;
+
+/**
+ * Query-string keys whose VALUE never reaches a support ticket.
+ *
+ * `/reset-password?token=…` and `/verify-magic-link?token=…` carry a live
+ * credential in the URL, and a page trail is read by more people, for longer,
+ * than a session is ever meant to be. The client redacts these too; this is the
+ * copy that matters, because the client's is attacker-controlled.
+ */
+const TE_SUPPORT_REDACT_PARAMS = [
+    'token', 'password', 'passwd', 'secret', 'key', 'code', 'auth',
+    'access_token', 'id_token', 'signature', 'sig', 'email', 'session',
+];
+
 if (!function_exists('te_support_client_ip')) {
     /**
      * Base URL of THIS API, for building the screenshot link.
@@ -216,5 +232,245 @@ if (!function_exists('te_support_client_ip')) {
         }
 
         return $parts ? implode(' · ', $parts) : '—';
+    }
+
+    /**
+     * Strip anything secret out of a URL before it is stored or posted.
+     *
+     * Keeps the path (that is the whole point of a trail) and keeps harmless
+     * query keys, because "which filter were they on" is often the bug. Values
+     * of TE_SUPPORT_REDACT_PARAMS keys become `…`, and a path SEGMENT that looks
+     * like a credential — long, and made only of token characters — is masked
+     * too: `/contribute/<token>` puts one in the path rather than the query.
+     */
+    function te_support_redact_url(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        // Only the path onwards is kept. An absolute URL from another origin has
+        // no business in a trail, and the host is already on the ticket.
+        $parts = parse_url($url);
+        $path  = (string) ($parts['path'] ?? $url);
+        $query = (string) ($parts['query'] ?? '');
+
+        $segments = array_map(function (string $seg): string {
+            // 20+ chars of nothing but token alphabet, with no vowel-and-hyphen
+            // shape to it, is a credential rather than a slug.
+            if (strlen($seg) >= 20 && preg_match('/^[A-Za-z0-9._~-]+$/', $seg)
+                && !str_contains($seg, ' ')) {
+                return '…';
+            }
+            return $seg;
+        }, explode('/', $path));
+        $path = implode('/', $segments);
+
+        if ($query !== '') {
+            $keptPairs = [];
+            foreach (explode('&', $query) as $pair) {
+                if ($pair === '') { continue; }
+                [$k, $v] = array_pad(explode('=', $pair, 2), 2, '');
+                $lower = strtolower(urldecode($k));
+                $isSecret = false;
+                foreach (TE_SUPPORT_REDACT_PARAMS as $needle) {
+                    if (str_contains($lower, $needle)) { $isSecret = true; break; }
+                }
+                $keptPairs[] = $isSecret ? ($k . '=…') : ($v === '' ? $k : "$k=$v");
+            }
+            if ($keptPairs) {
+                $path .= '?' . implode('&', $keptPairs);
+            }
+        }
+
+        return substr($path, 0, 300);
+    }
+
+    /**
+     * Validate the client-supplied page trail.
+     *
+     * Shape, length and count are all re-checked here. The trail arrives in the
+     * request body from a page anyone can open, so it is untrusted input that
+     * gets rendered into our own Slack — an unbounded string or a hundred
+     * entries would be a mess at best.
+     *
+     * Oldest first, newest last, so it reads as a walk toward the problem.
+     *
+     * @return list<array{path:string,at:?string}>
+     */
+    function te_support_sanitize_page_trail($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $entry) {
+            // Tolerate a bare string as well as {path, at}: a caller sending the
+            // simpler shape should get a usable trail, not a silently empty one.
+            if (is_string($entry)) {
+                $entry = ['path' => $entry];
+            }
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $path = te_support_redact_url((string) ($entry['path'] ?? ''));
+            if ($path === '') {
+                continue;
+            }
+
+            $at = null;
+            $rawAt = (string) ($entry['at'] ?? '');
+            if ($rawAt !== '') {
+                $ts = strtotime($rawAt);
+                // A client clock can be anything at all, including wrong. An
+                // unparseable or absurd timestamp drops the TIME, never the page.
+                if ($ts !== false && $ts > strtotime('-1 year') && $ts < strtotime('+1 day')) {
+                    $at = gmdate('c', $ts);
+                }
+            }
+
+            $out[] = ['path' => $path, 'at' => $at];
+        }
+
+        // Keep the MOST RECENT five. A long session should surface the steps
+        // just before the problem, not the first five pages of the day.
+        return array_slice($out, -TE_SUPPORT_MAX_TRAIL);
+    }
+
+    /**
+     * What the reporter is, resolved from the database.
+     *
+     * ⚠️ Every role is listed, not just the most privileged one. `lib/JWT.php`
+     * picks a single active role by precedence because the nav can only show one
+     * app; support is the opposite problem — a coach who is also a parent sees
+     * two different surfaces, and which one they were looking at is usually the
+     * question. Collapsing them to "club_admin" throws away the answer. See the
+     * dual-role section of CLAUDE.md.
+     *
+     * Parent standing derived from the guardian chain is reported separately,
+     * because that mismatch — a `guardians` row whose email is not the one they
+     * signed in with — is itself a recurring support case, and a ticket saying
+     * "parent (via guardian record)" while the role rows say nothing is the
+     * fastest possible diagnosis of it.
+     *
+     * Fails soft: a query error yields an empty list, never an exception. This
+     * runs while filing a bug report, and decorating the ticket must not be able
+     * to stop it being filed.
+     *
+     * @return list<string>
+     */
+    function te_support_reporter_roles(PDO $pdo, ?int $userId, ?int $clubId = null): array
+    {
+        if ($userId === null) {
+            return [];
+        }
+
+        $roles = [];
+        try {
+            $stmt = $pdo->prepare('SELECT system_role, email FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $systemRole = strtolower(trim((string) ($user['system_role'] ?? '')));
+            if ($systemRole !== '' && $systemRole !== 'user') {
+                $roles[] = $systemRole;
+            }
+
+            // active AND revoked_at, the same pair lib/JWT.php checks — the two
+            // columns can disagree, and when they do the revocation is newer.
+            $sql = "SELECT DISTINCT role FROM user_club_access
+                    WHERE user_id = ? AND active = TRUE AND revoked_at IS NULL";
+            $params = [$userId];
+            if ($clubId !== null) {
+                // Scope to the club they were actually working in when we know
+                // it; a role held in some other club is not what they were using.
+                $sql .= ' AND club_profile_id = ?';
+                $params[] = $clubId;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $role) {
+                $role = trim((string) $role);
+                if ($role !== '' && !in_array($role, $roles, true)) {
+                    $roles[] = $role;
+                }
+            }
+
+            $email = trim((string) ($user['email'] ?? ''));
+            if ($email !== '' && !in_array('parent', $roles, true)) {
+                // LOWER() on both sides — a single capital letter in one of the
+                // two columns is what silently empties a family's portal.
+                $stmt = $pdo->prepare(
+                    'SELECT COUNT(*) FROM guardians g
+                     JOIN athlete_guardians ag ON ag.guardian_id = g.id
+                     WHERE LOWER(g.email) = LOWER(?)'
+                );
+                $stmt->execute([$email]);
+                if ((int) $stmt->fetchColumn() > 0) {
+                    $roles[] = 'parent (via guardian record)';
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('support role lookup failed, continuing without: ' . $e->getMessage());
+        }
+
+        return $roles;
+    }
+
+    /**
+     * The stored / displayed form of the role list.
+     *
+     * A signed-in user with no roles at all is not the same as an anonymous
+     * report, and it is a real state worth seeing on a ticket — it is exactly
+     * what "I log in and the app is empty" looks like from this side.
+     */
+    function te_support_roles_summary(array $roles, bool $signedIn = true): string
+    {
+        if ($roles) {
+            return implode(', ', $roles);
+        }
+        return $signedIn ? 'no roles assigned' : 'not signed in';
+    }
+
+    /**
+     * Render the trail for Slack — one page per line, oldest first.
+     *
+     * Times are relative to now: "4m ago" answers "did they bounce straight
+     * here or wander for an hour" without anyone doing arithmetic in their head.
+     */
+    function te_support_format_page_trail(array $trail, ?int $now = null): string
+    {
+        if (!$trail) {
+            return '';
+        }
+        $now = $now ?? time();
+
+        $lines = [];
+        foreach ($trail as $entry) {
+            $line = '• ' . ($entry['path'] ?? '');
+            $at = $entry['at'] ?? null;
+            if ($at) {
+                $ts = strtotime((string) $at);
+                if ($ts !== false) {
+                    $secs = max(0, $now - $ts);
+                    if ($secs < 60) {
+                        $rel = $secs . 's ago';
+                    } elseif ($secs < 3600) {
+                        $rel = intdiv($secs, 60) . 'm ago';
+                    } elseif ($secs < 86400) {
+                        $rel = intdiv($secs, 3600) . 'h ago';
+                    } else {
+                        $rel = intdiv($secs, 86400) . 'd ago';
+                    }
+                    $line .= '  _' . $rel . '_';
+                }
+            }
+            $lines[] = $line;
+        }
+
+        return implode("\n", $lines);
     }
 }

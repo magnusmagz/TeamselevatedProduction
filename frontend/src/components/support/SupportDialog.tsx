@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   collectDeviceInfo,
   describeDevice,
@@ -6,6 +6,7 @@ import {
   dataUrlBytes,
   MAX_UPLOAD_BYTES,
 } from './deviceInfo';
+import { getPageTrail, redactPath, PageVisit } from './pageHistory';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -31,6 +32,15 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ticketId, setTicketId] = useState<number | null>(null);
+  // Snapshotted when the dialog OPENS, not when it mounts. `SupportButton`
+  // renders this component permanently with `open={false}`, so a `useRef`
+  // initializer would capture the trail at app start — always empty, forever.
+  // Frozen from that point so it cannot shift under the reporter while they
+  // type, and re-read on each open so a second report gets a fresh one.
+  const [pageTrail, setPageTrail] = useState<PageVisit[]>([]);
+  useEffect(() => {
+    if (open) setPageTrail(getPageTrail());
+  }, [open]);
 
   if (!open) return null;
 
@@ -84,8 +94,9 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
         },
         body: JSON.stringify({
           description: description.trim(),
-          page_url: window.location.href,
+          page_url: redactPath(window.location.pathname + window.location.search),
           device_info: device,
+          page_history: pageTrail,
           screenshot,
           screenshot_name: screenshotName,
         }),
@@ -187,6 +198,22 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
             <p className="text-xs text-gray-500 mt-4">
               We'll include: {describeDevice(device)} · {device.route}
             </p>
+            {pageTrail.length > 0 && (
+              <details className="text-xs text-gray-500 mt-1">
+                <summary className="cursor-pointer">
+                  …and the last {pageTrail.length} page{pageTrail.length === 1 ? '' : 's'} you
+                  visited
+                </summary>
+                {/* Listed in full rather than counted. "The pages you visited"
+                    is the sort of thing people are entitled to actually read
+                    before they send it. */}
+                <ul className="mt-1 ml-4 list-disc">
+                  {pageTrail.map((v, i) => (
+                    <li key={`${v.path}-${i}`}>{v.path}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
             {error && (
               <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 mt-3">

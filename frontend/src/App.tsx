@@ -14,6 +14,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import { ChatWidget } from './components/chat';
 import { useModerationOpenCount } from './hooks/useModerationOpenCount';
 import { SupportButton } from './components/support/SupportButton';
+import { recordPageVisit } from './components/support/pageHistory';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -245,6 +246,14 @@ function AppContent() {
   React.useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Breadcrumb trail for support tickets — "what were you doing before this?"
+  // answered without asking. Recorded here, in the one component every route
+  // renders inside, so the staff app and the parent portal are both covered by
+  // a single call. Redaction and the cap live in pageHistory.ts.
+  React.useEffect(() => {
+    recordPageVisit(location.pathname + location.search);
+  }, [location.pathname, location.search]);
 
   const [peopleDropdownOpen, setPeopleDropdownOpen] = React.useState(false);
   const peopleDropdownRef = React.useRef<HTMLDivElement>(null);
