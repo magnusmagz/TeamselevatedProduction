@@ -12,6 +12,16 @@ export type PushState =
 interface UsePushNotifications {
   state: PushState;
   busy: boolean;
+  /**
+   * Why the last attempt failed, in words a person can act on.
+   *
+   * The first version swallowed every failure into `setState('off')`, so the
+   * control flashed and returned to "Turn on" with nothing in the console and
+   * nothing on screen. That is unusable for the person hitting it and worse for
+   * whoever has to support them — reported 2026-08-26 after a long diagnosis
+   * that this would have answered in one click.
+   */
+  error: string | null;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
 }
@@ -60,6 +70,7 @@ function authHeaders(): Record<string, string> {
 export function usePushNotifications(): UsePushNotifications {
   const [state, setState] = useState<PushState>('unsupported');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const supported =
     typeof window !== 'undefined' &&
@@ -106,11 +117,17 @@ export function usePushNotifications(): UsePushNotifications {
   const enable = useCallback(async () => {
     if (!supported) return;
     setBusy(true);
+    setError(null);
 
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setState(permission === 'denied' ? 'denied' : 'off');
+        setError(
+          permission === 'denied'
+            ? 'Your browser is blocking notifications for this site.'
+            : 'The permission prompt was dismissed. Click the icon at the left of the address bar to allow notifications.'
+        );
         return;
       }
 
@@ -118,16 +135,36 @@ export function usePushNotifications(): UsePushNotifications {
       const keyData = await keyRes.json();
       if (!keyData.success || !keyData.public_key) {
         setState('unconfigured');
+        setError('Notifications are not configured on the server.');
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        // Required by Chrome: a push must always result in something the person
-        // can see. Everything sent here does.
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyData.public_key) as BufferSource,
-      });
+
+      let subscription: PushSubscription;
+      try {
+        subscription = await registration.pushManager.subscribe({
+          // Required by Chrome: a push must always result in something the
+          // person can see. Everything sent here does.
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.public_key) as BufferSource,
+        });
+      } catch (e: any) {
+        // The common one is InvalidStateError: this browser already holds a
+        // subscription created with a DIFFERENT server key, and it must be
+        // dropped before a new one can be made. Say so rather than flashing.
+        if (e?.name === 'InvalidStateError') {
+          const stale = await registration.pushManager.getSubscription();
+          await stale?.unsubscribe().catch(() => undefined);
+          setError('This browser held an old notification registration. It has been cleared — press Turn on once more.');
+        } else {
+          setError(`Your browser refused to register for notifications (${e?.name || 'unknown error'}).`);
+        }
+        // eslint-disable-next-line no-console
+        console.error('[push] subscribe failed', e);
+        setState('off');
+        return;
+      }
 
       const res = await fetch(`${API_URL}/api/push-subscriptions.php?action=subscribe`, {
         method: 'POST',
@@ -141,12 +178,22 @@ export function usePushNotifications(): UsePushNotifications {
         // roll it back and report honestly.
         await subscription.unsubscribe().catch(() => undefined);
         setState('off');
+        setError(
+          res.status === 401
+            ? 'Your session has expired. Sign in again, then turn notifications on.'
+            : `Could not save the registration (error ${res.status}).`
+        );
+        // eslint-disable-next-line no-console
+        console.error('[push] save failed', res.status, await res.text().catch(() => ''));
         return;
       }
 
       setState('on');
-    } catch {
+    } catch (e: any) {
       setState('off');
+      setError(`Something went wrong turning notifications on (${e?.name || 'unknown error'}).`);
+      // eslint-disable-next-line no-console
+      console.error('[push] enable failed', e);
     } finally {
       setBusy(false);
     }
@@ -179,5 +226,5 @@ export function usePushNotifications(): UsePushNotifications {
     }
   }, [supported]);
 
-  return { state, busy, enable, disable };
+  return { state, busy, error, enable, disable };
 }

@@ -17,7 +17,7 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
  * almost none.
  */
 export const PushNotificationToggle: React.FC = () => {
-  const { state, busy, enable, disable } = usePushNotifications();
+  const { state, busy, error, enable, disable } = usePushNotifications();
   const { isIOS, isInstalled } = usePWAInstall();
 
   // Nothing the server can do about this, and nothing worth showing a toggle for.
@@ -59,8 +59,15 @@ export const PushNotificationToggle: React.FC = () => {
         )}
       </div>
 
-      {state === 'on' && (
+      {state === 'on' && !error && (
         <p className="mt-3 text-sm text-green-700">Notifications are on for this device.</p>
+      )}
+
+      {/* Say what went wrong. The first version swallowed every failure and just
+          returned to "Turn on", so the control flashed and told nobody anything —
+          unusable for the person hitting it, and worse for whoever supports them. */}
+      {error && (
+        <p className="mt-3 text-sm text-red-700" role="alert">{error}</p>
       )}
 
       {/* Only the person can undo a denial, and only in browser settings — so say

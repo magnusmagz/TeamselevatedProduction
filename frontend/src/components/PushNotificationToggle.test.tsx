@@ -10,8 +10,12 @@ jest.mock('../hooks/usePWAInstall');
 const mockPush = usePushNotifications as jest.MockedFunction<typeof usePushNotifications>;
 const mockInstall = usePWAInstall as jest.MockedFunction<typeof usePWAInstall>;
 
-function setup(state: PushState, platform: { isIOS?: boolean; isInstalled?: boolean } = {}) {
-  mockPush.mockReturnValue({ state, busy: false, enable: jest.fn(), disable: jest.fn() });
+function setup(
+  state: PushState,
+  platform: { isIOS?: boolean; isInstalled?: boolean } = {},
+  error: string | null = null
+) {
+  mockPush.mockReturnValue({ state, busy: false, error, enable: jest.fn(), disable: jest.fn() });
   mockInstall.mockReturnValue({
     isInstallable: false,
     isInstalled: platform.isInstalled ?? false,
@@ -74,6 +78,32 @@ describe('PushNotificationToggle', () => {
     })();
 
     expect(container.querySelector('h3')).toBeNull();
+  });
+
+  /**
+   * The reason this exists: the control used to swallow every failure and flash
+   * back to "Turn on" with nothing on screen and nothing in the console. A
+   * person hitting that has no way forward, and neither does whoever supports
+   * them.
+   */
+  it('says what went wrong instead of silently flashing', () => {
+    setup('off', {}, 'Your session has expired. Sign in again, then turn notifications on.');
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/session has expired/i);
+  });
+
+  it('does not claim notifications are on while reporting an error', () => {
+    setup('on', {}, 'Could not save the registration (error 500).');
+
+    expect(screen.queryByText(/notifications are on for this device/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('shows no alert when nothing has gone wrong', () => {
+    setup('on');
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/notifications are on for this device/i)).toBeInTheDocument();
   });
 
   it('always says this device, never implies an account-wide setting', () => {
