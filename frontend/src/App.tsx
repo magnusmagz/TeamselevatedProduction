@@ -13,6 +13,7 @@ import ProtectedSuperAdminRoute from './components/ProtectedSuperAdminRoute';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import { ChatWidget } from './components/chat';
 import { useModerationOpenCount } from './hooks/useModerationOpenCount';
+import EnableNotificationsPrompt from './components/EnableNotificationsPrompt';
 import { SupportButton } from './components/support/SupportButton';
 import { recordPageVisit } from './components/support/pageHistory';
 import Home from './pages/Home';
@@ -398,6 +399,9 @@ function AppContent() {
             its own InstallPrompt inside ParentPortalLayout, so it is excluded
             here via !isParentPortal to avoid a double prompt. */}
         {user && !isParentPortal && <InstallPrompt />}
+        {/* Same prompt for staff. Coaches need this more than anyone — a parent
+            messaging about a cancellation is time-sensitive. */}
+        {user && !isParentPortal && <EnableNotificationsPrompt />}
         {user && !isParentPortal && (
           <nav className="bg-white border-b border-brand-secondary">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

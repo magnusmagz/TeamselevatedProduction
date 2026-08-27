@@ -43,6 +43,62 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return output;
 }
 
+/**
+ * Which browser this is, for unblock instructions.
+ *
+ * Only used to choose wording. Order matters: Chrome and Edge both contain
+ * "Safari" and "Chrome" in their user agent strings, so the more specific
+ * checks have to come first.
+ */
+function detectBrowser(): 'chrome' | 'safari' | 'firefox' | 'edge' | 'other' {
+  const ua = navigator.userAgent;
+  if (/Edg\//.test(ua)) return 'edge';
+  if (/Firefox\//.test(ua)) return 'firefox';
+  if (/Chrome\//.test(ua)) return 'chrome';
+  if (/Safari\//.test(ua)) return 'safari';
+  return 'other';
+}
+
+/**
+ * What to do when the browser has BLOCKED notifications for this site.
+ *
+ * ⚠️ Once blocked, no button can re-prompt — browsers refuse, deliberately, so
+ * sites cannot nag. The only way back is the person changing it themselves, so
+ * the text has to be specific enough to follow. "Check your browser settings" is
+ * useless, which is what this replaces.
+ */
+function blockedInstructions(): string {
+  switch (detectBrowser()) {
+    case 'chrome':
+    case 'edge':
+      return 'Notifications are blocked for this site. Click the icon just left of the web address, '
+        + 'set Notifications to Allow, then reload the page and try again.';
+    case 'safari':
+      return 'Notifications are blocked for this site. In Safari, open Settings > Websites > '
+        + 'Notifications, set this site to Allow, then reload the page.';
+    case 'firefox':
+      return 'Notifications are blocked for this site. Click the padlock left of the web address, '
+        + 'clear the Notifications setting, then reload the page and try again.';
+    default:
+      return 'Notifications are blocked for this site in your browser settings. Allow them for this '
+        + 'site, then reload the page and try again.';
+  }
+}
+
+/** The prompt appeared and was dismissed — this one CAN be retried. */
+function dismissedInstructions(): string {
+  switch (detectBrowser()) {
+    case 'chrome':
+    case 'edge':
+      return 'The permission request was dismissed. Press Turn on again, and choose Allow — or click '
+        + 'the icon just left of the web address to set it.';
+    case 'safari':
+      return 'The permission request was dismissed. Press Turn on again and choose Allow.';
+    default:
+      return 'The permission request was dismissed. Press Turn on again and choose Allow.';
+  }
+}
+
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('auth_token');
   return token
@@ -155,11 +211,7 @@ export function usePushNotifications(): UsePushNotifications {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setState(permission === 'denied' ? 'denied' : 'off');
-        setError(
-          permission === 'denied'
-            ? 'Your browser is blocking notifications for this site.'
-            : 'The permission prompt was dismissed. Click the icon at the left of the address bar to allow notifications.'
-        );
+        setError(permission === 'denied' ? blockedInstructions() : dismissedInstructions());
         return;
       }
 

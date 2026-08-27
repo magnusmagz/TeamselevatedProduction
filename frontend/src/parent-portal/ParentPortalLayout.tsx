@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { BottomNavigation } from './components/BottomNavigation';
 import { InstallPrompt } from './components/InstallPrompt';
+import EnableNotificationsPrompt from '../components/EnableNotificationsPrompt';
 import { SponsorMarquee } from './components/SponsorMarquee';
 import { ParentErrorBoundary } from './components/ParentErrorBoundary';
 import { ConsentGate } from './components/ConsentGate';
@@ -22,6 +23,11 @@ export const ParentPortalLayout: React.FC<ParentPortalLayoutProps> = ({ children
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Install prompt banner - shown at top when applicable */}
       <InstallPrompt />
+
+      {/* One-tap way to turn message alerts on. The toggle in Account Settings
+          works and no family will ever find it; this is the discoverable path.
+          Hides itself once notifications are on, or where it cannot succeed. */}
+      <EnableNotificationsPrompt />
 
       {/* Main content area with safe area insets */}
       <main
