@@ -1240,6 +1240,38 @@ connects to Neon at load, so a test that required it would have hit the producti
 - `chat_messages_removed` is **inert until admin moderation removal ships** (Phase 2). Nothing writes
   `chat_messages.deleted_at` yet, so it reports zero. Correct, not broken.
 
+### ⚠️⚠️ A user id is a STRING in the token and a NUMBER in Postgres (2026-08-26)
+**Three separate visible bugs in one day, all from this.** `lib/JWT.php:201` mints the claim
+as `(string)$userId` ("Neon expects string"); `node-postgres` parses `int4` to a JavaScript
+**number**; the React client holds `user.id` as a **number**. Every `===`, `.has()` or
+`.includes()` across that boundary is a silent no-op — no error, no log, just a comparison
+that is always false.
+
+What it cost:
+1. **Every message you sent appeared twice**, one stuck on "Sending…", and in the parent portal
+   your own message came back rendered as somebody else's. (`isOwnMessage`, and the optimistic
+   reconciliation in `useChat`.)
+2. **The unread badge never incremented live** on the client, only on a page load.
+3. **A DM's `conversationUpdated` event reached NOBODY** — `Set{74}.has("74")` is false — so the
+   badge could not move at all for direct messages. Team chats survived on the
+   `|| type === 'team'` fallback in the same line, which is exactly why this presented as
+   "the parent portal is fine, the staff app is broken": parents live in team chats.
+
+**The rules:**
+- Client: compare with **`sameUser()`** (`frontend/src/components/chat/sameUser.ts`) and nothing
+  else. It refuses to match when either side is missing — two unknowns are not the same person.
+- Chat server: `String()` on **both** sides. Never build a `Set` from pg rows and test it with a
+  JWT id.
+- **Do not "fix" this at the JWT.** `lib/JWT.php` is on the do-not-modify list and every other
+  consumer of that claim expects a string today.
+- ⚠️ **A wrong TYPE ANNOTATION is what hid it.** `types.ts` declared `senderId: number` while the
+  runtime value was a string, so the compiler could not see any of it. It is now
+  `string | number`. A type that asserts something false is worse than no type.
+- Each site is pinned by a **scan** — `sameUser.test.ts` and
+  `chat-server/__tests__/participant_id_types.test.js` — because the bug was never in the
+  predicate, it was in which call sites used it. It had already been patched in
+  `ChatMessageList` alone while two others were missed.
+
 ### ⚠️ `senderId` from the chat server is a STRING — compare with `sameUser()` (2026-08-26)
 Reported from prod: sending a chat message showed it **twice** — one copy stuck on
 "Sending…", and in the parent portal the other came back left-aligned with the sender's own
