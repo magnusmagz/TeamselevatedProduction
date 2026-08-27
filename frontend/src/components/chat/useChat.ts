@@ -154,13 +154,40 @@ export function useChat(): UseChatReturn {
       })));
     };
 
+    /**
+     * A message arrived in a conversation this client does NOT have open.
+     *
+     * ⚠️ This is the only event such a client receives. The server sends
+     * `receiveMessage` to the conversation ROOM, and a client joins the room
+     * only for the conversation it currently has open (see joinConversation
+     * calls above) — so for everyone else, this handler is the whole story.
+     *
+     * It used to update the preview and nothing else, which meant the unread
+     * badge could never increment live for exactly the people the badge exists
+     * for: those not already looking at the conversation. The count was correct
+     * only on a fresh page load, so signing out and back in "fixed" it.
+     * Reported 2026-08-26; wrong since chat shipped, not a regression.
+     */
     const handleConversationUpdated = (data: {
       conversationId: number;
+      senderId?: string | number;
       lastMessage: { text: string; timestamp: string; senderName: string };
     }) => {
-      setConversations(prev => sortByLastMessage(prev.map(c =>
-        c.id === data.conversationId ? { ...c, lastMessage: data.lastMessage } : c
-      )));
+      setConversations(prev => sortByLastMessage(prev.map(c => {
+        if (c.id !== data.conversationId) return c;
+
+        // Never count your own message as unread, and never count one in the
+        // conversation already on screen — that one is being read right now.
+        const isOwn = sameUser(data.senderId, user?.id);
+        const isOpen = activeConvRef.current?.id === data.conversationId;
+        const shouldCount = !isOwn && !isOpen;
+
+        return {
+          ...c,
+          lastMessage: data.lastMessage,
+          unreadCount: shouldCount ? (c.unreadCount || 0) + 1 : c.unreadCount,
+        };
+      })));
     };
 
     const handleConversationCreated = (conv: Conversation) => {

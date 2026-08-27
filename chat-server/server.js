@@ -861,6 +861,15 @@ io.on('connection', (socket) => {
     const preview = text.trim().substring(0, 100);
     const updatePayload = {
       conversationId,
+      // Who sent it. Carried so the client can increment its unread badge
+      // WITHOUT counting the recipient's own message.
+      //
+      // Recipients who do not have this conversation open never receive
+      // `receiveMessage` — they get this event instead — and the client handler
+      // used to update only the preview. So the unread badge could never
+      // increment live for exactly the people the badge exists for, and was
+      // correct only on a fresh page load. Reported 2026-08-26.
+      senderId: userInfo.userId,
       lastMessage: {
         text: preview,
         timestamp: saved.created_at,
