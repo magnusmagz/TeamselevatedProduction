@@ -295,6 +295,41 @@ function te_chat_mark_notified(
     ]);
 }
 
+/**
+ * Record that someone came back from a notification.
+ *
+ * ⚠️ FIRST click only — `clicked_at IS NULL` in the WHERE. A person opening the
+ * same conversation three times did not respond to three notifications, and
+ * counting it that way would quietly inflate every rate built on this.
+ *
+ * Silently does nothing when there is no matching notification: someone opening
+ * a conversation they were never notified about is ordinary use, not an error.
+ *
+ * @return bool whether this call recorded a click
+ */
+function te_chat_record_click(
+    PDO $pdo,
+    int $userId,
+    int $conversationId,
+    string $channel,
+    ?string $at = null
+): bool {
+    if (!in_array($channel, ['email', 'push', 'in_app'], true)) {
+        return false;
+    }
+
+    $when = $at ?? (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+
+    $stmt = $pdo->prepare(
+        'UPDATE chat_notification_state
+            SET clicked_at = ?, clicked_channel = ?
+          WHERE user_id = ? AND conversation_id = ? AND clicked_at IS NULL'
+    );
+    $stmt->execute([$when, $channel, $userId, $conversationId]);
+
+    return $stmt->rowCount() > 0;
+}
+
 /** Read watermark and mute flag, keyed by user id. Absent row is a valid answer. */
 function te_chat_participant_state(PDO $pdo, int $conversationId, array $userIds): array
 {

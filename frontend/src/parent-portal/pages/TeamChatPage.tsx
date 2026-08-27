@@ -6,6 +6,7 @@ import NewConversationDialog from '../../components/chat/NewConversationDialog';
 import ReportMessageButton from '../../components/chat/ReportMessageButton';
 import { ParentHeader } from '../components/ParentHeader';
 import { sameUser } from '../../components/chat/sameUser';
+import { reportNotificationClick } from '../../components/chat/reportNotificationClick';
 
 export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -129,8 +130,10 @@ export const TeamChatPage: React.FC = () => {
     openedFromNotification.current = true;
     selectConversation(conv);
 
+    reportNotificationClick(conv.id, new URLSearchParams(window.location.search).get('tec'));
+
     const url = new URL(window.location.href);
-    url.searchParams.delete('chat');
+    ['chat', 'tec', 'utm_source', 'utm_medium', 'utm_campaign'].forEach((p) => url.searchParams.delete(p));
     window.history.replaceState({}, '', url.toString());
   }, [conversations, selectConversation]);
 

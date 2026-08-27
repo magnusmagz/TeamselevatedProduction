@@ -20,6 +20,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/notification_centre.php';
+require_once __DIR__ . '/../lib/chat_notification_scope.php';
 
 function te_notifications_fail(int $status, string $message): void
 {
@@ -80,6 +81,35 @@ switch ($action) {
             'marked'       => te_notify_mark_read($pdo, $userId, $ids),
             'unread_count' => te_notify_unread_count($pdo, $userId),
         ]);
+        break;
+    }
+
+    /**
+     * "I came back because of a notification."
+     *
+     * Called by the app when it opens a conversation carrying the `tec`
+     * parameter from a notification link. Chat notifications deliberately carry
+     * no tracking pixel (see lib/chat_notification_dispatcher.php), so this is
+     * the only click signal — and unlike a pixel it covers PUSH too, and
+     * measures a person acting rather than a mail client loading an image.
+     *
+     * The user comes from the token, never the request, so nobody can record a
+     * click against somebody else and skew the numbers.
+     */
+    case 'record-click': {
+        $conversationId = (int) ($body['conversation_id'] ?? 0);
+        $channel = (string) ($body['channel'] ?? '');
+
+        if ($conversationId <= 0) {
+            te_notifications_fail(400, 'conversation_id is required');
+        }
+
+        // An unrecognised channel is not worth a 4xx — the parameter comes off a
+        // URL a person may have edited or a mail client may have mangled, and
+        // failing the page load over a metric would be the wrong trade.
+        $recorded = te_chat_record_click($pdo, $userId, $conversationId, $channel);
+
+        echo json_encode(['success' => true, 'recorded' => $recorded]);
         break;
     }
 

@@ -50,7 +50,7 @@ class ChatPushTest extends TestCase
                                         sender_name TEXT, message_text TEXT, created_at TEXT, deleted_at TEXT);
             CREATE TABLE chat_notification_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
                                         conversation_id INTEGER NOT NULL, last_notified_message_id INTEGER,
-                                        last_notified_at TEXT, last_notified_channel TEXT,
+                                        last_notified_at TEXT, last_notified_channel TEXT, clicked_at TEXT, clicked_channel TEXT,
                                         created_at TEXT, updated_at TEXT, UNIQUE (user_id, conversation_id));
             CREATE TABLE chat_notification_prefs (user_id INTEGER PRIMARY KEY, email_enabled INTEGER DEFAULT 1,
                                         push_enabled INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
@@ -445,6 +445,91 @@ class ChatPushTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────────
     // The endpoint that stores all this
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Did the notification bring anyone back?
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function testAClickIsRecordedAgainstTheNotification(): void
+    {
+        te_chat_mark_notified($this->pdo, 2, 55, 1, 'email', self::NOW);
+
+        $this->assertTrue(te_chat_record_click($this->pdo, 2, 55, 'email', self::NOW));
+
+        $row = $this->pdo->query(
+            'SELECT clicked_at, clicked_channel FROM chat_notification_state WHERE user_id = 2'
+        )->fetch();
+        $this->assertSame(self::NOW, $row['clicked_at']);
+        $this->assertSame('email', $row['clicked_channel']);
+    }
+
+    /**
+     * Opening the same conversation three times is not three notifications
+     * working. Counting it that way would quietly inflate every rate built on
+     * this number.
+     */
+    public function testOnlyTheFirstClickCounts(): void
+    {
+        te_chat_mark_notified($this->pdo, 2, 55, 1, 'email', self::NOW);
+
+        $this->assertTrue(te_chat_record_click($this->pdo, 2, 55, 'email', self::NOW));
+        $this->assertFalse(te_chat_record_click($this->pdo, 2, 55, 'email', '2026-08-26 13:00:00'));
+
+        $this->assertSame(
+            self::NOW,
+            $this->pdo->query('SELECT clicked_at FROM chat_notification_state WHERE user_id = 2')->fetchColumn(),
+            'The first click stands; a later visit must not overwrite it.'
+        );
+    }
+
+    /** Opening a conversation you were never notified about is ordinary use. */
+    public function testAClickWithNoNotificationRecordsNothing(): void
+    {
+        $this->assertFalse(te_chat_record_click($this->pdo, 2, 55, 'email', self::NOW));
+    }
+
+    /**
+     * The channel that EARNED the return is the question, so it is recorded
+     * separately rather than assumed to match what was last sent — someone may
+     * click yesterday's email after today's push.
+     */
+    public function testTheClickChannelIsRecordedIndependently(): void
+    {
+        te_chat_mark_notified($this->pdo, 2, 55, 1, 'push', self::NOW);
+        te_chat_record_click($this->pdo, 2, 55, 'email', self::NOW);
+
+        $row = $this->pdo->query(
+            'SELECT last_notified_channel, clicked_channel FROM chat_notification_state WHERE user_id = 2'
+        )->fetch();
+        $this->assertSame('push', $row['last_notified_channel']);
+        $this->assertSame('email', $row['clicked_channel']);
+    }
+
+    public function testAnUnknownClickChannelIsIgnoredNotStored(): void
+    {
+        te_chat_mark_notified($this->pdo, 2, 55, 1, 'email', self::NOW);
+
+        $this->assertFalse(te_chat_record_click($this->pdo, 2, 55, 'carrier-pigeon', self::NOW));
+        $this->assertNull(
+            $this->pdo->query('SELECT clicked_at FROM chat_notification_state WHERE user_id = 2')->fetchColumn()
+        );
+    }
+
+    /** The link has to carry what makes the click measurable. */
+    public function testTheLinkCarriesTheTrackingParameterAndUtms(): void
+    {
+        $conversation = ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51];
+
+        $email = te_chat_notification_link($this->pdo, 2, $conversation, 'email');
+        $this->assertStringContainsString('chat=55', $email);
+        $this->assertStringContainsString('tec=email', $email);
+        $this->assertStringContainsString('utm_medium=email', $email);
+        $this->assertStringContainsString('utm_campaign=chat-notification', $email);
+
+        $push = te_chat_notification_link($this->pdo, 2, $conversation, 'push');
+        $this->assertStringContainsString('tec=push', $push);
+        $this->assertStringContainsString('utm_medium=push', $push);
+    }
 
     /**
      * The user id must come from the verified token, never the request body —

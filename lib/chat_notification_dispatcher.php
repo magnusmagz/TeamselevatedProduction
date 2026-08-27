@@ -85,7 +85,7 @@ function te_chat_dispatch_notifications(PDO $pdo, array $opts = []): array
             $push = $pusher($item['user_id'], [
                 'title' => $envelope['conversation_label'],
                 'body'  => $envelope['push_body'],
-                'url'   => $envelope['link'],
+                'url'   => $envelope['push_link'],
                 'tag'   => 'chat-' . $item['conversation_id'],
             ]);
 
@@ -252,7 +252,8 @@ function te_chat_build_envelope(PDO $pdo, array $item): ?array
         'sender_names'       => $senderNames,
         'message_count'      => $item['message_count'],
         'club_id'            => $conversation['club_id'] !== null ? (int) $conversation['club_id'] : null,
-        'link'               => te_chat_notification_link($pdo, (int) $item['user_id'], $conversation),
+        'link'               => te_chat_notification_link($pdo, (int) $item['user_id'], $conversation, 'email'),
+        'push_link'          => te_chat_notification_link($pdo, (int) $item['user_id'], $conversation, 'push'),
     ];
 }
 
@@ -305,7 +306,7 @@ function te_chat_conversation_label(PDO $pdo, array $conversation, int $recipien
  * precedence (club_admin > treasurer > coach > volunteer > parent > player) and
  * ParentRedirect's behaviour of leaving staff on the dashboard.
  */
-function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): string
+function te_chat_notification_link(PDO $pdo, int $userId, array $conversation, string $channel = 'email'): string
 {
     $conversationId = (int) ($conversation['id'] ?? 0);
     $appUrl = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/');
@@ -332,13 +333,30 @@ function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): 
     // the message they were just told about. Staff chat is a widget rather than
     // a route, so it takes a query parameter that ChatWidget reads on load;
     // the parent portal has a real route and takes one too.
+    $path = $isStaff ? '/dashboard' : '/parent/chat';
+
     if ($conversationId <= 0) {
-        return $isStaff ? $appUrl . '/dashboard' : $appUrl . '/parent/chat';
+        return $appUrl . $path;
     }
 
-    return $isStaff
-        ? $appUrl . '/dashboard?chat=' . $conversationId
-        : $appUrl . '/parent/chat?chat=' . $conversationId;
+    // `tec` is what makes the click measurable: the app reports it back, which
+    // is how we know whether a notification actually brought anyone in. Chat
+    // notifications carry no tracking pixel by design (see the header), so this
+    // is the only signal — and unlike a pixel it works for PUSH too, and
+    // measures a person acting rather than a mail client loading an image.
+    //
+    // UTMs are along for the ride. Nothing consumes them today — there is no
+    // analytics on the site at all, verified 2026-08-27 — but they cost nothing
+    // and mean these clicks are attributable from day one if that changes.
+    $params = [
+        'chat'         => $conversationId,
+        'tec'          => $channel,
+        'utm_source'   => 'teams-elevated',
+        'utm_medium'   => $channel === 'push' ? 'push' : 'email',
+        'utm_campaign' => 'chat-notification',
+    ];
+
+    return $appUrl . $path . '?' . http_build_query($params);
 }
 
 /**

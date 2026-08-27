@@ -469,7 +469,9 @@
     "last_notified_at",
     "last_notified_channel",
     "created_at",
-    "updated_at"
+    "updated_at",
+    "clicked_at",
+    "clicked_channel"
   ],
   "chat_reactions": [
     "id",

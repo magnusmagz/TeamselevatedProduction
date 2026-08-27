@@ -50,7 +50,7 @@ class ChatNotificationDispatcherTest extends TestCase
                                         sender_name TEXT, message_text TEXT, created_at TEXT, deleted_at TEXT);
             CREATE TABLE chat_notification_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
                                         conversation_id INTEGER NOT NULL, last_notified_message_id INTEGER,
-                                        last_notified_at TEXT, last_notified_channel TEXT,
+                                        last_notified_at TEXT, last_notified_channel TEXT, clicked_at TEXT, clicked_channel TEXT,
                                         created_at TEXT, updated_at TEXT, UNIQUE (user_id, conversation_id));
             CREATE TABLE chat_notification_prefs (user_id INTEGER PRIMARY KEY, email_enabled INTEGER DEFAULT 1,
                                         push_enabled INTEGER DEFAULT 1, created_at TEXT, updated_at TEXT);
@@ -397,14 +397,15 @@ class ChatNotificationDispatcherTest extends TestCase
     {
         $conversation = ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51];
 
-        $this->assertStringEndsWith(
-            '/dashboard?chat=55',
-            te_chat_notification_link($this->pdo, 1, $conversation)
-        );
-        $this->assertStringEndsWith(
-            '/parent/chat?chat=55',
-            te_chat_notification_link($this->pdo, 2, $conversation)
-        );
+        // The link also carries tracking now, so assert the parts rather than the
+        // whole string — see ChatPushTest for the tracking parameters themselves.
+        $staff = te_chat_notification_link($this->pdo, 1, $conversation);
+        $this->assertStringContainsString('/dashboard?', $staff);
+        $this->assertStringContainsString('chat=55', $staff);
+
+        $family = te_chat_notification_link($this->pdo, 2, $conversation);
+        $this->assertStringContainsString('/parent/chat?', $family);
+        $this->assertStringContainsString('chat=55', $family);
     }
 
     /** No id, no parameter — never a link to `?chat=0`. */

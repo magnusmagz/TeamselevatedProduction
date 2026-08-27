@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from './useChat';
+import { reportNotificationClick } from './reportNotificationClick';
 import ConversationList from './ConversationList';
 import NewConversationDialog from './NewConversationDialog';
 import ChatMessageList from './ChatMessageList';
@@ -63,10 +64,16 @@ export default function ChatWidget() {
     setView('chat');
     setIsExpanded(true);
 
-    // Drop the parameter so a later refresh does not reopen the chat, and so
-    // the URL the person can copy is the page they are actually on.
+    // Tell the server the notification worked. Chat notifications carry no
+    // tracking pixel by design, so this is the only signal that one brought
+    // someone back — and it covers push, which a pixel never could.
+    reportNotificationClick(conv.id, new URLSearchParams(window.location.search).get('tec'));
+
+    // Drop the parameters so a later refresh does not reopen the chat or record
+    // a second click, and so the URL the person can copy is the page they are
+    // actually on.
     const url = new URL(window.location.href);
-    url.searchParams.delete('chat');
+    ['chat', 'tec', 'utm_source', 'utm_medium', 'utm_campaign'].forEach((p) => url.searchParams.delete(p));
     window.history.replaceState({}, '', url.toString());
   }, [conversations, selectConversation]);
 
