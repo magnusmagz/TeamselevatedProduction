@@ -788,10 +788,15 @@ io.on('connection', (socket) => {
       socket.emit('conversationCreated', newConv || { id: conversationId, type: convType });
 
       // Notify other participants
+      //
+      // String-compared for the same reason as the conversationUpdated loop:
+      // info.userId is a STRING off the JWT, while participantIds arrive as
+      // numbers from the client. `===` there means a newly created conversation
+      // never appears for the other person until they refresh.
       for (const pid of participantIds) {
         // Find their socket(s)
         for (const [sid, info] of connectedUsers.entries()) {
-          if (info.userId === pid && sid !== socket.id) {
+          if (String(info.userId) === String(pid) && sid !== socket.id) {
             io.to(sid).emit('newConversation', newConv || { id: conversationId, type: convType });
           }
         }
@@ -924,10 +929,23 @@ io.on('connection', (socket) => {
       [conversationId]
     );
 
-    const participantUserIds = new Set(participants.rows.map(r => r.user_id));
+    // ⚠️ Compared as STRINGS on both sides, and that is load-bearing.
+    //
+    // pg returns int4 as a JavaScript NUMBER, while info.userId comes from the
+    // JWT, which lib/JWT.php mints as `(string)$userId`. So `Set{74}.has("74")`
+    // is false, and for a DIRECT conversation nobody matched — the event reached
+    // no one. Team chats kept working only because of the `type === 'team'`
+    // fallback below, which is why this looked like "the parent portal is fine,
+    // the staff app is broken": parents live in team chats, staff were testing a
+    // DM.
+    //
+    // Symptom was an unread badge that never moved until a page refresh.
+    // Reported 2026-08-26. Third instance of this same string/number class in one
+    // day — see sameUser() on the client.
+    const participantUserIds = new Set(participants.rows.map(r => String(r.user_id)));
 
     for (const [sid, info] of connectedUsers.entries()) {
-      if (participantUserIds.has(info.userId) || (convInfo.rows[0]?.type === 'team')) {
+      if (participantUserIds.has(String(info.userId)) || (convInfo.rows[0]?.type === 'team')) {
         io.to(sid).emit('conversationUpdated', updatePayload);
       }
     }
@@ -937,9 +955,10 @@ io.on('connection', (socket) => {
     // a list that does not contain it and silently drops the update. Push the whole
     // conversation instead — `newConversation` already dedupes by id.
     if (unarchivedUserIds.length > 0) {
-      const unarchivedSet = new Set(unarchivedUserIds);
+      // Same string/number trap as the participant set above.
+      const unarchivedSet = new Set(unarchivedUserIds.map(String));
       for (const [sid, info] of connectedUsers.entries()) {
-        if (!unarchivedSet.has(info.userId)) continue;
+        if (!unarchivedSet.has(String(info.userId))) continue;
         try {
           const convs = await getUserConversations(info.userId, info.role, info.payload);
           const restored = convs.find(c => c.id === conversationId);
