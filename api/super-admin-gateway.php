@@ -45,6 +45,10 @@ try {
             handleGetStats($pdo);
             break;
 
+        case 'notification-health':
+            handleNotificationHealth($pdo);
+            break;
+
         case 'clubs':
             handleGetClubs($pdo);
             break;
@@ -205,6 +209,105 @@ try {
 /**
  * Get platform-wide statistics
  */
+/**
+ * How chat notifications are performing, for the internal team.
+ *
+ * Chat notifications deliberately bypass EmailSendService, which is where the
+ * tracking pixel and link rewriting live — so none of this appears in Email
+ * Reporting, and there is no analytics on the site either. Without this screen
+ * the only way to answer "are notifications reaching anyone" is a database
+ * query, which is not a thing a support conversation can wait for.
+ *
+ * Super-admin only, by the gate at the top of this file. It is deliberately
+ * PLATFORM-wide rather than club-scoped: the question it answers is whether the
+ * feature works, which is ours rather than any one club's.
+ *
+ * Read-only. Nothing here can change anything, which is what makes it safe to
+ * hand to the whole internal team.
+ */
+function handleNotificationHealth($pdo) {
+    $days = isset($_GET['days']) ? max(1, min(365, (int) $_GET['days'])) : 30;
+    $since = "NOW() - INTERVAL '{$days} days'";
+
+    $health = ['days' => $days];
+
+    // ── Delivery ─────────────────────────────────────────────────────────────
+    $row = $pdo->query("
+        SELECT COUNT(*)::int AS sent,
+               COUNT(DISTINCT user_id)::int AS people,
+               COUNT(clicked_at)::int AS clicked
+          FROM chat_notification_state
+         WHERE last_notified_at > {$since}
+    ")->fetch(PDO::FETCH_ASSOC) ?: [];
+    $health['totals'] = [
+        'sent'    => (int) ($row['sent'] ?? 0),
+        'people'  => (int) ($row['people'] ?? 0),
+        'clicked' => (int) ($row['clicked'] ?? 0),
+    ];
+
+    $health['by_channel'] = $pdo->query("
+        SELECT COALESCE(last_notified_channel, 'unknown') AS channel,
+               COUNT(*)::int AS sent,
+               COUNT(clicked_at)::int AS clicked
+          FROM chat_notification_state
+         WHERE last_notified_at > {$since}
+         GROUP BY 1 ORDER BY 2 DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $health['by_club'] = $pdo->query("
+        SELECT COALESCE(cp.name, '(no club)') AS club,
+               COUNT(*)::int AS sent,
+               COUNT(s.clicked_at)::int AS clicked,
+               COUNT(DISTINCT s.user_id)::int AS people
+          FROM chat_notification_state s
+          JOIN conversations c ON c.id = s.conversation_id
+          LEFT JOIN club_profile cp ON cp.id = c.club_id
+         WHERE s.last_notified_at > {$since}
+         GROUP BY 1 ORDER BY 2 DESC LIMIT 25
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // ── Reach ────────────────────────────────────────────────────────────────
+    // Whether the feature CAN reach people, which matters more than any rate:
+    // a low click rate on a channel nobody has enabled says nothing.
+    $health['reach'] = [
+        'push_devices'   => (int) $pdo->query('SELECT COUNT(*) FROM push_subscriptions')->fetchColumn(),
+        'people_with_push' => (int) $pdo->query('SELECT COUNT(DISTINCT user_id) FROM push_subscriptions')->fetchColumn(),
+        'emailable_users'  => (int) $pdo->query("SELECT COUNT(*) FROM users WHERE email IS NOT NULL AND email <> ''")->fetchColumn(),
+        'opted_out_email'  => (int) $pdo->query('SELECT COUNT(*) FROM chat_notification_prefs WHERE email_enabled = FALSE')->fetchColumn(),
+        'opted_out_push'   => (int) $pdo->query('SELECT COUNT(*) FROM chat_notification_prefs WHERE push_enabled = FALSE')->fetchColumn(),
+        'muted_conversations' => (int) $pdo->query('SELECT COUNT(*) FROM conversation_participants WHERE muted = TRUE')->fetchColumn(),
+    ];
+
+    // ── The dispatcher itself ────────────────────────────────────────────────
+    // A silent worker is indistinguishable from a quiet week, so surface when it
+    // last did anything. If this is hours old while messages are arriving, the
+    // worker is stuck — which is exactly the failure that went unnoticed for
+    // weeks before the reconnect fix.
+    $health['last_notification_at'] = $pdo->query(
+        'SELECT MAX(last_notified_at) FROM chat_notification_state'
+    )->fetchColumn() ?: null;
+
+    $health['last_message_at'] = $pdo->query(
+        'SELECT MAX(created_at) FROM chat_messages'
+    )->fetchColumn() ?: null;
+
+    // ── Moderation ───────────────────────────────────────────────────────────
+    $health['moderation'] = [
+        'alerts' => $pdo->query("
+            SELECT kind, COUNT(*)::int AS n, COUNT(DISTINCT user_id)::int AS admins
+              FROM chat_moderation_alert_state WHERE sent_at > {$since} GROUP BY 1
+        ")->fetchAll(PDO::FETCH_ASSOC),
+        'open_reports' => (int) $pdo->query(
+            "SELECT COUNT(*) FROM chat_message_reports WHERE status = 'open'"
+        )->fetchColumn(),
+        'open_high_severity' => (int) $pdo->query(
+            "SELECT COUNT(*) FROM chat_message_reports WHERE status = 'open' AND severity = 'high'"
+        )->fetchColumn(),
+    ];
+
+    echo json_encode(['success' => true, 'health' => $health]);
+}
+
 function handleGetStats($pdo) {
     $stats = [];
 
