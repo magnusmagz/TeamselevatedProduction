@@ -1,7 +1,9 @@
 // Teams Elevated Service Worker
 // Enables PWA installation capability with minimal caching
 
-const CACHE_NAME = 'teams-elevated-v1';
+// Bumped 2026-08-26 with the push diagnostics below, so an updated worker is
+// unambiguous rather than depending on a byte-diff of a file that changes rarely.
+const CACHE_NAME = 'teams-elevated-v2';
 
 // Assets to cache for app shell
 const STATIC_ASSETS = [
@@ -131,7 +133,36 @@ self.addEventListener('push', (event) => {
     data: { url: payload.url || '/' },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // ⚠️ showNotification() can REJECT, and a rejected promise inside waitUntil()
+  // reports nothing anywhere — no console error, no notification, no clue. That
+  // silence cost a long diagnosis on 2026-08-26 where the push was accepted by
+  // the push service every time and simply never appeared.
+  //
+  // So: log what arrived, and if the rich notification is refused, fall back to
+  // the plainest possible one. A notification with no icon is far better than
+  // none, and the fallback also tells us WHICH option was the problem —
+  // `renotify` and `badge` are the usual suspects, and both are decoration.
+  event.waitUntil(
+    self.registration
+      .showNotification(title, options)
+      .then(() => {
+        console.log('[push] shown:', title);
+      })
+      .catch((err) => {
+        console.error('[push] showNotification failed with full options:', err);
+        return self.registration
+          .showNotification(title, {
+            body: options.body,
+            data: options.data,
+          })
+          .then(() => {
+            console.log('[push] shown via minimal fallback');
+          })
+          .catch((err2) => {
+            console.error('[push] minimal notification ALSO failed:', err2);
+          });
+      })
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
