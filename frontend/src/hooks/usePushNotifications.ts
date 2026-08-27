@@ -104,7 +104,39 @@ export function usePushNotifications(): UsePushNotifications {
     try {
       const registration = await navigator.serviceWorker.ready;
       const existing = await registration.pushManager.getSubscription();
-      setState(existing ? 'on' : 'off');
+
+      if (!existing) {
+        setState('off');
+        return;
+      }
+
+      // ⚠️ RE-SEND IT. Finding a local subscription is not evidence the server
+      // has the same one.
+      //
+      // The browser mints a NEW endpoint whenever the service worker
+      // registration is replaced — an unregister, a reinstall, clearing site
+      // data. This hook used to just render "on" at that point, so the client
+      // and the server drifted apart permanently and silently: the UI said
+      // notifications were on, the server kept pushing to an endpoint that no
+      // longer belonged to this browser, and the push service accepted every
+      // one of them. A dead endpoint only starts returning 410 once the push
+      // service gives up on it, which can take days — until then everything
+      // looks healthy and nothing arrives.
+      //
+      // Cost a long diagnosis on 2026-08-26. The save is an UPSERT on endpoint,
+      // so re-sending on every load is cheap and idempotent.
+      try {
+        await fetch(`${API_URL}/api/push-subscriptions.php?action=subscribe`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(existing),
+        });
+      } catch {
+        // A failed re-sync must not flip a working toggle to "off" — the
+        // subscription is still valid here, we just could not confirm it.
+      }
+
+      setState('on');
     } catch {
       setState('off');
     }
