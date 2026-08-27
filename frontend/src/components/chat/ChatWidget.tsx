@@ -70,6 +70,44 @@ export default function ChatWidget() {
     window.history.replaceState({}, '', url.toString());
   }, [conversations, selectConversation]);
 
+  /**
+   * Open the chat when a notification is CLICKED while the app is already open.
+   *
+   * The service worker focuses the window and posts OPEN_CHAT rather than
+   * navigating it: client.navigate() only works on windows the worker actually
+   * controls and rejects silently otherwise, which is why clicking a
+   * notification appeared to do nothing (2026-08-26).
+   *
+   * Not merged with the `?chat=` effect above — that one handles a cold start
+   * where the app loads with the parameter already in the URL. This one handles
+   * a live tab, which never reloads and so never re-reads the URL.
+   */
+  React.useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      if (!event.data || event.data.type !== 'OPEN_CHAT') return;
+
+      let wanted: string | null = null;
+      try {
+        wanted = new URL(event.data.url, window.location.origin).searchParams.get('chat');
+      } catch {
+        return;
+      }
+      if (!wanted) return;
+
+      const conv = conversations.find((c) => String(c.id) === wanted);
+      if (!conv) return;
+
+      selectConversation(conv);
+      setView('chat');
+      setIsExpanded(true);
+    };
+
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [conversations, selectConversation]);
+
   const handleSelectConversation = (conv: typeof conversations[0]) => {
     selectConversation(conv);
     setView('chat');

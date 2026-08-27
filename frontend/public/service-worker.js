@@ -3,7 +3,7 @@
 
 // Bumped 2026-08-26 with the push diagnostics below, so an updated worker is
 // unambiguous rather than depending on a byte-diff of a file that changes rarely.
-const CACHE_NAME = 'teams-elevated-v2';
+const CACHE_NAME = 'teams-elevated-v3';
 
 // Assets to cache for app shell
 const STATIC_ASSETS = [
@@ -170,24 +170,59 @@ self.addEventListener('notificationclick', (event) => {
 
   const target = (event.notification.data && event.notification.data.url) || '/';
 
-  // Focus an existing tab if one is already open rather than piling up windows.
-  // The comparison is on origin, not the full URL, because the open tab is
-  // almost never sitting on exactly the page we are linking to.
+  // ⚠️ Do NOT rely on client.navigate(). It only works on windows this worker
+  // actually CONTROLS, and it rejects otherwise — silently, inside waitUntil,
+  // with nothing logged anywhere. That is why clicking a notification appeared
+  // to do nothing on 2026-08-26.
+  //
+  // Focus the window and MESSAGE the app instead. postMessage reaches any
+  // same-origin client, controlled or not, and the app opens the conversation
+  // in place — no reload, and the chat is open before the page would have
+  // finished navigating.
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
-          if ('navigate' in client) {
-            return client.navigate(target).then((c) => (c ? c.focus() : undefined));
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        const sameOrigin = clientList.filter((c) => {
+          try {
+            return new URL(c.url).origin === self.location.origin;
+          } catch (e) {
+            return false;
           }
-          return client.focus();
+        });
+
+        console.log('[notificationclick] target', target, 'windows', sameOrigin.length);
+
+        if (sameOrigin.length === 0) {
+          // Nothing open — a fresh window carries the parameter in the URL, and
+          // the app reads it on load.
+          return self.clients.openWindow ? self.clients.openWindow(target) : undefined;
         }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(target);
-      }
-      return undefined;
-    })
+
+        // Prefer a focused window if there is one, else the first.
+        const client = sameOrigin.find((c) => c.focused) || sameOrigin[0];
+
+        return Promise.resolve(client.focus ? client.focus() : client)
+          .catch((err) => {
+            console.error('[notificationclick] focus failed', err);
+            return client;
+          })
+          .then((focused) => {
+            const t = focused && focused.postMessage ? focused : client;
+            try {
+              t.postMessage({ type: 'OPEN_CHAT', url: target });
+              console.log('[notificationclick] posted OPEN_CHAT');
+            } catch (err) {
+              console.error('[notificationclick] postMessage failed', err);
+              // Last resort: a new window with the parameter in the URL.
+              if (self.clients.openWindow) return self.clients.openWindow(target);
+            }
+            return undefined;
+          });
+      })
+      .catch((err) => {
+        console.error('[notificationclick] failed', err);
+      })
   );
 });
 

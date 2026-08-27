@@ -134,6 +134,33 @@ export const TeamChatPage: React.FC = () => {
     window.history.replaceState({}, '', url.toString());
   }, [conversations, selectConversation]);
 
+  /**
+   * Same, for a notification clicked while the portal is already open. The
+   * service worker posts OPEN_CHAT rather than navigating, because
+   * client.navigate() rejects on windows it does not control.
+   */
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      if (!event.data || event.data.type !== 'OPEN_CHAT') return;
+
+      let wanted: string | null = null;
+      try {
+        wanted = new URL(event.data.url, window.location.origin).searchParams.get('chat');
+      } catch {
+        return;
+      }
+      if (!wanted) return;
+
+      const conv = conversations.find((c) => String(c.id) === wanted);
+      if (conv) selectConversation(conv);
+    };
+
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [conversations, selectConversation]);
+
   const handleBack = () => {
     selectConversation(null);
   };
