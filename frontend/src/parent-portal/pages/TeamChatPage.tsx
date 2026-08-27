@@ -108,6 +108,32 @@ export const TeamChatPage: React.FC = () => {
     };
   }, []);
 
+  /**
+   * Open the conversation a push notification pointed at (`?chat=<id>`).
+   *
+   * Same reason as the staff widget: landing on the chat list when you were just
+   * told about a specific message means going to find it yourself. Keyed on
+   * `conversations` because the list loads asynchronously; the ref makes it fire
+   * once so pressing Back does not immediately reopen it.
+   */
+  const openedFromNotification = useRef(false);
+  useEffect(() => {
+    if (openedFromNotification.current) return;
+
+    const wanted = new URLSearchParams(window.location.search).get('chat');
+    if (!wanted) return;
+
+    const conv = conversations.find((c) => String(c.id) === wanted);
+    if (!conv) return;
+
+    openedFromNotification.current = true;
+    selectConversation(conv);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('chat');
+    window.history.replaceState({}, '', url.toString());
+  }, [conversations, selectConversation]);
+
   const handleBack = () => {
     selectConversation(null);
   };

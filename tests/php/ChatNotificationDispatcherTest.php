@@ -343,12 +343,12 @@ class ChatNotificationDispatcherTest extends TestCase
     {
         $conversation = ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51];
 
-        $this->assertStringEndsWith(
+        $this->assertStringContainsString(
             '/dashboard',
             te_chat_notification_link($this->pdo, 1, $conversation),
             'A coach has no /parent/chat route.'
         );
-        $this->assertStringEndsWith(
+        $this->assertStringContainsString(
             '/parent/chat',
             te_chat_notification_link($this->pdo, 2, $conversation),
             'A family without a staff role must land in the parent portal.'
@@ -363,7 +363,7 @@ class ChatNotificationDispatcherTest extends TestCase
              VALUES (2, 2, 51, 'coach', 1, NULL)"
         );
 
-        $this->assertStringEndsWith(
+        $this->assertStringContainsString(
             '/dashboard',
             te_chat_notification_link($this->pdo, 2, ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51]),
             'Matches JWT role precedence and ParentRedirect, which leaves staff on the dashboard.'
@@ -378,11 +378,42 @@ class ChatNotificationDispatcherTest extends TestCase
              VALUES (3, 2, 51, 'coach', 1, '2026-07-08 00:00:00')"
         );
 
-        $this->assertStringEndsWith(
+        $this->assertStringContainsString(
             '/parent/chat',
             te_chat_notification_link($this->pdo, 2, ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51]),
             'active = TRUE and revoked_at set can disagree; the revocation is the newer fact.'
         );
+    }
+
+    /**
+     * Tapping a notification must open the CONVERSATION, not just the app.
+     *
+     * Landing on the dashboard with the chat still closed means going to find
+     * the message you were just told about — barely better than no link at all.
+     * Reported 2026-08-26. Staff chat is a widget rather than a route, so the
+     * conversation rides in a query parameter ChatWidget reads on load.
+     */
+    public function testTheLinkOpensTheConversation(): void
+    {
+        $conversation = ['id' => 55, 'type' => 'team', 'team_id' => 10, 'club_id' => 51];
+
+        $this->assertStringEndsWith(
+            '/dashboard?chat=55',
+            te_chat_notification_link($this->pdo, 1, $conversation)
+        );
+        $this->assertStringEndsWith(
+            '/parent/chat?chat=55',
+            te_chat_notification_link($this->pdo, 2, $conversation)
+        );
+    }
+
+    /** No id, no parameter — never a link to `?chat=0`. */
+    public function testALinkWithoutAConversationStaysGeneric(): void
+    {
+        $conversation = ['id' => null, 'type' => 'team', 'team_id' => 10, 'club_id' => 51];
+
+        $this->assertStringEndsWith('/dashboard', te_chat_notification_link($this->pdo, 1, $conversation));
+        $this->assertStringEndsWith('/parent/chat', te_chat_notification_link($this->pdo, 2, $conversation));
     }
 
     public function testADirectMessageIsLabelledWithTheOtherPerson(): void

@@ -307,6 +307,7 @@ function te_chat_conversation_label(PDO $pdo, array $conversation, int $recipien
  */
 function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): string
 {
+    $conversationId = (int) ($conversation['id'] ?? 0);
     $appUrl = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/');
 
     $clubId = $conversation['club_id'] ?? null;
@@ -324,7 +325,20 @@ function te_chat_notification_link(PDO $pdo, int $userId, array $conversation): 
         $isStaff = (bool) $stmt->fetchColumn();
     }
 
-    return $isStaff ? $appUrl . '/dashboard' : $appUrl . '/parent/chat';
+    // Deep-link to the CONVERSATION, not just the app.
+    //
+    // Tapping a notification and landing on the dashboard with the chat still
+    // closed is barely better than no link at all — the person has to go find
+    // the message they were just told about. Staff chat is a widget rather than
+    // a route, so it takes a query parameter that ChatWidget reads on load;
+    // the parent portal has a real route and takes one too.
+    if ($conversationId <= 0) {
+        return $isStaff ? $appUrl . '/dashboard' : $appUrl . '/parent/chat';
+    }
+
+    return $isStaff
+        ? $appUrl . '/dashboard?chat=' . $conversationId
+        : $appUrl . '/parent/chat?chat=' . $conversationId;
 }
 
 /**

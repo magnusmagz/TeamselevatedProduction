@@ -35,6 +35,40 @@ export default function ChatWidget() {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [view, setView] = useState<View>('list');
+  const openedFromNotification = React.useRef(false);
+
+  /**
+   * Open the conversation a push notification pointed at.
+   *
+   * Staff chat is a widget rather than a route, so there is no URL that opens
+   * it — tapping a notification used to land you on the dashboard with the chat
+   * still closed, which is barely better than no link at all. The dispatcher
+   * therefore sends `/dashboard?chat=<id>` and this reads it.
+   *
+   * Runs on `conversations` because the list loads asynchronously: on the first
+   * pass it is usually empty, and the effect re-runs once it arrives. The ref
+   * makes it fire once, so closing the widget does not immediately reopen it.
+   */
+  React.useEffect(() => {
+    if (openedFromNotification.current) return;
+
+    const wanted = new URLSearchParams(window.location.search).get('chat');
+    if (!wanted) return;
+
+    const conv = conversations.find((c) => String(c.id) === wanted);
+    if (!conv) return;
+
+    openedFromNotification.current = true;
+    selectConversation(conv);
+    setView('chat');
+    setIsExpanded(true);
+
+    // Drop the parameter so a later refresh does not reopen the chat, and so
+    // the URL the person can copy is the page they are actually on.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('chat');
+    window.history.replaceState({}, '', url.toString());
+  }, [conversations, selectConversation]);
 
   const handleSelectConversation = (conv: typeof conversations[0]) => {
     selectConversation(conv);
