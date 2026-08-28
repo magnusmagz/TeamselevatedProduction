@@ -382,7 +382,7 @@ export function useChat(): UseChatReturn {
 
     /** Sent when a conversation opens, and whenever the pin changes. */
     const handlePinnedChanged = (data: { conversationId: number; pinned: PinnedMessage | null }) => {
-      if (activeConvRef.current?.id !== data.conversationId) return;
+      if (String(activeConvRef.current?.id) !== String(data.conversationId)) return;
       setPinnedMessage(data.pinned);
     };
 
@@ -439,6 +439,18 @@ export function useChat(): UseChatReturn {
     setActiveConversation(conversation);
     setMessages([]);
     setTypingUsers([]);
+    setPinnedMessage(null);
+
+    // ⚠️ Set the ref SYNCHRONOUSLY, not only in the effect below.
+    //
+    // The effect that mirrors activeConversation into this ref runs after React
+    // commits, but joinConversation fires on the next line — so the server can
+    // answer before the ref catches up, and every listener gated on
+    // `activeConvRef.current?.id === data.conversationId` silently drops the
+    // reply. That is how a pinned message failed to appear for someone opening
+    // the conversation (2026-08-28); messageHistory and pollUpdated are gated
+    // the same way and were winning the race only by luck.
+    activeConvRef.current = conversation;
 
     if (conversation) {
       chatSocket.joinConversation(conversation.id);
