@@ -178,11 +178,24 @@ class CanvaClient
      * model every club shares one user — so this is a platform-wide budget, not a
      * per-club one. Batch club onboarding accordingly.
      */
-    public function createAssetUploadFromUrl(string $name, string $url): array
+    public function createAssetUpload(string $name, string $binary): array
     {
-        return $this->request('POST', '/asset-uploads', [
-            'name' => $name,
-            'url'  => $url,
+        // ⚠️ THIS ENDPOINT DOES NOT TAKE JSON, AND IT DOES NOT TAKE A URL.
+        // The body is the raw image bytes with Content-Type
+        // application/octet-stream; the filename rides along base64-encoded in an
+        // Asset-Upload-Metadata header. An earlier version of this method posted
+        // {"name": ..., "url": ...} as JSON and Canva answered:
+        //
+        //   400 Unsupported content type, expected: application/octet-stream
+        //
+        // which reads like an image-format problem and is not one. Because Canva
+        // never fetches anything, the bytes must be in hand before calling this —
+        // there is no "give Canva a link" path for assets.
+        return $this->requestBinary('POST', '/asset-uploads', $binary, [
+            'Asset-Upload-Metadata: ' . json_encode([
+                // Canva requires base64url, not standard base64.
+                'name_base64' => rtrim(strtr(base64_encode($name), '+/', '-_'), '='),
+            ]),
         ]);
     }
 
@@ -317,6 +330,46 @@ class CanvaClient
     // ─────────────────────────────────────────────────────────────────────────
     // Transport
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * A request whose body is raw bytes rather than JSON.
+     *
+     * Separate from request() because the two differ in more than the payload:
+     * the Content-Type, the absence of json_encode, and a longer timeout — an
+     * asset upload moves real megabytes where every other call is a small
+     * document.
+     */
+    private function requestBinary(string $method, string $path, string $body, array $extraHeaders = []): array
+    {
+        $ch = curl_init(self::API_BASE . $path);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge([
+            'Authorization: Bearer ' . $this->accessToken(),
+            'Content-Type: application/octet-stream',
+        ], $extraHeaders));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+
+        $raw   = curl_exec($ch);
+        $code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+
+        if ($raw === false) {
+            throw new RuntimeException("Canva upload failed ({$method} {$path}): {$error}");
+        }
+
+        $decoded = json_decode($raw, true);
+
+        if ($code >= 400) {
+            $message = $decoded['message'] ?? $raw;
+            throw new RuntimeException(
+                "Canva API {$code} ({$method} {$path}) " . ($decoded['code'] ?? '') . ": {$message}"
+            );
+        }
+
+        return is_array($decoded) ? $decoded : [];
+    }
 
     private function request(string $method, string $path, ?array $body = null): array
     {
