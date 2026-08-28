@@ -148,6 +148,15 @@ export default function ChatWidget() {
     // Without this a removed message arrives with empty text and no flag, and
     // renders as a blank bubble instead of a tombstone.
     removed: msg.removed,
+    // ⚠️ And this. Reactions updated in state and then vanished on the way to
+    // the list, so clicking an emoji appeared to do nothing — the row was in
+    // the database the whole time. Reported 2026-08-28.
+    //
+    // This adapter names every field it passes, so ANY new field on a message is
+    // silently dropped here by default. That is the second time: the comment
+    // above records the same thing happening to `removed`. If a third arrives,
+    // spread the message instead of listing fields.
+    reactions: msg.reactions,
   }));
 
   if (!user) return null;
