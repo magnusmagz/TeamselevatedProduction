@@ -40,6 +40,7 @@ class CanvaDesignService
      */
     public const GRAPHIC_TYPES = [
         'sponsor_thanks',
+        'game_day',
     ];
 
     /** @var PDO */
@@ -238,6 +239,15 @@ class CanvaDesignService
 
     // ── internals ───────────────────────────────────────────────────────────
 
+    /** The club's display name, for templates that put it on the artwork. */
+    private function clubName(int $clubId): string
+    {
+        $stmt = $this->pdo->prepare('SELECT name FROM club_profile WHERE id = ?');
+        $stmt->execute([$clubId]);
+
+        return (string) ($stmt->fetchColumn() ?: '');
+    }
+
     /**
      * Load the record the graphic is about, scoped to the club.
      *
@@ -264,11 +274,112 @@ class CanvaDesignService
                 'values' => [
                     'sponsor_name'    => $sponsor['name'],
                     'sponsor_website' => $sponsor['website'] ?? '',
+                    'club_name'       => $this->clubName($clubId),
                 ],
             ];
         }
 
+        if ($graphicType === 'game_day') {
+            return $this->loadEventSubject($clubId, $subjectId);
+        }
+
         throw new RuntimeException("No subject loader for {$graphicType}");
+    }
+
+    /**
+     * A calendar event, as fields a brand template can ask for.
+     *
+     * FIELD NAMES MIRROR THE EMAIL MERGE TAGS ON PURPOSE. `event_name`,
+     * `event_date`, `event_time`, `event_type`, `event_venue_name` and
+     * `event_address` are exactly what MergeFieldService::loadEventData() supplies
+     * to `{{event_*}}` in an email template, formatted the same way. One
+     * vocabulary across both surfaces means a person who has written a club email
+     * already knows what to call a field in Canva.
+     *
+     * The short forms are additions, not replacements: "Saturday, September 6,
+     * 2026" is right in an email body and wrecks a 1080px layout, so a designer
+     * can reach for `event_date_short` or `event_day` instead.
+     *
+     * ⚠️ DATE-ONLY VALUES ARE FORMATTED IN AN EXPLICIT UTC ZONE. `event_date` is a
+     * date column with no time in it, and the rule in CLAUDE.md is that such a
+     * value must be read and written in the SAME zone — mixing them is what
+     * scheduled every practice one day late in August. Pinning the zone here means
+     * the weekday this prints can never disagree with the stored date, whatever
+     * the dyno is set to.
+     */
+    private function loadEventSubject(int $clubId, int $eventId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT e.id, e.name, e.event_date, e.start_time, e.type, e.opponent_name,
+                    e.location, e.status,
+                    v.name AS venue_name, v.address AS venue_address,
+                    v.city AS venue_city, v.state AS venue_state,
+                    c.name AS club_name
+               FROM calendar_events e
+          LEFT JOIN venues v ON v.id = e.venue_id
+          LEFT JOIN club_profile c ON c.id = e.club_id
+              WHERE e.id = ? AND e.club_id = ?'
+        );
+        $stmt->execute([$eventId, $clubId]);
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$event) {
+            throw new RuntimeException('Event not found for this club.');
+        }
+
+        // An event can carry several teams; the lowest team_id wins, which is the
+        // same deterministic tie-break MergeFieldService uses. Deterministic
+        // matters more than clever here — the same event must not produce a
+        // different graphic on two clicks.
+        $teamStmt = $this->pdo->prepare(
+            'SELECT t.name
+               FROM calendar_event_teams cet
+               JOIN teams t ON t.id = cet.team_id
+              WHERE cet.calendar_event_id = ?
+              ORDER BY t.id
+              LIMIT 1'
+        );
+        $teamStmt->execute([$eventId]);
+        $teamName = (string) ($teamStmt->fetchColumn() ?: '');
+
+        $utc  = new DateTimeZone('UTC');
+        $date = $event['event_date']
+            ? DateTimeImmutable::createFromFormat('Y-m-d', substr((string) $event['event_date'], 0, 10), $utc)
+            : null;
+        $time = $event['start_time']
+            ? DateTimeImmutable::createFromFormat('H:i:s', substr((string) $event['start_time'], 0, 8), $utc)
+            : null;
+
+        // A venue record gives the richer string; `location` is the free-text
+        // fallback for an event booked somewhere with no venue row.
+        $addressParts = array_filter([
+            $event['venue_address'] ?: null,
+            trim(implode(' ', array_filter([$event['venue_city'] ?: null, $event['venue_state'] ?: null]))) ?: null,
+        ]);
+        $venueName = $event['venue_name'] ?: (string) ($event['location'] ?? '');
+
+        return [
+            'label'  => $event['name'],
+            'values' => [
+                // Same names and formats as the email merge tags.
+                'event_name'       => (string) $event['name'],
+                'event_date'       => $date ? $date->format('l, F j, Y') : '',
+                'event_time'       => $time ? $time->format('g:i A') : '',
+                'event_type'       => ucfirst((string) ($event['type'] ?? '')),
+                'event_venue_name' => $venueName,
+                'event_address'    => $addressParts ? implode(', ', $addressParts) : (string) ($event['location'] ?? ''),
+                'event_location'   => $venueName,
+
+                // Short forms, for layouts a full sentence would break.
+                'event_date_short' => $date ? $date->format('D, M j') : '',
+                'event_day'        => $date ? $date->format('l') : '',
+                'event_month'      => $date ? strtoupper($date->format('M')) : '',
+                'event_day_number' => $date ? $date->format('j') : '',
+
+                'opponent'         => (string) ($event['opponent_name'] ?? ''),
+                'team_name'        => $teamName,
+                'club_name'        => (string) ($event['club_name'] ?? ''),
+            ],
+        ];
     }
 
     /**
