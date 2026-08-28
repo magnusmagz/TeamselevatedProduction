@@ -1,3 +1,7 @@
+// This file has no imports of its own, and CRA compiles with --isolatedModules,
+// which rejects a file that is neither. An empty export makes it a module.
+export {};
+
 /**
  * Timestamp formatting on the notification health screen.
  *
