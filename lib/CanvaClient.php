@@ -335,7 +335,6 @@ class CanvaClient
         $raw   = curl_exec($ch);
         $code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($raw === false) {
             throw new RuntimeException("Canva request failed ({$method} {$path}): {$error}");
@@ -376,7 +375,6 @@ class CanvaClient
         $raw  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
-        curl_close($ch);
 
         if ($raw === false) {
             throw new RuntimeException("Canva token request failed: {$err}");
