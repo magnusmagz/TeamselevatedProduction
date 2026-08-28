@@ -27,6 +27,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/CanvaClient.php';
+require_once __DIR__ . '/../lib/bytea.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
@@ -292,12 +293,31 @@ try {
     $size = strlen($bytes);
     $dims = @getimagesizefromstring($bytes) ?: [null, null];
 
-    $pdo->prepare(
+    // ⚠️ image_data is BYTEA and must go in as hex — see lib/bytea.php. Binding the
+    // raw PNG makes execute() return false WITHOUT throwing, which is how this
+    // script first reported "Round trip works" over a row it had not written.
+    $upd = $pdo->prepare(
         "UPDATE club_media_assets
-            SET canva_design_id = ?, canva_edit_url = ?, image_data = ?, mime_type = 'image/png',
+            SET canva_design_id = ?, canva_edit_url = ?, image_data = " . TE_BYTEA_PARAM . ",
+                mime_type = 'image/png',
                 file_size = ?, width = ?, height = ?, status = 'ready', updated_at = CURRENT_TIMESTAMP
           WHERE id = ?"
-    )->execute([$designId, $editUrl, $bytes, $size, $dims[0], $dims[1], $assetId]);
+    );
+    $ok = $upd->execute([
+        $designId, $editUrl, te_bytea_hex($bytes), $size, $dims[0], $dims[1], $assetId,
+    ]);
+    if (!$ok || $upd->rowCount() !== 1) {
+        fail('The row update did not take (execute=' . var_export($ok, true)
+           . ', rows=' . $upd->rowCount() . '). The PNG was generated but not stored.');
+    }
+
+    // Re-read rather than trust. strlen($bytes) is true whether or not Postgres
+    // ever received them, and a silently-empty media library is the failure this
+    // whole file exists to catch.
+    $stored = te_bytea_stored_length($pdo, 'club_media_assets', 'image_data', 'id', $assetId);
+    if ($stored !== $size) {
+        fail("Stored " . var_export($stored, true) . " bytes but generated {$size}.");
+    }
 
     $out = sys_get_temp_dir() . "/canva-smoke-{$assetId}.png";
     file_put_contents($out, $bytes);
@@ -305,6 +325,7 @@ try {
     heading('Result');
     echo "club_media_assets.id : {$assetId}\n";
     echo "size                 : " . round($size / 1024) . " KB ({$dims[0]}x{$dims[1]})\n";
+    echo "verified in Neon     : {$stored} bytes\n";
     echo "saved                : {$out}\n";
     echo "\nRound trip works.\n";
 } catch (Throwable $e) {
