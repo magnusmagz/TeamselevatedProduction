@@ -48,18 +48,27 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    written. **058** (`chat_conversation_archive`) and **059** (`chat_retention_policy`) are
    **applied to Neon 2026-07-30**. **060–062** (chat message removal / reports / access log) and
    **063** (`consent_source_and_identity`) are **applied to Neon**; 063 on 2026-07-31.
-   **064–072** applied since. **073** (`chat_notifications`), **074**
+   **064–072** applied since — with one that was NOT, and said it was: **069**
+   (`canva_integration`) was written 2026-08-17 and left untracked and unapplied for
+   eleven days while this line claimed otherwise. Applied 2026-08-28. **A migration
+   file on disk is not proof it ran, and neither is this ledger** — the three tables
+   were absent from Neon the whole time, which is why `QueriedTablesExistTest` was
+   failing on `lib/CanvaClient.php`. **073** (`chat_notifications`), **074**
    (`chat_moderation_alerts`), **076** (`push_subscriptions`) and **077**
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
-   session and is applied. Next free number is therefore **078**.
+   session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
+   pinned messages) are applied. Next free number is therefore **082**.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
    commit — the commit carried the pre-refresh file, and `QueriedTablesExistTest` then failed
-   against a table that genuinely existed in Neon. Regenerate
-   `tests/fixtures/production-schema.json` from `information_schema` on the dyno **and check
-   `git diff` actually shows your table** before committing.
+   against a table that genuinely existed in Neon. Regenerate it with
+   `heroku run --no-tty -a teamselevated-backend php scripts/dump-production-schema.php >
+   tests/fixtures/production-schema.json` **and check `git diff` actually shows your
+   table** before committing — a correct refresh is a few dozen added lines, so a
+   3,900-line diff means something other than your table changed. `--no-tty` is not
+   optional; with a TTY, heroku interleaves spinner frames into the JSON.
 4. **Deploys are BOTH driven by git push. Corrected 2026-07-29 — earlier versions of this
    section described a manual `netlify deploy --prod` step, which is the thing that causes the
    wipe described below. Do not do that.**
