@@ -11,6 +11,22 @@
  *
  * The code is short-lived, so do step 2 within a minute or two of step 1.
  *
+ * ⚠️ RUN BOTH STEPS INSIDE ONE `heroku run bash` SESSION.
+ *
+ * PKCE requires step 2 to present the same code_verifier that generated step 1's
+ * challenge, and that verifier is held in a file in sys_get_temp_dir. Every
+ * `heroku run` gets a FRESH one-off dyno with its own empty /tmp, so running the
+ * two steps as two `heroku run` commands loses the verifier between them and the
+ * code can never be exchanged. So:
+ *
+ *     heroku run bash -a teamselevated-backend
+ *     $ php scripts/canva-connect.php                 # step 1, prints the URL
+ *     ... approve in a browser, copy the ?code= ...
+ *     $ php scripts/canva-connect.php --code=<code>   # step 2, same dyno
+ *
+ * The authorization code is short-lived, so do not let the dyno idle out between
+ * them.
+ *
  * Run this against PRODUCTION config, once. The resulting refresh token rotates on
  * every use and lives in canva_integrations; re-running this replaces it, which
  * immediately invalidates the old one. Do not run it "just to check" — that
