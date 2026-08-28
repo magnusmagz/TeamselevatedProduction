@@ -175,6 +175,13 @@ sync"). Emails and SMS actually send in production.
   `frontend/LINTING.md`. Do **not** "simplify" this by flipping the build to `CI=true`: that
   promotes all 74 known warnings to errors and no deploy ever succeeds again — which is precisely
   how the build ended up catching nothing.
+- ⚠️ **`lint:ci` passing is NOT the build passing — run `CI=false npm run build` before pushing
+  frontend changes.** Netlify runs `npm run lint:ci && CI=false npm run build`, and the second
+  catches things the first cannot. On 2026-08-28 a test file that imported nothing failed
+  `--isolatedModules` ("considered a global script file"), lint and jest were both green, and the
+  deploy died with exit code 2. The live site stayed on the previous build, so the symptom is a
+  fix that silently does not ship rather than a broken site — which is easy to miss. A test file
+  with no imports needs `export {};`.
 - All API routes follow the `/api/` prefix (e.g. `/api/teams`, `/api/auth/login`, `/api/coach/teams/(\d+)/roster`)
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
