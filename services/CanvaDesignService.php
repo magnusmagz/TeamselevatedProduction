@@ -102,6 +102,40 @@ class CanvaDesignService
     }
 
     /**
+     * Every configured template for a club whose subject is of one kind.
+     *
+     * The UI asks this rather than probing each graphic type in turn, so
+     * registering a new template makes a button appear with no frontend change.
+     * That is the point: the catalog is expected to churn weekly during the pilot
+     * and a redeploy per template would guarantee it does not.
+     */
+    public function availableFor(int $clubId, string $subjectKind): array
+    {
+        $types = array_keys(array_filter(
+            self::SUBJECT_KINDS,
+            fn($kind) => $kind === $subjectKind
+        ));
+        if (!$types) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($types), '?'));
+        $stmt = $this->pdo->prepare(
+            "SELECT graphic_type, title
+               FROM canva_brand_templates
+              WHERE club_profile_id = ? AND is_active
+                AND graphic_type IN ({$placeholders})
+              ORDER BY graphic_type"
+        );
+        $stmt->execute(array_merge([$clubId], $types));
+
+        return array_map(fn($row) => [
+            'graphic_type' => $row['graphic_type'],
+            'title'        => $row['title'] ?: ucwords(str_replace('_', ' ', $row['graphic_type'])),
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
      * The template's autofillable fields, as Canva reports them.
      *
      * ⚠️ The cached copy is a HINT, never authority. A designer editing the

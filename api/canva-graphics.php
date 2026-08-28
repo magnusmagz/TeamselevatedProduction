@@ -2,7 +2,8 @@
 /**
  * Branded graphics for a club, generated through Canva.
  *
- *   GET  ?action=status&club_id=&graphic_type=   Is this available here?
+ *   GET  ?action=status&club_id=&graphic_type=   Is this one available here?
+ *   GET  ?action=available&club_id=&subject_kind= Every template for that subject
  *   GET  ?action=list&club_id=                   Recent graphics (metadata only)
  *   GET  ?action=image&id=                       The PNG itself
  *   POST ?action=generate                        {club_id, graphic_type, subject_id}
@@ -121,6 +122,21 @@ if ($action === 'status') {
             'title'      => $template['title'],
             'updated_at' => $template['dataset_fetched_at'],
         ] : null,
+    ]);
+    exit;
+}
+
+if ($action === 'available') {
+    $kind = (string) ($_GET['subject_kind'] ?? '');
+    if (!in_array($kind, CanvaDesignService::SUBJECT_KINDS, true)) {
+        te_canva_fail(400, 'Unknown subject kind');
+    }
+
+    // An empty list is the normal answer for most clubs, not an error — the UI
+    // renders nothing rather than a control that could only fail.
+    echo json_encode([
+        'success'   => true,
+        'templates' => $service->availableFor($clubId, $kind),
     ]);
     exit;
 }

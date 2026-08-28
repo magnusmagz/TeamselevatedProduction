@@ -27,6 +27,12 @@ interface Props {
   /** Optional override; defaults to "Make a graphic". */
   label?: string;
   className?: string;
+  /**
+   * Skip this button's own availability check. Set by CanvaGraphicActions, which
+   * has already asked once for every template on the record — without it, a
+   * sponsor card with three templates would fire three identical status calls.
+   */
+  skipCheck?: boolean;
 }
 
 interface Asset {
@@ -47,8 +53,9 @@ const CanvaGraphicButton: React.FC<Props> = ({
   apiUrl,
   label = 'Make a graphic',
   className = DEFAULT_CLASS,
+  skipCheck = false,
 }) => {
-  const [available, setAvailable] = useState(false);
+  const [available, setAvailable] = useState(skipCheck);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [asset, setAsset] = useState<Asset | null>(null);
@@ -70,6 +77,7 @@ const CanvaGraphicButton: React.FC<Props> = ({
   useEffect(() => releaseImage, [releaseImage]);
 
   useEffect(() => {
+    if (skipCheck) return;
     let cancelled = false;
 
     const check = async () => {
@@ -91,7 +99,7 @@ const CanvaGraphicButton: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, clubId, graphicType, token]);
+  }, [apiUrl, clubId, graphicType, token, skipCheck]);
 
   const generate = async () => {
     setBusy(true);
