@@ -182,8 +182,13 @@ foreach ($articles as $article) {
         continue;
     }
 
-    $existing = $pdo->prepare('SELECT id FROM help_articles WHERE category_id = ? AND slug = ?');
-    $existing->execute([$category['id'], $article['slug']]);
+    // ⚠️ Match on TITLE, not slug. The gateway derives its own slug from the
+    // title and ignores the one sent, so looking up by the slug we intended
+    // finds nothing and a second article is created beside the first — which is
+    // exactly what happened to the parent article on 2026-08-28 (id 41,
+    // "…-reactions-2"). Title is what the gateway actually keys the slug off.
+    $existing = $pdo->prepare('SELECT id FROM help_articles WHERE category_id = ? AND title = ? ORDER BY id LIMIT 1');
+    $existing->execute([$category['id'], $article['title']]);
     $existingId = ($row = $existing->fetch(PDO::FETCH_ASSOC)) ? (int) $row['id'] : null;
 
     // Re-running updates in place rather than refusing, so the copy can be
