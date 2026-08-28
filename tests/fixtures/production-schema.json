@@ -407,6 +407,32 @@
     "deleted_at",
     "deleted_by"
   ],
+  "canva_brand_templates": [
+    "id",
+    "club_profile_id",
+    "graphic_type",
+    "canva_brand_template_id",
+    "title",
+    "dataset",
+    "dataset_fetched_at",
+    "is_active",
+    "created_at",
+    "updated_at"
+  ],
+  "canva_integrations": [
+    "id",
+    "club_profile_id",
+    "canva_user_id",
+    "canva_team_id",
+    "access_token",
+    "refresh_token",
+    "access_token_expires_at",
+    "scopes",
+    "refresh_count",
+    "last_refreshed_at",
+    "created_at",
+    "updated_at"
+  ],
   "chat_access_log": [
     "id",
     "user_id",
@@ -514,6 +540,26 @@
     "channel",
     "last_read_message_id",
     "last_read_at"
+  ],
+  "club_media_assets": [
+    "id",
+    "club_profile_id",
+    "created_by",
+    "source",
+    "graphic_type",
+    "calendar_event_id",
+    "team_id",
+    "canva_design_id",
+    "canva_edit_url",
+    "image_data",
+    "mime_type",
+    "file_size",
+    "width",
+    "height",
+    "status",
+    "error_message",
+    "created_at",
+    "updated_at"
   ],
   "club_payment_accounts": [
     "id",
