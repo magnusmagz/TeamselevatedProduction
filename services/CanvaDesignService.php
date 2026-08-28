@@ -108,6 +108,8 @@ class CanvaDesignService
         'registration_opens'  => 'a registration open date',
         'registration_closes' => 'a registration close date',
         'registration_close_short' => 'a registration close date',
+        'club_logo'           => 'a logo uploaded',
+        'sponsor_logo'        => 'a logo uploaded',
     ];
 
     /** @var PDO */
@@ -340,6 +342,107 @@ class CanvaDesignService
 
     // ── internals ───────────────────────────────────────────────────────────
 
+    /**
+     * The club's logo bytes, or null.
+     *
+     * Reads `club_profile.logo_png`, which is base64 of a real PNG (migration
+     * 049) — the column that api/club-logo.php serves to email. `logo_url` is
+     * deliberately not used as a fallback: on CKU it holds an AVIF data URI, and
+     * while Canva accepts AVIF, the PNG is the copy that is known-good and
+     * already maintained.
+     */
+    private function clubLogoBytes(int $clubId): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT logo_png FROM club_profile WHERE id = ?');
+        $stmt->execute([$clubId]);
+        $b64 = $stmt->fetchColumn();
+        if (!$b64) {
+            return null;
+        }
+        $bin = base64_decode((string) $b64, true);
+
+        return $bin === false || $bin === '' ? null : $bin;
+    }
+
+    /**
+     * A sponsor's logo bytes, or null.
+     *
+     * `sponsors.logo_data` is a data URI and the stored format is whatever the
+     * club uploaded — all 22 live sponsor logos are AVIF. **Canva accepts AVIF**
+     * (verified 2026-08-28 against the real asset endpoint), so no conversion
+     * happens anywhere in this path. That is worth stating because the obvious
+     * assumption is the opposite: api/club-logo.php refuses AVIF, but only
+     * because EMAIL clients cannot render it.
+     */
+    private function sponsorLogoBytes(int $sponsorId): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT logo_data FROM sponsors WHERE id = ?');
+        $stmt->execute([$sponsorId]);
+        $stored = (string) ($stmt->fetchColumn() ?: '');
+        if ($stored === '') {
+            return null;
+        }
+
+        // Tolerate a bare base64 payload: the column is free text.
+        $comma   = strpos($stored, ',');
+        $payload = ($comma !== false && strncmp($stored, 'data:', 5) === 0)
+            ? substr($stored, $comma + 1)
+            : $stored;
+
+        $bin = base64_decode($payload, true);
+
+        return $bin === false || $bin === '' ? null : $bin;
+    }
+
+    /**
+     * A Canva asset id for these exact bytes, uploading only if we have not
+     * already.
+     *
+     * ⚠️ Canva rate limits asset upload to 30 requests per minute PER USER, and
+     * the headless model gives every club the same user — so that ceiling is
+     * platform-wide. Re-uploading an unchanged club logo on every generate spends
+     * it on nothing, and eleven clubs in one minute would exhaust it between them.
+     *
+     * Keyed on the content hash rather than "club 51's logo": a club that changes
+     * its logo must not keep receiving the old artwork, and one that changes it
+     * back should not pay twice. The hash answers both with no invalidation logic
+     * to get wrong.
+     */
+    private function assetIdFor(string $sourceKey, string $binary): string
+    {
+        $hash = hash('sha256', $binary);
+
+        $stmt = $this->pdo->prepare('SELECT canva_asset_id FROM canva_assets WHERE content_hash = ?');
+        $stmt->execute([$hash]);
+        $cached = $stmt->fetchColumn();
+
+        if ($cached) {
+            $this->pdo->prepare(
+                'UPDATE canva_assets SET last_used_at = CURRENT_TIMESTAMP WHERE content_hash = ?'
+            )->execute([$hash]);
+
+            return (string) $cached;
+        }
+
+        $job  = $this->canva->createAssetUpload($sourceKey . '-' . substr($hash, 0, 8), $binary);
+        $done = $this->canva->pollJob(fn() => $this->canva->getAssetUploadJob($job['job']['id'] ?? ''));
+
+        $assetId = $done['job']['asset']['id'] ?? ($done['asset']['id'] ?? null);
+        if (!$assetId) {
+            throw new RuntimeException('Canva accepted the image but returned no asset.');
+        }
+
+        // ON CONFLICT because two generates can race on the same logo, and losing
+        // that race is not an error — the other one uploaded the identical bytes.
+        $this->pdo->prepare(
+            'INSERT INTO canva_assets (source_key, content_hash, canva_asset_id, byte_size)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT (content_hash) DO UPDATE SET last_used_at = CURRENT_TIMESTAMP'
+        )->execute([$sourceKey, $hash, $assetId, strlen($binary)]);
+
+        return (string) $assetId;
+    }
+
     /** The club's display name, for templates that put it on the artwork. */
     private function clubName(int $clubId): string
     {
@@ -470,6 +573,9 @@ class CanvaDesignService
                 'program_venue'       => (string) ($program['venue_name'] ?? ''),
                 'club_name'           => $this->clubName($clubId),
             ],
+            'images' => [
+                'club_logo' => fn() => $this->clubLogoBytes($clubId),
+            ],
         ];
     }
 
@@ -493,6 +599,12 @@ class CanvaDesignService
                 'sponsor_name'    => $sponsor['name'],
                 'sponsor_website' => $sponsor['website'] ?? '',
                 'club_name'       => $this->clubName($clubId),
+            ],
+            // Loaders, not bytes: a template that declares no image field must
+            // not pay to read a logo out of the database, let alone upload it.
+            'images' => [
+                'sponsor_logo' => fn() => $this->sponsorLogoBytes((int) $sponsor['id']),
+                'club_logo'    => fn() => $this->clubLogoBytes($clubId),
             ],
         ];
     }
@@ -592,6 +704,9 @@ class CanvaDesignService
                 'club_name'        => (string) ($event['club_name'] ?? ''),
                 'event_status'     => ucfirst((string) ($event['status'] ?? '')),
             ],
+            'images' => [
+                'club_logo' => fn() => $this->clubLogoBytes($clubId),
+            ],
         ];
     }
 
@@ -689,6 +804,9 @@ class CanvaDesignService
             'label'    => $team['name'] . ' — this week',
             'values'   => $values,
             'optional' => $optional,
+            'images'   => [
+                'club_logo' => fn() => $this->clubLogoBytes($clubId),
+            ],
         ];
     }
 
@@ -736,10 +854,25 @@ class CanvaDesignService
                 continue;
             }
 
-            // Image fields need an uploaded Canva asset. Not wired yet — the first
-            // template is text-only. Reaching here means a template declared an
-            // image field before the upload path was connected, which must fail
-            // loudly rather than render a graphic with an empty frame.
+            if ($type === 'image') {
+                $loader = $subject['images'][$name] ?? null;
+                if (!$loader) {
+                    $unknown[] = $name;
+                    continue;
+                }
+
+                $binary = $loader();
+                if ($binary === null || $binary === '') {
+                    $missing[] = $name;
+                    continue;
+                }
+
+                $data[$name] = ['type' => 'image', 'asset_id' => $this->assetIdFor($name, $binary)];
+                continue;
+            }
+
+            // Any other Canva field type — charts today. Nothing here can fill one,
+            // and an empty chart on a published graphic is worse than a refusal.
             $unsupported[] = $name;
         }
 

@@ -407,6 +407,16 @@
     "deleted_at",
     "deleted_by"
   ],
+  "canva_assets": [
+    "id",
+    "source_key",
+    "content_hash",
+    "canva_asset_id",
+    "byte_size",
+    "mime_type",
+    "created_at",
+    "last_used_at"
+  ],
   "canva_brand_templates": [
     "id",
     "club_profile_id",

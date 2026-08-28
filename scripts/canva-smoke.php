@@ -172,22 +172,20 @@ if ($needsImage) {
     if (empty($club['logo_png'])) {
         echo "club has no cached logo_png — skipping image fields\n";
     } else {
-        $appUrl = rtrim(Env::get('APP_URL', ''), '/');
-        if ($appUrl === '') fail('APP_URL must be set — Canva fetches the logo over the public internet');
-
-        // Cache-bust so a re-uploaded club logo is not served stale to Canva.
-        $logoUrl = "{$appUrl}/api/club-logo.php?club_id={$clubId}&v=" . substr(md5($club['logo_png']), 0, 8);
-        echo "uploading {$logoUrl}\n";
+        // Canva NEVER fetches a URL for an asset — the bytes go in the request
+        // body. So there is nothing here that has to be publicly reachable.
+        $logoBytes = base64_decode($club['logo_png'], true);
+        if ($logoBytes === false || $logoBytes === '') fail('club logo_png did not decode');
+        echo 'uploading ' . strlen($logoBytes) . " bytes\n";
 
         try {
-            $job = $canva->createAssetUploadFromUrl("club-{$clubId}-logo", $logoUrl);
+            $job = $canva->createAssetUpload("club-{$clubId}-logo", $logoBytes);
             $jobId = $job['job']['id'] ?? null;
             $done = $canva->pollJob(fn() => $canva->getAssetUploadJob($jobId));
             $logoAssetId = $done['asset']['id'] ?? null;
             echo "asset: {$logoAssetId}\n";
         } catch (Throwable $e) {
-            fail($e->getMessage() . "\n\nIf this timed out, check APP_URL is reachable from "
-               . "the public internet — Canva fetches the URL itself.");
+            fail($e->getMessage());
         }
     }
 }
