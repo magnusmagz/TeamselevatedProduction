@@ -334,7 +334,7 @@ class CanvaDesignService
             'SELECT t.name
                FROM calendar_event_teams cet
                JOIN teams t ON t.id = cet.team_id
-              WHERE cet.calendar_event_id = ?
+              WHERE cet.event_id = ?
               ORDER BY t.id
               LIMIT 1'
         );
