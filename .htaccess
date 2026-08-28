@@ -26,6 +26,11 @@ RewriteRule ^api/webhooks/twilio-status api/webhooks/twilio-status.php [QSA,L]
 # Unsubscribe landing page
 RewriteRule ^unsubscribe api/communications-gateway.php?action=unsubscribe [QSA,L]
 
+# Canva Connect OAuth redirect. The path is registered in the Canva Developer
+# Portal and sent again during the token exchange, where it must match
+# byte-for-byte — so it is rewritten here rather than renamed to suit the file.
+RewriteRule ^api/oauth/canva/callback$ api/oauth/canva-callback.php [QSA,L]
+
 # Default fallback
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
