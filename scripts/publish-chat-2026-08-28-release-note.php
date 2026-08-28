@@ -2,11 +2,14 @@
 /**
  * Release note for the 2026-08-28 chat work.
  *
- * ⚠️ Chat notifications are positioned as a FIX, not a new feature (Maggie,
- * 2026-08-28). Families reasonably expected to be told when someone messaged
- * them; announcing that as new implies it was never promised, and everyone who
- * quietly gave up on the app knows better. Saying it was broken and is now
- * fixed is both truer and easier to trust.
+ * ⚠️ Notifications are framed as an improvement to something that exists, not as
+ * a brand-new feature — "Chat notifications get a boost" (Maggie, 2026-08-28).
+ *
+ * Deliberately NOT a confession. An earlier draft opened with what had not
+ * worked and listed the related repairs; she cut both. A release note is for
+ * telling people what they can do now, and cataloguing past shortcomings buys
+ * nothing and costs confidence. Keep it positive: what it does, who it is for,
+ * where to find it.
  *
  * Same shape as scripts/publish-roster-download-release-note.php: POSTs to
  * help-gateway.php?action=create-release-note, which is super-admin gated.
@@ -26,20 +29,19 @@ $opt = static function (string $name) use ($argv): ?string {
     return null;
 };
 $dryRun = in_array('--dry-run', $argv, true);
+$updateId = $opt('update');   // republish over an existing note rather than adding another
 
-$title = 'Chat: notifications fixed, plus reactions, polls and pinned messages';
+$title = 'Chat: notifications, reactions, polls and pinned messages';
 
 $body = <<<'MD'
-Chat has had a substantial week. The headline is a fix rather than a feature: **notifications now actually work.** Alongside that, chat gains reactions, polls and pinned messages.
+Chat notifications get a boost, and chat gains reactions, polls and pinned messages.
 
 **Who can use it:** everyone can react, vote and see pinned messages. Coaches and club admins can create polls and pin messages.
 **Where to find it:** the chat panel on the main app, and **Chat** in the parent portal.
 
-## Notifications: this was broken, and it is now fixed
+## Chat notifications get a boost
 
-If you have ever sent a message and wondered why nobody replied, this is why. Chat had no notifications of any kind — no email, nothing on your phone. Unless you happened to have the app open with the conversation on screen, a message reached you only when you next went looking for it.
-
-That is fixed.
+Messages now reach you when you are not looking at the app.
 
 - **Email** tells you about messages you have not read, a few minutes after they arrive. Nothing to switch on; it works for everyone already.
 - **Notifications on your phone or computer** arrive within seconds and work when the app is closed. Turn them on in **My Profile → Notifications**, or from the prompt you will see in the app.
@@ -48,7 +50,6 @@ If you are reading a conversation as it happens, nothing is sent — the point i
 
 **On an iPhone or iPad** there is one extra step: add Teams Elevated to your Home Screen and open it from there. Apple only sends notifications to apps saved that way. The app will tell you how.
 
-We also found and fixed several related problems in the same pass: unread counts that never updated until you refreshed, and messages that appeared twice to the person who sent them.
 
 ## React to a message
 
@@ -82,9 +83,9 @@ Everyone in the conversation sees the pin. Only coaches and club admins can chan
 
 ## For club admins
 
-Club administrators are told about high-severity flagged messages as they happen, and get a weekly summary of anything still waiting for review. Reported messages had been queuing up with nobody notified since the moderation tools launched.
+Club administrators are now told about high-severity flagged messages as they happen, and get a weekly summary of anything still waiting for review.
 
-The **Reported Messages** item in Communications now carries a count of what is outstanding.
+The **Reported Messages** item in Communications also carries a count of what is outstanding, so you can see at a glance whether anything needs you.
 
 ## What is coming next
 
@@ -99,11 +100,13 @@ if ($dryRun) {
 
 $pdo = Database::getInstance()->getConnection();
 
-$existing = $pdo->prepare('SELECT id FROM help_release_notes WHERE title = ?');
-$existing->execute([$title]);
-if ($row = $existing->fetch(PDO::FETCH_ASSOC)) {
-    echo "Already published as id {$row['id']}. Nothing to do.\n";
-    exit(0);
+if (!$updateId) {
+    $existing = $pdo->prepare('SELECT id FROM help_release_notes WHERE title = ?');
+    $existing->execute([$title]);
+    if ($row = $existing->fetch(PDO::FETCH_ASSOC)) {
+        echo "Already published as id {$row['id']}. Re-run with --update={$row['id']} to replace it.\n";
+        exit(0);
+    }
 }
 
 $authorEmail = $opt('author');
@@ -129,18 +132,17 @@ $token = JWT::generateEnhanced(
 $base = Env::get('API_BASE_URL', 'https://teamselevated-backend-0485388bd66e.herokuapp.com');
 $ch = curl_init();
 curl_setopt_array($ch, [
-    CURLOPT_URL => rtrim($base, '/') . '/api/help-gateway.php?action=create-release-note',
+    CURLOPT_URL => rtrim($base, '/') . '/api/help-gateway.php?action='
+        . ($updateId ? "update-release-note&id={$updateId}" : 'create-release-note'),
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
+    CURLOPT_CUSTOMREQUEST => $updateId ? 'PUT' : 'POST',
     CURLOPT_TIMEOUT => 45,
     CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$token}"],
     CURLOPT_POSTFIELDS => json_encode([
         'title'         => $title,
         'body_markdown' => $body,
         'release_date'  => '2026-08-28',
-        // 'fix' leads deliberately — notifications are the headline and they are
-        // a repair, not an addition.
-        'tags'          => ['fix', 'feature', 'chat', 'notifications', 'parent', 'coach', 'admin'],
+        'tags'          => ['chat', 'notifications', 'polls', 'parent', 'coach', 'admin'],
         'is_published'  => true,
     ]),
 ]);
