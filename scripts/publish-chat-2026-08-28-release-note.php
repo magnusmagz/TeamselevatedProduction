@@ -5,11 +5,14 @@
  * ⚠️ Notifications are framed as an improvement to something that exists, not as
  * a brand-new feature — "Chat notifications get a boost" (Maggie, 2026-08-28).
  *
- * Deliberately NOT a confession. An earlier draft opened with what had not
- * worked and listed the related repairs; she cut both. A release note is for
- * telling people what they can do now, and cataloguing past shortcomings buys
- * nothing and costs confidence. Keep it positive: what it does, who it is for,
- * where to find it.
+ * Deliberately NOT a confession, and NOT a roadmap. Maggie cut three things
+ * from earlier drafts, and they are the same instinct each time: an opening
+ * about what had not worked, a "what is coming next" list, and a note that
+ * signup sheets do not exist yet.
+ *
+ * A release note is for telling people what they can do NOW. Cataloguing past
+ * shortcomings costs confidence, and advertising gaps invites disappointment —
+ * neither buys anything. What it does, who it is for, where to find it.
  *
  * Same shape as scripts/publish-roster-download-release-note.php: POSTs to
  * help-gateway.php?action=create-release-note, which is super-admin gated.
@@ -72,7 +75,6 @@ Tap **+ Create a poll** above the message box. Write a question and the options,
 
 Anyone in the conversation can vote, and change their mind until the poll closes. On a multiple-choice poll the count is of votes rather than people, since one person may pick several.
 
-Polls are for choosing between options. If you need to know who is bringing what, that is a different job and we have not built it yet — tell us if you want it.
 
 ## Pin a message
 
