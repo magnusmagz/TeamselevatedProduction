@@ -8,6 +8,7 @@ import { ParentHeader } from '../components/ParentHeader';
 import { sameUser } from '../../components/chat/sameUser';
 import { reportNotificationClick } from '../../components/chat/reportNotificationClick';
 import MessageReactions from '../../components/chat/MessageReactions';
+import PollMessage from '../../components/chat/PollMessage';
 
 export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export const TeamChatPage: React.FC = () => {
     selectConversation,
     sendMessage,
     toggleReaction,
+    votePoll,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -317,7 +319,15 @@ export const TeamChatPage: React.FC = () => {
                             : 'bg-white border border-gray-200 rounded-bl-md'
                         } ${message.pending ? 'opacity-60' : ''}`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                        {message.poll ? (
+                          <PollMessage
+                            poll={message.poll}
+                            onVote={votePoll}
+                            onDark={isOwnMessage}
+                          />
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                        )}
                       </div>
                       {!message.removed && (
                         <MessageReactions

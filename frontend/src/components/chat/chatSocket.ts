@@ -184,6 +184,19 @@ export const chatSocket = {
     }
   },
 
+  /** Cast or withdraw a poll vote */
+  votePoll: (optionId: string) => {
+    if (socket?.connected) socket.emit('votePoll', { optionId });
+  },
+
+  /** Create a poll in a conversation */
+  createPoll: (input: {
+    conversationId: number; question: string; options: string[];
+    isAnonymous: boolean; resultsBeforeVote: boolean; closesAt: string | null;
+  }) => {
+    if (socket?.connected) socket.emit('createPoll', input);
+  },
+
   /** Add a reaction to a message */
   addReaction: (messageId: string, emoji: string) => {
     if (socket?.connected) {

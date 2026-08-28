@@ -1,4 +1,5 @@
 import type { MessageReaction } from './reactionEmoji';
+import type { PollView } from './pollTypes';
 
 export interface Conversation {
   id: number;
@@ -53,6 +54,11 @@ export interface ChatMessage {
    * exists.
    */
   reactions?: MessageReaction[];
+  /** 'text' unless stated. A poll is a message, which is how it inherits
+   *  notifications, moderation and archiving without those knowing about polls. */
+  messageType?: 'text' | 'poll';
+  /** Present on a poll message, already rendered for THIS viewer by the server. */
+  poll?: PollView;
 }
 
 export interface TypingUser {

@@ -444,7 +444,8 @@
     "deleted_at",
     "conversation_id",
     "deleted_by",
-    "removal_reason"
+    "removal_reason",
+    "message_type"
   ],
   "chat_moderation_alert_state": [
     "id",
@@ -472,6 +473,29 @@
     "updated_at",
     "clicked_at",
     "clicked_channel"
+  ],
+  "chat_poll_options": [
+    "id",
+    "poll_id",
+    "label",
+    "sort_order"
+  ],
+  "chat_poll_votes": [
+    "id",
+    "option_id",
+    "user_id",
+    "created_at"
+  ],
+  "chat_polls": [
+    "id",
+    "message_id",
+    "question",
+    "is_anonymous",
+    "results_before_vote",
+    "allow_multiple",
+    "closes_at",
+    "created_by",
+    "created_at"
   ],
   "chat_reactions": [
     "id",

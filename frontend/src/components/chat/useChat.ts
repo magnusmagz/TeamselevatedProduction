@@ -20,6 +20,11 @@ interface UseChatReturn {
   selectConversation: (conversation: Conversation | null) => void;
   sendMessage: (text: string) => void;
   toggleReaction: (messageId: string, emoji: string) => void;
+  votePoll: (optionId: string) => void;
+  createPoll: (input: {
+    question: string; options: string[]; isAnonymous: boolean;
+    resultsBeforeVote: boolean; closesAt: string | null;
+  }) => void;
   createConversation: (participantIds: number[]) => void;
   handleTyping: (isTyping: boolean) => void;
   reportedMessageIds: string[];
@@ -325,6 +330,34 @@ export function useChat(): UseChatReturn {
     };
 
     socket.on('receiveMessage', handleNewMessage);
+    /** A poll's state changed — replace it wholesale, per viewer. */
+    const handlePollUpdated = (data: { messageId: string; poll: any }) => {
+      setMessages(prev => prev.map(m =>
+        String(m.id) === String(data.messageId) ? { ...m, poll: data.poll } : m
+      ));
+    };
+
+    /** A brand new poll arrives as a message with the poll attached. */
+    const handlePollCreated = (data: any) => {
+      if (activeConvRef.current?.id !== data.conversationId) return;
+      setMessages(prev => {
+        if (prev.some(m => String(m.id) === String(data.messageId))) return prev;
+        return [...prev, {
+          id: String(data.messageId),
+          conversationId: data.conversationId,
+          text: data.text,
+          sender: data.sender,
+          senderId: data.senderId,
+          timestamp: data.timestamp,
+          role: data.role,
+          messageType: 'poll' as const,
+          poll: data.poll,
+        }];
+      });
+    };
+
+    socket.on('pollCreated', handlePollCreated);
+    socket.on('pollUpdated', handlePollUpdated);
     socket.on('reactionAdded', handleReactionAdded);
     socket.on('reactionRemoved', handleReactionRemoved);
     socket.on('conversationUpdated', handleConversationUpdated);
@@ -346,6 +379,8 @@ export function useChat(): UseChatReturn {
       socket.off('conversationsList', handleConversationsList);
       socket.off('messageHistory', handleMessageHistory);
       socket.off('receiveMessage', handleNewMessage);
+      socket.off('pollCreated', handlePollCreated);
+      socket.off('pollUpdated', handlePollUpdated);
       socket.off('reactionAdded', handleReactionAdded);
       socket.off('reactionRemoved', handleReactionRemoved);
       socket.off('conversationUpdated', handleConversationUpdated);
@@ -500,6 +535,19 @@ export function useChat(): UseChatReturn {
     }
   }, [messages, user]);
 
+  /** Vote, or withdraw by choosing the same option again. */
+  const votePoll = useCallback((optionId: string) => {
+    chatSocket.votePoll(optionId);
+  }, []);
+
+  const createPoll = useCallback((input: {
+    question: string; options: string[]; isAnonymous: boolean;
+    resultsBeforeVote: boolean; closesAt: string | null;
+  }) => {
+    if (!activeConversation) return;
+    chatSocket.createPoll({ conversationId: activeConversation.id, ...input });
+  }, [activeConversation]);
+
   return {
     conversations,
     archivedConversations,
@@ -515,6 +563,8 @@ export function useChat(): UseChatReturn {
     selectConversation,
     sendMessage,
     toggleReaction,
+    votePoll,
+    createPoll,
     createConversation,
     handleTyping,
     reportedMessageIds,

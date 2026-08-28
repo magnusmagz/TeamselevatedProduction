@@ -6,6 +6,8 @@ import ConversationList from './ConversationList';
 import NewConversationDialog from './NewConversationDialog';
 import ChatMessageList from './ChatMessageList';
 import ChatInput from './ChatInput';
+import PollComposer from './PollComposer';
+import { canCreatePoll } from './pollTypes';
 
 type View = 'list' | 'chat' | 'new';
 
@@ -25,7 +27,10 @@ export default function ChatWidget() {
     showArchived,
     selectConversation,
     sendMessage,
+    chatUser,
     toggleReaction,
+    votePoll,
+    createPoll,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -37,6 +42,7 @@ export default function ChatWidget() {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [view, setView] = useState<View>('list');
+  const [pollComposerOpen, setPollComposerOpen] = useState(false);
   const openedFromNotification = React.useRef(false);
 
   /**
@@ -157,6 +163,8 @@ export default function ChatWidget() {
     // above records the same thing happening to `removed`. If a third arrives,
     // spread the message instead of listing fields.
     reactions: msg.reactions,
+    messageType: msg.messageType,
+    poll: msg.poll,
   }));
 
   if (!user) return null;
@@ -250,15 +258,38 @@ export default function ChatWidget() {
                 onReport={reportMessage}
                 reportedMessageIds={reportedMessageIds}
                 onToggleReaction={toggleReaction}
+                onVotePoll={votePoll}
               />
 
-              {/* Input */}
-              <ChatInput
-                onSend={sendMessage}
-                onTyping={handleTyping}
-                disabled={!isConnected}
-                placeholder={`Message ${activeConversation.displayName}...`}
-              />
+              {/* Poll composer, or the normal input. Only coaches and club
+                  admins can create one — the server enforces it too, since a
+                  hidden button is not an access control. */}
+              {pollComposerOpen ? (
+                <PollComposer
+                  onCancel={() => setPollComposerOpen(false)}
+                  onCreate={(input) => { createPoll(input); setPollComposerOpen(false); }}
+                />
+              ) : (
+                <>
+                  {canCreatePoll(chatUser?.role) && (
+                    <div className="px-3 pt-2 -mb-1">
+                      <button
+                        type="button"
+                        onClick={() => setPollComposerOpen(true)}
+                        className="text-xs font-medium text-brand-primary hover:underline"
+                      >
+                        + Create a poll
+                      </button>
+                    </div>
+                  )}
+                  <ChatInput
+                    onSend={sendMessage}
+                    onTyping={handleTyping}
+                    disabled={!isConnected}
+                    placeholder={`Message ${activeConversation.displayName}...`}
+                  />
+                </>
+              )}
             </>
           )}
 

@@ -38,6 +38,13 @@ const {
   REACTIONS_FOR_MESSAGES_SQL,
   groupReactions,
 } = require('./lib/reactions');
+const {
+  canCreatePoll,
+  validatePoll,
+  buildPollView,
+  POLL_FOR_MESSAGES_SQL,
+  OPTIONS_WITH_VOTES_SQL,
+} = require('./lib/polls');
 const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
 const {
   OPEN_REPORT_FOR_CONVERSATION_SQL,
@@ -357,7 +364,7 @@ async function getUserConversations(userId, role, payload, { archived = false } 
 /**
  * Load message history for a conversation, including legacy messages for team conversations
  */
-async function loadConversationMessages(conversationId, teamId, limit = 50) {
+async function loadConversationMessages(conversationId, teamId, limit = 50, viewerId = null) {
   // Removed messages come back as tombstones rather than being filtered out —
   // see lib/moderation.js. A message that simply vanishes leaves participants
   // unsure whether they imagined it.
@@ -372,11 +379,87 @@ async function loadConversationMessages(conversationId, teamId, limit = 50) {
     // since January, but never sent with history — so even a stored reaction
     // disappeared on refresh, which is part of why the feature never worked.
     await attachReactions(messages);
+    await attachPolls(messages, viewerId);
 
     return messages;
   } catch (error) {
     console.error('Error loading conversation messages:', error.message);
     return [];
+  }
+}
+
+/**
+ * Push a poll's current state to everyone in the conversation.
+ *
+ * ⚠️ Rendered PER VIEWER, not once. `youVoted` and the hide-results-until-you-
+ * vote rule both depend on who is looking, and an anonymous poll must never send
+ * voter identities to anyone. One shared payload would leak the second and get
+ * the first wrong.
+ *
+ * `extra` carries the message envelope when the poll is brand new, so clients
+ * can append it; on a vote there is no new message and it is omitted.
+ */
+async function broadcastPoll(conversationId, messageId, extra) {
+  try {
+    const polls = await pool.query(POLL_FOR_MESSAGES_SQL, [[Number(messageId)]]);
+    const poll = polls.rows[0];
+    if (!poll) return;
+
+    const optionRows = await pool.query(OPTIONS_WITH_VOTES_SQL, [[poll.id]]);
+
+    const room = getConversationRoom(conversationId);
+    const sockets = await io.in(room).fetchSockets();
+
+    for (const s of sockets) {
+      const info = connectedUsers.get(s.id);
+      const view = buildPollView(poll, optionRows.rows, info ? info.userId : null);
+      s.emit(extra ? 'pollCreated' : 'pollUpdated', {
+        ...(extra || {}),
+        messageId: String(messageId),
+        conversationId,
+        poll: view,
+      });
+    }
+  } catch (error) {
+    console.error('Error broadcasting poll:', error.message);
+  }
+}
+
+/**
+ * Hang each poll off its message, in place, rendered for THIS viewer.
+ *
+ * Per-viewer because `youVoted` and the results-hidden-until-you-vote rule are
+ * both about who is looking. Same failure policy as reactions: a broken poll
+ * query must not cost the conversation.
+ */
+async function attachPolls(messages, viewerId) {
+  const ids = (messages || [])
+    .filter((m) => m.messageType === 'poll')
+    .map((m) => Number(m.id))
+    .filter((n) => Number.isInteger(n) && n > 0);
+
+  if (ids.length === 0) return;
+
+  try {
+    const polls = await pool.query(POLL_FOR_MESSAGES_SQL, [ids]);
+    if (polls.rows.length === 0) return;
+
+    const optionRows = await pool.query(
+      OPTIONS_WITH_VOTES_SQL, [polls.rows.map((p) => p.id)]
+    );
+
+    const byMessage = new Map();
+    for (const poll of polls.rows) {
+      const forPoll = optionRows.rows.filter((o) => o.pollId === poll.id);
+      byMessage.set(String(poll.messageId), buildPollView(poll, forPoll, viewerId));
+    }
+
+    for (const message of messages) {
+      const view = byMessage.get(String(message.id));
+      if (view) message.poll = view;
+    }
+  } catch (error) {
+    console.error('Error loading polls:', error.message);
   }
 }
 
@@ -669,7 +752,7 @@ io.on('connection', (socket) => {
     const teamId = convInfo.rows[0]?.team_id;
 
     // Load and send message history
-    const messages = await loadConversationMessages(conversationId, teamId);
+    const messages = await loadConversationMessages(conversationId, teamId, 50, userInfo.userId);
     socket.emit('messageHistory', { conversationId, messages });
 
     // Update last_read
@@ -1094,6 +1177,221 @@ io.on('connection', (socket) => {
   });
 
   // ─── Reactions (kept for backward compatibility) ──────────────────────────
+  // ─── Polls ────────────────────────────────────────────────────────────────
+  //
+  // A poll IS a chat_message with message_type 'poll', so it inherits
+  // notifications, moderation and archiving without any of them knowing about
+  // polls. That is the point of the discriminator.
+
+  socket.on('createPoll', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    // ⚠️ Its OWN predicate. canModerate() excludes coaches and
+    // canInitiateConversation() includes parents — neither list is right here.
+    if (!canCreatePoll(userInfo.role)) {
+      socket.emit('error', { message: 'Only coaches and club administrators can create a poll' });
+      return;
+    }
+
+    const { conversationId } = data || {};
+    if (!conversationId) {
+      socket.emit('error', { message: 'Conversation is required' });
+      return;
+    }
+
+    const allowed = await isConversationParticipant(
+      conversationId, userInfo.userId, userInfo.role, userInfo.payload
+    );
+    if (!allowed) {
+      socket.emit('error', { message: 'You do not have access to this conversation' });
+      return;
+    }
+
+    const check = validatePoll(data);
+    if (!check.ok) {
+      socket.emit('error', { message: check.error });
+      return;
+    }
+    const poll = check.poll;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // The message carries the question as its text, so every surface that
+      // shows a message preview — the conversation list, the notification
+      // digest, a search — reads sensibly without knowing what a poll is.
+      const saved = await client.query(`
+        INSERT INTO chat_messages
+          (conversation_id, message_text, sender_id, sender_name, sender_role, message_type)
+        VALUES ($1, $2, $3, $4, $5, 'poll')
+        RETURNING id, created_at
+      `, [conversationId, poll.question, userInfo.userId,
+          userInfo.userName || userInfo.email, userInfo.role]);
+
+      const messageId = saved.rows[0].id;
+
+      const savedPoll = await client.query(`
+        INSERT INTO chat_polls
+          (message_id, question, is_anonymous, results_before_vote, allow_multiple, closes_at, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+      `, [messageId, poll.question, poll.isAnonymous, poll.resultsBeforeVote,
+          poll.allowMultiple, poll.closesAt, userInfo.userId]);
+
+      const pollId = savedPoll.rows[0].id;
+
+      for (let i = 0; i < poll.options.length; i++) {
+        await client.query(
+          'INSERT INTO chat_poll_options (poll_id, label, sort_order) VALUES ($1, $2, $3)',
+          [pollId, poll.options[i], i]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      await broadcastPoll(conversationId, messageId, {
+        id: messageId.toString(),
+        conversationId,
+        text: poll.question,
+        messageType: 'poll',
+        sender: userInfo.userName || userInfo.email,
+        senderId: String(userInfo.userId),
+        role: userInfo.role,
+        timestamp: saved.rows[0].created_at,
+      });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Error creating poll:', error.message);
+      socket.emit('error', { message: 'Could not create the poll' });
+    } finally {
+      client.release();
+    }
+  });
+
+  socket.on('votePoll', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) return;
+
+    const { optionId } = data || {};
+    if (!optionId) return;
+
+    try {
+      const context = await pool.query(`
+        SELECT p.id AS poll_id, p.message_id, p.allow_multiple, p.closes_at,
+               m.conversation_id
+          FROM chat_poll_options o
+          JOIN chat_polls p ON p.id = o.poll_id
+          JOIN chat_messages m ON m.id = p.message_id
+         WHERE o.id = $1
+      `, [optionId]);
+
+      const ctx = context.rows[0];
+      if (!ctx) {
+        socket.emit('error', { message: 'That poll option no longer exists' });
+        return;
+      }
+
+      // Closed is a comparison against the deadline, evaluated now — never a
+      // stored status some worker has to keep current.
+      if (ctx.closes_at && new Date(ctx.closes_at) <= new Date()) {
+        socket.emit('error', { message: 'That poll has closed' });
+        return;
+      }
+
+      const allowed = await isConversationParticipant(
+        ctx.conversation_id, userInfo.userId, userInfo.role, userInfo.payload
+      );
+      if (!allowed) {
+        socket.emit('error', { message: 'You do not have access to this conversation' });
+        return;
+      }
+
+      // Toggle. Voting the same option again withdraws it, which is the only
+      // way to un-answer a single-choice poll.
+      const existing = await pool.query(
+        'SELECT id FROM chat_poll_votes WHERE option_id = $1 AND user_id = $2',
+        [optionId, userInfo.userId]
+      );
+
+      if (existing.rows.length > 0) {
+        await pool.query('DELETE FROM chat_poll_votes WHERE id = $1', [existing.rows[0].id]);
+      } else {
+        if (!ctx.allow_multiple) {
+          // Single choice: replace whatever they picked before, in this poll only.
+          await pool.query(`
+            DELETE FROM chat_poll_votes
+             WHERE user_id = $1
+               AND option_id IN (SELECT id FROM chat_poll_options WHERE poll_id = $2)
+          `, [userInfo.userId, ctx.poll_id]);
+        }
+        // ON CONFLICT because two taps on a slow connection is the ordinary
+        // case. The UNIQUE constraint is the real guard; this keeps it quiet.
+        await pool.query(`
+          INSERT INTO chat_poll_votes (option_id, user_id) VALUES ($1, $2)
+          ON CONFLICT (option_id, user_id) DO NOTHING
+        `, [optionId, userInfo.userId]);
+      }
+
+      await broadcastPoll(ctx.conversation_id, ctx.message_id);
+    } catch (error) {
+      console.error('Error voting:', error.message);
+    }
+  });
+
+  /** Change the closing time, or reveal results. Creator or a moderator. */
+  socket.on('updatePoll', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) return;
+
+    const { pollId, closesAt, resultsBeforeVote } = data || {};
+    if (!pollId) return;
+
+    try {
+      const found = await pool.query(`
+        SELECT p.id, p.created_by, p.message_id, m.conversation_id
+          FROM chat_polls p JOIN chat_messages m ON m.id = p.message_id
+         WHERE p.id = $1
+      `, [pollId]);
+
+      const poll = found.rows[0];
+      if (!poll) return;
+
+      const isCreator = String(poll.created_by) === String(userInfo.userId);
+      if (!isCreator && !canModerate(userInfo.role)) {
+        socket.emit('error', { message: 'Only the person who created this poll can change it' });
+        return;
+      }
+
+      // ⚠️ is_anonymous is deliberately NOT updatable here. Flipping it either
+      // way breaks a promise already made to everyone who voted.
+      if (closesAt !== undefined) {
+        const when = closesAt === null ? null : new Date(closesAt);
+        if (when !== null && Number.isNaN(when.getTime())) {
+          socket.emit('error', { message: 'That closing time is not a date' });
+          return;
+        }
+        // Shortening past votes already cast is allowed and must NOT discard
+        // them — the deadline gates new votes only.
+        await pool.query('UPDATE chat_polls SET closes_at = $1 WHERE id = $2',
+          [when === null ? null : when.toISOString(), pollId]);
+      }
+
+      if (resultsBeforeVote !== undefined) {
+        await pool.query('UPDATE chat_polls SET results_before_vote = $1 WHERE id = $2',
+          [Boolean(resultsBeforeVote), pollId]);
+      }
+
+      await broadcastPoll(poll.conversation_id, poll.message_id);
+    } catch (error) {
+      console.error('Error updating poll:', error.message);
+    }
+  });
+
   socket.on('addReaction', async (data) => {
     const userInfo = connectedUsers.get(socket.id);
     if (!userInfo) return;

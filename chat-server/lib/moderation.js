@@ -49,6 +49,7 @@ function buildMessageHistoryQuery({ team = false } = {}) {
       CASE WHEN deleted_at IS NULL THEN message_text ELSE NULL END AS text,
       (deleted_at IS NOT NULL) AS removed,
       sender_name AS sender, sender_id AS "senderId", sender_role AS role,
+      message_type AS "messageType",
       created_at AS timestamp,
       TO_CHAR(created_at, 'HH24:MI') AS time`;
 

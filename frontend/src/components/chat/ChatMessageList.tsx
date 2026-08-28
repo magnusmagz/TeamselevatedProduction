@@ -3,6 +3,8 @@ import ReportMessageButton from './ReportMessageButton';
 import { sameUser } from './sameUser';
 import MessageReactions from './MessageReactions';
 import type { MessageReaction } from './reactionEmoji';
+import PollMessage from './PollMessage';
+import type { PollView } from './pollTypes';
 
 interface Message {
   id: string;
@@ -21,6 +23,8 @@ interface Message {
   removed?: boolean;
   /** Grouped by the server. Absent on optimistic messages — read defensively. */
   reactions?: MessageReaction[];
+  messageType?: 'text' | 'poll';
+  poll?: PollView;
 }
 
 interface TypingUser {
@@ -45,10 +49,11 @@ interface Props {
    */
   onReport?: (messageId: string, reason: string) => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  onVotePoll?: (optionId: string) => void;
   reportedMessageIds?: string[];
 }
 
-export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, onToggleReaction, reportedMessageIds = [] }: Props) {
+export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, onToggleReaction, onVotePoll, reportedMessageIds = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -148,10 +153,17 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                 </div>
               )}
 
-              {/* Message text */}
-              <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                {msg.text}
-              </p>
+              {/* A poll renders instead of the text. The text still holds the
+                  question, so every surface that shows a preview — the
+                  conversation list, the notification digest — reads sensibly
+                  without knowing what a poll is. */}
+              {msg.poll && onVotePoll ? (
+                <PollMessage poll={msg.poll} onVote={onVotePoll} onDark={isOwn} />
+              ) : (
+                <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                  {msg.text}
+                </p>
+              )}
 
               {/* Timestamp */}
               <div
