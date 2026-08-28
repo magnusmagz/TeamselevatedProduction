@@ -5,7 +5,7 @@
  * ⚠️ THE OBVIOUS WAY SILENTLY WRITES NOTHING. Verified against production
  * 2026-08-28:
  *
- *     $st = $pdo->prepare("UPDATE t SET image_data = ? WHERE id = ?");
+ *     $st = $pdo->prepare("UPDATE club_media_assets SET image_data = ? WHERE id = ?");
  *     $st->execute([$pngBytes, $id]);   // returns FALSE. Does not throw.
  *
  *   execute returned: false  rowCount=0
@@ -23,7 +23,7 @@
  * The fix is to send hex, which contains no NUL and no quoting hazard, and let
  * Postgres decode it:
  *
- *     $sql = "UPDATE t SET image_data = " . TE_BYTEA_PARAM . " WHERE id = ?";
+ *     $sql = "UPDATE club_media_assets SET image_data = " . TE_BYTEA_PARAM . " WHERE id = ?";
  *     $st->execute([te_bytea_hex($bytes), $id]);
  *
  * Then CHECK. te_bytea_stored_length() re-reads the column, because the whole
