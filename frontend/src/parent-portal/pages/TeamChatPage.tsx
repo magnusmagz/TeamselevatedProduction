@@ -261,20 +261,28 @@ export const TeamChatPage: React.FC = () => {
           onBack={handleBack}
         />
 
-        {/* The pinned message, if there is one. Families see it and cannot
-            change it; a coach viewing the portal can unpin. */}
-        <PinnedBanner
-          pinned={pinnedMessage}
-          canPin={canPinMessage(chatUser?.role)}
-          onUnpin={unpinMessage}
-        />
-
         {/* Messages Container — bounded internal scroll between header and input */}
         <div
           ref={scrollContainerRef}
           className="absolute left-0 right-0 overflow-y-auto px-4 py-4"
           style={{ top: headerOffset, bottom: footerOffset }}
         >
+          {/* ⚠️ INSIDE the scroll container, and sticky.
+              This layout is absolutely positioned between two computed offsets,
+              so anything placed in normal flow beside it reserves no space and
+              is simply covered — which is exactly what happened when the banner
+              first went in: it rendered, and nothing was visible (2026-08-28).
+              Sticky keeps it in view as the conversation scrolls, and the
+              negative margins undo the container's own padding so it spans the
+              full width like a header rather than floating in the gutter. */}
+          <div className="sticky -top-4 z-10 -mx-4 -mt-4 mb-3">
+            <PinnedBanner
+              pinned={pinnedMessage}
+              canPin={canPinMessage(chatUser?.role)}
+              onUnpin={unpinMessage}
+            />
+          </div>
+
           {messages.length === 0 && (
             <div className="text-center py-12">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
