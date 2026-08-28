@@ -11,8 +11,14 @@
  *       What fields does that template accept? (No design is created.)
  *
  *   php scripts/canva-smoke.php --template=<id> --club=<id> [--event=<id>] --run
- *       Full run: upload the club logo as an asset, autofill from a real
- *       calendar_events row, export a PNG, download it, write club_media_assets.
+ *   php scripts/canva-smoke.php --template=<id> --club=<id> --sponsor=<id> --run
+ *       Full run: upload the club logo as an asset, autofill from real rows,
+ *       export a PNG, download it, write club_media_assets.
+ *
+ * Source rows are looked up ONLY when the template asks for them. A sponsor
+ * template does not need a calendar event, and demanding one made the first
+ * sponsor graphic impossible to generate — the script failed before reaching
+ * Canva at all.
  *
  * --run CREATES a design in the Canva org and a row in club_media_assets. Everything
  * short of it is read-only. Nothing here sends anything to a family.
@@ -27,10 +33,11 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
-$opts     = getopt('', ['template::', 'club::', 'event::', 'run']);
+$opts     = getopt('', ['template::', 'club::', 'event::', 'sponsor::', 'run']);
 $template = $opts['template'] ?? null;
 $clubId   = isset($opts['club']) ? (int) $opts['club'] : null;
 $eventId  = isset($opts['event']) ? (int) $opts['event'] : null;
+$sponsorId = isset($opts['sponsor']) ? (int) $opts['sponsor'] : null;
 $doRun    = array_key_exists('run', $opts);
 
 $pdo    = Database::getInstance()->getConnection();
@@ -107,19 +114,50 @@ $club = $club->fetch(PDO::FETCH_ASSOC);
 if (!$club) fail("No club_profile row {$clubId}");
 echo "club: {$club['name']}\n";
 
-// calendar_events, NOT events — there is no events table. name/event_date/start_time/type.
-$eventSql = "SELECT e.id, e.name, e.event_date, e.start_time, e.type, e.opponent_name,
-                    e.location, v.name AS venue_name
-               FROM calendar_events e
-          LEFT JOIN venues v ON v.id = e.venue_id
-              WHERE e.club_id = ? " . ($eventId ? "AND e.id = ? " : "AND e.event_date >= CURRENT_DATE ") . "
-           ORDER BY e.event_date ASC, e.start_time ASC
-              LIMIT 1";
-$stmt = $pdo->prepare($eventSql);
-$stmt->execute($eventId ? [$clubId, $eventId] : [$clubId]);
-$event = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$event) fail("No upcoming calendar_events row for club {$clubId} (try --event=<id>)");
-echo "event: #{$event['id']} {$event['name']} on {$event['event_date']}\n";
+// Look up source rows only for what the template actually declares. Fetching a
+// calendar event for a sponsor template is not merely wasted work — it was a hard
+// failure ("No upcoming calendar_events row"), so a club with an empty calendar
+// could not generate a sponsor graphic.
+$wantsEvent   = false;
+$wantsSponsor = false;
+foreach (array_keys($fields) as $fieldName) {
+    if (strpos($fieldName, 'event') === 0 || in_array($fieldName, ['opponent', 'venue'], true)) {
+        $wantsEvent = true;
+    }
+    if (strpos($fieldName, 'sponsor') === 0) {
+        $wantsSponsor = true;
+    }
+}
+
+$event = null;
+if ($wantsEvent) {
+    // calendar_events, NOT events — there is no events table. name/event_date/start_time/type.
+    $eventSql = "SELECT e.id, e.name, e.event_date, e.start_time, e.type, e.opponent_name,
+                        e.location, v.name AS venue_name
+                   FROM calendar_events e
+              LEFT JOIN venues v ON v.id = e.venue_id
+                  WHERE e.club_id = ? " . ($eventId ? "AND e.id = ? " : "AND e.event_date >= CURRENT_DATE ") . "
+               ORDER BY e.event_date ASC, e.start_time ASC
+                  LIMIT 1";
+    $stmt = $pdo->prepare($eventSql);
+    $stmt->execute($eventId ? [$clubId, $eventId] : [$clubId]);
+    $event = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$event) fail("No upcoming calendar_events row for club {$clubId} (try --event=<id>)");
+    echo "event: #{$event['id']} {$event['name']} on {$event['event_date']}\n";
+}
+
+$sponsor = null;
+if ($wantsSponsor) {
+    $sponsorSql = "SELECT id, name, website FROM sponsors
+                    WHERE club_id = ? AND deleted_at IS NULL "
+                . ($sponsorId ? "AND id = ? " : "AND is_active ")
+                . "ORDER BY display_order, id LIMIT 1";
+    $stmt = $pdo->prepare($sponsorSql);
+    $stmt->execute($sponsorId ? [$clubId, $sponsorId] : [$clubId]);
+    $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$sponsor) fail("No sponsor row for club {$clubId} (try --sponsor=<id>)");
+    echo "sponsor: #{$sponsor['id']} {$sponsor['name']}\n";
+}
 
 // ── 5. Logo → Canva asset ───────────────────────────────────────────────────
 $logoAssetId = null;
@@ -160,15 +198,25 @@ if ($needsImage) {
 // and report what we could not fill rather than guessing.
 heading('Autofill payload');
 
-$time = $event['start_time'] ? date('g:ia', strtotime($event['start_time'])) : '';
-$candidates = [
-    'event_name'   => $event['name'],
-    'event_date'   => date('D, M j', strtotime($event['event_date'])),
-    'event_time'   => $time,
-    'opponent'     => $event['opponent_name'] ?? '',
-    'venue'        => $event['venue_name'] ?: ($event['location'] ?? ''),
-    'club_name'    => $club['name'],
-];
+$candidates = ['club_name' => $club['name']];
+
+if ($event) {
+    $time = $event['start_time'] ? date('g:ia', strtotime($event['start_time'])) : '';
+    $candidates += [
+        'event_name' => $event['name'],
+        'event_date' => date('D, M j', strtotime($event['event_date'])),
+        'event_time' => $time,
+        'opponent'   => $event['opponent_name'] ?? '',
+        'venue'      => $event['venue_name'] ?: ($event['location'] ?? ''),
+    ];
+}
+
+if ($sponsor) {
+    $candidates += [
+        'sponsor_name'    => $sponsor['name'],
+        'sponsor_website' => $sponsor['website'] ?? '',
+    ];
+}
 
 $data = [];
 $unfilled = [];
@@ -215,11 +263,12 @@ $assetRow = $pdo->prepare(
     "INSERT INTO club_media_assets (club_profile_id, source, graphic_type, calendar_event_id, status)
      VALUES (?, 'canva', 'smoke_test', ?, 'rendering') RETURNING id"
 );
-$assetRow->execute([$clubId, $event['id']]);
+$assetRow->execute([$clubId, $event['id'] ?? null]);
 $assetId = (int) $assetRow->fetchColumn();
 
 try {
-    $job = $canva->createDesignAutofillJob($template, $data, "TE smoke — {$event['name']}");
+    $label = $sponsor['name'] ?? $event['name'] ?? 'smoke test';
+    $job = $canva->createDesignAutofillJob($template, $data, "TE smoke — {$label}");
     $jobId = $job['job']['id'] ?? null;
     $done = $canva->pollJob(fn() => $canva->getDesignAutofillJob($jobId));
 
