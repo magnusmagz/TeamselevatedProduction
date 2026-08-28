@@ -184,6 +184,15 @@ export const chatSocket = {
     }
   },
 
+  /** Pin a message to the top of its conversation (coach or admin) */
+  pinMessage: (messageId: string) => {
+    if (socket?.connected) socket.emit('pinMessage', { messageId });
+  },
+
+  unpinMessage: (messageId: string) => {
+    if (socket?.connected) socket.emit('unpinMessage', { messageId });
+  },
+
   /** Cast or withdraw a poll vote */
   votePoll: (optionId: string) => {
     if (socket?.connected) socket.emit('votePoll', { optionId });

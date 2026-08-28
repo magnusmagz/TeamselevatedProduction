@@ -41,3 +41,22 @@ export function describeDeadline(poll: PollView): string {
     weekday: 'short', hour: '2-digit', minute: '2-digit',
   })}`;
 }
+
+/** The message pinned to the top of a conversation, if any. */
+export interface PinnedMessage {
+  messageId: string;
+  text: string;
+  sender: string;
+  pinnedBy: string;
+  pinnedAt: string;
+}
+
+/**
+ * Who may pin. Mirrors canPinMessage in chat-server/lib/pinning.js.
+ *
+ * ⚠️ Deliberately wider than moderation, which excludes coaches — a coach
+ * pinning their own team's practice details is the main thing pinning is for.
+ */
+export function canPinMessage(role?: string): boolean {
+  return !!role && ['super_admin', 'owner', 'club_admin', 'admin', 'coach'].includes(role);
+}

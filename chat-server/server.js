@@ -45,6 +45,14 @@ const {
   POLL_FOR_MESSAGES_SQL,
   OPTIONS_WITH_VOTES_SQL,
 } = require('./lib/polls');
+const {
+  canPinMessage,
+  UNPIN_CONVERSATION_SQL,
+  PIN_MESSAGE_SQL,
+  UNPIN_MESSAGE_SQL,
+  PINNED_FOR_CONVERSATION_SQL,
+  buildPinnedView,
+} = require('./lib/pinning');
 const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
 const {
   OPEN_REPORT_FOR_CONVERSATION_SQL,
@@ -385,6 +393,24 @@ async function loadConversationMessages(conversationId, teamId, limit = 50, view
   } catch (error) {
     console.error('Error loading conversation messages:', error.message);
     return [];
+  }
+}
+
+/**
+ * Tell everyone in a conversation what is pinned now, or that nothing is.
+ *
+ * Sent to the room rather than per viewer: a pin is the same for everybody,
+ * unlike a poll where youVoted and hidden results differ by who is looking.
+ */
+async function broadcastPinned(conversationId) {
+  try {
+    const result = await pool.query(PINNED_FOR_CONVERSATION_SQL, [conversationId]);
+    io.to(getConversationRoom(conversationId)).emit('pinnedChanged', {
+      conversationId,
+      pinned: buildPinnedView(result.rows[0]),
+    });
+  } catch (error) {
+    console.error('Error broadcasting pin:', error.message);
   }
 }
 
@@ -754,6 +780,19 @@ io.on('connection', (socket) => {
     // Load and send message history
     const messages = await loadConversationMessages(conversationId, teamId, 50, userInfo.userId);
     socket.emit('messageHistory', { conversationId, messages });
+
+    // The pin belongs with the history: it is what someone should see first on
+    // opening a conversation, and fetching it separately would flash the
+    // conversation without it.
+    try {
+      const pinned = await pool.query(PINNED_FOR_CONVERSATION_SQL, [conversationId]);
+      socket.emit('pinnedChanged', {
+        conversationId,
+        pinned: buildPinnedView(pinned.rows[0]),
+      });
+    } catch (error) {
+      console.error('Error loading pinned message:', error.message);
+    }
 
     // Update last_read
     await pool.query(`
@@ -1177,6 +1216,99 @@ io.on('connection', (socket) => {
   });
 
   // ─── Reactions (kept for backward compatibility) ──────────────────────────
+  // ─── Pinning ──────────────────────────────────────────────────────────────
+
+  socket.on('pinMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) {
+      socket.emit('error', { message: 'Not authenticated' });
+      return;
+    }
+
+    // ⚠️ NOT canModerate() — that excludes coaches, and a coach pinning their
+    // own team's practice details is the main thing this is for.
+    if (!canPinMessage(userInfo.role)) {
+      socket.emit('error', { message: 'Only coaches and club administrators can pin a message' });
+      return;
+    }
+
+    const { messageId } = data || {};
+    if (!messageId) return;
+
+    const client = await pool.connect();
+    try {
+      const found = await client.query(
+        'SELECT conversation_id, deleted_at FROM chat_messages WHERE id = $1', [messageId]
+      );
+      const message = found.rows[0];
+      if (!message || !message.conversation_id) {
+        socket.emit('error', { message: 'That message no longer exists' });
+        return;
+      }
+      if (message.deleted_at) {
+        socket.emit('error', { message: 'A removed message cannot be pinned' });
+        return;
+      }
+
+      const allowed = await isConversationParticipant(
+        message.conversation_id, userInfo.userId, userInfo.role, userInfo.payload
+      );
+      if (!allowed) {
+        socket.emit('error', { message: 'You do not have access to this conversation' });
+        return;
+      }
+
+      await client.query('BEGIN');
+      // Clear the old pin first — one per conversation, and the partial unique
+      // index would otherwise reject this as a conflict rather than a replace.
+      await client.query(UNPIN_CONVERSATION_SQL, [message.conversation_id]);
+      await client.query(PIN_MESSAGE_SQL, [messageId, userInfo.userId]);
+      await client.query('COMMIT');
+
+      await broadcastPinned(message.conversation_id);
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Error pinning message:', error.message);
+      socket.emit('error', { message: 'Could not pin that message' });
+    } finally {
+      client.release();
+    }
+  });
+
+  socket.on('unpinMessage', async (data) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo) return;
+
+    if (!canPinMessage(userInfo.role)) {
+      socket.emit('error', { message: 'Only coaches and club administrators can unpin a message' });
+      return;
+    }
+
+    const { messageId } = data || {};
+    if (!messageId) return;
+
+    try {
+      const found = await pool.query(
+        'SELECT conversation_id FROM chat_messages WHERE id = $1', [messageId]
+      );
+      const conversationId = found.rows[0] && found.rows[0].conversation_id;
+      if (!conversationId) return;
+
+      const allowed = await isConversationParticipant(
+        conversationId, userInfo.userId, userInfo.role, userInfo.payload
+      );
+      if (!allowed) {
+        socket.emit('error', { message: 'You do not have access to this conversation' });
+        return;
+      }
+
+      await pool.query(UNPIN_MESSAGE_SQL, [messageId]);
+      await broadcastPinned(conversationId);
+    } catch (error) {
+      console.error('Error unpinning message:', error.message);
+    }
+  });
+
   // ─── Polls ────────────────────────────────────────────────────────────────
   //
   // A poll IS a chat_message with message_type 'poll', so it inherits

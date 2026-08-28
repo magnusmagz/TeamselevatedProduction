@@ -7,7 +7,8 @@ import NewConversationDialog from './NewConversationDialog';
 import ChatMessageList from './ChatMessageList';
 import ChatInput from './ChatInput';
 import PollComposer from './PollComposer';
-import { canCreatePoll } from './pollTypes';
+import { canCreatePoll, canPinMessage } from './pollTypes';
+import PinnedBanner from './PinnedBanner';
 
 type View = 'list' | 'chat' | 'new';
 
@@ -31,6 +32,9 @@ export default function ChatWidget() {
     toggleReaction,
     votePoll,
     createPoll,
+    pinnedMessage,
+    pinMessage,
+    unpinMessage,
     chatError,
     clearChatError,
     createConversation,
@@ -253,6 +257,12 @@ export default function ChatWidget() {
               </div>
 
               {/* Messages */}
+              <PinnedBanner
+                pinned={pinnedMessage}
+                canPin={canPinMessage(chatUser?.role)}
+                onUnpin={unpinMessage}
+              />
+
               <ChatMessageList
                 messages={adaptedMessages}
                 currentUser={user}
@@ -261,6 +271,8 @@ export default function ChatWidget() {
                 reportedMessageIds={reportedMessageIds}
                 onToggleReaction={toggleReaction}
                 onVotePoll={votePoll}
+                onPin={canPinMessage(chatUser?.role) ? pinMessage : undefined}
+                pinnedMessageId={pinnedMessage?.messageId}
               />
 
               {/* Whatever the server last refused. Without this a rejected

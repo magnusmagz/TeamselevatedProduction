@@ -445,7 +445,9 @@
     "conversation_id",
     "deleted_by",
     "removal_reason",
-    "message_type"
+    "message_type",
+    "pinned_at",
+    "pinned_by"
   ],
   "chat_moderation_alert_state": [
     "id",

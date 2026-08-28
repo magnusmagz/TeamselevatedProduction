@@ -4,6 +4,7 @@ import { useOrg } from '../../contexts/OrgContext';
 import { connectChat, chatSocket } from './chatSocket';
 import type { Conversation, ChatMessage, TypingUser, ChatUser } from './types';
 import { sameUser } from './sameUser';
+import type { PinnedMessage } from './pollTypes';
 
 interface UseChatReturn {
   conversations: Conversation[];
@@ -22,6 +23,10 @@ interface UseChatReturn {
   toggleReaction: (messageId: string, emoji: string) => void;
   votePoll: (optionId: string) => void;
   /** The last thing the server refused, in words. Cleared on the next action. */
+  /** The message pinned in the active conversation, or null. */
+  pinnedMessage: PinnedMessage | null;
+  pinMessage: (messageId: string) => void;
+  unpinMessage: (messageId: string) => void;
   chatError: string | null;
   clearChatError: () => void;
   createPoll: (input: {
@@ -47,6 +52,7 @@ export function useChat(): UseChatReturn {
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -374,6 +380,13 @@ export function useChat(): UseChatReturn {
       setChatError(payload?.message || 'Something went wrong');
     };
 
+    /** Sent when a conversation opens, and whenever the pin changes. */
+    const handlePinnedChanged = (data: { conversationId: number; pinned: PinnedMessage | null }) => {
+      if (activeConvRef.current?.id !== data.conversationId) return;
+      setPinnedMessage(data.pinned);
+    };
+
+    socket.on('pinnedChanged', handlePinnedChanged);
     socket.on('error', handleServerError);
     socket.on('pollCreated', handlePollCreated);
     socket.on('pollUpdated', handlePollUpdated);
@@ -398,6 +411,7 @@ export function useChat(): UseChatReturn {
       socket.off('conversationsList', handleConversationsList);
       socket.off('messageHistory', handleMessageHistory);
       socket.off('receiveMessage', handleNewMessage);
+      socket.off('pinnedChanged', handlePinnedChanged);
       socket.off('error', handleServerError);
       socket.off('pollCreated', handlePollCreated);
       socket.off('pollUpdated', handlePollUpdated);
@@ -557,6 +571,14 @@ export function useChat(): UseChatReturn {
 
   const clearChatError = useCallback(() => setChatError(null), []);
 
+  const pinMessage = useCallback((messageId: string) => {
+    chatSocket.pinMessage(String(messageId));
+  }, []);
+
+  const unpinMessage = useCallback((messageId: string) => {
+    chatSocket.unpinMessage(String(messageId));
+  }, []);
+
   /** Vote, or withdraw by choosing the same option again. */
   const votePoll = useCallback((optionId: string) => {
     chatSocket.votePoll(optionId);
@@ -587,6 +609,9 @@ export function useChat(): UseChatReturn {
     toggleReaction,
     votePoll,
     createPoll,
+    pinnedMessage,
+    pinMessage,
+    unpinMessage,
     chatError,
     clearChatError,
     createConversation,

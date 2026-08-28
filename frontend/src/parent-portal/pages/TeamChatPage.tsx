@@ -9,6 +9,8 @@ import { sameUser } from '../../components/chat/sameUser';
 import { reportNotificationClick } from '../../components/chat/reportNotificationClick';
 import MessageReactions from '../../components/chat/MessageReactions';
 import PollMessage from '../../components/chat/PollMessage';
+import PinnedBanner from '../../components/chat/PinnedBanner';
+import { canPinMessage } from '../../components/chat/pollTypes';
 
 export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,7 +27,10 @@ export const TeamChatPage: React.FC = () => {
     selectConversation,
     sendMessage,
     toggleReaction,
+    chatUser,
     votePoll,
+    pinnedMessage,
+    unpinMessage,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -254,6 +259,14 @@ export const TeamChatPage: React.FC = () => {
           title={activeConversation.displayName}
           showBack
           onBack={handleBack}
+        />
+
+        {/* The pinned message, if there is one. Families see it and cannot
+            change it; a coach viewing the portal can unpin. */}
+        <PinnedBanner
+          pinned={pinnedMessage}
+          canPin={canPinMessage(chatUser?.role)}
+          onUnpin={unpinMessage}
         />
 
         {/* Messages Container — bounded internal scroll between header and input */}

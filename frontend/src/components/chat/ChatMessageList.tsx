@@ -50,10 +50,12 @@ interface Props {
   onReport?: (messageId: string, reason: string) => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onVotePoll?: (optionId: string) => void;
+  onPin?: (messageId: string) => void;
+  pinnedMessageId?: string | null;
   reportedMessageIds?: string[];
 }
 
-export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, onToggleReaction, onVotePoll, reportedMessageIds = [] }: Props) {
+export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, onToggleReaction, onVotePoll, onPin, pinnedMessageId, reportedMessageIds = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +123,21 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
             key={msg.id}
             className={`group flex items-start gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}
           >
+            {/* Pinning, for coaches and admins. Offered on ANY message including
+                your own — the useful thing to pin is often the practice details
+                the coach just posted. */}
+            {onPin && String(msg.id) !== String(pinnedMessageId) && (
+              <button
+                type="button"
+                onClick={() => onPin(msg.id)}
+                aria-label="Pin this message"
+                title="Pin this message"
+                className="order-3 pt-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-gray-400 hover:text-brand-primary text-sm"
+              >
+                📌
+              </button>
+            )}
+
             {/* Reporting is offered only on other people's messages. */}
             {!isOwn && onReport && (
               <div className="pt-1 order-2">
