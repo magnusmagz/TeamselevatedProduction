@@ -26,6 +26,8 @@ const SAFE_DEFAULT: ChatContextValue = {
   sendMessage: () => {},
   toggleReaction: () => {},
   votePoll: () => {},
+  chatError: null,
+  clearChatError: () => {},
   createPoll: () => {},
   createConversation: () => {},
   handleTyping: () => {},

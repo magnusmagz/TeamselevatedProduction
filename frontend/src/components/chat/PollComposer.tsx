@@ -117,7 +117,7 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
       <div className="flex flex-col gap-1.5 mb-3 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
-          <span>Hide who voted</span>
+          <span>Make anonymous</span>
         </label>
         <label className="flex items-center gap-2">
           <input

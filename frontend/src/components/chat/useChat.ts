@@ -21,6 +21,9 @@ interface UseChatReturn {
   sendMessage: (text: string) => void;
   toggleReaction: (messageId: string, emoji: string) => void;
   votePoll: (optionId: string) => void;
+  /** The last thing the server refused, in words. Cleared on the next action. */
+  chatError: string | null;
+  clearChatError: () => void;
   createPoll: (input: {
     question: string; options: string[]; isAnonymous: boolean;
     resultsBeforeVote: boolean; closesAt: string | null;
@@ -43,6 +46,7 @@ export function useChat(): UseChatReturn {
   const [showArchived, setShowArchivedState] = useState(false);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatError, setChatError] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -356,6 +360,21 @@ export function useChat(): UseChatReturn {
       });
     };
 
+    /**
+     * ⚠️ The server has always emitted `error` for a refusal and NOTHING has
+     * ever listened. So a rejected action — a poll that failed to save, an
+     * emoji outside the set, a conversation you cannot reach — did nothing at
+     * all, silently, with the reason sitting in a log only we can read.
+     *
+     * Found 2026-08-28 when "Post poll" appeared to do nothing: the insert was
+     * failing on a NOT NULL column and the server said so to a client that was
+     * not listening.
+     */
+    const handleServerError = (payload: { message?: string }) => {
+      setChatError(payload?.message || 'Something went wrong');
+    };
+
+    socket.on('error', handleServerError);
     socket.on('pollCreated', handlePollCreated);
     socket.on('pollUpdated', handlePollUpdated);
     socket.on('reactionAdded', handleReactionAdded);
@@ -379,6 +398,7 @@ export function useChat(): UseChatReturn {
       socket.off('conversationsList', handleConversationsList);
       socket.off('messageHistory', handleMessageHistory);
       socket.off('receiveMessage', handleNewMessage);
+      socket.off('error', handleServerError);
       socket.off('pollCreated', handlePollCreated);
       socket.off('pollUpdated', handlePollUpdated);
       socket.off('reactionAdded', handleReactionAdded);
@@ -535,6 +555,8 @@ export function useChat(): UseChatReturn {
     }
   }, [messages, user]);
 
+  const clearChatError = useCallback(() => setChatError(null), []);
+
   /** Vote, or withdraw by choosing the same option again. */
   const votePoll = useCallback((optionId: string) => {
     chatSocket.votePoll(optionId);
@@ -565,6 +587,8 @@ export function useChat(): UseChatReturn {
     toggleReaction,
     votePoll,
     createPoll,
+    chatError,
+    clearChatError,
     createConversation,
     handleTyping,
     reportedMessageIds,

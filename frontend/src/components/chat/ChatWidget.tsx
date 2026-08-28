@@ -31,6 +31,8 @@ export default function ChatWidget() {
     toggleReaction,
     votePoll,
     createPoll,
+    chatError,
+    clearChatError,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -260,6 +262,17 @@ export default function ChatWidget() {
                 onToggleReaction={toggleReaction}
                 onVotePoll={votePoll}
               />
+
+              {/* Whatever the server last refused. Without this a rejected
+                  action does nothing at all and the reason sits in a log only
+                  we can read — which is exactly how "Post poll" appeared to be
+                  broken. */}
+              {chatError && (
+                <div className="mx-3 mb-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800 flex items-start justify-between gap-2" role="alert">
+                  <span>{chatError}</span>
+                  <button type="button" onClick={clearChatError} aria-label="Dismiss" className="text-red-600">✕</button>
+                </div>
+              )}
 
               {/* Poll composer, or the normal input. Only coaches and club
                   admins can create one — the server enforces it too, since a

@@ -1225,10 +1225,15 @@ io.on('connection', (socket) => {
       // The message carries the question as its text, so every surface that
       // shows a message preview — the conversation list, the notification
       // digest, a search — reads sensibly without knowing what a poll is.
+      // scope_type / scope_id / channel are NOT NULL legacy columns from the
+      // pre-conversation model, and saveConversationMessage sets the same
+      // placeholder values. Omitting them fails the insert outright, which is
+      // exactly what happened on first use.
       const saved = await client.query(`
         INSERT INTO chat_messages
-          (conversation_id, message_text, sender_id, sender_name, sender_role, message_type)
-        VALUES ($1, $2, $3, $4, $5, 'poll')
+          (conversation_id, scope_type, scope_id, channel,
+           message_text, sender_id, sender_name, sender_role, message_type)
+        VALUES ($1, 'team', 0, 'general', $2, $3, $4, $5, 'poll')
         RETURNING id, created_at
       `, [conversationId, poll.question, userInfo.userId,
           userInfo.userName || userInfo.email, userInfo.role]);
@@ -1251,6 +1256,13 @@ io.on('connection', (socket) => {
           [pollId, poll.options[i], i]
         );
       }
+
+      // A poll is a message, so the conversation list has to reflect it — an
+      // unsorted conversation with a stale preview reads as "nothing happened".
+      await client.query(
+        'UPDATE conversations SET last_message_at = $1, last_message_preview = $2 WHERE id = $3',
+        [saved.rows[0].created_at, poll.question.substring(0, 100), conversationId]
+      );
 
       await client.query('COMMIT');
 
