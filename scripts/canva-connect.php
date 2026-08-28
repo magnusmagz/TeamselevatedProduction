@@ -11,7 +11,7 @@
  *
  * The code is short-lived, so do step 2 within a minute or two of step 1.
  *
- * ⚠️ RUN BOTH STEPS INSIDE ONE `heroku run bash` SESSION.
+ * ⚠️ TWO SHELLS? PASS --verifier. ONE SHELL? YOU DO NOT HAVE TO.
  *
  * PKCE requires step 2 to present the same code_verifier that generated step 1's
  * challenge, and that verifier is held in a file in sys_get_temp_dir. Every
@@ -25,7 +25,14 @@
  *     $ php scripts/canva-connect.php --code=<code>   # step 2, same dyno
  *
  * The authorization code is short-lived, so do not let the dyno idle out between
- * them.
+ * them. That is the pressure --verifier removes: step 1 prints the verifier, and
+ * step 2 can then be its own `heroku run` minutes later, from anywhere.
+ *
+ *     heroku run --no-tty -a … php scripts/canva-connect.php
+ *     heroku run --no-tty -a … php scripts/canva-connect.php --code=X --verifier=Y
+ *
+ * The verifier is not a credential on its own — it is single-use, meaningless
+ * without the matching code, and both are dead the moment the exchange succeeds.
  *
  * Run this against PRODUCTION config, once. The resulting refresh token rotates on
  * every use and lives in canva_integrations; re-running this replaces it, which
@@ -61,23 +68,38 @@ if ($redirectUri === '') {
     exit(1);
 }
 
-$opts = getopt('', ['code::']);
+$opts = getopt('', ['code::', 'verifier::']);
 
 // ── Step 2: exchange ────────────────────────────────────────────────────────
 if (isset($opts['code']) && $opts['code'] !== false) {
-    if (!file_exists($statePath)) {
-        fwrite(STDERR, "No pending authorisation found at {$statePath}.\n"
-            . "PKCE requires the same code_verifier that generated the challenge, so the\n"
-            . "code cannot be exchanged without it. Re-run step 1.\n");
+    // --verifier lets step 2 run as its OWN `heroku run`, which is the difference
+    // between a workable remote flow and a race. Without it both steps must share
+    // one dyno's /tmp, so the operator holds an interactive shell open while they
+    // browse — and an authorization code is short-lived enough that an idle-out or
+    // a slow approval loses it. Passing the verifier explicitly removes the shared
+    // state entirely.
+    $verifier = null;
+    if (isset($opts['verifier']) && $opts['verifier'] !== false && $opts['verifier'] !== '') {
+        $verifier = $opts['verifier'];
+    } elseif (file_exists($statePath)) {
+        $saved = json_decode(file_get_contents($statePath), true);
+        $verifier = $saved['verifier'] ?? null;
+    }
+
+    if ($verifier === null) {
+        fwrite(STDERR, "No code_verifier available.\n\n"
+            . "PKCE requires the SAME verifier that generated the challenge, and nothing\n"
+            . "is stashed at {$statePath}. Either re-run step 1 in this same shell, or\n"
+            . "pass the verifier from wherever step 1 ran:\n\n"
+            . "    php scripts/canva-connect.php --code=<code> --verifier=<verifier>\n");
         exit(1);
     }
 
-    $saved = json_decode(file_get_contents($statePath), true);
     $pdo = Database::getInstance()->getConnection();
     $client = new CanvaClient($pdo);
 
     try {
-        $token = $client->completeAuthorization($opts['code'], $saved['verifier'], $redirectUri);
+        $token = $client->completeAuthorization($opts['code'], $verifier, $redirectUri);
     } catch (Throwable $e) {
         fwrite(STDERR, "FAILED: " . $e->getMessage() . "\n");
         exit(1);
@@ -114,4 +136,8 @@ echo "Open this URL, approve as the Teams Elevated service user:\n\n";
 echo CanvaClient::authorizeUrl($state, $verifier, $redirectUri) . "\n\n";
 echo "The browser will fail to load the redirect. That is expected.\n";
 echo "Copy the ?code= value from the address bar, then run:\n\n";
-echo "    php scripts/canva-connect.php --code=<code>\n";
+echo "    php scripts/canva-connect.php --code=<code>\n\n";
+echo "If step 2 will run in a DIFFERENT shell or dyno than this one, it cannot read\n";
+echo "the stashed verifier and needs it passed explicitly:\n\n";
+echo "    code_verifier: {$verifier}\n\n";
+echo "    php scripts/canva-connect.php --code=<code> --verifier={$verifier}\n";
