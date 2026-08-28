@@ -19,6 +19,7 @@ interface UseChatReturn {
   showArchived: boolean;
   selectConversation: (conversation: Conversation | null) => void;
   sendMessage: (text: string) => void;
+  toggleReaction: (messageId: string, emoji: string) => void;
   createConversation: (participantIds: number[]) => void;
   handleTyping: (isTyping: boolean) => void;
   reportedMessageIds: string[];
@@ -264,7 +265,68 @@ export function useChat(): UseChatReturn {
     socket.on('authError', handleAuthError);
     socket.on('conversationsList', handleConversationsList);
     socket.on('messageHistory', handleMessageHistory);
+    /**
+     * A reaction arrived. Fold it onto the message in place.
+     *
+     * ⚠️ Ids compared with sameUser / String, never `===`. The server sends them
+     * as strings and the client holds numbers in places; that mismatch caused
+     * three visible bugs on 2026-08-26 and would here mean your own reaction
+     * never registering as yours.
+     */
+    const handleReactionAdded = (data: {
+      messageId: string; emoji: string; userId: string; userName: string;
+    }) => {
+      setMessages(prev => prev.map(m => {
+        if (String(m.id) !== String(data.messageId)) return m;
+
+        const reactions = [...(m.reactions || [])];
+        const existing = reactions.find(r => r.emoji === data.emoji);
+
+        if (existing) {
+          // Already counted for this person — the server upserts, so a repeat
+          // event must not double the count.
+          if (existing.users.some(u => sameUser(u.id, data.userId))) return m;
+          return {
+            ...m,
+            reactions: reactions.map(r => r.emoji !== data.emoji ? r : {
+              ...r,
+              count: r.count + 1,
+              users: [...r.users, { id: String(data.userId), name: data.userName }],
+            }),
+          };
+        }
+
+        return {
+          ...m,
+          reactions: [...reactions, {
+            emoji: data.emoji,
+            count: 1,
+            users: [{ id: String(data.userId), name: data.userName }],
+          }],
+        };
+      }));
+    };
+
+    const handleReactionRemoved = (data: { messageId: string; emoji: string; userId: string }) => {
+      setMessages(prev => prev.map(m => {
+        if (String(m.id) !== String(data.messageId)) return m;
+
+        const reactions = (m.reactions || [])
+          .map(r => r.emoji !== data.emoji ? r : {
+            ...r,
+            count: Math.max(0, r.count - 1),
+            users: r.users.filter(u => !sameUser(u.id, data.userId)),
+          })
+          // Drop an emoji nobody is using rather than leaving a zero on screen.
+          .filter(r => r.count > 0);
+
+        return { ...m, reactions };
+      }));
+    };
+
     socket.on('receiveMessage', handleNewMessage);
+    socket.on('reactionAdded', handleReactionAdded);
+    socket.on('reactionRemoved', handleReactionRemoved);
     socket.on('conversationUpdated', handleConversationUpdated);
     socket.on('conversationCreated', handleConversationCreated);
     socket.on('newConversation', handleNewConversation);
@@ -284,6 +346,8 @@ export function useChat(): UseChatReturn {
       socket.off('conversationsList', handleConversationsList);
       socket.off('messageHistory', handleMessageHistory);
       socket.off('receiveMessage', handleNewMessage);
+      socket.off('reactionAdded', handleReactionAdded);
+      socket.off('reactionRemoved', handleReactionRemoved);
       socket.off('conversationUpdated', handleConversationUpdated);
       socket.off('conversationCreated', handleConversationCreated);
       socket.off('newConversation', handleNewConversation);
@@ -413,6 +477,29 @@ export function useChat(): UseChatReturn {
     if (show) chatSocket.loadArchivedConversations();
   }, []);
 
+  /**
+   * Add or remove your own reaction.
+   *
+   * Optimism is deliberately NOT applied here. A reaction round-trips in
+   * milliseconds and the server echo updates every participant through the same
+   * path, so an optimistic copy would only create a second thing to reconcile —
+   * which is exactly what made messages render twice before sameUser() landed.
+   */
+  const toggleReaction = useCallback((messageId: string, emoji: string) => {
+    if (!user) return;
+
+    const message = messages.find(m => String(m.id) === String(messageId));
+    const mine = message?.reactions
+      ?.find(r => r.emoji === emoji)
+      ?.users.some(u => sameUser(u.id, user.id));
+
+    if (mine) {
+      chatSocket.removeReaction(String(messageId), emoji);
+    } else {
+      chatSocket.addReaction(String(messageId), emoji);
+    }
+  }, [messages, user]);
+
   return {
     conversations,
     archivedConversations,
@@ -427,6 +514,7 @@ export function useChat(): UseChatReturn {
     showArchived,
     selectConversation,
     sendMessage,
+    toggleReaction,
     createConversation,
     handleTyping,
     reportedMessageIds,

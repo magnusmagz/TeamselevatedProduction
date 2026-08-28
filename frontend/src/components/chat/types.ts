@@ -1,3 +1,5 @@
+import type { MessageReaction } from './reactionEmoji';
+
 export interface Conversation {
   id: number;
   type: 'team' | 'direct' | 'group';
@@ -43,6 +45,14 @@ export interface ChatMessage {
    * `text` for a removed message — render the tombstone.
    */
   removed?: boolean;
+  /**
+   * Reactions on this message, grouped per emoji by the server.
+   *
+   * Absent on an optimistic message and on any message loaded before the server
+   * started sending them, so always read it defensively — never assume the array
+   * exists.
+   */
+  reactions?: MessageReaction[];
 }
 
 export interface TypingUser {

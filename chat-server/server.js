@@ -32,6 +32,12 @@ const {
   MESSAGE_SCOPE_SQL,
   REMOVE_MESSAGE_SQL,
 } = require('./lib/moderation');
+const {
+  REACTION_EMOJI,
+  isAllowedEmoji,
+  REACTIONS_FOR_MESSAGES_SQL,
+  groupReactions,
+} = require('./lib/reactions');
 const { logInTransaction, socketIp, socketUserAgent } = require('./lib/audit');
 const {
   OPEN_REPORT_FOR_CONVERSATION_SQL,
@@ -360,10 +366,46 @@ async function loadConversationMessages(conversationId, teamId, limit = 50) {
 
   try {
     const result = await pool.query(query, params);
-    return result.rows.reverse(); // chronological order
+    const messages = result.rows.reverse(); // chronological order
+
+    // ⚠️ THE HALF THAT WAS MISSING. Reactions were storable and broadcastable
+    // since January, but never sent with history — so even a stored reaction
+    // disappeared on refresh, which is part of why the feature never worked.
+    await attachReactions(messages);
+
+    return messages;
   } catch (error) {
     console.error('Error loading conversation messages:', error.message);
     return [];
+  }
+}
+
+/**
+ * Hang each message's reactions off it, in place.
+ *
+ * A failure here must NOT cost the messages. Reactions are decoration on top of
+ * the conversation; losing the conversation because a decoration query failed
+ * would be a far worse trade, so this logs and leaves the messages bare.
+ */
+async function attachReactions(messages) {
+  const ids = (messages || [])
+    .map((m) => Number(m.id))
+    .filter((n) => Number.isInteger(n) && n > 0);
+
+  if (ids.length === 0) return;
+
+  try {
+    const result = await pool.query(REACTIONS_FOR_MESSAGES_SQL, [ids]);
+    const byMessage = groupReactions(result.rows);
+
+    for (const message of messages) {
+      message.reactions = byMessage[String(message.id)] || [];
+    }
+  } catch (error) {
+    console.error('Error loading reactions:', error.message);
+    for (const message of messages) {
+      if (!message.reactions) message.reactions = [];
+    }
   }
 }
 
@@ -1056,7 +1098,17 @@ io.on('connection', (socket) => {
     const userInfo = connectedUsers.get(socket.id);
     if (!userInfo) return;
 
-    const { messageId, emoji } = data;
+    const { messageId, emoji } = data || {};
+
+    // Refuse anything outside the agreed six. Migration 079 constrains the
+    // column as well, but a rejected INSERT would surface here as a swallowed
+    // error and the reaction would silently not appear — checking first means
+    // the client is told.
+    if (!isAllowedEmoji(emoji)) {
+      socket.emit('error', { message: 'That reaction is not available' });
+      return;
+    }
+
     try {
       await pool.query(`
         INSERT INTO chat_reactions (message_id, user_id, emoji)
@@ -1068,7 +1120,16 @@ io.on('connection', (socket) => {
       const msg = await pool.query(`SELECT conversation_id FROM chat_messages WHERE id = $1`, [messageId]);
       if (msg.rows[0]?.conversation_id) {
         const room = getConversationRoom(msg.rows[0].conversation_id);
-        io.to(room).emit('reactionAdded', { messageId, emoji, userId: userInfo.userId });
+        io.to(room).emit('reactionAdded', {
+          // Ids as STRINGS on the wire. The client holds message ids as strings
+          // and user ids arrive from the JWT as strings; mixing the two is the
+          // mismatch that produced three visible bugs on 2026-08-26.
+          messageId: String(messageId),
+          emoji,
+          userId: String(userInfo.userId),
+          // Sent so a client can show WHO reacted without a second round trip.
+          userName: userInfo.userName || userInfo.email || 'Someone',
+        });
       }
     } catch (error) {
       console.error('Error adding reaction:', error.message);
@@ -1088,7 +1149,11 @@ io.on('connection', (socket) => {
       const msg = await pool.query(`SELECT conversation_id FROM chat_messages WHERE id = $1`, [messageId]);
       if (msg.rows[0]?.conversation_id) {
         const room = getConversationRoom(msg.rows[0].conversation_id);
-        io.to(room).emit('reactionRemoved', { messageId, emoji, userId: userInfo.userId });
+        io.to(room).emit('reactionRemoved', {
+          messageId: String(messageId),
+          emoji,
+          userId: String(userInfo.userId),
+        });
       }
     } catch (error) {
       console.error('Error removing reaction:', error.message);

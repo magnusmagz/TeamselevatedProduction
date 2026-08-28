@@ -24,6 +24,7 @@ const SAFE_DEFAULT: ChatContextValue = {
   showArchived: false,
   selectConversation: () => {},
   sendMessage: () => {},
+  toggleReaction: () => {},
   createConversation: () => {},
   handleTyping: () => {},
   reportedMessageIds: [],

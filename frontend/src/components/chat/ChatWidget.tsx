@@ -25,6 +25,7 @@ export default function ChatWidget() {
     showArchived,
     selectConversation,
     sendMessage,
+    toggleReaction,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -239,6 +240,7 @@ export default function ChatWidget() {
                 typingUsers={typingUsers}
                 onReport={reportMessage}
                 reportedMessageIds={reportedMessageIds}
+                onToggleReaction={toggleReaction}
               />
 
               {/* Input */}

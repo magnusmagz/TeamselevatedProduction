@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import ReportMessageButton from './ReportMessageButton';
 import { sameUser } from './sameUser';
+import MessageReactions from './MessageReactions';
+import type { MessageReaction } from './reactionEmoji';
 
 interface Message {
   id: string;
@@ -17,6 +19,8 @@ interface Message {
    * must carry it through, or a removed message renders as an empty bubble.
    */
   removed?: boolean;
+  /** Grouped by the server. Absent on optimistic messages — read defensively. */
+  reactions?: MessageReaction[];
 }
 
 interface TypingUser {
@@ -40,10 +44,11 @@ interface Props {
    * would accept it, so the UI is where that is decided.
    */
   onReport?: (messageId: string, reason: string) => void;
+  onToggleReaction?: (messageId: string, emoji: string) => void;
   reportedMessageIds?: string[];
 }
 
-export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, reportedMessageIds = [] }: Props) {
+export default function ChatMessageList({ messages, currentUser, typingUsers, onReport, onToggleReaction, reportedMessageIds = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +160,18 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
               >
                 {msg.time || formatTime(msg.timestamp)}
               </div>
+
+              {/* Reactions. Never on a removed message — a tombstone is a record
+                  that something was taken down, and letting people react to it
+                  invites exactly the pile-on moderation just stopped. */}
+              {onToggleReaction && !msg.removed && (
+                <MessageReactions
+                  reactions={msg.reactions}
+                  currentUserId={currentUser?.id}
+                  align={isOwn ? 'right' : 'left'}
+                  onToggle={(emoji) => onToggleReaction(msg.id, emoji)}
+                />
+              )}
             </div>
           </div>
         );

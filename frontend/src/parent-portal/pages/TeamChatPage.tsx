@@ -7,6 +7,7 @@ import ReportMessageButton from '../../components/chat/ReportMessageButton';
 import { ParentHeader } from '../components/ParentHeader';
 import { sameUser } from '../../components/chat/sameUser';
 import { reportNotificationClick } from '../../components/chat/reportNotificationClick';
+import MessageReactions from '../../components/chat/MessageReactions';
 
 export const TeamChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export const TeamChatPage: React.FC = () => {
     showArchived,
     selectConversation,
     sendMessage,
+    toggleReaction,
     createConversation,
     handleTyping,
     reportedMessageIds,
@@ -317,6 +319,14 @@ export const TeamChatPage: React.FC = () => {
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
                       </div>
+                      {!message.removed && (
+                        <MessageReactions
+                          reactions={message.reactions}
+                          currentUserId={user?.id}
+                          align={isOwnMessage ? 'right' : 'left'}
+                          onToggle={(emoji) => toggleReaction(String(message.id), emoji)}
+                        />
+                      )}
                       <div className={`flex items-center gap-1 ${isOwnMessage ? 'justify-end' : ''}`}>
                         <p className={`text-xs mt-1 ${message.failed ? 'text-red-500' : 'text-gray-400'}`}>
                           {message.failed
