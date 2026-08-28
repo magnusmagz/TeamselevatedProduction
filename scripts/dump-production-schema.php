@@ -51,4 +51,15 @@ if (count($schema) < 50) {
     exit(1);
 }
 
-echo json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n";
+$json = json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+// PHP's JSON_PRETTY_PRINT indents with 4 spaces and offers no way to change it;
+// the committed fixture uses 2. Re-indent rather than reformat the fixture,
+// because the whole value of this file is that `git diff` shows one new table
+// and nothing else. At 4 spaces every refresh is a ~3,900-line diff in which a
+// new table is invisible — which is how a refresh got silently lost before.
+$json = preg_replace_callback('/^( +)/m', function ($m) {
+    return str_repeat(' ', intdiv(strlen($m[1]), 2));
+}, $json);
+
+echo $json, "\n";
