@@ -291,6 +291,32 @@ function handleNotificationHealth($pdo) {
         'SELECT MAX(created_at) FROM chat_messages'
     )->fetchColumn() ?: null;
 
+    // ⚠️ THE ONLY HONEST STALL SIGNAL: is anything owed and going unsent?
+    //
+    // The first version compared last_message_at against last_notification_at
+    // and warned when a message was newer. That is wrong and it fired on
+    // 2026-08-28 against a perfectly healthy worker: a message at 03:54 notified
+    // at 03:59 is the five-minute email delay working exactly as designed, and
+    // "the newest message has not been notified" is ALSO the normal state
+    // whenever everyone has already read it.
+    //
+    // A monitor that cries wolf gets ignored, and then it is worse than not
+    // having one. So ask the dispatcher's own question instead — if something is
+    // owed and has been owed for a while, the worker really is stuck. Anything
+    // else is a quiet period.
+    $health['owed_now'] = (int) $pdo->query("
+        SELECT COUNT(*) FROM chat_messages m
+         WHERE m.deleted_at IS NULL
+           AND m.conversation_id IS NOT NULL
+           AND m.created_at < NOW() - INTERVAL '20 minutes'
+           AND m.created_at > NOW() - INTERVAL '60 minutes'
+           AND NOT EXISTS (
+                 SELECT 1 FROM chat_notification_state s
+                  WHERE s.conversation_id = m.conversation_id
+                    AND s.last_notified_message_id >= m.id
+               )
+    ")->fetchColumn();
+
     // ── Moderation ───────────────────────────────────────────────────────────
     $health['moderation'] = [
         'alerts' => $pdo->query("

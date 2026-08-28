@@ -107,11 +107,44 @@ class NotificationHealthTest extends TestCase
      */
     public function testItSurfacesWhetherTheDispatcherIsAlive(): void
     {
-        $start = strpos($this->src, 'function handleNotificationHealth');
-        $end = strpos($this->src, 'function handleGetStats');
-        $body = substr($this->src, $start, $end - $start);
+        $body = $this->handlerBody();
 
         $this->assertStringContainsString('last_notification_at', $body);
         $this->assertStringContainsString('last_message_at', $body);
+    }
+
+    /**
+     * ⚠️ Stalled means something is OWED and going unsent.
+     *
+     * The first version warned whenever the newest message was newer than the
+     * newest notification, and fired against a perfectly healthy worker on
+     * 2026-08-28 — a message at 03:54 notified at 03:59 is the five-minute email
+     * delay working as designed, and "the newest message has not been notified"
+     * is also the normal state whenever everyone has already read it.
+     *
+     * A monitor that cries wolf gets ignored, and then it is worse than not
+     * having one. So the server answers the dispatcher's own question instead.
+     */
+    public function testTheStallSignalCountsWhatIsActuallyOwed(): void
+    {
+        $body = $this->handlerBody();
+
+        $this->assertStringContainsString('owed_now', $body,
+            'The stall signal must be a count of what is owed, not a comparison of two timestamps.');
+
+        // Bounded on both sides: past the send delay, and inside the window the
+        // dispatcher itself considers — otherwise it would count history nobody
+        // was ever going to be notified about.
+        $this->assertStringContainsString("INTERVAL '20 minutes'", $body);
+        $this->assertStringContainsString("INTERVAL '60 minutes'", $body);
+    }
+
+    private function handlerBody(): string
+    {
+        $start = strpos($this->src, 'function handleNotificationHealth');
+        $end = strpos($this->src, 'function handleGetStats');
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+        return substr($this->src, $start, $end - $start);
     }
 }

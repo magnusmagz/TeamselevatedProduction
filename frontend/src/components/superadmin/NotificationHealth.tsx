@@ -21,16 +21,33 @@ interface Health {
   };
   last_notification_at: string | null;
   last_message_at: string | null;
+  owed_now: number;
   moderation: { alerts: AlertRow[]; open_reports: number; open_high_severity: number };
 }
 
 const rate = (clicked: number, sent: number) => (sent ? `${Math.round((clicked / sent) * 1000) / 10}%` : '—');
 
-/** "3m ago", "2h ago", "5d ago" — enough to see whether something has stalled. */
+/**
+ * "3m ago", "2h ago", "5d ago".
+ *
+ * ⚠️ Postgres returns an offset of `+00`, which is NOT valid ISO 8601 — that
+ * needs `+00:00`. `new Date('2026-08-28T03:59:26+00')` is Invalid Date, so this
+ * used to fall through and print the raw timestamp, which is exactly what an
+ * admin saw on 2026-08-28. Normalise the offset before parsing.
+ */
 function ago(iso: string | null): string {
   if (!iso) return 'never';
-  const then = new Date(iso.replace(' ', 'T') + (/[Z+]/.test(iso.slice(-6)) ? '' : 'Z')).getTime();
+
+  let normalised = iso.trim().replace(' ', 'T');
+
+  // `+00` / `-05` -> `+00:00` / `-05:00`
+  normalised = normalised.replace(/([+-])(\d{2})$/, '$1$2:00');
+  // Fractional seconds plus a bare offset, and no offset at all, both handled.
+  if (!/([+-]\d{2}:\d{2}|Z)$/.test(normalised)) normalised += 'Z';
+
+  const then = new Date(normalised).getTime();
   if (Number.isNaN(then)) return iso;
+
   const mins = Math.max(0, Math.floor((Date.now() - then) / 60000));
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
@@ -97,13 +114,14 @@ export const NotificationHealth: React.FC = () => {
 
   const { totals, reach, moderation } = health;
 
-  // A dispatcher that has gone quiet while messages keep arriving is the failure
-  // that went unnoticed for weeks before the worker reconnect fix, so it is
-  // called out rather than left for someone to spot in two timestamps.
-  const stalled =
-    !!health.last_message_at &&
-    (!health.last_notification_at || new Date(health.last_notification_at) < new Date(health.last_message_at)) &&
-    Date.now() - new Date((health.last_message_at || '').replace(' ', 'T') + 'Z').getTime() > 30 * 60000;
+  // ⚠️ Stalled means something is OWED and going unsent — not "the newest message
+  // has not been notified", which is also the normal state whenever everyone has
+  // already read it. The first version compared the two timestamps and fired
+  // against a perfectly healthy worker on 2026-08-28: a message at 03:54
+  // notified at 03:59 is the five-minute email delay working as designed.
+  //
+  // The server answers this now, using the dispatcher's own criteria.
+  const stalled = health.owed_now > 0;
 
   return (
     <div className="space-y-6">
@@ -122,8 +140,10 @@ export const NotificationHealth: React.FC = () => {
 
       {stalled && (
         <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
-          Messages are arriving but nothing has been notified since{' '}
-          {ago(health.last_notification_at)}. The queue worker may be stuck.
+          <strong>{health.owed_now}</strong>{' '}
+          {health.owed_now === 1 ? 'message is' : 'messages are'} waiting to be notified and past the
+          send delay. The queue worker may be stuck — last notification{' '}
+          {ago(health.last_notification_at)}.
         </div>
       )}
 
