@@ -69,6 +69,47 @@ class CanvaDesignService
     /** How many event slots a schedule_week template may declare. */
     public const SCHEDULE_SLOTS = 6;
 
+    /** Where a person goes to fill in missing data, per subject kind. */
+    private const SUBJECT_NOUNS = [
+        'sponsor' => 'sponsor',
+        'event'   => 'event',
+        'team'    => 'team',
+        'program' => 'program',
+    ];
+
+    /**
+     * What each field IS, in the words a club admin would use.
+     *
+     * The point of this map is that "we cannot fill event_venue_name" tells
+     * someone nothing they can act on, whereas "this event has no venue or
+     * location" tells them exactly what to go and type. Fields not listed fall
+     * back to a readable form of their own name, so the map never has to be
+     * exhaustive to be useful.
+     */
+    private const FIELD_LABELS = [
+        'opponent'            => 'an opponent',
+        'event_time'          => 'a start time',
+        'event_venue_name'    => 'a venue or location',
+        'event_location'      => 'a venue or location',
+        'event_address'       => 'a venue with an address on it',
+        'team_name'           => 'a team assigned to it',
+        'event_type'          => 'a type',
+        'event_status'        => 'a status',
+        'sponsor_website'     => 'a website',
+        'program_fee'         => 'a registration fee',
+        'program_ages'        => 'an age range',
+        'program_venue'       => 'a venue',
+        'program_capacity'    => 'a capacity',
+        'program_description' => 'a description',
+        'program_season'      => 'a season',
+        'program_start_date'  => 'a start date',
+        'program_start_short' => 'a start date',
+        'program_end_date'    => 'an end date',
+        'registration_opens'  => 'a registration open date',
+        'registration_closes' => 'a registration close date',
+        'registration_close_short' => 'a registration close date',
+    ];
+
     /** @var PDO */
     private $pdo;
 
@@ -410,6 +451,7 @@ class CanvaDesignService
         ])));
 
         return [
+            'kind'   => 'program',
             'label'  => $program['name'],
             'values' => [
                 'program_name'        => (string) $program['name'],
@@ -445,6 +487,7 @@ class CanvaDesignService
         }
 
         return [
+            'kind'   => 'sponsor',
             'label'  => $sponsor['name'],
             'values' => [
                 'sponsor_name'    => $sponsor['name'],
@@ -526,6 +569,7 @@ class CanvaDesignService
         $venueName = $event['venue_name'] ?: (string) ($event['location'] ?? '');
 
         return [
+            'kind'   => 'event',
             'label'  => $event['name'],
             'values' => [
                 // Same names and formats as the email merge tags.
@@ -641,6 +685,7 @@ class CanvaDesignService
             : $fmt($first['event_date']) . ' – ' . $fmt($last['event_date']);
 
         return [
+            'kind'     => 'team',
             'label'    => $team['name'] . ' — this week',
             'values'   => $values,
             'optional' => $optional,
@@ -657,8 +702,10 @@ class CanvaDesignService
      */
     private function buildPayload(array $fields, array $subject): array
     {
-        $data    = [];
-        $missing = [];
+        $data        = [];
+        $missing     = [];   // we know this field; the record has no value for it
+        $unknown     = [];   // we have no source for this field name at all
+        $unsupported = [];   // a type we cannot fill yet, e.g. an image
 
         foreach ($fields as $name => $spec) {
             $type = $spec['type'] ?? '';
@@ -673,7 +720,16 @@ class CanvaDesignService
                 // than the template has rows.
                 if (($value === '' || $value === null)
                     && !in_array($name, $subject['optional'] ?? [], true)) {
-                    $missing[] = $name;
+                    // Known-but-empty and unknown-entirely are different problems
+                    // with different fixes: one is data to type into Teams
+                    // Elevated, the other is a field name to correct in Canva.
+                    // Collapsing them into "cannot fill" sends people to the
+                    // wrong place.
+                    if ($known) {
+                        $missing[] = $name;
+                    } else {
+                        $unknown[] = $name;
+                    }
                     continue;
                 }
                 $data[$name] = ['type' => 'text', 'text' => (string) $value];
@@ -684,16 +740,108 @@ class CanvaDesignService
             // template is text-only. Reaching here means a template declared an
             // image field before the upload path was connected, which must fail
             // loudly rather than render a graphic with an empty frame.
-            $missing[] = "{$name} ({$type})";
+            $unsupported[] = $name;
         }
 
-        if ($missing) {
+        if ($missing || $unknown || $unsupported) {
             throw new RuntimeException(
-                'The template asks for fields we cannot fill: ' . implode(', ', $missing)
+                $this->explainUnfillable($subject, $missing, $unknown, $unsupported)
             );
         }
 
         return $data;
+    }
+
+    /**
+     * Turn unfillable fields into something a club admin can act on.
+     *
+     * Three different problems, three different fixes, and the person reading
+     * this is looking at a modal in Teams Elevated with no idea what a "field"
+     * is in Canva:
+     *
+     *   missing     — we know the field, the record is blank. They fix it here.
+     *   unknown     — the template asks for a name we have no source for. That is
+     *                 a template problem, usually a typo, and a nearest-match
+     *                 suggestion turns "oponent is unknown" into "did you mean
+     *                 opponent".
+     *   unsupported — a field type we cannot fill yet (images).
+     */
+    private function explainUnfillable(array $subject, array $missing, array $unknown, array $unsupported): string
+    {
+        $noun  = self::SUBJECT_NOUNS[$subject['kind'] ?? ''] ?? 'record';
+        $parts = [];
+
+        if ($missing) {
+            $labels = array_map(fn($f) => self::FIELD_LABELS[$f] ?? $this->readableField($f), $missing);
+            $parts[] = 'This ' . $noun . ' has no ' . $this->joinList($labels) . '. '
+                . 'Add ' . (count($labels) === 1 ? 'it' : 'them') . ' and try again.';
+        }
+
+        if ($unknown) {
+            $known = array_keys($subject['values']);
+            $notes = [];
+            foreach ($unknown as $field) {
+                $suggestion = $this->closestField($field, $known);
+                $notes[] = $suggestion
+                    ? "\"{$field}\" (did you mean \"{$suggestion}\"?)"
+                    : "\"{$field}\"";
+            }
+            $parts[] = 'The Canva template asks for ' . $this->joinList($notes)
+                . ', which is not something we can supply. Rename the data '
+                . (count($notes) === 1 ? 'field' : 'fields') . ' in Canva and republish the template.';
+        }
+
+        if ($unsupported) {
+            $parts[] = 'The template uses ' . $this->joinList(array_map(fn($f) => "\"{$f}\"", $unsupported))
+                . ', and image fields are not supported yet.';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /** "event_venue_name" -> "an event venue name", for fields with no label. */
+    private function readableField(string $field): string
+    {
+        $words  = str_replace('_', ' ', $field);
+        $vowel  = in_array(strtolower($words[0] ?? ''), ['a', 'e', 'i', 'o', 'u'], true);
+
+        return ($vowel ? 'an ' : 'a ') . $words;
+    }
+
+    /**
+     * Nearest field we DO supply, or null when nothing is close.
+     *
+     * The threshold matters: suggesting "team_name" for "headline" would be
+     * worse than saying nothing, because it sends someone to rename a field that
+     * was never the problem.
+     */
+    private function closestField(string $field, array $known): ?string
+    {
+        $best     = null;
+        $bestDist = PHP_INT_MAX;
+
+        foreach ($known as $candidate) {
+            $dist = levenshtein(strtolower($field), strtolower($candidate));
+            if ($dist < $bestDist) {
+                $bestDist = $dist;
+                $best     = $candidate;
+            }
+        }
+
+        // Allow roughly a third of the name to differ — enough for a typo or a
+        // singular/plural slip, not enough for an unrelated word.
+        return $bestDist <= max(2, (int) floor(strlen($field) / 3)) ? $best : null;
+    }
+
+    /** "a, b and c" — Oxford-comma-free, because this lands in a UI sentence. */
+    private function joinList(array $items): string
+    {
+        if (count($items) === 1) {
+            return $items[0];
+        }
+        $last = array_pop($items);
+
+        return implode(', ', $items) . ' and ' . $last;
     }
 
     /** Autofill, export, download. Returns the bytes and what produced them. */
