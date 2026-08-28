@@ -2,6 +2,11 @@
 /**
  * Help articles for reactions, polls and pinned messages (2026-08-28).
  *
+ * ⚠️ Neither article advertises what does not exist. A "what a poll is not"
+ * section was cut for the same reason three passages were cut from the release
+ * note: naming a gap invites disappointment and buys nothing. Say what the
+ * thing does.
+ *
  * One per role, same reasoning as the chat-notification pair: a coach needs to
  * know how to CREATE these and what the choices mean; a parent needs to know how
  * to use them and what is expected of them. One combined article would bury each
@@ -65,9 +70,6 @@ Tap **+ Create a poll** above the message box.
 
 Anyone in the conversation can vote and change their mind until the poll closes. Voting for the same option again takes the vote back. If the poll is not anonymous, hover an option to see who chose it.
 
-### What a poll is not
-
-A poll is for **choosing between options**. It is not a signup sheet — "who can bring oranges" is a different job, where each answer is a commitment and you want a list of names against tasks. We have not built that. Tell us if you need it.
 
 ## Reactions
 
