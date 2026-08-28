@@ -13,6 +13,12 @@ interface Props {
 /**
  * Reactions under a message, plus the picker to add one.
  *
+ * Rendered OUTSIDE the message bubble, on the page background. Inside, the add
+ * button was light grey on the brand's dark green and effectively invisible on
+ * your own messages — and any colour that works on one bubble fails on the
+ * other. Out here there is a single surface to design against, which is also
+ * where every other chat app puts them. Reported 2026-08-28.
+ *
  * Names are shown, not hidden. A reaction is a lightweight reply — an anonymous
  * one reads as oddly furtive in a club where everyone already knows each other,
  * and "who said they're coming" is usually the useful part. They surface on
@@ -72,7 +78,7 @@ export const MessageReactions: React.FC<Props> = ({
         onClick={() => setPickerOpen((o) => !o)}
         aria-label="Add a reaction"
         aria-expanded={pickerOpen}
-        className="inline-flex items-center justify-center h-6 w-6 rounded-full border border-brand-secondary text-gray-500 hover:bg-brand-secondary/40 text-sm leading-none"
+        className="inline-flex items-center justify-center h-6 w-6 rounded-full border border-brand-secondary bg-white text-brand-primary hover:bg-brand-secondary/50 text-sm leading-none shadow-sm"
       >
         +
       </button>

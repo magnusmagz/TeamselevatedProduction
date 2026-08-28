@@ -126,8 +126,9 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                 />
               </div>
             )}
+            <div className={`max-w-[80%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
             <div
-              className={`max-w-[80%] ${
+              className={`w-full ${
                 isOwn
                   ? 'bg-brand-primary text-white rounded-lg rounded-br-sm'
                   : 'bg-white text-gray-800 rounded-lg rounded-bl-sm border border-gray-200'
@@ -161,17 +162,26 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                 {msg.time || formatTime(msg.timestamp)}
               </div>
 
-              {/* Reactions. Never on a removed message — a tombstone is a record
-                  that something was taken down, and letting people react to it
-                  invites exactly the pile-on moderation just stopped. */}
-              {onToggleReaction && !msg.removed && (
-                <MessageReactions
-                  reactions={msg.reactions}
-                  currentUserId={currentUser?.id}
-                  align={isOwn ? 'right' : 'left'}
-                  onToggle={(emoji) => onToggleReaction(msg.id, emoji)}
-                />
-              )}
+            </div>
+
+            {/* Reactions sit OUTSIDE the bubble, on the page background.
+                Inside, the add button was light grey on the brand's dark green
+                and effectively invisible on your own messages — and any colour
+                that works on one bubble fails on the other. Out here there is one
+                surface to design against, which is also where every other chat
+                app puts them.
+
+                Never on a removed message: a tombstone records that something was
+                taken down, and letting people react to it invites exactly the
+                pile-on moderation just stopped. */}
+            {onToggleReaction && !msg.removed && (
+              <MessageReactions
+                reactions={msg.reactions}
+                currentUserId={currentUser?.id}
+                align={isOwn ? 'right' : 'left'}
+                onToggle={(emoji) => onToggleReaction(msg.id, emoji)}
+              />
+            )}
             </div>
           </div>
         );
