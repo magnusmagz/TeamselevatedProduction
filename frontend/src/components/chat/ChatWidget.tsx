@@ -285,7 +285,7 @@ export default function ChatWidget() {
               ) : (
                 <>
                   {canCreatePoll(chatUser?.role) && (
-                    <div className="px-3 pt-2 -mb-1">
+                    <div className="px-3 pt-2 pb-2">
                       <button
                         type="button"
                         onClick={() => setPollComposerOpen(true)}
