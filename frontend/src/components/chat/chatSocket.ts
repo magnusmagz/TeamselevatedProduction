@@ -201,7 +201,7 @@ export const chatSocket = {
   /** Create a poll in a conversation */
   createPoll: (input: {
     conversationId: number; question: string; options: string[];
-    isAnonymous: boolean; resultsBeforeVote: boolean; closesAt: string | null;
+    isAnonymous: boolean; allowMultiple: boolean; resultsBeforeVote: boolean; closesAt: string | null;
   }) => {
     if (socket?.connected) socket.emit('createPoll', input);
   },

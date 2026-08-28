@@ -11,6 +11,10 @@ interface Props {
 /**
  * A poll inside a chat message.
  *
+ * On a multiple-choice poll the total counts VOTES, not people — one person
+ * picking three options is three. Saying "pick as many as you like" on the same
+ * line is what stops that reading as a miscount.
+ *
  * Results are a bar per option rather than a number alone: at a glance you want
  * "Friday is winning", not arithmetic. The bar is sized from the leading option
  * so a two-vote poll still reads, rather than from the total, which would leave
@@ -84,6 +88,7 @@ export const PollMessage: React.FC<Props> = ({ poll, onVote, onDark }) => {
           {poll.showResults
             ? `${poll.totalVotes ?? 0} ${poll.totalVotes === 1 ? 'vote' : 'votes'}`
             : 'Vote to see results'}
+          {poll.allowMultiple && ' · pick as many as you like'}
           {poll.isAnonymous && ' · anonymous'}
         </span>
         {deadline && <span>{deadline}</span>}

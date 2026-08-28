@@ -164,3 +164,30 @@ test('a viewer who has not voted is not mistaken for one who has', () => {
   assert.strictEqual(view.youVoted, false);
   assert.ok(view.options.every((o) => o.youVoted === false));
 });
+
+// ── picking more than one ────────────────────────────────────────────────────
+
+test('a multiple-choice poll is carried through from the composer', () => {
+  const single = validatePoll({ question: 'q', options: ['a', 'b'] });
+  assert.strictEqual(single.poll.allowMultiple, false, 'single by default');
+
+  const multi = validatePoll({ question: 'q', options: ['a', 'b'], allowMultiple: true });
+  assert.strictEqual(multi.poll.allowMultiple, true);
+});
+
+test('the view tells the client which kind it is', () => {
+  const rows = [
+    { id: 1, pollId: 5, label: 'Friday', sortOrder: 0, voterId: 74, voterName: 'Lisa' },
+    { id: 2, pollId: 5, label: 'Thursday', sortOrder: 1, voterId: 74, voterName: 'Lisa' },
+  ];
+  const view = buildPollView({
+    id: 5, question: 'Which nights suit?', isAnonymous: false,
+    resultsBeforeVote: true, allowMultiple: true, closesAt: null,
+  }, rows, 74);
+
+  assert.strictEqual(view.allowMultiple, true);
+  // One person, two picks. The total counts VOTES rather than people, which is
+  // why the UI says "pick as many as you like" beside it.
+  assert.strictEqual(view.totalVotes, 2);
+  assert.ok(view.options.every((o) => o.youVoted));
+});

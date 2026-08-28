@@ -3,7 +3,7 @@ import React from 'react';
 interface Props {
   onCreate: (input: {
     question: string; options: string[]; isAnonymous: boolean;
-    resultsBeforeVote: boolean; closesAt: string | null;
+    allowMultiple: boolean; resultsBeforeVote: boolean; closesAt: string | null;
   }) => void;
   onCancel: () => void;
 }
@@ -28,6 +28,7 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
   const [question, setQuestion] = React.useState('');
   const [options, setOptions] = React.useState(['', '']);
   const [isAnonymous, setIsAnonymous] = React.useState(false);
+  const [allowMultiple, setAllowMultiple] = React.useState(false);
   const [resultsBeforeVote, setResultsBeforeVote] = React.useState(true);
   const [closesAt, setClosesAt] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -51,6 +52,7 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
       question: question.trim(),
       options: filled,
       isAnonymous,
+      allowMultiple,
       resultsBeforeVote,
       // datetime-local has no zone; the browser's own offset is what the person
       // meant when they picked a time.
@@ -118,6 +120,14 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
           <span>Make anonymous</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={allowMultiple}
+            onChange={(e) => setAllowMultiple(e.target.checked)}
+          />
+          <span>Let people pick more than one</span>
         </label>
         <label className="flex items-center gap-2">
           <input

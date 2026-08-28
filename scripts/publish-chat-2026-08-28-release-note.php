@@ -66,10 +66,11 @@ Coaches and club admins can ask the group to choose between options — *team di
 Tap **+ Create a poll** above the message box. Write a question and the options, or use **Yes / No** for a straight question. Three choices at the time you create it:
 
 - **Make anonymous** — hides who voted. This one is permanent, so the poll makes a promise it can keep.
+- **Let people pick more than one** — for "which of these nights suit you?" rather than "pick one".
 - **Hide results until someone votes** — stops early answers swaying later ones.
 - **Closes** — an optional deadline. You can change it afterwards.
 
-Anyone in the conversation can vote, and change their mind until the poll closes.
+Anyone in the conversation can vote, and change their mind until the poll closes. On a multiple-choice poll the count is of votes rather than people, since one person may pick several.
 
 Polls are for choosing between options. If you need to know who is bringing what, that is a different job and we have not built it yet — tell us if you want it.
 
@@ -87,10 +88,6 @@ Club administrators are now told about high-severity flagged messages as they ha
 
 The **Reported Messages** item in Communications also carries a count of what is outstanding, so you can see at a glance whether anything needs you.
 
-## What is coming next
-
-- Letting people pick more than one option in a poll.
-- A prompt to nudge people who have not voted yet — we are wary of making the app nag, so tell us if it would be useful.
 MD;
 
 if ($dryRun) {

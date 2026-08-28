@@ -55,6 +55,8 @@ Tap **+ Create a poll** above the message box.
 
 ⚠️ **This cannot be changed once the poll is posted.** Turning it off later would expose votes people cast believing they were private, so the app will not let you. Decide before you post.
 
+**Let people pick more than one** — for "which of these nights suit you?" rather than "pick one". The count then counts votes rather than people, since one person may choose several.
+
 **Hide results until someone votes** — people see the totals only after voting. Useful when early answers might sway later ones. You can change this afterwards.
 
 **Closes** — an optional deadline. After it passes nobody can vote, and everyone can see the results. You can move it later or earlier; shortening it stops new votes but never discards votes already cast.
@@ -98,6 +100,7 @@ Your coach may post a poll instead of a question — *team dinner Friday at 7, o
 - **You can change your mind.** Tap a different option, or tap the same one again to take your vote back. This works until the poll closes.
 - **Some polls are anonymous.** If it says so, your coach sees the totals but not who voted for what. If it does not say so, they can see.
 - **Some polls hide the results until you vote.** Vote, and the totals appear.
+- **Some polls let you pick more than one.** If so it says "pick as many as you like" under the options.
 - **Some polls close.** If there is a closing time it is shown, and after it passes voting stops and everyone can see the results.
 
 Only coaches and club admins can create a poll. Everyone can vote.
@@ -181,16 +184,20 @@ foreach ($articles as $article) {
 
     $existing = $pdo->prepare('SELECT id FROM help_articles WHERE category_id = ? AND slug = ?');
     $existing->execute([$category['id'], $article['slug']]);
-    if ($row = $existing->fetch(PDO::FETCH_ASSOC)) {
-        echo "[{$category['name']}] already published as id {$row['id']}. Nothing to do.\n";
-        continue;
+    $existingId = ($row = $existing->fetch(PDO::FETCH_ASSOC)) ? (int) $row['id'] : null;
+
+    // Re-running updates in place rather than refusing, so the copy can be
+    // revised without a second article appearing beside the first.
+    if ($existingId) {
+        echo "[{$category['name']}] updating id {$existingId}\n";
     }
 
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => rtrim($base, '/') . '/api/help-gateway.php?action=create-article',
+        CURLOPT_URL => rtrim($base, '/') . '/api/help-gateway.php?action='
+            . ($existingId ? "update-article&id={$existingId}" : 'create-article'),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
+        CURLOPT_CUSTOMREQUEST => $existingId ? 'PUT' : 'POST',
         CURLOPT_TIMEOUT => 45,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$token}"],
         CURLOPT_POSTFIELDS => json_encode([

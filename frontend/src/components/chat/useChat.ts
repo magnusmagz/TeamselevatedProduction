@@ -31,7 +31,7 @@ interface UseChatReturn {
   clearChatError: () => void;
   createPoll: (input: {
     question: string; options: string[]; isAnonymous: boolean;
-    resultsBeforeVote: boolean; closesAt: string | null;
+    allowMultiple: boolean; resultsBeforeVote: boolean; closesAt: string | null;
   }) => void;
   createConversation: (participantIds: number[]) => void;
   handleTyping: (isTyping: boolean) => void;
@@ -598,7 +598,7 @@ export function useChat(): UseChatReturn {
 
   const createPoll = useCallback((input: {
     question: string; options: string[]; isAnonymous: boolean;
-    resultsBeforeVote: boolean; closesAt: string | null;
+    allowMultiple: boolean; resultsBeforeVote: boolean; closesAt: string | null;
   }) => {
     if (!activeConversation) return;
     chatSocket.createPoll({ conversationId: activeConversation.id, ...input });
