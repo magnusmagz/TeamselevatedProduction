@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AttendanceModal from './AttendanceModal';
 import CalendarSubscriptionManager from './CalendarSubscriptionManager';
 import PracticeScheduler from './PracticeScheduler';
+import CanvaGraphicButton from './canva/CanvaGraphicButton';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Event {
@@ -1597,7 +1598,19 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                       </button>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {/* Existing events only — there is nothing to make a graphic
+                        about until the event has been saved. The button hides
+                        itself when the club has no game_day template. */}
+                    {selectedEvent?.id && user?.activeRole?.scope_id && (
+                      <CanvaGraphicButton
+                        clubId={user.activeRole.scope_id}
+                        graphicType="game_day"
+                        subjectId={selectedEvent.id}
+                        subjectName={selectedEvent.name}
+                        apiUrl={API_URL}
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * "Make a graphic" for one sponsor.
+ * "Make a graphic" — one button for every Canva graphic type.
  *
  * The button HIDES ITSELF when the club has no brand template configured, rather
  * than rendering a control that can only ever return an error. `?action=status`
@@ -17,9 +17,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Props {
   clubId: number;
-  sponsorId: number;
-  sponsorName: string;
+  /** Which brand template to use: 'sponsor_thanks', 'game_day'. */
+  graphicType: string;
+  /** The row the graphic is about — a sponsor id, an event id. */
+  subjectId: number;
+  /** What it is about, for the heading, the alt text and the filename. */
+  subjectName: string;
   apiUrl: string;
+  /** Optional override; defaults to "Make a graphic". */
+  label?: string;
+  className?: string;
 }
 
 interface Asset {
@@ -29,9 +36,18 @@ interface Asset {
   file_size: number | null;
 }
 
-const GRAPHIC_TYPE = 'sponsor_thanks';
+const DEFAULT_CLASS =
+  'text-brand-primary hover:text-brand-primary uppercase text-xs font-semibold disabled:opacity-50';
 
-const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName, apiUrl }) => {
+const CanvaGraphicButton: React.FC<Props> = ({
+  clubId,
+  graphicType,
+  subjectId,
+  subjectName,
+  apiUrl,
+  label = 'Make a graphic',
+  className = DEFAULT_CLASS,
+}) => {
   const [available, setAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +75,7 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
     const check = async () => {
       try {
         const res = await fetch(
-          `${apiUrl}/api/canva-graphics.php?action=status&club_id=${clubId}&graphic_type=${GRAPHIC_TYPE}`,
+          `${apiUrl}/api/canva-graphics.php?action=status&club_id=${clubId}&graphic_type=${graphicType}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) return;
@@ -75,7 +91,7 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, clubId, token]);
+  }, [apiUrl, clubId, graphicType, token]);
 
   const generate = async () => {
     setBusy(true);
@@ -92,8 +108,8 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
         },
         body: JSON.stringify({
           club_id: clubId,
-          graphic_type: GRAPHIC_TYPE,
-          subject_id: sponsorId,
+          graphic_type: graphicType,
+          subject_id: subjectId,
         }),
       });
 
@@ -129,9 +145,9 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
       <button
         onClick={generate}
         disabled={busy}
-        className="text-brand-primary hover:text-brand-primary uppercase text-xs font-semibold disabled:opacity-50"
+        className={className}
       >
-        {busy ? 'Making…' : 'Make a graphic'}
+        {busy ? 'Making…' : label}
       </button>
 
       {(imageUrl || error) && (
@@ -154,10 +170,10 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
               </>
             ) : (
               <>
-                <h3 className="font-semibold mb-3">Thank you graphic — {sponsorName}</h3>
+                <h3 className="font-semibold mb-3">{subjectName}</h3>
                 <img
                   src={imageUrl as string}
-                  alt={`Thank you graphic for ${sponsorName}`}
+                  alt={`Graphic for ${subjectName}`}
                   className="w-full rounded border border-gray-200"
                 />
                 {asset?.width && asset?.height && (
@@ -167,7 +183,7 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
                 )}
                 <a
                   href={imageUrl as string}
-                  download={`${sponsorName.replace(/[^\w-]+/g, '-').toLowerCase()}-thank-you.png`}
+                  download={`${subjectName.replace(/[^\w-]+/g, '-').toLowerCase() || 'graphic'}.png`}
                   className="inline-block mt-4 bg-brand-primary text-white px-4 py-2 rounded text-sm"
                 >
                   Download
@@ -191,4 +207,4 @@ const SponsorGraphicButton: React.FC<Props> = ({ clubId, sponsorId, sponsorName,
   );
 };
 
-export default SponsorGraphicButton;
+export default CanvaGraphicButton;

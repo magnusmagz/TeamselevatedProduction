@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
-import SponsorGraphicButton from './canva/SponsorGraphicButton';
+import CanvaGraphicButton from './canva/CanvaGraphicButton';
 
 interface Sponsor {
   id?: number;
@@ -303,10 +303,11 @@ const SponsorsManagement: React.FC = () => {
                 {/* Actions */}
                 <div className="mt-4 pt-3 border-t border-brand-secondary flex justify-end space-x-3">
                   {sponsor.id && currentClubId && (
-                    <SponsorGraphicButton
+                    <CanvaGraphicButton
                       clubId={Number(currentClubId)}
-                      sponsorId={sponsor.id}
-                      sponsorName={sponsor.name}
+                      graphicType="sponsor_thanks"
+                      subjectId={sponsor.id}
+                      subjectName={sponsor.name}
                       apiUrl={API_URL}
                     />
                   )}
