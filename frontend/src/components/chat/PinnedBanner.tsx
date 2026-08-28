@@ -14,6 +14,12 @@ interface Props {
  * stale pin is obvious when there is only ever one, and invisible when there
  * are four.
  *
+ * ⚠️ It is STICKY in the parent portal, so the conversation scrolls beneath it.
+ * A part-transparent ground alone let message text show straight through and
+ * collide with the banner's own (2026-08-28). It keeps the translucency — which
+ * reads better than a solid slab — and adds a backdrop blur, so what passes
+ * underneath is softened rather than legible.
+ *
  * Deliberately compact and single-line. A pin that grows to fill the screen
  * stops being a reference and starts being an obstacle to the conversation it
  * sits above; the full text is one tap away in the message itself.
@@ -22,7 +28,7 @@ export const PinnedBanner: React.FC<Props> = ({ pinned, canPin, onUnpin }) => {
   if (!pinned) return null;
 
   return (
-    <div className="flex items-start gap-2 px-3 py-2 bg-brand-secondary/40 border-b border-brand-secondary">
+    <div className="flex items-start gap-2 px-3 py-2 bg-brand-secondary/80 backdrop-blur-md border-b border-brand-secondary">
       <span aria-hidden="true" className="text-brand-primary text-sm leading-5">📌</span>
 
       <div className="min-w-0 flex-1">
