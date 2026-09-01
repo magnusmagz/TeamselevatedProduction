@@ -26,6 +26,7 @@
 
 require_once __DIR__ . '/../lib/CanvaClient.php';
 require_once __DIR__ . '/../lib/bytea.php';
+require_once __DIR__ . '/../lib/solid_png.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
 
 class CanvaDesignService
@@ -108,8 +109,10 @@ class CanvaDesignService
         'registration_opens'  => 'a registration open date',
         'registration_closes' => 'a registration close date',
         'registration_close_short' => 'a registration close date',
-        'club_logo'           => 'a logo uploaded',
-        'sponsor_logo'        => 'a logo uploaded',
+        'club_logo'            => 'a logo uploaded',
+        'sponsor_logo'         => 'a logo uploaded',
+        'club_primary_block'   => 'a primary brand colour set',
+        'club_secondary_block' => 'a secondary brand colour set',
     ];
 
     /** @var PDO */
@@ -361,6 +364,60 @@ class CanvaDesignService
     // ── internals ───────────────────────────────────────────────────────────
 
     /**
+     * Image sources every graphic type gets: the club's logo and its colours.
+     *
+     * ⚠️ THE COLOUR BLOCKS ARE HOW ONE TEMPLATE SERVES EVERY CLUB. Canva's
+     * autofill fills text and images and cannot set colours, which is what forced
+     * a brand template per club in the first place — the colour had to be baked
+     * into the artwork. A flat PNG of the club's colour, dropped into an image
+     * frame shaped like a bar, a panel or a full-bleed background, moves that
+     * decision out of the template and into the data. One neutral template, every
+     * club correctly branded.
+     *
+     * Fonts have no equivalent trick and stay shared across clubs.
+     *
+     * Practical constraint for whoever designs the template: TEXT COLOUR CANNOT
+     * CHANGE EITHER, so text must not sit on top of a colour block unless every
+     * club's colour is dark enough to carry it. All three live clubs are dark
+     * (#323c50, #281e64, #00463c) — but that is a fact about today's data, not a
+     * guarantee, so treat the blocks as accents and keep type on neutral ground.
+     *
+     * Closures, so a template that asks for none of this costs nothing.
+     */
+    private function clubImages(int $clubId): array
+    {
+        return [
+            'club_logo'            => fn() => $this->clubLogoBytes($clubId),
+            'club_primary_block'   => fn() => $this->clubColorBlock($clubId, 'primary_color'),
+            'club_secondary_block' => fn() => $this->clubColorBlock($clubId, 'secondary_color'),
+        ];
+    }
+
+    /**
+     * A flat PNG of one of the club's brand colours, or null.
+     *
+     * Null when the column is empty or holds something that is not a colour —
+     * club 47 has no primary_color today. Returning null makes the field
+     * unfillable, which refuses the graphic with a message naming it. That is the
+     * right outcome: a guessed colour ships off-brand artwork, which is the one
+     * failure nobody notices until it is public.
+     */
+    private function clubColorBlock(int $clubId, string $column): ?string
+    {
+        // Whitelisted rather than interpolated — the caller is internal today and
+        // this keeps it that way.
+        if (!in_array($column, ['primary_color', 'secondary_color'], true)) {
+            throw new InvalidArgumentException("Not a brand colour column: {$column}");
+        }
+
+        $stmt = $this->pdo->prepare("SELECT {$column} FROM club_profile WHERE id = ?");
+        $stmt->execute([$clubId]);
+        $hex = $stmt->fetchColumn();
+
+        return $hex === false ? null : te_solid_color_png((string) $hex);
+    }
+
+    /**
      * The club's logo bytes, or null.
      *
      * Reads `club_profile.logo_png`, which is base64 of a real PNG (migration
@@ -591,9 +648,7 @@ class CanvaDesignService
                 'program_venue'       => (string) ($program['venue_name'] ?? ''),
                 'club_name'           => $this->clubName($clubId),
             ],
-            'images' => [
-                'club_logo' => fn() => $this->clubLogoBytes($clubId),
-            ],
+            'images' => $this->clubImages($clubId),
         ];
     }
 
@@ -620,9 +675,8 @@ class CanvaDesignService
             ],
             // Loaders, not bytes: a template that declares no image field must
             // not pay to read a logo out of the database, let alone upload it.
-            'images' => [
+            'images' => $this->clubImages($clubId) + [
                 'sponsor_logo' => fn() => $this->sponsorLogoBytes((int) $sponsor['id']),
-                'club_logo'    => fn() => $this->clubLogoBytes($clubId),
             ],
         ];
     }
@@ -722,9 +776,7 @@ class CanvaDesignService
                 'club_name'        => (string) ($event['club_name'] ?? ''),
                 'event_status'     => ucfirst((string) ($event['status'] ?? '')),
             ],
-            'images' => [
-                'club_logo' => fn() => $this->clubLogoBytes($clubId),
-            ],
+            'images' => $this->clubImages($clubId),
         ];
     }
 
@@ -822,9 +874,7 @@ class CanvaDesignService
             'label'    => $team['name'] . ' — this week',
             'values'   => $values,
             'optional' => $optional,
-            'images'   => [
-                'club_logo' => fn() => $this->clubLogoBytes($clubId),
-            ],
+            'images'   => $this->clubImages($clubId),
         ];
     }
 
