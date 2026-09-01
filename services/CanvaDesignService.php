@@ -89,6 +89,7 @@ class CanvaDesignService
      */
     private const FIELD_LABELS = [
         'opponent'            => 'an opponent',
+        'matchup'             => 'an opponent, or a name saying who is playing',
         'event_time'          => 'a start time',
         'event_venue_name'    => 'a venue or location',
         'event_location'      => 'a venue or location',
@@ -772,12 +773,52 @@ class CanvaDesignService
                 'event_day_number' => $date ? $date->format('j') : '',
 
                 'opponent'         => (string) ($event['opponent_name'] ?? ''),
+                'matchup'          => $this->matchup($event, $teamName),
                 'team_name'        => $teamName,
                 'club_name'        => (string) ($event['club_name'] ?? ''),
                 'event_status'     => ucfirst((string) ($event['status'] ?? '')),
             ],
             'images' => $this->clubImages($clubId),
         ];
+    }
+
+    /**
+     * "Who is playing", from whichever column actually holds it.
+     *
+     * ⚠️ NEITHER `name` NOR `opponent_name` COVERS THE FIXTURE LIST ON ITS OWN,
+     * and they are close to complementary. Measured on CKU's 30 games
+     * (2026-09-01): 17 carry the matchup in the event NAME ("CKU Red vs SK FC")
+     * and mostly leave opponent_name empty; the other 12 are named just "Game"
+     * and carry the opponent in the COLUMN ("Salina Sharks", "Lady Monarchs").
+     *
+     * So a template using `event_name` prints "Game" on 12 of them, and one using
+     * `opponent` refuses on 17. This field is what a designer should reach for
+     * instead — it takes the name when the name says who is playing, and builds
+     * the matchup from the columns when it does not.
+     *
+     * Returns '' when neither is usable, which makes the field unfillable and
+     * refuses the graphic by name. That is right: a game-day post that cannot say
+     * who is playing has not got much to say.
+     */
+    private function matchup(array $event, string $teamName): string
+    {
+        $name = trim((string) ($event['name'] ?? ''));
+
+        // The name already names both sides — use it verbatim, including whatever
+        // order the club wrote it in. Reordering would be us deciding who is the
+        // home side, which we do not know.
+        if ($name !== '' && preg_match('/\bvs\.?\b/i', $name)) {
+            return $name;
+        }
+
+        $opponent = trim((string) ($event['opponent_name'] ?? ''));
+        if ($opponent !== '') {
+            return $teamName !== '' ? "{$teamName} vs {$opponent}" : "vs {$opponent}";
+        }
+
+        // A generic name with no opponent recorded says nothing. Better to refuse
+        // than to print "Game" across the artwork.
+        return preg_match('/^game\b/i', $name) ? '' : $name;
     }
 
     /**
