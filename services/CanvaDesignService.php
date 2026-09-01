@@ -181,32 +181,50 @@ class CanvaDesignService
     /**
      * The template's autofillable fields, as Canva reports them.
      *
-     * ⚠️ The cached copy is a HINT, never authority. A designer editing the
-     * template in Canva changes the real dataset without telling us, and autofill
-     * rejects the whole request on a field name that no longer exists — so a
-     * stale cache does not degrade, it fails the send. $refresh re-reads from
-     * Canva and re-caches.
+     * ⚠️ ALWAYS ASKS CANVA, and the cached copy is a fallback for when that call
+     * fails — not a first choice. It used to be the other way round, and on
+     * 2026-09-01 that shipped wrong artwork: a template gained club_logo and
+     * club_name, the cache still said sponsor_name, so generate sent one field
+     * and Canva left the other two at their template defaults. No error, no
+     * warning, just a graphic missing its logo.
+     *
+     * That is the failure this whole service is built to avoid. An unfillable
+     * field refuses loudly precisely so nothing wrong reaches social media, and a
+     * stale field list walks straight around that guard. One extra API call
+     * (~200ms) against a generate that already takes ten seconds is not a price
+     * worth arguing over.
+     *
+     * A designer editing a template in Canva changes its dataset and nothing
+     * tells us. There is no version, no webhook, no timestamp to compare — so
+     * there is no way to know a cache is stale except by asking.
      */
-    public function fields(array $template, bool $refresh = false): array
+    public function fields(array $template): array
     {
-        if (!$refresh && !empty($template['dataset'])) {
-            $cached = json_decode($template['dataset'], true);
+        try {
+            $response = $this->canva->getBrandTemplateDataset($template['canva_brand_template_id']);
+            $fields   = $response['dataset'] ?? [];
+
+            $this->pdo->prepare(
+                'UPDATE canva_brand_templates
+                    SET dataset = ?, dataset_fetched_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                  WHERE id = ?'
+            )->execute([json_encode($fields), $template['id']]);
+
+            return $fields;
+        } catch (Throwable $e) {
+            // Canva unreachable. The cached list is better than refusing outright
+            // — it was correct at some point — but it is the fallback, and if it
+            // is empty too there is nothing to generate from.
+            error_log('canva: dataset fetch failed, falling back to cache: ' . $e->getMessage());
+
+            $cached = json_decode((string) ($template['dataset'] ?? ''), true);
             if (is_array($cached) && $cached !== []) {
                 return $cached;
             }
+
+            throw new RuntimeException('Could not read the template from Canva. Try again in a moment.');
         }
-
-        $response = $this->canva->getBrandTemplateDataset($template['canva_brand_template_id']);
-        $fields   = $response['dataset'] ?? [];
-
-        $this->pdo->prepare(
-            'UPDATE canva_brand_templates
-                SET dataset = ?, dataset_fetched_at = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?'
-        )->execute([json_encode($fields), $template['id']]);
-
-        return $fields;
     }
 
     /**
