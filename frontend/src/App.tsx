@@ -51,6 +51,7 @@ import { useParams } from 'react-router-dom';
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { ImpersonationBanner } from './components/ImpersonationBanner';
 import { RevenueDashboard } from './pages/RevenueDashboard';
+import { StaffDashboard } from './pages/StaffDashboard';
 import { PaymentItemsList } from './pages/PaymentItemsList';
 import { AthletePaymentsDashboard } from './pages/AthletePaymentsDashboard';
 import { PaymentCheckout } from './pages/PaymentCheckout';
@@ -371,10 +372,16 @@ function AppContent() {
 
   const isCommsActive = commsLinks.some(isCommsLinkActive);
 
+  // `/dashboard` is the overview (StaffDashboard); Teams has its own route at
+  // `/teams`. ⚠️ The People dropdown is injected positionally, after the Teams
+  // link — the two `link.to === '/teams'` checks in the desktop and mobile navs
+  // below have to name whatever route the Teams entry here points at, or the
+  // dropdown moves (or disappears) silently.
   const navLinks = isAdmin ? [
+    { to: '/dashboard', label: 'Home' },
     { to: '/payment/revenue', label: 'Revenue' },
     { to: '/__programs_dropdown__', label: 'Programs' },
-    { to: '/dashboard', label: 'Teams' },
+    { to: '/teams', label: 'Teams' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
@@ -384,7 +391,8 @@ function AppContent() {
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
-    { to: '/dashboard', label: 'My Teams' },
+    { to: '/dashboard', label: 'Home' },
+    { to: '/teams', label: 'My Teams' },
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
@@ -583,7 +591,7 @@ function AppContent() {
                       {link.label}
                     </Link>
                   ];
-                  if (link.to === '/dashboard') {
+                  if (link.to === '/teams') {
                     elements.push(
                       <div key="people-dropdown" className="relative" ref={peopleDropdownRef}>
                         <button
@@ -684,7 +692,7 @@ function AppContent() {
                           {link.label}
                         </Link>
                       ];
-                      if (link.to === '/dashboard') {
+                      if (link.to === '/teams') {
                         items.push(
                           <div key="people-mobile-label" className="px-3 pt-3 pb-1 text-xs text-gray-400 uppercase tracking-wider font-semibold">People</div>
                         );
@@ -756,7 +764,23 @@ function AppContent() {
           <Route path="/tournament-waitlist/respond" element={<WaitlistResponse />} />
 
           {/* Protected routes */}
+          {/* Staff home. `/` redirects here, so this is the first page on
+              opening the app (CKU R88). It used to render TeamManagement,
+              which is why opening the app landed on Teams; Teams now lives at
+              its own route below.
+
+              ⚠️ ParentRedirect must stay wrapped around THIS route — it is what
+              bounces a parent-only account to /parent, and `/` lands here. */}
           <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <ParentRedirect>
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <StaffDashboard />
+                </main>
+              </ParentRedirect>
+            </ProtectedRoute>
+          } />
+          <Route path="/teams" element={
             <ProtectedRoute>
               <ParentRedirect>
                 {/* Unified team management for all club roles. Coaches see

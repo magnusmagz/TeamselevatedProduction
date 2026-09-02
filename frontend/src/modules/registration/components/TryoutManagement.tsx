@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TryoutRegistration,
   TryoutOffer,
@@ -9,6 +9,7 @@ import {
 } from '../types';
 import EvaluationModal from './EvaluationModal';
 import { useOrg } from '../../../contexts/OrgContext';
+import { ageGroup } from '../../../utils/ageGroup';
 
 const tryoutAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -448,12 +449,168 @@ interface EvaluationsTableProps {
   getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
 }
 
+/**
+ * Evaluations toolbar (CKU report R85) — the tab was one undifferentiated list.
+ *
+ * Sorting and filtering are CLIENT-SIDE only. The backend
+ * (`registration/tryouts-api.php?path=registrations`) still returns the whole
+ * program ordered by `overall_score DESC NULLS LAST, submitted_at`.
+ *
+ * ⚠️ There is deliberately NO session filter. `tryout_sessions` carries
+ * `age_group` / `gender`, but the registrations payload has no `session_id` —
+ * a registration is not tied to a session anywhere in the schema, so a session
+ * dropdown here could only ever be a no-op. The age group is instead DERIVED
+ * from the athlete's `date_of_birth`, which the payload does carry, through
+ * `utils/ageGroup.ts` — the single source for that rule. Never `new Date(dob)`.
+ */
+export type EvaluationSort = 'name' | 'score' | 'tryout_number' | 'evaluations';
+
+/** Which rows to show, keyed on `tryout_status`. */
+export type EvaluationProgressFilter = 'all' | 'awaiting' | 'evaluated';
+
+const EVALUATION_SORT_STORAGE_KEY = 'te.tryoutEvaluations.sort';
+
+const EVALUATION_SORT_OPTIONS: { value: EvaluationSort; label: string }[] = [
+  { value: 'name', label: 'Name (A-Z)' },
+  { value: 'score', label: 'Overall score (high to low)' },
+  { value: 'tryout_number', label: 'Tryout number' },
+  { value: 'evaluations', label: 'Evaluation count' }
+];
+
+const isEvaluationSort = (value: unknown): value is EvaluationSort =>
+  EVALUATION_SORT_OPTIONS.some(option => option.value === value);
+
+/**
+ * localStorage can THROW on access, not merely answer null — a private window,
+ * a thumbnail capture, or a browser set to block site data rejects the accessor
+ * itself. Both directions are wrapped; an unreadable store means the default
+ * sort, never a crashed tab.
+ */
+export const readStoredEvaluationSort = (): EvaluationSort => {
+  try {
+    const stored = window.localStorage.getItem(EVALUATION_SORT_STORAGE_KEY);
+    if (isEvaluationSort(stored)) return stored;
+  } catch (e) {
+    // Storage unavailable — fall through to the default.
+  }
+  return 'name';
+};
+
+const storeEvaluationSort = (sort: EvaluationSort): void => {
+  try {
+    window.localStorage.setItem(EVALUATION_SORT_STORAGE_KEY, sort);
+  } catch (e) {
+    // Storage unavailable — the sort still applies for this session.
+  }
+};
+
+const evaluationSortName = (reg: TryoutRegistration): string =>
+  `${reg.last_name || ''} ${reg.first_name || ''}`.trim().toLowerCase();
+
+/**
+ * PDO returns Postgres numerics and COUNT(*) as STRINGS, so every numeric field
+ * on this payload arrives as text. `''` and null are absent values, not zero.
+ */
+const evaluationNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * `COUNT(*)` reaches the client as the STRING "0", which is TRUTHY — so the row
+ * action read "View/Edit" for an athlete nobody had evaluated, and the count
+ * read "1 evaluations". Never test `reg.evaluation_count` for truthiness.
+ */
+const evaluationCountOf = (reg: TryoutRegistration): number =>
+  evaluationNumber(reg.evaluation_count) ?? 0;
+
+/** Descending, with absent values sorted LAST rather than treated as zero. */
+const evaluationDescending = (a: number | null, b: number | null): number => {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return b - a;
+};
+
+export const sortEvaluationRegistrations = (
+  registrations: TryoutRegistration[],
+  sort: EvaluationSort
+): TryoutRegistration[] => {
+  const rows = [...registrations];
+  rows.sort((a, b) => {
+    const byName = evaluationSortName(a).localeCompare(evaluationSortName(b));
+    switch (sort) {
+      case 'score':
+        return evaluationDescending(
+          evaluationNumber(a.overall_score),
+          evaluationNumber(b.overall_score)
+        ) || byName;
+      case 'evaluations':
+        return evaluationDescending(evaluationCountOf(a), evaluationCountOf(b)) || byName;
+      case 'tryout_number': {
+        // An unassigned number is not "0" — those rows go last, whichever way
+        // the assigned ones compare.
+        const aRaw = String(a.tryout_number ?? '').trim();
+        const bRaw = String(b.tryout_number ?? '').trim();
+        if (!aRaw !== !bRaw) return aRaw ? -1 : 1;
+        const aNum = evaluationNumber(aRaw);
+        const bNum = evaluationNumber(bRaw);
+        if (aNum !== null && bNum !== null) return (aNum - bNum) || byName;
+        if (aNum !== null) return -1;
+        if (bNum !== null) return 1;
+        return aRaw.localeCompare(bRaw) || byName;
+      }
+      case 'name':
+      default:
+        return byName;
+    }
+  });
+  return rows;
+};
+
 const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
   registrations,
   criteria,
   onEvaluate,
   getStatusBadge
 }) => {
+  const [sort, setSort] = useState<EvaluationSort>(readStoredEvaluationSort);
+  const [progress, setProgress] = useState<EvaluationProgressFilter>('all');
+  const [ageGroupFilter, setAgeGroupFilter] = useState<string>('all');
+
+  const handleSortChange = (value: string) => {
+    if (!isEvaluationSort(value)) return;
+    setSort(value);
+    storeEvaluationSort(value);
+  };
+
+  const ageGroups = useMemo(() => {
+    const seen = new Set<string>();
+    registrations.forEach(reg => {
+      const group = ageGroup(reg.date_of_birth);
+      if (group) seen.add(group);
+    });
+    // Oldest first — U19, U18, … — by the number, not the string.
+    return Array.from(seen).sort(
+      (a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10)
+    );
+  }, [registrations]);
+
+  // A selection that no longer exists in the data must not silently empty the
+  // list — reloading can change the roster under a stale choice.
+  const activeAgeGroup = ageGroups.includes(ageGroupFilter) ? ageGroupFilter : 'all';
+
+  const visibleRegistrations = useMemo(() => {
+    const filtered = registrations.filter(reg => {
+      if (progress === 'awaiting' && reg.tryout_status !== 'checked_in') return false;
+      if (progress === 'evaluated' && reg.tryout_status !== 'evaluated') return false;
+      if (activeAgeGroup !== 'all' && ageGroup(reg.date_of_birth) !== activeAgeGroup) return false;
+      return true;
+    });
+    return sortEvaluationRegistrations(filtered, sort);
+  }, [registrations, progress, activeAgeGroup, sort]);
+
   if (registrations.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -462,50 +619,117 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
     );
   }
 
+  const selectClass = 'border border-brand-secondary rounded-md px-2 py-1 text-sm';
+  const labelClass = 'flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500';
+
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-brand-secondary">
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Avg Score</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {registrations.map(reg => (
-          <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
-            <td className="py-3 px-4 font-bold text-lg text-brand-primary">
-              {reg.tryout_number || '-'}
-            </td>
-            <td className="py-3 px-4 font-medium">
-              {reg.first_name} {reg.last_name}
-            </td>
-            <td className="py-3 px-4">
-              {getStatusBadge(reg.tryout_status)}
-            </td>
-            <td className="py-3 px-4 text-gray-600">
-              {reg.evaluation_count || 0} evaluation{(reg.evaluation_count || 0) !== 1 ? 's' : ''}
-            </td>
-            <td className="py-3 px-4">
-              {reg.overall_score != null ? (
-                <span className="font-medium text-brand-primary">{Number(reg.overall_score).toFixed(1)}</span>
-              ) : '-'}
-            </td>
-            <td className="py-3 px-4">
-              <button
-                onClick={() => onEvaluate(reg)}
-                className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-              >
-                {reg.evaluation_count ? 'View/Edit' : 'Evaluate'}
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div>
+      {/* Toolbar — rendered even when the filters match nothing, so the choice
+          that emptied the list can be undone. */}
+      <div className="mb-4 flex flex-wrap items-center gap-4 border-b border-gray-100 pb-3">
+        <label className={labelClass} htmlFor="evaluations-sort">
+          Sort
+          <select
+            id="evaluations-sort"
+            aria-label="Sort evaluations"
+            className={selectClass}
+            value={sort}
+            onChange={(e) => handleSortChange(e.target.value)}
+          >
+            {EVALUATION_SORT_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className={labelClass} htmlFor="evaluations-progress">
+          Show
+          <select
+            id="evaluations-progress"
+            aria-label="Filter evaluations by status"
+            className={selectClass}
+            value={progress}
+            onChange={(e) => setProgress(e.target.value as EvaluationProgressFilter)}
+          >
+            <option value="all">All checked in</option>
+            <option value="awaiting">Not yet evaluated</option>
+            <option value="evaluated">Evaluated</option>
+          </select>
+        </label>
+
+        {ageGroups.length > 1 && (
+          <label className={labelClass} htmlFor="evaluations-age-group">
+            Age group
+            <select
+              id="evaluations-age-group"
+              aria-label="Filter evaluations by age group"
+              className={selectClass}
+              value={activeAgeGroup}
+              onChange={(e) => setAgeGroupFilter(e.target.value)}
+            >
+              <option value="all">All age groups</option>
+              {ageGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <span className="ml-auto text-sm text-gray-600">
+          Showing {visibleRegistrations.length} of {registrations.length}
+        </span>
+      </div>
+
+      {visibleRegistrations.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No athletes match these filters.
+        </div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-brand-secondary">
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Avg Score</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRegistrations.map(reg => (
+              <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-3 px-4 font-bold text-lg text-brand-primary">
+                  {reg.tryout_number || '-'}
+                </td>
+                <td className="py-3 px-4 font-medium">
+                  {reg.first_name} {reg.last_name}
+                </td>
+                <td className="py-3 px-4">
+                  {getStatusBadge(reg.tryout_status)}
+                </td>
+                <td className="py-3 px-4 text-gray-600">
+                  {evaluationCountOf(reg)} evaluation{evaluationCountOf(reg) !== 1 ? 's' : ''}
+                </td>
+                <td className="py-3 px-4">
+                  {reg.overall_score != null ? (
+                    <span className="font-medium text-brand-primary">{Number(reg.overall_score).toFixed(1)}</span>
+                  ) : '-'}
+                </td>
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => onEvaluate(reg)}
+                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                  >
+                    {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 };
 

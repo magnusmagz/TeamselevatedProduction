@@ -77,7 +77,7 @@ const TeamCalendarPage: React.FC = () => {
           <h2 className="text-xl font-bold text-red-800 mb-2">Error</h2>
           <p className="text-red-600 mb-4">{error || 'Team not found'}</p>
           <Link
-            to="/dashboard"
+            to="/teams"
             className="inline-block bg-brand-primary text-white px-6 py-2 rounded font-medium hover:opacity-90"
           >
             Back to Teams
@@ -92,7 +92,7 @@ const TeamCalendarPage: React.FC = () => {
       {/* Breadcrumb Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <nav className="flex items-center space-x-2 text-sm">
-          <Link to="/dashboard" className="text-brand-primary hover:underline">
+          <Link to="/teams" className="text-brand-primary hover:underline">
             Teams
           </Link>
           <span className="text-gray-400">/</span>
