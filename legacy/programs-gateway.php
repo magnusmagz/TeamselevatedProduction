@@ -22,6 +22,7 @@ try {
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/club_standing.php';
 require_once __DIR__ . '/../lib/program_ordering.php';
+require_once __DIR__ . '/../lib/program_scope.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
 $auth = AuthMiddleware::requireAuth();
 $accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin
@@ -54,12 +55,107 @@ function pg_fail(int $status, string $error, array $extra = []): void
     exit;
 }
 
+$action = $_GET['action'] ?? '';
+
+/**
+ * Program staffing (CKU R66, slice 8.1). Three actions, in front of the method
+ * switch for the same reason the archive/reorder block is: that switch dispatches
+ * on REQUEST_METHOD alone.
+ *
+ * Reading the list is club STAFF (a coach may see who else is running the camp);
+ * assigning and removing are club ADMIN. Both predicates resolve the club from
+ * the PROGRAM, never from the request body — te_program_staff_assign() does that
+ * and refuses a cross-club actor there, so the rule cannot be forgotten by a
+ * second caller.
+ */
+if ($method === 'GET' && $action === 'staff') {
+    $programId = (int)($_GET['program_id'] ?? 0);
+    $clubId = te_program_club_id($pdo, $programId);
+    if ($clubId === null) {
+        pg_fail(404, 'Program not found');
+    }
+    if (!te_is_club_staff($auth, $clubId)) {
+        pg_fail(403, 'Forbidden: club staff required');
+    }
+
+    // `available` is reported rather than inferred from an empty list. Before
+    // migration 086 runs, "nobody is assigned" and "this feature is not live
+    // yet" are opposite facts, and a bare [] reads as the first.
+    echo json_encode([
+        'success'    => true,
+        'program_id' => $programId,
+        'club_id'    => $clubId,
+        'available'  => te_program_staff_table_present($pdo),
+        'staff'      => te_program_staff_list($pdo, $programId),
+    ]);
+    exit;
+}
+
+if ($method === 'POST' && in_array($action, ['assign-staff', 'remove-staff'], true)) {
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $actorId = (int)($auth->getUserId() ?? 0) ?: null;
+    $programId = (int)($body['program_id'] ?? $_GET['program_id'] ?? 0);
+    $targetId  = (int)($body['user_id'] ?? 0);
+
+    try {
+        if ($action === 'assign-staff') {
+            $result = te_program_staff_assign(
+                $pdo, $auth, $programId, $targetId, (string)($body['role'] ?? 'coach'), $actorId
+            );
+        } else {
+            $result = te_program_staff_remove($pdo, $auth, $programId, $targetId, $actorId);
+        }
+
+        if (!$result['ok']) {
+            $messages = [
+                'bad_role'  => 'role must be one of: ' . implode(', ', TE_PROGRAM_STAFF_ROLES),
+                'bad_user'  => 'user_id is required',
+                'not_found' => 'Program not found',
+                'forbidden' => 'Forbidden: club admin required',
+                'not_staff' => 'That person is not a coach or admin of this club. '
+                             . 'Program staff can reach every registered family, so only staff may be assigned.',
+                'schema'    => 'Program staffing is not available yet',
+            ];
+            $reason = $result['reason'] ?? 'not_found';
+            pg_fail($result['status'], $messages[$reason] ?? 'Could not update program staff', [
+                'reason' => $reason,
+            ]);
+        }
+
+        AuditLogger::log(
+            $pdo,
+            $actorId,
+            $action === 'assign-staff' ? 'program_staff_assigned' : 'program_staff_removed',
+            'programs',
+            $programId,
+            array_filter([
+                'club_id' => $result['club_id'] ?? null,
+                'user_id' => $targetId,
+                'role'    => $result['role'] ?? null,
+                'removed' => $result['removed'] ?? null,
+            ], fn($v) => $v !== null)
+        );
+
+        echo json_encode(array_filter([
+            'success'    => true,
+            'program_id' => $programId,
+            'user_id'    => $targetId,
+            'role'       => $result['role'] ?? null,
+            'removed'    => $result['removed'] ?? null,
+        ], fn($v) => $v !== null));
+        exit;
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
 /**
  * The three write actions added for CKU R89/R90. They live in front of the
  * method switch because that switch dispatches on REQUEST_METHOD alone and every
  * one of these is a POST.
  */
-$action = $_GET['action'] ?? '';
 if ($method === 'POST' && in_array($action, ['archive', 'unarchive', 'reorder'], true)) {
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
     $actorId = (int)($auth->getUserId() ?? 0) ?: null;

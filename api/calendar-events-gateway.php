@@ -17,6 +17,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
+require_once __DIR__ . '/../lib/program_scope.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -257,6 +258,67 @@ try {
         $stmt = $conn->prepare($query);
         $stmt->execute($params);
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // ─── Program events, ADDED to whatever the branch above returned ──────
+        //
+        // Camps, clinics and drop-ins have registrants and no roster, so every
+        // query above misses them twice over: they INNER JOIN calendar_event_teams,
+        // and the coach running the session holds no team, which drops them out
+        // of $isPrivileged and into the parent branch where they match nothing.
+        // The result today is a coach whose camp is invisible on their own
+        // calendar.
+        //
+        // This is a union, never a filter: it only ever ADDS rows, and it is
+        // skipped entirely when the caller asked about one athlete — that request
+        // means "this child's events", and folding in the coach's programs would
+        // answer a different question.
+        //
+        // te_program_ids_for_user() is the ONLY source of program standing, and
+        // it answers [] when migration 086 has not been applied, so this whole
+        // block is inert until then rather than 42P01-ing the calendar.
+        if (!$athlete_id) {
+            $programIds = te_program_ids_for_user($conn, (int)$requestingUserId);
+            if (!empty($programIds)) {
+                // array_fill(0, 0, '?') would produce `IN ()`, a syntax error
+                // rather than an empty result — guarded by the emptiness check.
+                $ph = implode(',', array_fill(0, count($programIds), '?'));
+                $programStmt = $conn->prepare("
+                    SELECT DISTINCT
+                        ce.id, ce.name AS title, ce.type, ce.event_date AS date,
+                        ce.start_time, ce.end_time, ce.location, ce.description,
+                        ce.status,
+                        t.id AS team_id, t.name AS team_name
+                    FROM calendar_events ce
+                    LEFT JOIN calendar_event_teams cet ON ce.id = cet.event_id
+                    LEFT JOIN teams t ON cet.team_id = t.id
+                    WHERE ce.program_id IN ($ph)
+                      AND ce.event_date >= CURRENT_DATE
+                      AND (ce.status IS NULL OR ce.status != 'cancelled')
+                    ORDER BY ce.event_date ASC, ce.start_time ASC
+                ");
+                $programStmt->execute($programIds);
+
+                // The base query emits one row per event/team pair, so the key
+                // has to be both. Keying on the event id alone would drop the
+                // second team of a two-team event that also belongs to a program.
+                $seen = [];
+                foreach ($events as $e) {
+                    $seen[$e['id'] . ':' . ($e['team_id'] ?? '')] = true;
+                }
+                foreach ($programStmt->fetchAll(PDO::FETCH_ASSOC) as $e) {
+                    $key = $e['id'] . ':' . ($e['team_id'] ?? '');
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $events[] = $e;
+                    }
+                }
+
+                usort($events, function ($a, $b) {
+                    return [$a['date'], $a['start_time'] ?? ''] <=> [$b['date'], $b['start_time'] ?? ''];
+                });
+                $events = array_slice($events, 0, (int)$limit);
+            }
+        }
 
         echo json_encode(['success' => true, 'events' => $events]);
 

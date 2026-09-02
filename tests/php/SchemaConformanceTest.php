@@ -59,6 +59,15 @@ class SchemaConformanceTest extends TestCase
         // moment it lands in the fixture, so an entry cannot outlive its window.
     ];
 
+    /**
+     * Whole TABLES a written migration creates that are not in Neon yet — the
+     * table-level twin of the list above, with the same window and the same
+     * self-check (testPendingTablesAreStillPending).
+     */
+    private const PENDING_MIGRATION_TABLES = [
+        'program_staff' => '085_program_staff.sql',
+    ];
+
     /** Is this column merely waiting on a migration that is already written? */
     private static function isPendingMigration(string $table, string $col): bool
     {
@@ -126,6 +135,7 @@ class SchemaConformanceTest extends TestCase
             foreach ($matches as $m) {
                 $table = $m[1];
                 if (!isset(self::$schema[$table])) {
+                    if (array_key_exists($table, self::PENDING_MIGRATION_TABLES)) { continue; }
                     $violations[] = "$rel: INSERT INTO `$table` — table does not exist";
                     continue;
                 }
@@ -163,6 +173,7 @@ class SchemaConformanceTest extends TestCase
             foreach ($matches as $m) {
                 $table = $m[1];
                 if (!isset(self::$schema[$table])) {
+                    if (array_key_exists($table, self::PENDING_MIGRATION_TABLES)) { continue; }
                     $violations[] = "$rel: UPDATE `$table` — table does not exist";
                     continue;
                 }
@@ -250,6 +261,25 @@ class SchemaConformanceTest extends TestCase
             $this->assertNotContains($col, self::$schema[$table] ?? [],
                 "$qualified is in the schema fixture now, so $migration has been applied. " .
                 'Delete its PENDING_MIGRATION entry — leaving it exempts a live column from this test forever.');
+        }
+    }
+
+    /** The table-level twin of the check above. Same three failure modes. */
+    public function testPendingTablesAreStillPending(): void
+    {
+        $dir = __DIR__ . '/../../database/migrations/';
+        $this->addToAssertionCount(1);
+
+        foreach (self::PENDING_MIGRATION_TABLES as $table => $migration) {
+            $this->assertFileExists($dir . $migration,
+                "PENDING_MIGRATION_TABLES names $migration for `$table`, but that migration does not exist.");
+
+            $this->assertStringContainsString($table, file_get_contents($dir . $migration),
+                "$migration does not mention `$table` — the entry is wrong, so the real SQL is unchecked.");
+
+            $this->assertArrayNotHasKey($table, self::$schema,
+                "`$table` is in the schema fixture now, so $migration has been applied. " .
+                'Delete its PENDING_MIGRATION_TABLES entry.');
         }
     }
 

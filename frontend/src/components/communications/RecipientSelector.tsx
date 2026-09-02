@@ -21,7 +21,14 @@ interface TeamGroup {
   age_group?: string;
   athlete_count?: number;
   guardian_count?: number;
-  group_type?: 'team' | 'special';
+  /**
+   * 'program' groups resolve through `program_ids`, not `team_ids`: a camp or
+   * clinic has registrants and no roster, so a team-keyed resolve returns
+   * nobody.
+   */
+  group_type?: 'team' | 'special' | 'program';
+  /** Program groups only — the program's own name, without the "All families in" prefix. */
+  program_name?: string;
   /** How many messages actually go out — distinct addresses on THIS channel. */
   recipient_count?: number;
   /** How many people are in the group, reachable or not. */
@@ -200,6 +207,8 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
         body: JSON.stringify(
           group.group_type === 'special'
             ? { special_group: group.id, club_profile_id: clubProfileId, channel }
+            : group.group_type === 'program'
+            ? { program_ids: [group.id], club_profile_id: clubProfileId, recipient_types: ['athletes', 'guardians', 'coaches'], channel }
             : { team_ids: [group.id], club_profile_id: clubProfileId, recipient_types: ['athletes', 'guardians', 'coaches'], channel }
         ),
       });
@@ -506,7 +515,7 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-xs font-semibold text-brand-primary flex-shrink-0">
-                        {group.group_type === 'special' ? 'All' : group.name.substring(0, 2)}
+                        {group.group_type === 'special' ? 'All' : group.group_type === 'program' ? 'Pg' : group.name.substring(0, 2)}
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{group.name}</div>
