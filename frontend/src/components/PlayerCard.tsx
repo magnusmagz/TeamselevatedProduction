@@ -1,5 +1,5 @@
 import React from 'react';
-import { ageGroup } from '../utils/ageGroup';
+import { ageGroup, ageQuarter } from '../utils/ageGroup';
 
 interface PlayerCardProps {
   player: {
@@ -28,11 +28,7 @@ function getUGroup(dob: string): string {
 }
 
 function getAgeQuarter(dob: string): string {
-  const month = new Date(dob).getMonth();
-  if (month <= 2) return 'Q1';
-  if (month <= 5) return 'Q2';
-  if (month <= 8) return 'Q3';
-  return 'Q4';
+  return ageQuarter(dob) ?? '';
 }
 
 function formatDOB(dob: string): string {

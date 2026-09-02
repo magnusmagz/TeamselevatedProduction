@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatGrade } from '../utils/grade';
-import { ageGroup, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
+import { ageGroup, ageInYears, ageQuarter, birthYearOf, currentSeasonYear } from '../utils/ageGroup';
 import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
@@ -65,21 +65,14 @@ interface RosterManagementProps {
   team: Team;
 }
 
+// NaN, not 0, when the DOB is unreadable: every call site is already guarded by
+// `date_of_birth &&`, and NaN is what this returned before, so nothing renders differently.
 function calcAge(dob: string): number {
-  const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
+  return ageInYears(dob) ?? NaN;
 }
 
 function getAgeQuarter(dob: string): string {
-  const month = new Date(dob).getMonth();
-  if (month <= 2) return 'Q1';
-  if (month <= 5) return 'Q2';
-  if (month <= 8) return 'Q3';
-  return 'Q4';
+  return ageQuarter(dob) ?? '';
 }
 
 function getUGroup(dob: string): string {
