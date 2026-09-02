@@ -42,6 +42,14 @@ to. Files uploaded through the Club Document Center land on the dyno's local dis
 survive a restart; rows created with the Upload tab hold dead absolute URLs. Decisions 14, 15.
 
 
+### Mid-year evaluations + coach-invited player (Heroku v577, then Netlify) — migrations 086, 087 applied
+
+Both applied via `scripts/apply-migration.php`; fixture refreshed (three tables). Staff athlete
+profile gains a Performance tab (evaluations, IDP goals, season trend); parents see it
+read-only. Tryouts gain "Invite to my team" with an admin Coach invites tab; its email is behind
+`TE_FEATURE_TRYOUT_COACH_INVITE_EMAIL` = **off**. (v575/v576 were branch-worktree pushes
+carrying docs only.)
+
 ### Assign coaches to programs (Heroku v574, then Netlify) — migration 085 applied
 
 `program_staff` applied 15:1x PT via `scripts/apply-migration.php`; fixture refreshed (diff = one

@@ -191,6 +191,29 @@
     "updated_at",
     "is_encrypted"
   ],
+  "athlete_evaluation_scores": [
+    "id",
+    "evaluation_id",
+    "criterion_name",
+    "score",
+    "max_score",
+    "weight",
+    "comment",
+    "display_order"
+  ],
+  "athlete_evaluations": [
+    "id",
+    "athlete_id",
+    "team_id",
+    "evaluator_id",
+    "evaluated_at",
+    "season_label",
+    "overall_score",
+    "notes",
+    "idp_goals",
+    "created_at",
+    "updated_at"
+  ],
   "athlete_guardians": [
     "id",
     "athlete_id",
@@ -1836,6 +1859,16 @@
     "sanction_number",
     "state_association",
     "host_name"
+  ],
+  "tryout_coach_invites": [
+    "id",
+    "registration_id",
+    "team_id",
+    "invited_by",
+    "invited_at",
+    "email_sent_at",
+    "status",
+    "notes"
   ],
   "tryout_evaluation_criteria": [
     "id",
