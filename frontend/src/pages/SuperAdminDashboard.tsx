@@ -566,6 +566,9 @@ const SuperAdminDashboard: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-brand-primary uppercase">Platform Administration</h1>
         <p className="text-gray-600 mt-1">Manage clubs, users, and roles across the platform</p>
+        <Link to="/super-admin/organizations" className="text-sm text-brand-primary underline">
+          Organizations (national / division / council)
+        </Link>
       </div>
 
       {/* Tabs */}

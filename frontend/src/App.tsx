@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedFinancialRoute from './components/ProtectedFinancialRoute';
 import ProtectedSuperAdminRoute from './components/ProtectedSuperAdminRoute';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import Organizations from './pages/Organizations';
 import { ChatWidget } from './components/chat';
 import { useModerationOpenCount } from './hooks/useModerationOpenCount';
 import EnableNotificationsPrompt from './components/EnableNotificationsPrompt';
@@ -1251,6 +1252,15 @@ function AppContent() {
           <Route path="/super-admin" element={
             <ProtectedSuperAdminRoute>
               <SuperAdminDashboard />
+            </ProtectedSuperAdminRoute>
+          } />
+
+          {/* Organizations: the tier above the club (GOTR G1). Same guard as
+              the dashboard — the route guard is convenience, the gate at the top
+              of api/super-admin-gateway.php is the access control. */}
+          <Route path="/super-admin/organizations" element={
+            <ProtectedSuperAdminRoute>
+              <Organizations />
             </ProtectedSuperAdminRoute>
           } />
 
