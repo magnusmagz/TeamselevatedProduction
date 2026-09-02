@@ -233,10 +233,46 @@ age in whole years (`ageInYears`) — all three read the year/month off the date
 **none of them may use `new Date(dob)`**. `getAgeQuarter` had been copied into four
 components and was wrong on **all four** quarter-boundary firsts (Jan/Apr/Jul/Oct 1 each
 reported the PRIOR quarter), and three copies of `calcAge` aged a child up one day early.
-Consolidated 2026-09-02; `ageGroup.test.ts` failed 7 ways on the old logic. ⚠️ The frontend
-rolls the season year on **Aug 1** while `services/AgeEligibilityService.php` uses the
-tournament `start_date` year with no roll — a known one-year divergence, unresolved, and a
-rules decision rather than a bug to patch on one side.
+Consolidated 2026-09-02; `ageGroup.test.ts` failed 7 ways on the old logic.
+
+**The season runs 1 Aug – 31 Jul, everywhere. DECIDED (Maggie, 2026-09-02):** "The age
+matrix runs from August 1 to July 31, replacing the previous January 1 to December 31
+calendar birth-year mandate." One rule, no per-club setting. This closes the one-year
+divergence this section used to record as unresolved — the frontend already rolled on
+Aug 1, and `services/AgeEligibilityService.php` used the tournament `start_date`'s calendar
+year with no roll, so for the five months from August the two halves of the product
+disagreed by a whole U-group.
+
+- **PHP half: `lib/age_rule.php`** — `te_season_year()` (Aug 1–Dec 31 → next calendar year,
+  Jan 1–Jul 31 → that year), `te_age_group()`, `te_age_in_years()`, mirroring the TS names
+  and semantics. Every one reads year/month/day off the date STRING; **no `strtotime()` or
+  `DateTime` touches a date-only value here**, because Aug 1 is now a boundary too and a
+  one-day UTC shift moves a player a whole season year. `AgeEligibilityService` calls
+  `te_season_year()` for the year and is otherwise unchanged — the per-body rule-set
+  structure (`state`, `us_club`, …) is intact.
+- ⚠️ **The two halves are pinned to ONE data file**, `tests/fixtures/age-rule-cases.json`
+  (18 cases: both sides of 31 Jul / 1 Aug, 1 Jan, 31 Dec, a leap day, all four
+  quarter-boundary firsts, and one case each side of the U4–U25 clamp). `AgeRuleTest.php`
+  and `ageGroup.fixture.test.ts` run the same file. Two implementations agreeing with each
+  other is worth nothing when each is checked against its own numbers. **If they ever
+  disagree, the TS is the reference and the PHP moves** — the staff app has been rendering
+  those answers since 2026-09-02. The TS test builds its `now` from the date parts as a
+  LOCAL date; `new Date('2026-08-01')` is UTC midnight and lands on 31 Jul in Chicago,
+  which is the wrong side of the boundary and would silently pass nothing.
+- **`te_normalize_age_group()` is the only comparison of a U-label.** `teams.age_group` is
+  free text and prod holds `U12`, `U-12` and `12U`; `Open` / `U10/U11` normalise to null
+  rather than to one of their halves. Comparing raw matches nothing, and an empty list reads
+  as "nobody registered for your group" rather than as a broken filter.
+- **R84 (CKU): `registration/tryouts-api.php?path=registrations` narrows a COACH** to the age
+  groups of the teams they coach (`getCoachTeamIds()`, which counts assistant_coach /
+  team_manager — never `teams.primary_coach_id` alone), as of the program's `start_date`.
+  Club admins see everything; `?all=1` lets a coach opt out, because the director does ask a
+  coach to cover another group. A coach with no team sees **nothing, narrowed** — an empty
+  scope and "everything" are opposite answers. The response is now an OBJECT
+  (`{registrations, narrowed, age_groups}`) where it was a bare array; `TryoutManagement.tsx`
+  reads both shapes and says on screen when a list is narrowed.
+  `TryoutRegistrationNarrowingTest` also parses the case to assert `tryout_requireClubStaff`
+  still runs first — narrowing is a product filter and never a scope check.
 
 ### ⚠️ The queue worker's DB handle dies overnight — rebuild services, don't just reconnect (2026-08-25)
 Neon's pooler drops idle connections and PDO never notices: the handle stays a perfectly

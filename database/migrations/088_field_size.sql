@@ -1,0 +1,41 @@
+-- 088_field_size.sql
+--
+-- Field size on a facility's fields, so scheduling can steer a team to a
+-- correctly sized pitch (CKU R73, slice 6.3).
+--
+-- The rule the club asked for: U9/U10 play 7v7, U11/U12 play 9v9, U13 and up
+-- play 11v11 (and U8 and under play 4v4). The mapping itself is code, in
+-- lib/field_size.php — it is a rule, not data, and encoding it as a lookup
+-- table would mean a club could half-fill it and get silence. What the database
+-- holds is the one fact code cannot derive: how big each field actually is.
+--
+-- 085/086/087 belong to other slices running in parallel worktrees. Claim the
+-- next number by listing database/migrations/ in EVERY checkout — the main one
+-- and each worktree — before creating one.
+--
+-- ADDITIVE ONLY. One nullable column on `fields`; nothing existing is altered
+-- or dropped. Code that reaches production before this is applied degrades
+-- rather than 500s: lib/field_size.php probes information_schema once per
+-- request and legacy/fields-gateway.php builds its SQL around what is actually
+-- there, the same shape as lib/program_ordering.php and for the same reason —
+-- `main` is shared and deploys are by push, so this SQL runs days after the
+-- code that reads it. On Postgres a reference to a missing column is 42703, a
+-- hard error that would take the home-field dropdown down for every club.
+--
+--   field_size  NULL = "nobody has recorded a size for this field". That is the
+--               state every one of the ~live rows starts in, and it is a real
+--               answer, not a missing one: an unsized field is never hidden
+--               from a team's picker, because a club that has not filled sizes
+--               in must still see all of its fields. The CHECK constraint is
+--               deliberately narrow — these four values are what the scheduling
+--               UI can reason about, and a free-text size would give the
+--               picker something it cannot match on. Adding a value (5v5, say)
+--               means a new migration AND a new arm in
+--               te_field_size_for_age_group(); do both or the size becomes
+--               unselectable-but-storable.
+--
+-- REVERSE:
+--   ALTER TABLE fields DROP COLUMN field_size;
+
+ALTER TABLE fields ADD COLUMN IF NOT EXISTS field_size TEXT
+    CHECK (field_size IN ('4v4','7v7','9v9','11v11'));

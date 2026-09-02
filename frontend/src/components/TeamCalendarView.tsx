@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TeamFieldsResponse, TeamField, fitHint, ageGroupLabel } from '../utils/fieldSize';
 import AttendanceModal from './AttendanceModal';
 import CalendarSubscriptionManager from './CalendarSubscriptionManager';
 import PracticeScheduler from './PracticeScheduler';
@@ -82,6 +83,12 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   const [showEventForm, setShowEventForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [venues, setVenues] = useState<any[]>([]);
+  // Which of the club's fields suit the team this event is for (CKU R73).
+  // Loaded only when the form is scoped to exactly ONE team — the fit question
+  // has no single answer for a multi-team event, and guessing one would be
+  // worse than saying nothing. Null means no opinion and the Facility select
+  // renders exactly as it did before this feature.
+  const [teamFields, setTeamFields] = useState<TeamFieldsResponse | null>(null);
   const [allTeams, setAllTeams] = useState<any[]>([]);
   // Teams the current user coaches (or has any team-scoped role on). Powers
   // the "My Teams" dropdown option and the coach default-view behavior.
@@ -330,6 +337,78 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       console.error('Error fetching events:', error);
     }
   };
+
+  // The one team this event form is about, or null. `teamId` locks the whole
+  // calendar to a team; otherwise the form's own multi-select decides, and only
+  // a single selection produces an answer.
+  const eventTeamId: number | null =
+    teamId ?? ((eventFormData.team_ids?.length === 1 ? eventFormData.team_ids[0] : null));
+
+  // Advisory only: every failure path leaves teamFields null and the Facility
+  // select degrades to the flat list rather than showing an error.
+  useEffect(() => {
+    if (!eventTeamId) {
+      setTeamFields(null);
+      return;
+    }
+    let cancelled = false;
+    const loadTeamFields = async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/legacy/fields-gateway.php?action=for-team&team_id=${eventTeamId}`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data && Array.isArray(data.fields)) {
+          setTeamFields(data);
+        }
+      } catch (error) {
+        // Advisory only — leave it null.
+      }
+    };
+    loadTeamFields();
+    return () => { cancelled = true; };
+  }, [API_URL, eventTeamId]);
+
+  // `calendar_events` records a VENUE, not a field — there is no field_id
+  // column — so the fit question is answered per facility: does this facility
+  // have a pitch of the right size? The named fields are shown underneath so
+  // whoever books it knows which one to use.
+  const venueFitHint = fitHint(teamFields);
+  const fieldsByVenue = new Map<number, TeamField[]>();
+  (teamFields?.fields ?? []).forEach(f => {
+    const list = fieldsByVenue.get(f.venue_id) ?? [];
+    list.push(f);
+    fieldsByVenue.set(f.venue_id, list);
+  });
+  const venueFits = (venueIdToCheck: number): boolean =>
+    (fieldsByVenue.get(venueIdToCheck) ?? []).some(f => f.size_match === true);
+  const venueHasAWrongSize = (venueIdToCheck: number): boolean =>
+    (fieldsByVenue.get(venueIdToCheck) ?? []).some(f => f.size_match === false);
+  // Group only when the server actually had an opinion about some facility.
+  // Otherwise every venue would land under one heading, which is noise on a
+  // list that has not changed.
+  const groupVenues = Boolean(
+    venueFitHint && venues.some(v => venueFits(Number(v.id)) || venueHasAWrongSize(Number(v.id)))
+  );
+  const fittingVenues = venues.filter(v => venueFits(Number(v.id)));
+  const otherVenues = venues.filter(v => !venueFits(Number(v.id)));
+  const selectedVenueFields = eventFormData.venue_id
+    ? (fieldsByVenue.get(Number(eventFormData.venue_id)) ?? [])
+    : [];
+  const selectedVenueFits = selectedVenueFields.filter(f => f.size_match === true);
+  const venueSizeNote: string | null = (() => {
+    if (!venueFitHint || !eventFormData.venue_id || selectedVenueFields.length === 0) return null;
+    const group = teamFields?.age_group_label ?? ageGroupLabel(teamFields?.age_group) ?? 'this team';
+    if (selectedVenueFits.length > 0) {
+      return `${group} plays ${teamFields?.recommended_size}: use ${selectedVenueFits.map(f => f.name).join(', ')}.`;
+    }
+    if (selectedVenueFields.some(f => f.size_match === false)) {
+      return `No ${teamFields?.recommended_size} pitch is recorded here, and ${group} normally plays ${teamFields?.recommended_size}. You can still book it.`;
+    }
+    return null;
+  })();
 
   const fetchVenues = async () => {
     try {
@@ -1440,10 +1519,34 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   >
                     <option value="">No Facility</option>
-                    {venues.map(venue => (
-                      <option key={venue.id} value={venue.id}>{venue.name}</option>
-                    ))}
+                    {groupVenues ? (
+                      <>
+                        {fittingVenues.length > 0 && (
+                          <optgroup label={`Has a pitch that ${venueFitHint}`}>
+                            {fittingVenues.map(venue => (
+                              <option key={venue.id} value={venue.id}>{venue.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {otherVenues.length > 0 && (
+                          <optgroup label="Other sizes">
+                            {otherVenues.map(venue => (
+                              <option key={venue.id} value={venue.id}>{venue.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
+                    ) : (
+                      venues.map(venue => (
+                        <option key={venue.id} value={venue.id}>{venue.name}</option>
+                      ))
+                    )}
                   </select>
+                  {venueSizeNote && (
+                    <p className={`text-sm mt-1 ${selectedVenueFits.length > 0 ? 'text-gray-600' : 'text-amber-700'}`}>
+                      {venueSizeNote}
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-2">

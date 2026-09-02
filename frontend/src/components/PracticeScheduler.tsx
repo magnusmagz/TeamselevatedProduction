@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatDateOnly, toDateOnlyString } from '../utils/dateFormat';
 import { generatePracticeDates } from '../utils/practiceDates';
+import { TeamFieldsResponse, TeamField, fitHint, mismatchWarning } from '../utils/fieldSize';
 
 interface Team {
   id: number;
@@ -64,6 +65,12 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
   // Data
   const [venues, setVenues] = useState<Venue[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
+  // Which of the club's fields suit THIS team's age group (CKU R73). The server
+  // decides fit; this is only ever used to order and label the options. Null
+  // means the question was never answered — an old backend, a failed request,
+  // or migration 088 not applied yet — and the picker then renders exactly the
+  // flat list it always did.
+  const [teamFields, setTeamFields] = useState<TeamFieldsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -97,6 +104,59 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
       setSelectedField(null); // Reset field selection when venue changes
     }
   }, [selectedVenue, venues]);
+
+  // Field sizing is advisory, so every failure path leaves teamFields null and
+  // the picker degrades to the flat list rather than showing an error. A club
+  // that has recorded no sizes must not be told anything is wrong.
+  useEffect(() => {
+    let cancelled = false;
+    const loadTeamFields = async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/legacy/fields-gateway.php?action=for-team&team_id=${team.id}`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data && Array.isArray(data.fields)) {
+          setTeamFields(data);
+        }
+      } catch (error) {
+        // Advisory only — leave it null.
+      }
+    };
+    loadTeamFields();
+    return () => { cancelled = true; };
+  }, [API_URL, team.id]);
+
+  // The venue's fields, annotated with the fit verdict the server returned for
+  // this team. Fits first, then unsized, then the wrong sizes — the same order
+  // the server uses, applied here because this picker is scoped to one venue.
+  const sizeById = new Map<number, TeamField>(
+    (teamFields?.fields ?? []).map(f => [f.id, f])
+  );
+  const rank = (id: number): number => {
+    const match = sizeById.get(id)?.size_match;
+    if (match === true) return 0;
+    if (match === false) return 2;
+    return 1;
+  };
+  const orderedFields = [...fields].sort((a, b) => rank(a.id) - rank(b.id));
+  const hint = fitHint(teamFields);
+  const showGroups = Boolean(
+    hint && orderedFields.some(f => sizeById.get(f.id)?.size_match === true || sizeById.get(f.id)?.size_match === false)
+  );
+  const fitsFields = orderedFields.filter(f => sizeById.get(f.id)?.size_match === true);
+  const unsizedFields = orderedFields.filter(f => {
+    const m = sizeById.get(f.id)?.size_match;
+    return m !== true && m !== false;
+  });
+  const otherFields = orderedFields.filter(f => sizeById.get(f.id)?.size_match === false);
+  const fieldLabel = (f: Field): string => {
+    const size = sizeById.get(f.id)?.field_size;
+    return size ? `${f.name} (${size})` : f.name;
+  };
+  const sizeWarning = mismatchWarning(teamFields, selectedField);
 
   const fetchVenues = async () => {
     try {
@@ -453,12 +513,41 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                       disabled={!selectedVenue}
                     >
                       <option value="">Select a field...</option>
-                      {fields.map(field => (
-                        <option key={field.id} value={field.id}>
-                          {field.name}
-                        </option>
-                      ))}
+                      {showGroups ? (
+                        <>
+                          {fitsFields.length > 0 && (
+                            <optgroup label={`Fields that ${hint}`}>
+                              {fitsFields.map(field => (
+                                <option key={field.id} value={field.id}>{fieldLabel(field)}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {unsizedFields.length > 0 && (
+                            <optgroup label="No size recorded">
+                              {unsizedFields.map(field => (
+                                <option key={field.id} value={field.id}>{fieldLabel(field)}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {otherFields.length > 0 && (
+                            <optgroup label="Other sizes">
+                              {otherFields.map(field => (
+                                <option key={field.id} value={field.id}>{fieldLabel(field)}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </>
+                      ) : (
+                        orderedFields.map(field => (
+                          <option key={field.id} value={field.id}>
+                            {fieldLabel(field)}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {sizeWarning && (
+                      <p className="text-sm text-amber-700 mt-1">{sizeWarning}</p>
+                    )}
                   </div>
                 </div>
 

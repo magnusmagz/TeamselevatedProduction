@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
+import { FIELD_SIZES } from '../utils/fieldSize';
 // VenueManagement component with address search
 
 interface Field {
@@ -9,6 +10,14 @@ interface Field {
   dimensions: string;
   has_lights: boolean;
   status: 'available' | 'maintenance' | 'closed';
+  /**
+   * Playing format (migration 088). '' means nobody has recorded one, which is
+   * a real answer and the state every existing field starts in — the scheduling
+   * pickers list an unsized field normally rather than hiding it. The backend
+   * normalises '' to NULL; writing it raw violates the CHECK constraint and
+   * rolls back the whole facility save.
+   */
+  field_size?: string;
 }
 
 interface Venue {
@@ -136,7 +145,8 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     surface_type: 'Grass',
     dimensions: '',
     has_lights: false,
-    status: 'available'
+    status: 'available',
+    field_size: ''
   });
 
   const fetchVenues = useCallback(async () => {
@@ -226,7 +236,8 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         surface_type: 'Grass',
         dimensions: '',
         has_lights: false,
-        status: 'available'
+        status: 'available',
+        field_size: ''
       });
     }
   };
@@ -1207,6 +1218,23 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div>
+                    <label className="block text-brand-primary text-sm font-medium mb-1">Field Size</label>
+                    <select
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
+                      value={newField.field_size || ''}
+                      onChange={(e) => setNewField({ ...newField, field_size: e.target.value })}
+                    >
+                      <option value="">Not recorded</option>
+                      {FIELD_SIZES.map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Steers teams to the right pitch when scheduling. Leave blank if you do not track it.
+                    </p>
+                  </div>
+
+                  <div>
                     <label className="block text-brand-primary text-sm font-medium mb-1">Status</label>
                     <select
                       className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 focus:outline-none focus:border-brand-accent"
@@ -1254,6 +1282,7 @@ const VenueForm: React.FC<{
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Type</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Surface</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Size</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Field Size</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Lights</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Status</th>
                         <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Actions</th>
@@ -1266,6 +1295,7 @@ const VenueForm: React.FC<{
                           <td className="px-4 py-2 text-brand-primary">{field.field_type}</td>
                           <td className="px-4 py-2 text-brand-primary">{field.surface_type}</td>
                           <td className="px-4 py-2 text-brand-primary">{field.dimensions || '-'}</td>
+                          <td className="px-4 py-2 text-brand-primary">{field.field_size || '-'}</td>
                           <td className="px-4 py-2 text-brand-primary">{field.has_lights ? 'Yes' : 'No'}</td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-1 text-xs font-semibold uppercase ${

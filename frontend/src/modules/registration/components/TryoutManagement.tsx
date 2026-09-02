@@ -84,6 +84,15 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   const [teams, setTeams] = useState<{ id: number; name: string; age_group?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // R84: the backend narrows a COACH to the age groups they coach. Three bits
+  // of state, because "your U12s" and "the whole club" must be distinguishable
+  // on screen — a filtered list with nothing saying so is indistinguishable
+  // from a thin turnout, which is the report that started this.
+  // `narrowed` is what the server actually did, not what we asked for.
+  const [showAllAgeGroups, setShowAllAgeGroups] = useState(false);
+  const [narrowed, setNarrowed] = useState(false);
+  const [narrowedAgeGroups, setNarrowedAgeGroups] = useState<string[]>([]);
+
   // Coach invites (CKU R86, slice 8.2). `unavailable` is a THIRD state, not an
   // empty list: migration 087 is applied to Neon by hand and `main` is shared,
   // so this UI reaches production before the table exists and the endpoint
@@ -105,18 +114,41 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [programId, activeTab, clubId]);
+  }, [programId, activeTab, clubId, showAllAgeGroups]);
+
+  /**
+   * ⚠️ Reads BOTH shapes. This endpoint returned a bare ARRAY until 2026-09-02
+   * and now returns `{registrations, narrowed, age_groups}`. `main` is shared
+   * and the two deploys are separate pushes, so for a window the live bundle
+   * and the live backend disagree — and a PWA tab can outlive both. An array
+   * means an older backend, which did no narrowing, so `narrowed` is false.
+   */
+  const applyRegistrationsPayload = (payload: any) => {
+    if (Array.isArray(payload)) {
+      setRegistrations(payload);
+      setNarrowed(false);
+      setNarrowedAgeGroups([]);
+      return;
+    }
+    setRegistrations(Array.isArray(payload?.registrations) ? payload.registrations : []);
+    setNarrowed(payload?.narrowed === true);
+    setNarrowedAgeGroups(Array.isArray(payload?.age_groups) ? payload.age_groups : []);
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
       if (activeTab === 'registrations' || activeTab === 'evaluations') {
         const [regRes, sessRes, critRes] = await Promise.all([
-          fetch(`${API_URL}/registration/tryouts-api.php?path=registrations&program_id=${programId}`, { headers: tryoutAuthHeaders() }),
+          fetch(
+            `${API_URL}/registration/tryouts-api.php?path=registrations&program_id=${programId}` +
+              (showAllAgeGroups ? '&all=1' : ''),
+            { headers: tryoutAuthHeaders() }
+          ),
           fetch(`${API_URL}/registration/tryouts-api.php?path=sessions&program_id=${programId}`),
           fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`, { headers: tryoutAuthHeaders() })
         ]);
-        setRegistrations(await regRes.json());
+        applyRegistrationsPayload(await regRes.json());
         setSessions(await sessRes.json());
         setCriteria(await critRes.json());
         await loadCoachInvites();
@@ -419,6 +451,39 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                       {filteredRegistrations.length} athletes
                     </div>
                   </div>
+                  {/*
+                    R84. A narrowed list must SAY it is narrowed — otherwise a
+                    coach reads "4 athletes" as the club's whole turnout. The
+                    opt-out is here rather than hidden, because the director
+                    does ask a coach to cover another group.
+                  */}
+                  {narrowed && (
+                    <div className="mt-3 text-sm text-gray-700">
+                      Showing{' '}
+                      {narrowedAgeGroups.length > 0
+                        ? `${narrowedAgeGroups.join(', ')} only — the age groups you coach.`
+                        : 'nothing: you are not assigned to a team, so no age group matches.'}{' '}
+                      <button
+                        type="button"
+                        className="underline text-brand-primary"
+                        onClick={() => setShowAllAgeGroups(true)}
+                      >
+                        Show all age groups
+                      </button>
+                    </div>
+                  )}
+                  {!narrowed && showAllAgeGroups && (
+                    <div className="mt-3 text-sm text-gray-700">
+                      Showing every age group in this tryout.{' '}
+                      <button
+                        type="button"
+                        className="underline text-brand-primary"
+                        onClick={() => setShowAllAgeGroups(false)}
+                      >
+                        Back to my age groups
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

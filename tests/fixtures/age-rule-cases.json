@@ -1,0 +1,146 @@
+[
+  {
+    "note": "Season boundary, day before: 31 Jul is still the season named for this year.",
+    "dob": "2014-06-15",
+    "on_date": "2026-07-31",
+    "season_year": 2026,
+    "age_group": "U12",
+    "age_years": 12
+  },
+  {
+    "note": "Season boundary, first day: 1 Aug rolls the season year, so the group moves up while the age does not.",
+    "dob": "2014-06-15",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": "U13",
+    "age_years": 12
+  },
+  {
+    "note": "1 Jan birthday read mid-season. Reading the DOB via a UTC Date rolls this to 31 Dec 2014 and answers U10.",
+    "dob": "2015-01-01",
+    "on_date": "2026-07-31",
+    "season_year": 2026,
+    "age_group": "U11",
+    "age_years": 11
+  },
+  {
+    "note": "1 Jan birthday ON 1 Jan: the birthday has happened, so the age ticks over that day.",
+    "dob": "2015-01-01",
+    "on_date": "2026-01-01",
+    "season_year": 2026,
+    "age_group": "U11",
+    "age_years": 11
+  },
+  {
+    "note": "New Year's Eve of the same season: the group is unchanged from 1 Jan, the age is one lower.",
+    "dob": "2015-01-01",
+    "on_date": "2025-12-31",
+    "season_year": 2026,
+    "age_group": "U11",
+    "age_years": 10
+  },
+  {
+    "note": "Leap day, on 28 Feb of a non-leap year: the birthday has not happened yet.",
+    "dob": "2016-02-29",
+    "on_date": "2026-02-28",
+    "season_year": 2026,
+    "age_group": "U10",
+    "age_years": 9
+  },
+  {
+    "note": "Leap day, on 1 Mar of a non-leap year: the birthday has passed.",
+    "dob": "2016-02-29",
+    "on_date": "2026-03-01",
+    "season_year": 2026,
+    "age_group": "U10",
+    "age_years": 10
+  },
+  {
+    "note": "Leap day across the season boundary.",
+    "dob": "2016-02-29",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": "U11",
+    "age_years": 10
+  },
+  {
+    "note": "Quarter-boundary first: 1 Apr, on the season boundary.",
+    "dob": "2013-04-01",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": "U14",
+    "age_years": 13
+  },
+  {
+    "note": "Quarter-boundary first: 1 Jul, on the last day of the season.",
+    "dob": "2013-07-01",
+    "on_date": "2026-07-31",
+    "season_year": 2026,
+    "age_group": "U13",
+    "age_years": 13
+  },
+  {
+    "note": "Quarter-boundary first: 1 Oct, before the birthday.",
+    "dob": "2013-10-01",
+    "on_date": "2026-07-31",
+    "season_year": 2026,
+    "age_group": "U13",
+    "age_years": 12
+  },
+  {
+    "note": "Quarter-boundary first: 1 Oct, on the birthday, inside the rolled season year.",
+    "dob": "2013-10-01",
+    "on_date": "2026-10-01",
+    "season_year": 2027,
+    "age_group": "U14",
+    "age_years": 13
+  },
+  {
+    "note": "Last day of the calendar year: the season year is already the next one.",
+    "dob": "2013-01-01",
+    "on_date": "2026-12-31",
+    "season_year": 2027,
+    "age_group": "U14",
+    "age_years": 13
+  },
+  {
+    "note": "Born on 1 Aug, evaluated on 31 Jul: neither the season nor the birthday has turned over.",
+    "dob": "2015-08-01",
+    "on_date": "2026-07-31",
+    "season_year": 2026,
+    "age_group": "U11",
+    "age_years": 10
+  },
+  {
+    "note": "Born 31 Jul, evaluated 1 Aug: both have turned over.",
+    "dob": "2015-07-31",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": "U12",
+    "age_years": 11
+  },
+  {
+    "note": "Youngest group in range: U5 is still a label.",
+    "dob": "2022-08-01",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": "U5",
+    "age_years": 4
+  },
+  {
+    "note": "Below the clamp: U3 is not a label. The age is still a real answer.",
+    "dob": "2024-01-01",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": null,
+    "age_years": 2
+  },
+  {
+    "note": "Above the clamp: an adult DOB has no U-group, and must not render as U37.",
+    "dob": "1990-05-20",
+    "on_date": "2026-08-01",
+    "season_year": 2027,
+    "age_group": null,
+    "age_years": 36
+  }
+]
