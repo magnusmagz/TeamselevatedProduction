@@ -32,6 +32,15 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Guardian identity resolver + parent-portal empty state (Heroku v568, Netlify `977dc0d`)
+
+Parent standing now resolves through `lib/guardian_identity.php` (user_guardians links UNION
+the email match) at sixteen PHP sites — six more than the identity plan listed, four of them
+still case-sensitive after the 08-18 sweep (documents-gateway hid a parent's own child's
+documents on one capital letter). Strictly wider: no account can have lost access. A family
+whose account resolves to no athletes now sees "No athletes connected yet" with the email they
+signed in with, instead of a blank portal. Chat server and the admin connect tool follow.
+
 ### Scheduled broadcasts dispatch, dark (Heroku v567) — migration 083 applied
 
 `broadcast_campaigns.body / html_body / event_id / failure_reason` applied 14:09 PT via
