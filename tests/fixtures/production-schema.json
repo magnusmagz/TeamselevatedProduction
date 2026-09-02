@@ -638,7 +638,8 @@
     "social_linkedin",
     "logo_png",
     "logo_w",
-    "logo_h"
+    "logo_h",
+    "org_unit_id"
   ],
   "coach_notes": [
     "id",
@@ -1220,6 +1221,17 @@
     "data",
     "read_at",
     "created_at"
+  ],
+  "org_units": [
+    "id",
+    "parent_id",
+    "type",
+    "name",
+    "external_code",
+    "path",
+    "depth",
+    "created_at",
+    "updated_at"
   ],
   "payment_allocations": [
     "id",
@@ -1940,6 +1952,17 @@
     "confidence",
     "linked_by",
     "created_at"
+  ],
+  "user_org_access": [
+    "id",
+    "user_id",
+    "org_unit_id",
+    "role",
+    "granted_at",
+    "granted_by",
+    "revoked_at",
+    "revoked_by",
+    "active"
   ],
   "user_roles": [
     "id",

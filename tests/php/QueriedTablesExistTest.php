@@ -84,8 +84,6 @@ class QueriedTablesExistTest extends TestCase
         // and NOT yet applied to Neon. lib/org_scope.php probes for both tables
         // and every function degrades to today's club-only scope until it is.
         // Delete these two lines in the same commit as the fixture refresh.
-        'org_units' => '090_org_units.sql',
-        'user_org_access' => '090_org_units.sql',
     ];
 
     /**

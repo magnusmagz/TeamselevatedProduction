@@ -65,7 +65,6 @@ class SchemaConformanceTest extends TestCase
         // Migration 090 adds club_profile.org_unit_id (nullable; every existing
         // club leaves it NULL). Written and NOT yet applied to Neon. Delete this
         // line in the same commit as the fixture refresh.
-        'club_profile.org_unit_id' => '090_org_units.sql',
     ];
 
     /**
@@ -86,8 +85,6 @@ class SchemaConformanceTest extends TestCase
         // and NOT yet applied to Neon. lib/org_scope.php probes for both tables
         // and every function degrades to today's club-only scope until it is.
         // Delete these two lines in the same commit as the fixture refresh.
-        'org_units' => '090_org_units.sql',
-        'user_org_access' => '090_org_units.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */
