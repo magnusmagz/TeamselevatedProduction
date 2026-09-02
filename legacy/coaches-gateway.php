@@ -7,6 +7,7 @@ Cors::handle();
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 try {
     $db = Database::getInstance();
@@ -178,6 +179,9 @@ try {
                     VALUES (?, ?, 'coach', true, NOW())
                 ");
                 $stmt->execute([$coachId, $targetClub]);
+                // Five minutes of a stale cached context is five minutes of a
+                // coach who cannot see their own club.
+                te_role_cache_invalidate($coachId);
 
                 $connection->commit();
             } catch (Exception $e) {
