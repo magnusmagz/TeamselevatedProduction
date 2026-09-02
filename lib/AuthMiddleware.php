@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/impersonation.php';
+require_once __DIR__ . '/role_cache.php';
 
 class AuthMiddleware {
     private $payload;
@@ -17,6 +18,7 @@ class AuthMiddleware {
     private $orgType;
     private $roles;
     private $activeContext;
+    private $contextFromCache = false;
 
     /**
      * Validate JWT token and extract user context
@@ -73,21 +75,62 @@ class AuthMiddleware {
             return;
         }
         try {
-            require_once __DIR__ . '/../config/database.php';
-            $db = Database::getInstance()->getConnection();
             $tokenActive = $this->payload->active_context ?? null;
             $scopeId   = is_object($tokenActive) ? ($tokenActive->scope_id ?? null) : null;
             $scopeType = is_object($tokenActive) ? ($tokenActive->scope_type ?? null) : null;
 
-            $ctx = JWT::buildOrganizationalContext($db, $this->userId, $scopeId, $scopeType);
+            // G2: the scope-independent half (system role + every club role) is
+            // cached in Redis for TE_ROLE_CACHE_TTL seconds under
+            // te:ctx:v1:<user_id>. The active context is ALWAYS recomputed from
+            // this request's requested scope — two requests from the same user
+            // can ask for different clubs, so caching one of those answers would
+            // hand it to the other.
+            //
+            // A cache miss, a disabled switch, or no Redis at all all end up in
+            // the same place: the database. te_role_cache_* never throws.
+            $userId = $this->userId;
+            $roleSet = te_role_cache_resolve(
+                $userId,
+                // A closure, so a cache hit opens no database connection at all.
+                function () use ($userId) {
+                    require_once __DIR__ . '/../config/database.php';
+                    $db = Database::getInstance()->getConnection();
+                    return JWT::loadRoleSet($db, $userId);
+                },
+                $this->contextFromCache
+            );
+
+            $ctx = JWT::composeContext($roleSet, $scopeId, $scopeType);
             $this->systemRole    = $ctx['system_role'] ?? 'user';
             $this->orgId         = $ctx['org_id'] ?? null;
             $this->orgType       = $ctx['org_type'] ?? null;
             $this->roles         = $ctx['roles'] ?? [];
             $this->activeContext = $ctx['active_context'] ?? null;
         } catch (Exception $e) {
-            error_log("AuthMiddleware: role refresh failed, keeping token roles: " . $e->getMessage());
+            // The token was already signature-verified, so its roles are a safe
+            // last resort for a transient database blip.
+            //
+            // ⚠️ With TE_FEATURE_SLIM_TOKEN on, that fallback can be a TRUNCATED
+            // list (JWT::TOKEN_ROLE_CAP). This degrades access, never widens it,
+            // but it degrades it SILENTLY — so say so in the log, because the
+            // symptom is a user who inexplicably cannot see one of their clubs
+            // for the length of an outage.
+            $truncated = !empty($this->payload->roles_truncated);
+            error_log("AuthMiddleware: role refresh failed, keeping token roles"
+                . ($truncated ? " (TRUNCATED — this user's access is incomplete until the database returns)" : "")
+                . ": " . $e->getMessage());
         }
+    }
+
+    /**
+     * Whether this request's roles came from the Redis cache rather than the
+     * database. Diagnostics only — api/my-context.php reports it so a stale
+     * answer is explainable. Nothing may authorize on it.
+     *
+     * @return bool
+     */
+    public function contextCameFromCache() {
+        return (bool)$this->contextFromCache;
     }
 
     /**

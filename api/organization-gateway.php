@@ -15,6 +15,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -174,6 +175,7 @@ function handleCreateOrganization($conn, $input) {
                 'role' => $dbRole,
                 'club_profile_id' => $clubId
             ]);
+            te_role_cache_invalidate($userId);
         }
 
         // 5. Generate magic link for authentication

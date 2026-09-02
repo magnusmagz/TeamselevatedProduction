@@ -8,6 +8,8 @@
  * - RS256: Uses RSA private/public key pair
  */
 
+require_once __DIR__ . '/feature_flags.php';
+
 class JWT {
     private static $privateKey = null;
     private static $publicKey = null;
@@ -42,6 +44,26 @@ class JWT {
      * @return array Organizational context with roles and active context
      */
     public static function buildOrganizationalContext($connection, $userId, $activeContextScopeId = null, $activeContextType = null) {
+        return self::composeContext(
+            self::loadRoleSet($connection, $userId),
+            $activeContextScopeId,
+            $activeContextType
+        );
+    }
+
+    /**
+     * The DATABASE half of the organizational context: system role + every
+     * club-scoped role, in precedence order.
+     *
+     * Split out of buildOrganizationalContext() for G2 so it can be CACHED.
+     * What is in here is scope-independent — it does not depend on which club
+     * the request asked to be active — which is exactly the property that makes
+     * it cacheable per user. Everything that does depend on the requested scope
+     * lives in composeContext() and is recomputed on every request.
+     *
+     * @return array{system_role:string,roles:array<int,array>}
+     */
+    public static function loadRoleSet($connection, $userId) {
         // Get user's system role
         $stmt = $connection->prepare("SELECT system_role FROM users WHERE id = ?");
         $stmt->execute([$userId]);
@@ -104,17 +126,35 @@ class JWT {
         // assistant_coach/team_manager, gets a club-scoped 'coach' role for that
         // team's club. Skip clubs where the user already has any role from
         // user_club_access (admin/parent/etc takes precedence).
+        //
+        // ⚠️ This is a UNION of two USER-BOUNDED queries, not one LEFT JOIN, and
+        // that is the G2 change. The old form left-joined `team_members` onto the
+        // whole `teams` table and filtered afterwards, so every request by every
+        // user scanned every team on the platform — cost that grows with the
+        // product rather than with the person. Both branches here start from the
+        // user's own id.
+        //
+        // It is NOT bounded by the user's `user_club_access` clubs, which would
+        // be the obvious way to "scope" it and is wrong: the loop below SKIPS any
+        // club the user already holds a role in, so bounding to those clubs makes
+        // this entire derivation dead code. A coach whose only standing is a team
+        // membership (nine live accounts) would lose their role outright.
         $stmt = $connection->prepare("
-            SELECT DISTINCT t.club_id, c.name AS club_name
+            SELECT t.club_id AS club_id, c.name AS club_name
             FROM teams t
             JOIN club_profile c ON c.id = t.club_id
-            LEFT JOIN team_members tm
-                ON tm.team_id = t.id
-                AND tm.user_id = ?
-                AND tm.role IN ('assistant_coach', 'team_manager')
-                AND tm.status = 'active'
             WHERE t.deleted_at IS NULL
-              AND (t.primary_coach_id = ? OR tm.id IS NOT NULL)
+              AND t.primary_coach_id = ?
+            UNION
+            SELECT t.club_id AS club_id, c.name AS club_name
+            FROM teams t
+            JOIN club_profile c ON c.id = t.club_id
+            JOIN team_members tm ON tm.team_id = t.id
+            WHERE t.deleted_at IS NULL
+              AND tm.user_id = ?
+              AND tm.role IN ('assistant_coach', 'team_manager')
+              AND tm.status = 'active'
+            ORDER BY 1
         ");
         $stmt->execute([$userId, $userId]);
         $coachClubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -132,6 +172,23 @@ class JWT {
             ];
             $clubsWithRole[$clubId] = true;
         }
+
+        return [
+            'system_role' => $systemRole,
+            'roles' => $roles,
+        ];
+    }
+
+    /**
+     * The PURE half: pick the active context out of a role set and derive the
+     * backward-compatible org_* claims from it. No database access, so a cached
+     * role set and a freshly loaded one compose identically.
+     *
+     * @param array{system_role?:string,roles?:array} $roleSet
+     */
+    public static function composeContext(array $roleSet, $activeContextScopeId = null, $activeContextType = null) {
+        $systemRole = $roleSet['system_role'] ?? 'user';
+        $roles = $roleSet['roles'] ?? [];
 
         // Determine active context
         $activeContext = null;
@@ -158,7 +215,7 @@ class JWT {
         if ($activeContext) {
             $orgId = $activeContext['scope_id'];
             $orgType = $activeContext['scope_type'];
-            $orgName = $activeContext['scope_name'];
+            $orgName = $activeContext['scope_name'] ?? null;
         }
 
         return [
@@ -172,6 +229,77 @@ class JWT {
     }
 
     /**
+     * Roles kept inside the token when the diet is on.
+     *
+     * A slim role entry is ~55 bytes of JSON; the rest of the payload (identity,
+     * the standard claims, org_* and a full active_context) is ~450. 40 roles
+     * therefore lands a whole token around 3.4 KB, comfortably inside the 4 KB
+     * budget and far inside the router's header limit. See SlimTokenTest, which
+     * measures rather than trusts this arithmetic.
+     */
+    const TOKEN_ROLE_CAP = 40;
+
+    /**
+     * Shrink the organizational claims to something a 270-council admin can
+     * actually carry in an Authorization header.
+     *
+     * Two changes, both behind TE_FEATURE_SLIM_TOKEN:
+     *   - `scope_name` is dropped from every entry in `roles`. It is display
+     *     text; nothing in AuthMiddleware reads it. The frontend gets the names
+     *     from api/my-context.php.
+     *   - `roles` is capped at TOKEN_ROLE_CAP entries, and `roles_truncated`
+     *     is set when it was. The claim exists so the frontend can tell "this
+     *     user has 40 roles" from "this token is showing you 40 of 300" —
+     *     without it a picker would silently list a prefix.
+     *
+     * `active_context` is left INTACT, names and all: it is one object, the nav
+     * renders from it, and it is the one role that must never be the entry the
+     * cap threw away. For the same reason the active role is moved to the front
+     * of the kept slice.
+     *
+     * ⚠️ This does not weaken authorization. `requireAuth()` re-derives every
+     * role from the database on each request (SEC-11); the token's copy is a
+     * display convenience and a fallback for a database blip. `user_id` is
+     * untouched and still a STRING — see the id-type rule in CLAUDE.md.
+     */
+    public static function applyTokenDiet(array $claims) {
+        if (!te_feature_enabled('SLIM_TOKEN')) {
+            return $claims;
+        }
+        if (!isset($claims['roles']) || !is_array($claims['roles'])) {
+            return $claims;
+        }
+
+        $active = $claims['active_context'] ?? null;
+        $active = is_object($active) ? (array)$active : (is_array($active) ? $active : null);
+
+        $head = [];
+        $tail = [];
+        foreach ($claims['roles'] as $role) {
+            $role = is_object($role) ? (array)$role : (array)$role;
+            unset($role['scope_name']);
+            $isActive = $active !== null
+                && ($role['role'] ?? null) === ($active['role'] ?? null)
+                && ($role['scope_type'] ?? null) === ($active['scope_type'] ?? null)
+                && ($role['scope_id'] ?? null) == ($active['scope_id'] ?? null);
+            if ($isActive && empty($head)) {
+                $head[] = $role;
+            } else {
+                $tail[] = $role;
+            }
+        }
+
+        $slim = array_merge($head, $tail);
+        if (count($slim) > self::TOKEN_ROLE_CAP) {
+            $slim = array_slice($slim, 0, self::TOKEN_ROLE_CAP);
+            $claims['roles_truncated'] = true;
+        }
+        $claims['roles'] = array_values($slim);
+
+        return $claims;
+    }
+
+    /**
      * Generate a JWT token for authenticated user
      *
      * @param int|string $userId User's database ID
@@ -181,6 +309,14 @@ class JWT {
      * @return string Signed JWT token
      */
     public static function generate($userId, $email, $name, $additionalClaims = []) {
+        // G2 token diet. Applied HERE rather than in generateEnhanced() because
+        // generate() is the one choke point every mint site passes through —
+        // login, magic link, verify-session, switch-context and impersonate.
+        // Slimming only the login path would leave the very next verify-session
+        // (which runs on every page load) re-minting the fat token, which is
+        // the same as not doing it at all.
+        $additionalClaims = self::applyTokenDiet($additionalClaims);
+
         $algorithm = getenv('JWT_ALGORITHM') ?: 'HS256';
         error_log("JWT::generate - Using algorithm: $algorithm");
 

@@ -17,6 +17,7 @@ require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/impersonation.php';
 require_once __DIR__ . '/../lib/org_scope.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 // Require authentication
 $auth = AuthMiddleware::requireAuth();
@@ -189,6 +190,7 @@ try {
             if ($stmt->fetch()) { badRequest('User already assigned to this club'); }
             $stmt = $pdo->prepare("INSERT INTO user_club_access (user_id, club_profile_id, role, active) VALUES (?, ?, ?, true)");
             $stmt->execute([$userId, $clubId, $role]);
+            te_role_cache_invalidate($userId);
             echo json_encode(['success' => true]);
             break;
 
@@ -643,6 +645,7 @@ function handleUpdateClubRole($pdo, $input) {
         WHERE user_id = ? AND club_profile_id = ? AND active = true
     ");
     $stmt->execute([$role, $userId, $clubId]);
+    te_role_cache_invalidate($userId);
 
     if ($stmt->rowCount() === 0) {
         throw new Exception('User club access not found');
@@ -661,6 +664,10 @@ function handleRemoveClubAccess($pdo, $userId, $clubId) {
         WHERE user_id = ? AND club_profile_id = ? AND active = true
     ");
     $stmt->execute([$userId, $clubId]);
+    // A REVOCATION. This is the invalidation that matters most: without it the
+    // removed user keeps the club for up to TE_ROLE_CACHE_TTL seconds, which
+    // would undo SEC-11's "revocation takes effect on the next request".
+    te_role_cache_invalidate($userId);
 
     if ($stmt->rowCount() === 0) {
         throw new Exception('User club access not found');

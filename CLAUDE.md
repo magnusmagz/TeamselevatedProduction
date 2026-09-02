@@ -527,6 +527,59 @@ it to allow something.
 - `AuthMiddleware::getImpersonator()` is where the real operator is recoverable — the
   refreshed DB context is all target.
 
+### Cached role context and the token diet — G2 (2026-09-02, both switches OFF in prod)
+Built on `feature/g2-token`. Two switches, both shipped set to `off`; unset means ON per
+`lib/feature_flags.php`, so **they must be explicitly set** — a dyno with neither var takes
+both changes.
+
+**`TE_FEATURE_ROLE_CACHE` — `lib/role_cache.php`, key `te:ctx:v1:<user_id>`, TTL 300s.**
+`refreshRolesFromDb()` re-derives every role from the database on EVERY request (SEC-11),
+which is what makes a revocation land on the next request. That property is kept; the
+derivation is cached.
+- **Only the scope-independent half is cached** (`system_role` + `roles`).
+  `JWT::loadRoleSet()` is the DB half, `JWT::composeContext()` the pure half, and the
+  active context is recomputed per request — two requests from the same user can ask for
+  different clubs, and caching one of those answers would hand it to the other.
+- **Every write to `user_club_access` calls `te_role_cache_invalidate($userId)`** — 11 sites
+  in 8 files. Five minutes of a stale role is five minutes of stale ACCESS, and the
+  revocation paths are exactly where that matters. `RoleCacheTest` SCANS for it; the bug
+  shape here is a write site that forgot, not a wrong function. Add the call, never an
+  exclusion.
+- **Redis down is never a failed request.** Every function swallows its own errors and
+  answers "no cache"; the caller falls through to the database. Invalidation runs even with
+  the switch off, so flipping it off and back on cannot resurrect a pre-revocation entry.
+- The coach derivation in `loadRoleSet()` is now a **UNION of two user-bounded queries**
+  instead of a LEFT JOIN over every team on the platform. ⚠️ It is deliberately NOT bounded
+  by the user's `user_club_access` clubs: the loop SKIPS clubs they already hold a role in,
+  so that bound would make the whole derivation dead code and delete every coach whose only
+  standing is a team membership.
+
+**`TE_FEATURE_SLIM_TOKEN` — `JWT::applyTokenDiet()`.** A GOTR national admin with a role in
+270 councils mints a ~40 KB token (measured: 50,497 bytes at 300 roles) that exceeds the
+router's header limit — they cannot sign in at all. With the switch on, `roles` loses
+`scope_name` and is capped at `JWT::TOKEN_ROLE_CAP` (40), with `roles_truncated: true` when
+it was: 300 roles → **3,647 bytes**.
+- **Applied in `JWT::generate()`, not `generateEnhanced()`** — generate() is the one choke
+  point every mint site passes through. Slimming only the login path leaves the next
+  `verify-session` (every page load) re-minting the fat token.
+- **`active_context` stays whole, names and all**, and the active role is moved to the front
+  of the kept slice so the cap cannot eat it.
+- **`user_id` is untouched and still a STRING.** **This does not weaken authorization** —
+  `requireAuth()` re-derives roles from the DB. ⚠️ The one real cost: if the DB is
+  unreachable, the fallback to the token's roles is now a truncated list. It degrades
+  access, never widens it, and `refreshRolesFromDb()` logs it loudly.
+- Full names are served by **`api/my-context.php`** (requireAuth, GET). `OrgContext.tsx`
+  reads `scope_name` when present and otherwise fetches that once and merges.
+- ⚠️ **Deploy order: frontend FIRST.** The live UI must read both shapes before the backend
+  can mint the new one.
+
+`ClubContextPicker` (staff nav, next to `ProfileMenu`) renders only when the user has more
+than one club, and switches via `OrgContext.switchToContext` → `AuthContext.switchContext` →
+`auth-gateway.php?action=switch-context`. ⚠️ That handler checks `user_club_access`
+directly, so a club reached only through a **derived** coach role answers 403 — the picker
+surfaces the refusal rather than looking like a dead button. Fixing it means editing
+`auth-gateway.php`, which is on the do-not-modify list.
+
 ### ⚠️ Reading an athlete and writing one are different permissions (2026-07-30)
 `AthleteScope` exposes two predicates and they are not interchangeable:
 

@@ -4,7 +4,13 @@ interface RoleContext {
   role: 'club_admin' | 'coach' | 'parent' | 'player';
   scope_type: 'club' | 'team';
   scope_id: number;
-  scope_name: string;
+  /**
+   * Dropped from `roles` by the G2 token diet (TE_FEATURE_SLIM_TOKEN); still
+   * present on `activeRole`. Optional because it genuinely is — see the
+   * senderId string/number bug for what a type that asserts something false
+   * costs. OrgContext backfills the names from api/my-context.php.
+   */
+  scope_name?: string;
 }
 
 interface Organization {
