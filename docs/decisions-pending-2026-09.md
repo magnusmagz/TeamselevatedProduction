@@ -133,3 +133,26 @@ fallback, which still works.
   `te_link_guardian_on_accept($db, (int)$user['id'], null, $email)` inside try/catch, never fatal.
 - **Recommendation:** approve it as the one exception; it is a call-out, not a change to auth.
 - **If left:** phase 4.5 (retiring the email match) cannot complete for invited families.
+
+### 14. Uploaded documents: block the folder now, or stream through an authenticated endpoint? (2026-09-02)
+Audit finding: `api/upload.php` writes to the dyno's local disk, which is wiped on every restart
+or deploy, and Apache serves `/uploads/` as static files — no login, no ownership check — for
+as long as they exist. Any file uploaded through the Club Document Center is gone within a day
+and readable by anyone with the URL until then. Most real rows are probably "Paste link"
+(Google Drive), which is why nobody noticed.
+- **Options:** (a) do Phase 5 durable storage now (S3 bucket + key from you) and serve every
+  download through an authenticated endpoint that checks the document predicate; (b) until then,
+  block `/uploads/` in `.htaccess` and hide the Upload tab so only links are offered.
+- **Recommendation:** (b) this week, (a) next — Phase 5 is also a prerequisite for GOTR uploads.
+  Needs the bucket and key from you for (a).
+- **If left:** uploads keep silently disappearing and are public while they exist.
+
+### 15. `document_acknowledgments`: build the signing flow or drop the table (2026-09-02)
+The table exists in production (signature, IP, expiry) and zero code reads or writes it. Same
+pattern as the consent checkbox removed on 07-30: the schema asserts signing and stores none.
+`is_required` is a badge that blocks nothing; `expires_at` is a badge with no reminder.
+- **Options:** (a) build acknowledge/sign into the GOTR compliance work (G3/G4) as the proof
+  path for "attested" requirements, with reminders; (b) drop the table and the badges until then.
+- **Recommendation:** (a). It is the coach-side surface the audit found missing, and G4 builds
+  it anyway. Until G4 the badge copy should say "required" without implying enforcement.
+- **If left:** the club page keeps showing "required" and "expires" labels that do nothing.

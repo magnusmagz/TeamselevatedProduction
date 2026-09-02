@@ -123,13 +123,14 @@ Chat server sweep is part of 4.1 (separate subtree deploy).
 
 ---
 
-## Phase 5 — Durable photo storage (R15, R72, R87)
+## Phase 5 — Durable photo AND document storage (R15, R72, R87) — PROMOTED 2026-09-02: the documents audit found uploads vanish on restart and are public while they exist (decision 14); GOTR G4 depends on it
 
 The urgent half is storage; crop and bulk come after.
 
 | # | Slice | Test | Rollback |
 |---|---|---|---|
-| 5.1 | `lib/PhotoStorage.php` with `local` and `s3` drivers selected by `PHOTO_STORAGE_DRIVER`. There is exactly one write point today (`api/upload.php:119`) serving athlete, coach, match-card, tournament and document uploads, so this is one file to change. | driver contract test on both; scan: no `move_uploaded_file` outside the lib | flip the var back to `local` |
+| 5.0 | Documents coherence fixes from the 2026-09-02 audit (branch `fix/documents-coherence`): `expiring`/`for-target` gates, cross-club assignment validation, the coach picker calling a non-existent action, route guards, false-empty on the parent page, dead tree removed | `DocumentsGatewayScopeTest` + jest | revert |
+| 5.1 | `lib/PhotoStorage.php` with `local` and `s3` drivers, **plus an authenticated download endpoint** that checks `userCanReadDocument` and streams — `/uploads/` stops being static selected by `PHOTO_STORAGE_DRIVER`. There is exactly one write point today (`api/upload.php:119`) serving athlete, coach, match-card, tournament and document uploads, so this is one file to change. | driver contract test on both; scan: no `move_uploaded_file` outside the lib | flip the var back to `local` |
 | 5.2 | One-off migrate script for photos that still exist on disk (most will not) | dry-run count matches | n/a |
 | 5.3 | Coach photos on the same path | same test | same |
 | 5.4 | Crop/resize client-side; bulk upload by athlete id or jersey number | jest + import strategy test | frontend revert |

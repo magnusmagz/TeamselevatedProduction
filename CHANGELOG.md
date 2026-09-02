@@ -32,6 +32,16 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Documents audit — prod state discovered
+
+Migration 032 (`documents`, `document_assignments`, `document_acknowledgments`) and the archive
+of `club_documents` are applied to Neon (present in the fixture) with no entry here; date not
+recorded. `033_archive_club_documents.sql` (untracked) and `036_archive_club_documents.sql`
+(tracked, self-labelled 035) are the same file. `document_acknowledgments` has never been written
+to. Files uploaded through the Club Document Center land on the dyno's local disk and do not
+survive a restart; rows created with the Upload tab hold dead absolute URLs. Decisions 14, 15.
+
+
 ### Assign coaches to programs (Heroku v574, then Netlify) — migration 085 applied
 
 `program_staff` applied 15:1x PT via `scripts/apply-migration.php`; fixture refreshed (diff = one
