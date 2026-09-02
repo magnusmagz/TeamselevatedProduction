@@ -792,7 +792,8 @@ function handlePost($connection, $path, $auth) {
                 ");
                 $stmt->execute([
                     $data['registration_id'],
-                    $data['evaluator_id'],
+                    // The evaluator is the signed-in coach, never a body field (decision 10).
+                    (int) $auth->getUserId(),
                     $data['session_id'] ?? null,
                     json_encode($data['scores']),
                     $overall_score,

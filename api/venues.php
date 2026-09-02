@@ -155,98 +155,11 @@ try {
             break;
 
         case 'PUT':
-            if (isset($uri_parts[4]) && is_numeric($uri_parts[4])) {
-                $venue_id = $uri_parts[4];
-
-                // AuthZ: writes require a valid token and ownership of the venue's club.
-                $auth = AuthMiddleware::requireAuth();
-                $own = $db->prepare("SELECT club_id FROM venues WHERE id = ?");
-                $own->execute([$venue_id]);
-                $ownRow = $own->fetch(PDO::FETCH_ASSOC);
-                if (!$ownRow) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'Venue not found']);
-                    exit();
-                }
-                if (!$auth->canAccessClub((int) ($ownRow['club_id'] ?? 0))) {
-                    http_response_code(403);
-                    echo json_encode(['error' => 'Not authorized for this facility']);
-                    exit();
-                }
-
-                $data = json_decode(file_get_contents("php://input"), true);
-
-                $db->beginTransaction();
-
-                try {
-                    // Update venue
-                    $stmt = $db->prepare("
-                        UPDATE venues
-                        SET name = ?, address = ?, city = ?, state = ?, zip_code = ?, map_url = ?, website = ?,
-                            maintenance_contact_name = ?, maintenance_contact_phone = ?, maintenance_contact_email = ?,
-                            emergency_contact_name = ?, emergency_contact_phone = ?, emergency_contact_email = ?,
-                            billing_contact_name = ?, billing_contact_phone = ?, billing_contact_email = ?,
-                            gm_contact_name = ?, gm_contact_phone = ?, gm_contact_email = ?
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([
-                        $data['name'],
-                        $data['address'],
-                        $data['city'] ?? null,
-                        $data['state'] ?? null,
-                        $data['zip_code'] ?? $data['zip'] ?? null,
-                        $data['map_url'] ?? null,
-                        $data['website'] ?? null,
-                        $data['maintenance_contact_name'] ?? null,
-                        $data['maintenance_contact_phone'] ?? null,
-                        $data['maintenance_contact_email'] ?? null,
-                        $data['emergency_contact_name'] ?? null,
-                        $data['emergency_contact_phone'] ?? null,
-                        $data['emergency_contact_email'] ?? null,
-                        $data['billing_contact_name'] ?? null,
-                        $data['billing_contact_phone'] ?? null,
-                        $data['billing_contact_email'] ?? null,
-                        $data['gm_contact_name'] ?? null,
-                        $data['gm_contact_phone'] ?? null,
-                        $data['gm_contact_email'] ?? null,
-                        $venue_id
-                    ]);
-
-                    // Delete existing fields
-                    $stmt = $db->prepare("DELETE FROM fields WHERE venue_id = ?");
-                    $stmt->execute([$venue_id]);
-
-                    // Insert new fields
-                    if (!empty($data['fields'])) {
-                        $field_stmt = $db->prepare("
-                            INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ");
-
-                        foreach ($data['fields'] as $field) {
-                            $field_stmt->execute([
-                                $venue_id,
-                                $field['name'],
-                                $field['field_type'] ?? 'Soccer',
-                                $field['surface_type'] ?? $field['surface'] ?? 'Grass',
-                                $field['dimensions'] ?? $field['size'] ?? null,
-                                $field['has_lights'] ?? $field['lights'] ?? false,
-                                $field['status'] ?? 'available'
-                            ]);
-                        }
-                    }
-
-                    $db->commit();
-
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Venue updated successfully'
-                    ]);
-                } catch (Exception $e) {
-                    $db->rollBack();
-                    throw $e;
-                }
-            }
+            // Stale duplicate of legacy/venues-gateway.php PUT, which the Facilities page
+            // calls and which writes every field. This one dropped gate_code, lat/lng and
+            // the medical coordinator. Nothing called it (audit 2026-09-02); refused now.
+            http_response_code(405);
+            echo json_encode(['error' => 'Use legacy/venues-gateway.php to edit a facility']);
             break;
 
         case 'DELETE':
