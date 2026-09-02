@@ -10,6 +10,10 @@ import {
 import EvaluationModal from './EvaluationModal';
 import { useOrg } from '../../../contexts/OrgContext';
 
+const tryoutAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
 interface TryoutManagementProps {
   programId: number;
   programName: string;
@@ -55,9 +59,9 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     try {
       if (activeTab === 'registrations' || activeTab === 'evaluations') {
         const [regRes, sessRes, critRes] = await Promise.all([
-          fetch(`${API_URL}/registration/tryouts-api.php?path=registrations&program_id=${programId}`),
+          fetch(`${API_URL}/registration/tryouts-api.php?path=registrations&program_id=${programId}`, { headers: tryoutAuthHeaders() }),
           fetch(`${API_URL}/registration/tryouts-api.php?path=sessions&program_id=${programId}`),
-          fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`)
+          fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`, { headers: tryoutAuthHeaders() })
         ]);
         setRegistrations(await regRes.json());
         setSessions(await sessRes.json());
@@ -65,7 +69,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
       } else if (activeTab === 'rankings') {
         const token = localStorage.getItem('auth_token');
         const [rankRes, teamsRes] = await Promise.all([
-          fetch(`${API_URL}/registration/tryouts-api.php?path=rankings&program_id=${programId}`),
+          fetch(`${API_URL}/registration/tryouts-api.php?path=rankings&program_id=${programId}`, { headers: tryoutAuthHeaders() }),
           fetch(`${API_URL}/legacy/teams-gateway.php?club_id=${clubId ?? ''}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
@@ -74,7 +78,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
         const teamsData = await teamsRes.json();
         setTeams(teamsData.teams || []);
       } else if (activeTab === 'offers') {
-        const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=offers&program_id=${programId}`);
+        const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=offers&program_id=${programId}`, { headers: tryoutAuthHeaders() });
         setOffers(await res.json());
       }
     } catch (error) {
@@ -88,7 +92,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     try {
       const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=check-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           registration_id: registrationId,
           tryout_number: tryoutNumber
@@ -107,7 +111,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     try {
       const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=send-offers`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           offers: selectedIds.map(id => ({
             registration_id: id,
@@ -130,7 +134,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     try {
       const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=update-offer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           offer_id: offerId,
           response
@@ -149,7 +153,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     try {
       const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=add-to-roster`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           registration_id: registrationId,
           team_id: teamId

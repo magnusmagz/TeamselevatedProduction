@@ -1,4 +1,277 @@
 <?php
+/**
+ * Tryouts API — sessions, evaluation criteria, registrations, evaluations,
+ * rankings and offers for a tryout program.
+ *
+ * ⚠️ Until 2026-09-02 this file performed NO authentication of ANY kind. Every
+ * ?path= on every method was reachable from the internet with no token:
+ *
+ *     GET    ?path=registrations&program_id=N   every registrant's name, DOB, gender
+ *     GET    ?path=rankings&program_id=N        scores and rankings
+ *     POST   ?path=send-offers                  offered/waitlisted/cut an athlete
+ *     POST   ?path=add-to-roster                put an athlete on a team
+ *     POST   ?path=create                       created a program (club 1 by default)
+ *     DELETE ?path=evaluations&id=N             deleted an evaluation by integer id
+ *
+ * Nothing upstream authenticates for this file — it is reached directly, not
+ * through index.php, which has no auth layer either. Same lesson as
+ * legacy/guardian-gateway.php and AthleteController: the absence of a UI is not
+ * an access control, and a handler's auth is the handler's own to write.
+ *
+ * Exactly ONE path is public: GET ?path=sessions. The public tryout registration
+ * page (frontend/src/modules/registration/pages/PublicTryoutRegistration.tsx:63)
+ * renders a program's session list to families who have no account, and that is
+ * the only tryouts-api call that page makes. Everything else requires a token
+ * AND club staff standing in the club that owns the program being touched.
+ *
+ * The club is resolved from the DATABASE, from the id in the request — never
+ * from the request body. `create` is the one path with no program to resolve
+ * from, so it reads club_id from the body and is club-admin only; it used to
+ * default to `?? 1`, which silently planted programs in club 1.
+ *
+ * ⚠️ DEPLOY ORDERING: as of this change, TryoutManagement.tsx, EvaluationModal.tsx
+ * and TryoutCreationWizard.tsx send NO Authorization header on any tryouts-api
+ * call. Only ProgramScheduleBuilder.tsx does. The frontend must ship those
+ * headers BEFORE this file reaches Heroku, or the Tryouts tabs 401.
+ */
+
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/club_standing.php';
+
+// ============================================
+// SCOPE HELPERS
+//
+// Kept above the TE_TRYOUTS_LIB_ONLY guard so a test can load them without a
+// database connection, CORS, or the request dispatch below.
+// ============================================
+
+/** Refuse with a JSON body and stop. */
+function tryout_refuse(int $status, string $error): void
+{
+    http_response_code($status);
+    echo json_encode(['error' => $error]);
+    exit;
+}
+
+/**
+ * The club that owns a program, or null when the program does not exist.
+ *
+ * A program that is not there is a 404, never a pass. Returning "no club known"
+ * and letting the handler run is how a scope check becomes a no-op for any id
+ * a caller cares to invent.
+ */
+function tryout_programClubId($connection, $programId): ?int
+{
+    $programId = (int) $programId;
+    if ($programId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT club_id FROM programs WHERE id = ?");
+    $stmt->execute([$programId]);
+    $clubId = $stmt->fetchColumn();
+
+    return ($clubId === false || $clubId === null) ? null : (int) $clubId;
+}
+
+/** registrations.program_id — the anchor for registration/evaluation/offer ids. */
+function tryout_programIdForRegistration($connection, $registrationId): ?int
+{
+    $registrationId = (int) $registrationId;
+    if ($registrationId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT program_id FROM registrations WHERE id = ?");
+    $stmt->execute([$registrationId]);
+    $programId = $stmt->fetchColumn();
+
+    return ($programId === false || $programId === null) ? null : (int) $programId;
+}
+
+/** tryout_sessions.program_id */
+function tryout_programIdForSession($connection, $sessionId): ?int
+{
+    $sessionId = (int) $sessionId;
+    if ($sessionId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT program_id FROM tryout_sessions WHERE id = ?");
+    $stmt->execute([$sessionId]);
+    $programId = $stmt->fetchColumn();
+
+    return ($programId === false || $programId === null) ? null : (int) $programId;
+}
+
+/**
+ * tryout_evaluation_criteria.program_id.
+ *
+ * The table is `tryout_evaluation_criteria`, not `tryout_criteria` — verified
+ * against tests/fixtures/production-schema.json. Only the ?path= is `criteria`.
+ */
+function tryout_programIdForCriterion($connection, $criterionId): ?int
+{
+    $criterionId = (int) $criterionId;
+    if ($criterionId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT program_id FROM tryout_evaluation_criteria WHERE id = ?");
+    $stmt->execute([$criterionId]);
+    $programId = $stmt->fetchColumn();
+
+    return ($programId === false || $programId === null) ? null : (int) $programId;
+}
+
+/** tryout_evaluations.registration_id -> registrations.program_id */
+function tryout_programIdForEvaluation($connection, $evaluationId): ?int
+{
+    $evaluationId = (int) $evaluationId;
+    if ($evaluationId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT registration_id FROM tryout_evaluations WHERE id = ?");
+    $stmt->execute([$evaluationId]);
+    $registrationId = $stmt->fetchColumn();
+
+    return ($registrationId === false || $registrationId === null)
+        ? null
+        : tryout_programIdForRegistration($connection, $registrationId);
+}
+
+/** tryout_offers.registration_id -> registrations.program_id */
+function tryout_programIdForOffer($connection, $offerId): ?int
+{
+    $offerId = (int) $offerId;
+    if ($offerId <= 0) {
+        return null;
+    }
+    $stmt = $connection->prepare("SELECT registration_id FROM tryout_offers WHERE id = ?");
+    $stmt->execute([$offerId]);
+    $registrationId = $stmt->fetchColumn();
+
+    return ($registrationId === false || $registrationId === null)
+        ? null
+        : tryout_programIdForRegistration($connection, $registrationId);
+}
+
+/**
+ * 'admin' | 'staff' | null — standing in one club, with no output and no exit.
+ *
+ * `te_is_club_staff` is club admin OR coach (lib/club_standing.php). Never
+ * `AuthMiddleware::canAccessClub()`: that is club MEMBERSHIP and a `parent` row
+ * satisfies it, which is exactly how handleClubParents handed every guardian in
+ * a club to any parent in it.
+ */
+function tryout_clubStanding($auth, int $clubId): ?string
+{
+    if (te_is_club_admin($auth, $clubId)) {
+        return 'admin';
+    }
+    if (te_is_club_staff($auth, $clubId)) {
+        return 'staff';
+    }
+
+    return null;
+}
+
+/**
+ * Standing in the club that owns $programId, or null for "no program" / "no
+ * standing". The testable form: no output, no exit.
+ */
+function tryout_clubStaffStanding($connection, $auth, $programId): ?string
+{
+    $clubId = tryout_programClubId($connection, $programId);
+    if ($clubId === null) {
+        return null;
+    }
+
+    return tryout_clubStanding($auth, $clubId);
+}
+
+/** Shared body of the two exit-wrappers. Returns the resolved club id. */
+function tryout_requireStanding($connection, $auth, $programId, bool $adminOnly): int
+{
+    $clubId = tryout_programClubId($connection, $programId);
+    if ($clubId === null) {
+        // Includes the case where an intermediate row (registration, session,
+        // criterion, evaluation, offer) did not resolve to a program.
+        tryout_refuse(404, 'Program not found');
+    }
+
+    $standing = tryout_clubStanding($auth, $clubId);
+    if ($standing === null || ($adminOnly && $standing !== 'admin')) {
+        tryout_refuse(403, 'You do not have access to this tryout');
+    }
+
+    return $clubId;
+}
+
+/**
+ * Club admin OR coach in the program's club.
+ *
+ * Every non-public path uses this one. To make a path club-admin only, pass
+ * `true` for $adminOnly above — but read the deploy note at the top of this file
+ * first: the Tryouts UI gives coaches every button on this API today, so
+ * narrowing one is a product decision, not a security fix.
+ */
+function tryout_requireClubStaff($connection, $auth, $programId): int
+{
+    return tryout_requireStanding($connection, $auth, $programId, false);
+}
+
+/**
+ * `create` has no program yet, so the club comes from the body — the one place
+ * that is unavoidable, and therefore the one place it must be required rather
+ * than defaulted. It used to be `$data['club_id'] ?? 1`.
+ */
+function tryout_requireClubAdminForClub($auth, $clubId): int
+{
+    if ($clubId === null || $clubId === '' || (int) $clubId <= 0) {
+        tryout_refuse(400, 'club_id is required');
+    }
+    // Staff, not admin-only: /program-management has no role gate and every coach
+    // sees "Create Tryout" today (App.tsx nav, TryoutManagement.tsx). Narrowing to
+    // te_is_club_admin is a product decision, not a security fix — one token here.
+    if (!te_is_club_staff($auth, (int) $clubId)) {
+        tryout_refuse(403, 'You do not have access to this club');
+    }
+
+    return (int) $clubId;
+}
+
+/**
+ * A tryout offer names a team, and the team id is taken from the body. Refuse a
+ * team that belongs to a DIFFERENT club than the program.
+ *
+ * A team whose club_id is NULL passes deliberately: two live teams are in that
+ * state, and refusing them would break rostering for reasons unrelated to this
+ * change.
+ */
+function tryout_requireTeamInClub($connection, $teamId, int $clubId): void
+{
+    $teamId = (int) $teamId;
+    if ($teamId <= 0) {
+        tryout_refuse(400, 'team_id is required');
+    }
+    $stmt = $connection->prepare("SELECT club_id FROM teams WHERE id = ?");
+    $stmt->execute([$teamId]);
+    $teamClubId = $stmt->fetchColumn();
+
+    if ($teamClubId === false) {
+        tryout_refuse(404, 'Team not found');
+    }
+    if ($teamClubId !== null && (int) $teamClubId !== $clubId) {
+        tryout_refuse(403, 'That team belongs to a different club');
+    }
+}
+
+// Tests require this file for the scope helpers above. PHP early-binds top-level
+// functions, so returning here still defines handleGet/handlePost/handlePut/
+// handleDelete while skipping CORS, the headers, the request dispatch and the
+// Neon connect. Never defined in production — this must stay above everything
+// with a side effect. Same pattern as api/communications-gateway.php:15.
+if (defined('TE_TRYOUTS_LIB_ONLY')) {
+    return;
+}
+
 header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();
@@ -22,19 +295,26 @@ try {
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_GET['path'] ?? '';
 
+// The ONE public path. PublicTryoutRegistration.tsx renders a program's session
+// list to families who have no account (that page's only tryouts-api call).
+// Everything else authenticates here, before dispatch — requireAuth() exits 401
+// on its own, so there is no branch below that can forget to check.
+$isPublicSessionList = ($method === 'GET' && $path === 'sessions');
+$auth = $isPublicSessionList ? null : AuthMiddleware::requireAuth();
+
 try {
     switch ($method) {
         case 'GET':
-            handleGet($connection, $path);
+            handleGet($connection, $path, $auth);
             break;
         case 'POST':
-            handlePost($connection, $path);
+            handlePost($connection, $path, $auth);
             break;
         case 'PUT':
-            handlePut($connection, $path);
+            handlePut($connection, $path, $auth);
             break;
         case 'DELETE':
-            handleDelete($connection, $path);
+            handleDelete($connection, $path, $auth);
             break;
         default:
             http_response_code(405);
@@ -48,10 +328,13 @@ try {
 // ============================================
 // GET HANDLERS
 // ============================================
-function handleGet($connection, $path) {
+function handleGet($connection, $path, $auth) {
     switch ($path) {
         case 'sessions':
-            // Get sessions for a program
+            // PUBLIC — no auth. A family deciding whether to register needs the
+            // dates, times and locations, and has no account yet. Session rows
+            // carry no personal data. This is the only unauthenticated path in
+            // this file; do not add a second one without saying why here.
             $program_id = $_GET['program_id'] ?? 0;
             $stmt = $connection->prepare("
                 SELECT ts.id, ts.program_id, ts.name, ts.session_date, ts.start_time, ts.end_time,
@@ -69,6 +352,7 @@ function handleGet($connection, $path) {
         case 'criteria':
             // Get evaluation criteria for a program
             $program_id = $_GET['program_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, $program_id);
             $stmt = $connection->prepare("
                 SELECT * FROM tryout_evaluation_criteria
                 WHERE program_id = ?
@@ -79,8 +363,18 @@ function handleGet($connection, $path) {
             break;
 
         case 'registrations':
-            // Get tryout registrations with evaluation data
+            // Get tryout registrations with evaluation data.
+            // Returns every registrant's name, date of birth and gender, so this
+            // was the worst of the open reads.
             $program_id = $_GET['program_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, $program_id);
+            // TODO (Phase 6): CKU report R84 — a coach sees the whole club's
+            // tryout list, not just their own age group. The AUTHORIZATION half
+            // is fixed here (a coach must at least be staff in the owning club);
+            // narrowing a coach to their age group is NOT done, because the age
+            // rule is unresolved — frontend/src/utils/ageGroup.ts rolls the
+            // season year on Aug 1 while services/AgeEligibilityService.php uses
+            // the tournament start_date year. Pick one before filtering on it.
             $stmt = $connection->prepare("
                 SELECT
                     r.id,
@@ -118,6 +412,7 @@ function handleGet($connection, $path) {
         case 'evaluations':
             // Get evaluations for a registration
             $registration_id = $_GET['registration_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForRegistration($connection, $registration_id));
             $stmt = $connection->prepare("
                 SELECT
                     te.*,
@@ -141,6 +436,7 @@ function handleGet($connection, $path) {
         case 'rankings':
             // Get aggregated rankings for a program
             $program_id = $_GET['program_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, $program_id);
             $stmt = $connection->prepare("
                 SELECT
                     r.id,
@@ -172,6 +468,7 @@ function handleGet($connection, $path) {
         case 'offers':
             // Get offers for a program
             $program_id = $_GET['program_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, $program_id);
             $stmt = $connection->prepare("
                 SELECT
                     o.*,
@@ -199,12 +496,16 @@ function handleGet($connection, $path) {
 // ============================================
 // POST HANDLERS
 // ============================================
-function handlePost($connection, $path) {
+function handlePost($connection, $path, $auth) {
     $data = json_decode(file_get_contents("php://input"), true);
 
     switch ($path) {
         case 'create':
-            // Create tryout program with sessions and criteria
+            // Create tryout program with sessions and criteria.
+            // No program exists yet, so the club can only come from the body —
+            // which is why it must be REQUIRED and admin-gated rather than
+            // defaulted. It used to be `$data['club_id'] ?? 1`.
+            $club_id = tryout_requireClubAdminForClub($auth, $data['club_id'] ?? null);
             $connection->beginTransaction();
 
             try {
@@ -220,7 +521,7 @@ function handlePost($connection, $path) {
                     ) VALUES (?, ?, 'tryout', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
-                    $data['club_id'] ?? 1,
+                    $club_id,
                     $data['name'],
                     $data['description'] ?? null,
                     $data['start_date'] ?? null,
@@ -328,6 +629,7 @@ function handlePost($connection, $path) {
 
         case 'sessions':
             // Add a new session
+            tryout_requireClubStaff($connection, $auth, $data['program_id'] ?? 0);
             $stmt = $connection->prepare("
                 INSERT INTO tryout_sessions (program_id, name, session_date, start_time, end_time, location, venue_id, is_rain_date, age_group, gender)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -354,6 +656,7 @@ function handlePost($connection, $path) {
 
         case 'criteria':
             // Add or update evaluation criteria
+            tryout_requireClubStaff($connection, $auth, $data['program_id'] ?? 0);
             if (!empty($data['criteria'])) {
                 // Bulk update - delete existing and insert new
                 $connection->beginTransaction();
@@ -408,6 +711,7 @@ function handlePost($connection, $path) {
 
         case 'check-in':
             // Check in athlete at tryout with optional tryout number
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForRegistration($connection, $data['registration_id'] ?? 0));
             $tryoutNumber = $data['tryout_number'] ?? null;
 
             $stmt = $connection->prepare("
@@ -427,6 +731,7 @@ function handlePost($connection, $path) {
 
         case 'evaluate':
             // Submit coach evaluation
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForRegistration($connection, $data['registration_id'] ?? 0));
             $connection->beginTransaction();
             try {
                 // Get program_id for calculating score
@@ -472,7 +777,12 @@ function handlePost($connection, $path) {
             break;
 
         case 'send-offers':
-            // Batch send offers
+            // Batch send offers. Every offer is scoped on its OWN registration —
+            // the batch is a list of ids from the client, so checking the first
+            // one would let a second id in the same array reach another club.
+            foreach (($data['offers'] ?? []) as $offer) {
+                tryout_requireClubStaff($connection, $auth, tryout_programIdForRegistration($connection, $offer['registration_id'] ?? 0));
+            }
             $connection->beginTransaction();
             try {
                 $offer_stmt = $connection->prepare("
@@ -517,6 +827,7 @@ function handlePost($connection, $path) {
 
         case 'update-offer':
             // Update offer response (accepted/declined)
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForOffer($connection, $data['offer_id'] ?? 0));
             $connection->beginTransaction();
             try {
                 $stmt = $connection->prepare("
@@ -547,6 +858,10 @@ function handlePost($connection, $path) {
 
         case 'add-to-roster':
             // Add accepted athlete to team roster
+            $roster_club_id = tryout_requireClubStaff($connection, $auth, tryout_programIdForRegistration($connection, $data['registration_id'] ?? 0));
+            // team_id is taken from the body, so it needs its own check — staff
+            // standing in the program's club says nothing about a team elsewhere.
+            tryout_requireTeamInClub($connection, $data['team_id'] ?? 0, $roster_club_id);
             $connection->beginTransaction();
             try {
                 // Get athlete_id from registration
@@ -588,6 +903,7 @@ function handlePost($connection, $path) {
 
         case 'update-rankings':
             // Recalculate and update rankings for a program
+            tryout_requireClubStaff($connection, $auth, $data['program_id'] ?? 0);
             $stmt = $connection->prepare("
                 WITH ranked AS (
                     SELECT
@@ -618,13 +934,19 @@ function handlePost($connection, $path) {
 // ============================================
 // PUT HANDLERS
 // ============================================
-function handlePut($connection, $path) {
+function handlePut($connection, $path, $auth) {
     $data = json_decode(file_get_contents("php://input"), true);
     $id = $_GET['id'] ?? 0;
 
     switch ($path) {
         case 'update':
-            // Update tryout program with sessions and criteria
+            // Update tryout program with sessions and criteria.
+            // Staff, not admin, on purpose: TryoutCreationWizard's edit mode is
+            // reachable by any coach today (see the note at the top of this
+            // file), so narrowing it here would be a product change wearing a
+            // security fix's clothes. `create` is admin-only because it is the
+            // path that chooses a club_id.
+            tryout_requireClubStaff($connection, $auth, $id);
             $connection->beginTransaction();
 
             try {
@@ -725,6 +1047,7 @@ function handlePut($connection, $path) {
             break;
 
         case 'sessions':
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForSession($connection, $id));
             $stmt = $connection->prepare("
                 UPDATE tryout_sessions
                 SET name = ?, session_date = ?, start_time = ?, end_time = ?, location = ?, venue_id = ?, is_rain_date = ?, age_group = ?, gender = ?
@@ -746,6 +1069,7 @@ function handlePut($connection, $path) {
             break;
 
         case 'criteria':
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForCriterion($connection, $id));
             $stmt = $connection->prepare("
                 UPDATE tryout_evaluation_criteria
                 SET name = ?, description = ?, max_score = ?, weight = ?, display_order = ?
@@ -771,23 +1095,26 @@ function handlePut($connection, $path) {
 // ============================================
 // DELETE HANDLERS
 // ============================================
-function handleDelete($connection, $path) {
+function handleDelete($connection, $path, $auth) {
     $id = $_GET['id'] ?? 0;
 
     switch ($path) {
         case 'sessions':
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForSession($connection, $id));
             $stmt = $connection->prepare("DELETE FROM tryout_sessions WHERE id = ?");
             $stmt->execute([$id]);
             echo json_encode(['success' => true, 'message' => 'Session deleted']);
             break;
 
         case 'criteria':
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForCriterion($connection, $id));
             $stmt = $connection->prepare("DELETE FROM tryout_evaluation_criteria WHERE id = ?");
             $stmt->execute([$id]);
             echo json_encode(['success' => true, 'message' => 'Criterion deleted']);
             break;
 
         case 'evaluations':
+            tryout_requireClubStaff($connection, $auth, tryout_programIdForEvaluation($connection, $id));
             $stmt = $connection->prepare("DELETE FROM tryout_evaluations WHERE id = ?");
             $stmt->execute([$id]);
             echo json_encode(['success' => true, 'message' => 'Evaluation deleted']);
