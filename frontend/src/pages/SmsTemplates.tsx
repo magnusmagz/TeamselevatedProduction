@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   CATEGORY_META,
   OTHER_META,
@@ -112,10 +112,12 @@ const SmsTemplates: React.FC = () => {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const headers: Record<string, string> = {
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: Record<string, string> = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
-  };
+  }), [token]);
 
   const fetchTemplates = useCallback(async () => {
     if (!clubProfileId) return;
@@ -136,7 +138,7 @@ const SmsTemplates: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [clubProfileId, token]);
+  }, [clubProfileId, headers]);
 
   useEffect(() => {
     fetchTemplates();

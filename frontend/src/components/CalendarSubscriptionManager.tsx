@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface Subscription {
   id: number;
@@ -57,10 +57,12 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
   const [submitting, setSubmitting] = useState(false);
 
   const token = localStorage.getItem('auth_token');
-  const headers = {
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
-  };
+  }), [token]);
 
   const fetchSubscriptions = useCallback(async () => {
     try {
@@ -78,7 +80,7 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
     } finally {
       setLoading(false);
     }
-  }, [clubId, teamId]);
+  }, [clubId, teamId, headers]);
 
   useEffect(() => {
     fetchSubscriptions();

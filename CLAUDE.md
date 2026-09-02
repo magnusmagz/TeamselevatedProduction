@@ -177,13 +177,16 @@ sync"). Emails and SMS actually send in production.
   follows PSR-4 autoloading
 - ⚠️ **The frontend has a lint ratchet, and the number only goes DOWN.** `npm run lint:ci` runs in
   the Netlify build ahead of `CI=false npm run build`, and fails if the warning count exceeds the
-  `--max-warnings` ceiling in `frontend/package.json` (**74** as of 2026-07-30, all
+  `--max-warnings` ceiling in `frontend/package.json` (**50** as of 2026-09-02, mostly
   `react-hooks/exhaustive-deps`). If your change pushes it up, fix the warning — raising the ceiling
   to ship is a deliberate decision to undo promptly, not a routine step, and `main` is shared so a
-  failing lint blocks everyone's deploy. Rationale, scope and how to work the remaining 74 are in
+  failing lint blocks everyone's deploy. Rationale, scope and how to work the remaining 50 are in
   `frontend/LINTING.md`. Do **not** "simplify" this by flipping the build to `CI=true`: that
-  promotes all 74 known warnings to errors and no deploy ever succeeds again — which is precisely
+  promotes all 50 known warnings to errors and no deploy ever succeeds again — which is precisely
   how the build ended up catching nothing.
+  The 24 cleared on 2026-09-02 were nearly all one shape: a `const headers = {...}` object rebuilt
+  every render, which the effects depending on it could not list. `useMemo` on `[token]` makes it
+  stable and the dependency honest — do that rather than suppressing the rule.
 - ⚠️ **`lint:ci` passing is NOT the build passing — run `CI=false npm run build` before pushing
   frontend changes.** Netlify runs `npm run lint:ci && CI=false npm run build`, and the second
   catches things the first cannot. On 2026-08-28 a test file that imported nothing failed

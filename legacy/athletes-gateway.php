@@ -228,7 +228,15 @@ try {
                         FROM athlete_guardians ag
                         JOIN guardians g ON ag.guardian_id = g.id
                         WHERE ag.athlete_id = ?
-                        ORDER BY ag.is_primary DESC
+                        -- Deterministic, in both directions. A bare
+                        -- `is_primary DESC` puts NULLs FIRST in Postgres, so a
+                        -- link with an unset flag outranked the real primary;
+                        -- and with two primaries the order between them was
+                        -- whatever the plan emitted. AthleteForm used to write
+                        -- position 0 back as the primary on every save, so an
+                        -- arbitrary row got promoted and a deliberate promotion
+                        -- made in the Crew modal was reverted (R78).
+                        ORDER BY ag.is_primary DESC NULLS LAST, ag.id
                     ");
                     $guardianStmt->execute([$id]);
                     $guardians = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);

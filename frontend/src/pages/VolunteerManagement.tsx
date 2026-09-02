@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 
@@ -128,10 +128,12 @@ export const VolunteerManagement: React.FC = () => {
   // Remove confirmation
   const [removingId, setRemovingId] = useState<number | null>(null);
 
-  const headers = {
+  // Stable across renders so the fetch callbacks/effects below can depend on it
+  // without being rebuilt every render.
+  const headers = useMemo(() => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
-  };
+  }), [token]);
 
   const fetchVolunteers = useCallback(async () => {
     if (!currentClubId) return;
@@ -154,7 +156,7 @@ export const VolunteerManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentClubId, isClubAdmin]);
+  }, [currentClubId, isClubAdmin, headers]);
 
   const fetchTeams = useCallback(async () => {
     if (!currentClubId) return;
@@ -169,7 +171,7 @@ export const VolunteerManagement: React.FC = () => {
     } catch (err) {
       console.error('Error fetching teams:', err);
     }
-  }, [currentClubId]);
+  }, [currentClubId, headers]);
 
   const fetchCompliance = useCallback(async () => {
     if (!currentClubId) return;
@@ -186,7 +188,7 @@ export const VolunteerManagement: React.FC = () => {
     } catch (err) {
       console.error('Error fetching compliance:', err);
     }
-  }, [currentClubId]);
+  }, [currentClubId, headers]);
 
   useEffect(() => {
     fetchVolunteers();
@@ -221,7 +223,7 @@ export const VolunteerManagement: React.FC = () => {
       }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [userSearch, currentClubId]);
+  }, [userSearch, currentClubId, headers]);
 
   // Filtered volunteers
   const filteredVolunteers = volunteers.filter((v) => {

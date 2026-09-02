@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface Invitation {
   id: string;
@@ -37,11 +37,7 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchInvitations();
-  }, [clubId, filter]);
-
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -66,7 +62,11 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, clubId, filter]);
+
+  useEffect(() => {
+    fetchInvitations();
+  }, [fetchInvitations]);
 
   const handleResend = async (invitationId: string) => {
     // Guard against double-submits / rapid re-clicks.

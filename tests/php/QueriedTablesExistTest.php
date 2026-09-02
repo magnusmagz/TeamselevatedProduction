@@ -70,6 +70,15 @@ class QueriedTablesExistTest extends TestCase
         // name straight after FROM.
         'age', 'now', 'current_date', 'current_timestamp', 'localtimestamp',
         'timestamp', 'date', 'interval', 'extract',
+        // Postgres system catalogs. `FROM information_schema.columns` matches as
+        // the schema name `information_schema`, and the fixture is a snapshot of
+        // the application's own tables, so a system catalog can never appear in
+        // it. These are always present in any Postgres database — a query against
+        // one is the opposite of the defect this test hunts (a reference to a
+        // table nobody checked existed). lib/program_ordering.php probes
+        // information_schema.columns precisely so it can tolerate migration 084
+        // not being applied yet.
+        'information_schema', 'pg_catalog',
     ];
 
     public static function setUpBeforeClass(): void

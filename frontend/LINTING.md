@@ -9,7 +9,7 @@ npm run lint:ci   # the ratchet — exits 1 above the ceiling
 ```
 
 **The ceiling lives in one place: `--max-warnings` in `package.json`'s `lint:ci` script.**
-It is currently **74**.
+It is currently **50**.
 
 ## The rule
 
@@ -18,7 +18,7 @@ ceiling. When you clear warnings, lower it in the same commit so the ground you 
 
 ## Why this exists rather than `CI=true`
 
-`react-scripts build` with `CI=true` promotes every warning to an error. With 74 known warnings
+`react-scripts build` with `CI=true` promotes every warning to an error. With 50 known warnings
 that means no deploy ever succeeds, so `netlify.toml` has always run `CI=false` — which promotes
 nothing, and left the build catching *nothing*. Two production bugs shipped through that gap on
 2026-07-30 alone (the `data.stats` contract mismatch and the `cl.team_id` phantom column; both are
@@ -35,13 +35,13 @@ Test files are excluded (`**/*.test.*`, `**/__tests__/**`, `setupTests.ts`). The
 a separate cleanup. Excluding them is what makes the source-file count meaningful; folding them in
 would bury it.
 
-Note the ratchet lints slightly **more** than the build does — 74 vs the build's 64 — because
+Note the ratchet lints slightly **more** than the build does — 50 vs the build's smaller count — because
 eslint reaches files that aren't in the bundle's module graph. That's deliberate: an unreferenced
 component is exactly where rot goes unnoticed.
 
 ## What's left, and what it's worth
 
-All 74 are `react-hooks/exhaustive-deps`. They are the ones worth real attention — an
+Most are `react-hooks/exhaustive-deps`. They are the ones worth real attention — an
 exhaustive-deps warning is how a component ends up reading a stale prop or a closure captured on
 first render. Each needs a judgment call:
 

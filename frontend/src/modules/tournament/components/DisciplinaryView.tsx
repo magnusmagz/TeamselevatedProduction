@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 
@@ -82,7 +82,9 @@ const DisciplinaryView: React.FC<Props> = ({ tournamentId, divisions, isAdmin })
   const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-  const headers: HeadersInit = { Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -102,7 +104,7 @@ const DisciplinaryView: React.FC<Props> = ({ tournamentId, divisions, isAdmin })
     } finally {
       setLoading(false);
     }
-  }, [tournamentId]);
+  }, [tournamentId, headers]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

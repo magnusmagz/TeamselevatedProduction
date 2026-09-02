@@ -49,6 +49,13 @@ export interface Program {
   venue_map_url?: string;
   created_at?: string;
   updated_at?: string;
+  // Migration 084. Both are optional because a backend that predates the
+  // migration simply does not return them — `main` is shared and deploys are by
+  // push, so the frontend can be ahead of the schema for a while. An ABSENT
+  // archived_at means "this build cannot tell", which renders as not-archived;
+  // that is the same as before the feature existed, so nothing looks broken.
+  sort_order?: number | null;
+  archived_at?: string | null;
 }
 
 // A facility from the venues catalog (subset used by pickers/display).

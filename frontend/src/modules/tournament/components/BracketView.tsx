@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 
@@ -16,7 +16,9 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
   const [openMatch, setOpenMatch] = useState<TournamentMatch | null>(null);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   const fetchMatches = useCallback(async () => {
     setLoading(true);
@@ -31,7 +33,7 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
       setMatches(knockoutMatches);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [divisionId]);
+  }, [divisionId, headers]);
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
 

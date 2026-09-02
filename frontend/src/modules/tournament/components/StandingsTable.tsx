@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentStanding } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -31,7 +31,9 @@ const StandingsTable: React.FC<Props> = ({ groupId, groupName, advancingCount, t
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const fetchStandings = useCallback(async () => {
     try {
@@ -40,7 +42,7 @@ const StandingsTable: React.FC<Props> = ({ groupId, groupName, advancingCount, t
       setStandings(data.standings || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [groupId]);
+  }, [groupId, headers]);
 
   useEffect(() => { fetchStandings(); }, [fetchStandings]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,16 +21,7 @@ export default function AcceptInvitation() {
     email: '',
   });
 
-  useEffect(() => {
-    if (id || code) {
-      fetchInvitationInfo();
-    } else {
-      setError('Invalid invitation link');
-      setLoading(false);
-    }
-  }, [id, code]);
-
-  const fetchInvitationInfo = async () => {
+  const fetchInvitationInfo = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (id) params.append('id', id);
@@ -55,7 +46,16 @@ export default function AcceptInvitation() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, id, code]);
+
+  useEffect(() => {
+    if (id || code) {
+      fetchInvitationInfo();
+    } else {
+      setError('Invalid invitation link');
+      setLoading(false);
+    }
+  }, [id, code, fetchInvitationInfo]);
 
   const handleAccept = async () => {
     setJoining(true);
