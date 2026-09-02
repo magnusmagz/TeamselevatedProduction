@@ -723,6 +723,19 @@ portal reads its own child here — the staff predicate would lock every family 
 registration's club the same way; PUT whitelists `status` and takes `reviewed_by` from the
 token. POST stays public — it is the sign-up form. `RegistrationWriteScopeTest`.
 
+**Directory shadowing: `/api/athletes` and `/api/seasons` never reach `index.php`** (found
+by the smoke test's route walk, 2026-09-02). `.htaccess` falls through to `index.php` only
+when the path is neither a file nor a directory; `api/athletes/` and `api/seasons/` are
+directories, so Apache serves *their* `index.php`, which calls the controller method
+directly. `AthleteController::getAthletes` returned 329 athletes across every club with the
+primary guardian's email and mobile, anonymously; `CoachController::searchPlayers` and
+`SeasonController::getSeasons` were open too. All three now authenticate and scope
+(`DirectoryShadowedListScopeTest`). Two things to know: the 301 Apache issues carries an
+**`http://` Location**, and libcurl drops `Authorization` on that downgrade — so probe
+`/api/athletes/` with the slash, or a real token reads as a 401. And `scripts/smoke-test.php`
+now walks every GET route in `index.php` with no token (`SmokeTestRouteCoverageTest` fails if
+a route is neither probed nor allowlisted with a reason); the allowlist is empty on purpose.
+
 **Attendance and RSVP rows are staff data — `lib/event_standing.php`** (R81, same day).
 CKU's "parents see other families' RSVPs" was not `calendar-events-gateway` (already
 scoped). It was `api/event-attendance.php`, whose `requireAuth()` was followed by nothing
