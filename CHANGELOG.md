@@ -42,6 +42,15 @@ to. Files uploaded through the Club Document Center land on the dyno's local dis
 survive a restart; rows created with the Upload tab hold dead absolute URLs. Decisions 14, 15.
 
 
+### No primary guardian (Heroku v583, then Netlify)
+
+Maggie's rule, reaffirmed today: guardians are equal. `athlete_guardians.is_primary` stays in the
+table, unread and unwritten. Every writer stopped; eleven billing-contact joins on the flag
+(invoices, roster fee status, outstanding balances, transaction report, payment receipts,
+reminders and failure notices) would have gone silently blank and now take the first crew member
+by link id; the athlete list returns a `guardians` array and shows Crew; every crew member is
+billable. Decision 1 (five broken flags) is moot. R78 is superseded, not fixed.
+
 ### Phase 6 — one age rule, tryout narrowing, field size (Heroku v582, then Netlify) — migration 088 applied
 
 Decision: the age matrix runs 1 August to 31 July. `lib/age_rule.php` + a shared 18-case fixture
