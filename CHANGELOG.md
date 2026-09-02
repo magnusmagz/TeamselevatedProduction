@@ -42,6 +42,15 @@ to. Files uploaded through the Club Document Center land on the dyno's local dis
 survive a restart; rows created with the Upload tab hold dead absolute URLs. Decisions 14, 15.
 
 
+### Documents areas made coherent (Netlify `eb955b0` first, then Heroku v578)
+
+From the audit: `expiring` was readable by any club member; `for-target` by any member for any
+target; a club-wide document by any signed-in user of any club; assignment targets were never
+checked against the document's club; the coach/volunteer picker called a non-existent gateway
+action and silently never rendered; three routes lacked guards. All fixed; dead document code
+in the unbuilt root `src/` tree and `AthleteProfile.tsx` removed. Lint ceiling 50 → 48.
+Storage (decision 14) and the empty signing table (decision 15) are unchanged.
+
 ### Mid-year evaluations + coach-invited player (Heroku v577, then Netlify) — migrations 086, 087 applied
 
 Both applied via `scripts/apply-migration.php`; fixture refreshed (three tables). Staff athlete

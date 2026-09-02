@@ -522,6 +522,18 @@ in `AppContent`, in **sessionStorage** so a crash-and-reload — the case most w
 keeps the steps that led to it. Six entries are kept and five are sent: the newest is the page
 they are on, which is already the ticket's `page_url`.
 
+### Documents: decisions live in `lib/document_scope.php`, and a club-wide document is for MEMBERS (2026-09-02)
+`api/documents-gateway.php`'s function names collide with other gateways under a lib-only
+load, so its predicates moved to `lib/document_scope.php` (`te_document_*`). Rules that
+bit: `expiring` is staff data (`te_is_club_staff`, never `canAccessClub`); `for-target` has a
+per-target predicate; a document assigned club-wide is readable by the club's members
+(staff via `user_club_access`, families via the guardian chain), not by any signed-in user
+who guesses the id; assignment targets are validated against the document's club (422 with
+the foreign ids). `document_acknowledgments` exists in prod with zero code and
+`is_required`/`expires_at` are badges only — decision 15. **Uploads go to the dyno's local
+disk and are served static** — decision 14 / roadmap Phase 5; do not build on `api/upload.php`
+for anything that must persist. `DocumentsGatewayScopeTest`, `DocumentClubWideReadTest`.
+
 ### Roster download is STAFF-gated — `lib/team_roster_scope.php` (2026-08-25)
 `api/roster-export.php` streams a team's roster as CSV in two flavours:
 `?include=athletes` (jersey #, name, DOB, age, position, status) and
