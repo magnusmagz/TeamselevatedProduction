@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { daysUntilExpiry, formatDocumentDate } from '../utils/documentStatus';
 
 interface ExpiringDocument {
   id: number;
@@ -13,11 +14,6 @@ interface ExpiringDocument {
 }
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-
-function daysUntil(expiresAt: string): number {
-  const ms = new Date(expiresAt).getTime() - Date.now();
-  return Math.ceil(ms / (24 * 60 * 60 * 1000));
-}
 
 const ExpirationDashboard: React.FC = () => {
   const { currentClubId } = useOrg();
@@ -61,7 +57,7 @@ const ExpirationDashboard: React.FC = () => {
   if (loading) return <div className="p-5">Loading expiration alerts...</div>;
   if (error) return <div className="p-5 text-red-600">{error}</div>;
 
-  const withDays = docs.map((d) => ({ ...d, days: daysUntil(d.expires_at) }));
+  const withDays = docs.map((d) => ({ ...d, days: daysUntilExpiry(d.expires_at) }));
   const expired = withDays.filter((d) => d.days < 0);
   const thisWeek = withDays.filter((d) => d.days >= 0 && d.days <= 7);
   const nextTwoWeeks = withDays.filter((d) => d.days > 7 && d.days <= 14);
@@ -189,7 +185,7 @@ const ExpirationDashboard: React.FC = () => {
                     </td>
                     <td className="p-4 font-medium text-brand-primary">{doc.title}</td>
                     <td className="p-4 text-brand-primary capitalize">{doc.slot ? doc.slot.replace(/_/g, ' ') : '—'}</td>
-                    <td className="p-4 text-brand-primary">{new Date(doc.expires_at).toLocaleDateString()}</td>
+                    <td className="p-4 text-brand-primary">{formatDocumentDate(doc.expires_at)}</td>
                     <td className="p-4">
                       {doc.is_required ? (
                         <span className="px-2 py-0.5 text-xs font-semibold uppercase rounded bg-amber-100 text-amber-700">

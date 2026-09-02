@@ -23,8 +23,6 @@ import TeamCalendar from './components/TeamCalendar';
 import RosterManagement from './components/RosterManagement';
 import ProgramManagement from './modules/registration/pages/ProgramManagement';
 import PublicRegistration from './modules/registration/pages/PublicRegistration';
-import DocumentManager from './components/DocumentManager';
-import ExpirationDashboard from './components/ExpirationDashboard';
 import { useParams } from 'react-router-dom';
 
 // Team Roster Page Component
@@ -191,16 +189,6 @@ function AppContent() {
           <Route path="/teams/:teamId/roster" element={<TeamRosterPage />} />
           <Route path="/athlete/:athleteId" element={<AthleteProfile />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />
-          <Route path="/athlete/:athleteId/documents" element={
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <DocumentManager athleteId={window.location.pathname.split('/')[2]} />
-            </main>
-          } />
-          <Route path="/documents/expiring" element={
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <ExpirationDashboard />
-            </main>
-          } />
           <Route path="/athletes" element={
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <AthleteManagement />

@@ -3,6 +3,11 @@ import { useParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
 import { AthleteSelector } from '../components/AthleteSelector';
+import {
+  DocumentStatus,
+  deriveDocumentStatus,
+  formatDocumentDate,
+} from '../../utils/documentStatus';
 
 interface Document {
   id: number;
@@ -18,15 +23,6 @@ interface Document {
   notes?: string | null;
   uploaded_by_name?: string;
   created_at: string;
-}
-
-function deriveStatus(expiresAt?: string | null): 'valid' | 'expiring_soon' | 'expired' {
-  if (!expiresAt) return 'valid';
-  const now = Date.now();
-  const exp = new Date(expiresAt).getTime();
-  if (exp < now) return 'expired';
-  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring_soon';
-  return 'valid';
 }
 
 export const DocumentsPage: React.FC = () => {
@@ -61,10 +57,17 @@ export const DocumentsPage: React.FC = () => {
         );
         const data = await response.json();
 
-        if (data.success && data.documents) {
+        if (data.success && Array.isArray(data.documents)) {
           setDocuments(data.documents);
         } else {
+          // A refusal is not an empty shelf. This used to set [] with no error,
+          // so a 403 (or any other failure) rendered "No Documents have been
+          // uploaded yet" — telling a parent their child's club has filed
+          // nothing, when in fact the request was rejected. A false empty is
+          // the one failure mode nobody reports, because it looks like an
+          // answer.
           setDocuments([]);
+          setError(data.error || 'Failed to load documents');
         }
       } catch (err) {
         setError('Failed to load documents');
@@ -81,13 +84,13 @@ export const DocumentsPage: React.FC = () => {
   };
 
   const filteredDocuments = documents.filter((doc) => {
-    const status = deriveStatus(doc.expires_at);
+    const status = deriveDocumentStatus(doc.expires_at);
     if (filter === 'expiring') return status === 'expiring_soon';
     if (filter === 'expired') return status === 'expired';
     return true;
   });
 
-  const getStatusBadge = (status: 'valid' | 'expiring_soon' | 'expired') => {
+  const getStatusBadge = (status: DocumentStatus) => {
     const styles = {
       valid: 'bg-green-100 text-green-800',
       expiring_soon: 'bg-yellow-100 text-yellow-800',
@@ -103,14 +106,6 @@ export const DocumentsPage: React.FC = () => {
         {labels[status]}
       </span>
     );
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
   };
 
   const getDocumentIcon = (type: string) => {
@@ -225,7 +220,7 @@ export const DocumentsPage: React.FC = () => {
         {!loading && !error && filteredDocuments.length > 0 && (
           <div className="px-4 py-4 space-y-3">
             {filteredDocuments.map((doc) => {
-              const status = deriveStatus(doc.expires_at);
+              const status = deriveDocumentStatus(doc.expires_at);
               const href = doc.file_path || doc.link_url || '#';
               return (
               <a
@@ -246,7 +241,7 @@ export const DocumentsPage: React.FC = () => {
                       <p className="text-sm text-brand-primary mt-0.5">{doc.slot.replace(/_/g, ' ')}</p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                      <span>Uploaded {formatDate(doc.created_at)}</span>
+                      <span>Uploaded {formatDocumentDate(doc.created_at)}</span>
                       {doc.is_required && (
                         <span className="text-amber-700 font-medium">Required</span>
                       )}
@@ -262,7 +257,7 @@ export const DocumentsPage: React.FC = () => {
                         }`}
                       >
                         {status === 'expired' ? 'Expired' : 'Expires'}{' '}
-                        {formatDate(doc.expires_at)}
+                        {formatDocumentDate(doc.expires_at)}
                       </p>
                     )}
                   </div>

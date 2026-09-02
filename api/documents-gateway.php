@@ -44,6 +44,11 @@ header('Content-Type: application/json; charset=UTF-8');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
+require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/coach_scope.php';
+// Read predicates + assignment target validation. Never re-derive these here.
+require_once __DIR__ . '/../lib/document_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -204,7 +209,7 @@ function handleGetSingle(PDO $conn, $auth, int $docId): void {
         echo json_encode(['error' => 'Document not found']);
         return;
     }
-    if (!userCanReadDocument($conn, $auth, $doc)) {
+    if (!te_document_user_can_read($conn, $auth, $doc)) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
         return;
@@ -231,7 +236,7 @@ function handleCreate(PDO $conn, $auth): void {
         echo json_encode(['error' => 'Either file_path (uploaded) or link_url is required']);
         return;
     }
-    if (!isClubAdmin($auth, $clubId)) {
+    if (!te_is_club_admin($auth, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Only club admins can create documents']);
         return;
@@ -280,8 +285,13 @@ function handleCreate(PDO $conn, $auth): void {
             $assignments[] = ['target_type' => 'club', 'target_id' => $clubId];
         }
 
-        insertAssignments($conn, $docId, $assignments, (int) $auth->getUserId(), $clubId);
+        te_document_insert_assignments($conn, $docId, $assignments, (int) $auth->getUserId(), $clubId);
         $conn->commit();
+    } catch (DocumentTargetScopeException $e) {
+        $conn->rollBack();
+        http_response_code(422);
+        echo json_encode(['error' => $e->getMessage(), 'foreign_targets' => $e->foreignTargets]);
+        return;
     } catch (Throwable $e) {
         $conn->rollBack();
         throw $e;
@@ -303,7 +313,7 @@ function handleUpdate(PDO $conn, $auth, int $docId): void {
         echo json_encode(['error' => 'Document not found']);
         return;
     }
-    if (!isClubAdmin($auth, (int) $clubId)) {
+    if (!te_is_club_admin($auth, (int) $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Only club admins can update documents']);
         return;
@@ -344,7 +354,7 @@ function handleDelete(PDO $conn, $auth, int $docId): void {
         echo json_encode(['error' => 'Document not found']);
         return;
     }
-    if (!isClubAdmin($auth, (int) $clubId)) {
+    if (!te_is_club_admin($auth, (int) $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Only club admins can delete documents']);
         return;
@@ -370,12 +380,18 @@ function handleAssign(PDO $conn, $auth): void {
         echo json_encode(['error' => 'Document not found']);
         return;
     }
-    if (!isClubAdmin($auth, (int) $clubId)) {
+    if (!te_is_club_admin($auth, (int) $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Only club admins can assign documents']);
         return;
     }
-    insertAssignments($conn, $docId, $targets, (int) $auth->getUserId(), (int) $clubId);
+    try {
+        te_document_insert_assignments($conn, $docId, $targets, (int) $auth->getUserId(), (int) $clubId);
+    } catch (DocumentTargetScopeException $e) {
+        http_response_code(422);
+        echo json_encode(['error' => $e->getMessage(), 'foreign_targets' => $e->foreignTargets]);
+        return;
+    }
     echo json_encode(['success' => true, 'message' => 'Assignments added']);
 }
 
@@ -396,7 +412,7 @@ function handleUnassign(PDO $conn, $auth): void {
         echo json_encode(['error' => 'Document not found']);
         return;
     }
-    if (!isClubAdmin($auth, (int) $clubId)) {
+    if (!te_is_club_admin($auth, (int) $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Only club admins can unassign documents']);
         return;
@@ -431,7 +447,7 @@ function handleForAthlete(PDO $conn, $auth): void {
     }
     $clubId = (int) reset($clubIds);
 
-    if (!userCanReadAthleteDocs($conn, $auth, $athleteId, $clubId, $teamIds)) {
+    if (!te_document_user_can_read_athlete_docs($conn, $auth, $athleteId, $clubId, $teamIds)) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
         return;
@@ -510,7 +526,10 @@ function handleForTarget(PDO $conn, $auth): void {
         echo json_encode(['error' => 'Target not found']);
         return;
     }
-    if (!$auth->canAccessClub($clubId)) {
+    // Listing everything assigned to a target is the same disclosure as reading
+    // each of those documents one at a time, so it takes the same predicate the
+    // single-document read takes — per target_type, not club membership.
+    if (!te_document_user_can_read_target_docs($conn, $auth, $type, $tid, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
         return;
@@ -537,7 +556,12 @@ function handleExpiring(PDO $conn, $auth): void {
         echo json_encode(['error' => 'club_profile_id is required']);
         return;
     }
-    if (!$auth->canAccessClub($clubId)) {
+    // Club MEMBERSHIP is not club STAFF. `canAccessClub()` is true for ANY role
+    // scoped to the club, `parent` included — so a parent passing their own
+    // club_id enumerated every expiring document in the club, titles and file
+    // URLs included, with no assignment cascade filtering it. Same substitution
+    // mistake as `handleClubParents` (see lib/club_standing.php).
+    if (!te_is_club_staff($auth, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
         return;
@@ -622,22 +646,6 @@ function fetchAssignmentsForDocuments(PDO $conn, array $docIds): array {
     return $byDoc;
 }
 
-function insertAssignments(PDO $conn, int $docId, array $targets, int $assignedBy, int $clubId): void {
-    $stmt = $conn->prepare("
-        INSERT INTO document_assignments (document_id, target_type, target_id, assigned_by)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT (document_id, target_type, target_id) DO NOTHING
-    ");
-    foreach ($targets as $t) {
-        $type = $t['target_type'] ?? null;
-        $tid = (int) ($t['target_id'] ?? 0);
-        if (!in_array($type, ['club', 'team', 'athlete', 'user'], true) || $tid <= 0) {
-            continue;
-        }
-        $stmt->execute([$docId, $type, $tid, $assignedBy]);
-    }
-}
-
 function resolveClubForTarget(PDO $conn, string $type, int $id): ?int {
     if ($type === 'club') {
         $stmt = $conn->prepare("SELECT id FROM club_profile WHERE id = ?");
@@ -678,71 +686,4 @@ function resolveClubForTarget(PDO $conn, string $type, int $id): ?int {
         return $r ? (int) $r : null;
     }
     return null;
-}
-
-function isClubAdmin($auth, int $clubId): bool {
-    return $auth->isSuperAdmin() || $auth->hasRole('club_admin', $clubId, 'club');
-}
-
-function userCanReadDocument(PDO $conn, $auth, array $doc): bool {
-    $clubId = (int) $doc['club_profile_id'];
-    if (isClubAdmin($auth, $clubId)) {
-        return true;
-    }
-    $userId = (int) $auth->getUserId();
-    $stmt = $conn->prepare("
-        SELECT 1 FROM document_assignments da
-        WHERE da.document_id = ?
-          AND (
-            (da.target_type = 'club' AND da.target_id = ?)
-            OR (da.target_type = 'user' AND da.target_id = ?)
-            OR (da.target_type = 'team' AND da.target_id IN (
-                  SELECT t.id FROM teams t
-                  LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.user_id = ?
-                  WHERE t.primary_coach_id = ? OR tm.id IS NOT NULL
-            ))
-            OR (da.target_type = 'athlete' AND da.target_id IN (
-                  SELECT ag.athlete_id FROM athlete_guardians ag
-                  JOIN guardians g ON g.id = ag.guardian_id
-                  JOIN users u ON " . te_guardian_link_sql('u', 'g') . "
-                  WHERE u.id = ?
-            ))
-          )
-        LIMIT 1
-    ");
-    $stmt->execute([$doc['id'], $clubId, $userId, $userId, $userId, $userId]);
-    return (bool) $stmt->fetchColumn();
-}
-
-function userCanReadAthleteDocs(PDO $conn, $auth, int $athleteId, int $clubId, array $teamIds): bool {
-    if (isClubAdmin($auth, $clubId)) return true;
-    $userId = (int) $auth->getUserId();
-
-    if (!empty($teamIds)) {
-        $ph = implode(',', array_fill(0, count($teamIds), '?'));
-        $stmt = $conn->prepare("
-            SELECT 1 FROM teams t
-            LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.user_id = ?
-            WHERE t.id IN ($ph) AND (t.primary_coach_id = ? OR tm.id IS NOT NULL)
-            LIMIT 1
-        ");
-        $stmt->execute(array_merge([$userId], $teamIds, [$userId]));
-        if ($stmt->fetchColumn()) return true;
-    }
-
-    // Guardian standing is resolved in one place — recorded links UNION the email
-    // match. This join used to be `u.email = g.email`, case-sensitive, so one capital
-    // letter on a guardian row hid a parent's own child's documents from them.
-    return te_user_is_guardian_of_athlete($conn, $userId, $athleteId);
-}
-
-function getCoachTeamIds(PDO $conn, int $userId, int $clubId): array {
-    $stmt = $conn->prepare("
-        SELECT DISTINCT t.id FROM teams t
-        LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.user_id = ?
-            AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active'
-        WHERE (t.primary_coach_id = ? OR tm.id IS NOT NULL) AND t.club_id = ?
-    ");
-    $stmt->execute([$userId, $userId, $clubId]);
-    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
