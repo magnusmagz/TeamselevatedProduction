@@ -31,6 +31,9 @@ class MysqlOnlySqlTest extends TestCase
     /**
      * Functions MySQL has and Postgres does not. `NOW()` is deliberately absent —
      * both have it. `CONCAT()` is absent too: Postgres has it since 9.1.
+     * `CURDATE()` was added 2026-09-02: Postgres spells it `CURRENT_DATE`, and
+     * `models/` was not scanned at all until then, so `models/Team.php` wrote
+     * `CURDATE()` into two team_members statements unnoticed.
      */
     private const MYSQL_ONLY = [
         'FIELD('        => 'no Postgres equivalent — use CASE … WHEN … THEN n END',
@@ -39,6 +42,7 @@ class MysqlOnlySqlTest extends TestCase
         'DATE_FORMAT('  => 'use to_char()',
         'STR_TO_DATE('  => 'use to_date() / to_timestamp()',
         'DATEDIFF('     => 'subtract dates directly, or use AGE()',
+        'CURDATE('      => 'use CURRENT_DATE',
     ];
 
     /**
@@ -56,7 +60,7 @@ class MysqlOnlySqlTest extends TestCase
         $root = dirname(__DIR__, 2);
         $out = [];
 
-        foreach (['api', 'legacy', 'services', 'lib', 'controllers', 'workers'] as $dir) {
+        foreach (['api', 'legacy', 'services', 'lib', 'controllers', 'workers', 'models'] as $dir) {
             $path = $root . '/' . $dir;
             if (!is_dir($path)) {
                 continue;

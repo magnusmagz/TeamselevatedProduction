@@ -11,9 +11,13 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/event_standing.php';
 require_once __DIR__ . '/../services/AttendanceService.php';
 
-// All attendance actions (get/save/athlete-history) require a valid token.
+// All attendance actions require a valid token — and, since 2026-09-02, STANDING.
+// requireAuth() alone let any signed-in user (a parent on the staff calendar) read
+// every family's attendance on any event and rewrite it. See lib/event_standing.php.
 $auth = AuthMiddleware::requireAuth();
 
 try {
@@ -31,6 +35,7 @@ try {
             if (!$event_id) {
                 throw new Exception('event_id is required');
             }
+            $event_id = te_require_event_staff($pdo, $auth, $event_id);
 
             // Get event details with teams
             $eventQuery = "
@@ -124,11 +129,13 @@ try {
 
             $event_id = $data['event_id'] ?? null;
             $attendance = $data['attendance'] ?? [];
-            $marked_by = $data['marked_by'] ?? null;
 
             if (!$event_id) {
                 throw new Exception('event_id is required');
             }
+            $event_id = te_require_event_staff($pdo, $auth, $event_id);
+            // Attribution comes from the verified token, never the body.
+            $marked_by = (int) $auth->getUserId();
 
             if (empty($attendance)) {
                 throw new Exception('attendance data is required');
@@ -164,6 +171,13 @@ try {
             $athlete_id = $_GET['athlete_id'] ?? null;
             if (!$athlete_id) {
                 throw new Exception('athlete_id is required');
+            }
+            // A child's attendance history: staff of their club/team, or their own
+            // guardian. The READ predicate is correct here — this is a read.
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, (int) $athlete_id)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'You do not have access to this athlete']);
+                exit;
             }
 
             $historyQuery = "

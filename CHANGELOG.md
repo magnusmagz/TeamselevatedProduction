@@ -30,6 +30,34 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-02
+
+### Phase 0 security sweep shipped (Heroku v559, Netlify `71acc12`)
+
+Eight slices from `docs/roadmap-execution-plan-2026-09.md` Phase 0, merged from
+`fix/security-phase0`, frontend first (the tryouts UI sent no bearer token before this).
+Lessons are in CLAUDE.md under "JWT::decode() is NOT an auth gate". What was open in prod
+until 12:51 PT today, each verified 401 afterwards:
+
+- Forged-signature tokens passed `invitations-gateway`, `user-profile`, `coach-notes`.
+- Any signed-in user could mint a club_admin invitation link for any club.
+- `/api/teams*` (15 routes) had no auth; volunteer assignment took the background-check
+  status from the request body.
+- `registrations-api` GET returned every family's form data by program id; PUT/DELETE open.
+- `tryouts-api` — 20 paths open, including registrations with DOB.
+- `event-attendance` get/save had no standing check; `rsvp-webhook?action=status` had no
+  auth and returned attendee emails.
+- `payment-reminders` batch OR-precedence (latent — `payment_reminder_log` was empty).
+- Four `CURDATE()` calls (42883 on Postgres) in `models/Team.php`, `SeasonController`.
+
+No migrations. No data changes. `scripts/smoke-test.php` 75/75 after deploy. PHP suite 888.
+
+**Behaviour changes staff may notice:** creating a tryout now requires the club to be in
+the active context (400 instead of silently creating it in club 1); a parent who reaches the
+staff calendar gets a 403 on Take Attendance instead of the roster.
+
+---
+
 ## 2026-08-26
 
 ### Chat: own message appeared twice, and as somebody else's (Netlify `cf5c960`)

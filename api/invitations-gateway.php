@@ -11,6 +11,8 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/club_standing.php';
 require_once __DIR__ . '/../lib/Email.php';
 
 $db = Database::getInstance();
@@ -55,27 +57,6 @@ function te_linked_athlete_count($conn, string $email): int {
 }
 
 /**
- * Get authenticated user from JWT
- */
-function getAuthenticatedUser($headers) {
-    if (!isset($headers['Authorization'])) {
-        return null;
-    }
-
-    $authHeader = $headers['Authorization'];
-    $token = str_replace('Bearer ', '', $authHeader);
-
-    try {
-        $payload = JWT::decode($token);
-        // JWT::decode returns stdClass object, not array
-        return $payload->user_id ?? null;
-    } catch (Exception $e) {
-        error_log('JWT decode error: ' . $e->getMessage());
-        return null;
-    }
-}
-
-/**
  * Generate random invitation code
  */
 function generateInvitationCode($length = 8) {
@@ -91,7 +72,7 @@ function generateInvitationCode($length = 8) {
  * Send email invitations
  * POST ?action=send
  */
-function handleSendInvitations($conn, $input, $userId) {
+function handleSendInvitations($conn, $input, $userId, $auth) {
     if (!isset($input['emails']) || !is_array($input['emails']) || count($input['emails']) === 0) {
         http_response_code(400);
         return ['error' => 'Email addresses are required'];
@@ -111,6 +92,15 @@ function handleSendInvitations($conn, $input, $userId) {
     if (!$clubId) {
         http_response_code(400);
         return ['error' => 'clubId is required'];
+    }
+
+    // AUTHORIZATION, not just authentication. clubId comes from the request body, so
+    // without this any signed-in user could mint a club_admin invitation for any club
+    // (found 2026-08-17, fixed 2026-09-02). Inviting is club-admin standing in THAT
+    // club: te_is_club_admin, never canAccessClub (membership includes parents).
+    if (!te_is_club_admin($auth, (int)$clubId)) {
+        http_response_code(403);
+        return ['error' => 'Only a club administrator can invite people to this club'];
     }
 
     // Get inviter info
@@ -224,7 +214,7 @@ function handleSendInvitations($conn, $input, $userId) {
  * Create shareable invitation link
  * POST ?action=create-link
  */
-function handleCreateLink($conn, $input, $userId) {
+function handleCreateLink($conn, $input, $userId, $auth) {
     $clubId = $input['clubId'] ?? null;
     $role = $input['role'] ?? 'coach';
     $maxUses = $input['maxUses'] ?? null;
@@ -233,6 +223,15 @@ function handleCreateLink($conn, $input, $userId) {
     if (!$clubId) {
         http_response_code(400);
         return ['error' => 'clubId is required'];
+    }
+
+    // AUTHORIZATION, not just authentication. clubId comes from the request body, so
+    // without this any signed-in user could mint a club_admin invitation for any club
+    // (found 2026-08-17, fixed 2026-09-02). Inviting is club-admin standing in THAT
+    // club: te_is_club_admin, never canAccessClub (membership includes parents).
+    if (!te_is_club_admin($auth, (int)$clubId)) {
+        http_response_code(403);
+        return ['error' => 'Only a club administrator can invite people to this club'];
     }
 
     if (!in_array($role, TE_INVITABLE_ROLES, true)) {
@@ -832,18 +831,16 @@ try {
         exit;
     }
 
-    // Protected endpoints (auth required)
-    $userId = getAuthenticatedUser($headers);
-    if (!$userId) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit;
-    }
+    // Protected endpoints (auth required). requireAuth() verifies the signature and
+    // exits 401 otherwise — until 2026-09-02 this branch used JWT::decode(), which
+    // never checks the signature, so a hand-built token passed as any user.
+    $auth = AuthMiddleware::requireAuth();
+    $userId = $auth->getUserId();
 
     if ($method === 'POST' && $action === 'send') {
-        $response = handleSendInvitations($conn, $input, $userId);
+        $response = handleSendInvitations($conn, $input, $userId, $auth);
     } elseif ($method === 'POST' && $action === 'create-link') {
-        $response = handleCreateLink($conn, $input, $userId);
+        $response = handleCreateLink($conn, $input, $userId, $auth);
     } elseif ($method === 'GET' && $action === 'list') {
         $response = handleListInvitations($conn, $userId);
     } elseif ($method === 'POST' && $action === 'resend') {

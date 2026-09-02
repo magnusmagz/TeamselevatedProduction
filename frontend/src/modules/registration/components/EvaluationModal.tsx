@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationCriterion, TryoutRegistration, TryoutEvaluation } from '../types';
 
+const tryoutAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
 interface EvaluationModalProps {
   registration: TryoutRegistration;
   programId: number;
@@ -35,8 +39,8 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
     try {
       // Load criteria and existing evaluation in parallel
       const [criteriaRes, evaluationsRes] = await Promise.all([
-        fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`),
-        fetch(`${API_URL}/registration/tryouts-api.php?path=evaluations&registration_id=${registration.id}`)
+        fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`, { headers: tryoutAuthHeaders() }),
+        fetch(`${API_URL}/registration/tryouts-api.php?path=evaluations&registration_id=${registration.id}`, { headers: tryoutAuthHeaders() })
       ]);
 
       const criteriaData = await criteriaRes.json();
@@ -84,7 +88,7 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
     try {
       const response = await fetch(`${API_URL}/registration/tryouts-api.php?path=evaluate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           registration_id: registration.id,
           evaluator_id: evaluatorId,

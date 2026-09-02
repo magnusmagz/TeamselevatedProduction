@@ -9,6 +9,9 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/registration_writes.php';
 require_once __DIR__ . '/../lib/jersey_size.php';
 require_once __DIR__ . '/../lib/consent_capture.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/club_standing.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -18,16 +21,69 @@ try {
     exit();
 }
 
+/**
+ * The club that owns a registration, reached through its program.
+ *
+ * NULL means there is no such registration, which is a 404. A registration whose
+ * program carries no club comes back as 0 instead — a real row that no club_admin
+ * or coach role can match, so it fails the staff check closed for everyone except
+ * a super admin. The two answers must stay distinguishable.
+ */
+function te_registration_club_id(PDO $pdo, int $registrationId): ?int
+{
+    $stmt = $pdo->prepare(
+        'SELECT p.club_id
+           FROM registrations r
+           JOIN programs p ON p.id = r.program_id
+          WHERE r.id = ?'
+    );
+    $stmt->execute([$registrationId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        return null;
+    }
+
+    return (int)$row['club_id'];
+}
+
+/**
+ * The statuses a reviewer may set.
+ *
+ * registrations.status has no CHECK constraint in Neon, so this whitelist is the
+ * only thing between the review screen and an arbitrary string. Live values:
+ * every insert starts at 'pending' (here and in lib/registration_writes.php),
+ * and RegistrationsModal sends 'approved' / 'rejected'. tryout_status is a
+ * separate column with its own vocabulary and is not settable here.
+ */
+const TE_REGISTRATION_REVIEW_STATUSES = ['pending', 'approved', 'rejected'];
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     switch ($method) {
         case 'GET':
+            // A registration row carries the family's whole form submission — the
+            // athlete's name and birthday, the guardian's email and mobile. Until
+            // 2026-09-02 this branch required no token at all, so `?program_id=N`
+            // handed every family in a program to anyone who guessed the id.
+            $auth = AuthMiddleware::requireAuth();
+
             // Get registrations — filter by program_id or athlete_id
             $program_id = $_GET['program_id'] ?? null;
             $athlete_id = $_GET['athlete_id'] ?? null;
 
             if ($athlete_id) {
+                // The parent portal reads its own child here (AthleteDetailPage),
+                // so this is the READ predicate and its guardian branch is the
+                // point — te_is_club_staff would lock every family out of their
+                // own record.
+                if (!AthleteScope::userCanAccessAthlete($connection, $auth, (int)$athlete_id)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Not authorized for this athlete']);
+                    exit();
+                }
+
                 // Get all registrations for a specific athlete
                 $stmt = $connection->prepare("
                     SELECT r.id, r.program_id, r.athlete_id, r.status, r.submitted_at, r.reviewed_at,
@@ -42,6 +98,24 @@ try {
                 ");
                 $stmt->execute([$athlete_id]);
             } else {
+                // A whole program's registrations is club-wide family data, so
+                // this branch takes the staff predicate, not club membership.
+                $stmt = $connection->prepare('SELECT club_id FROM programs WHERE id = ?');
+                $stmt->execute([(int)($program_id ?? 0)]);
+                $programClubId = $stmt->fetchColumn();
+
+                if ($programClubId === false) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Program not found']);
+                    exit();
+                }
+
+                if (!te_is_club_staff($auth, (int)$programClubId)) {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Not authorized for this program']);
+                    exit();
+                }
+
                 // Get registrations for a program (existing behavior)
                 $stmt = $connection->prepare("
                     SELECT r.*, p.name as program_name,
@@ -479,13 +553,21 @@ try {
             break;
 
         case 'PUT':
+            // Approving a registration mints an athlete_payment, an invoice and a
+            // parent-portal invite email. It was reachable with no token, and both
+            // the new status and the reviewer's id came from the request body.
+            $auth = AuthMiddleware::requireAuth();
+
             // Update registration status
-            $registration_id = $_GET['id'] ?? 0;
+            $registration_id = (int)($_GET['id'] ?? 0);
             $data = json_decode(file_get_contents("php://input"), true);
+            if (!is_array($data)) {
+                $data = [];
+            }
 
             // Get registration details
             $stmt = $connection->prepare("
-                SELECT r.*, p.registration_fee
+                SELECT r.*, p.registration_fee, p.club_id
                 FROM registrations r
                 JOIN programs p ON r.program_id = p.id
                 WHERE r.id = ?
@@ -499,6 +581,25 @@ try {
                 exit();
             }
 
+            // Admin or coach of the club that owns the program. Deliberately NOT
+            // canAccessClub(): a parent holds a role scoped to the club and would
+            // pass it.
+            if (!te_is_club_staff($auth, (int)$registration['club_id'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this registration']);
+                exit();
+            }
+
+            $status = $data['status'] ?? null;
+            if (!in_array($status, TE_REGISTRATION_REVIEW_STATUSES, true)) {
+                http_response_code(400);
+                echo json_encode([
+                    'error' => 'Invalid status',
+                    'allowed' => TE_REGISTRATION_REVIEW_STATUSES
+                ]);
+                exit();
+            }
+
             $connection->beginTransaction();
 
             try {
@@ -508,9 +609,11 @@ try {
                     SET status = ?, reviewed_at = NOW(), reviewed_by = ?
                     WHERE id = ?
                 ");
+                // reviewed_by is the record of who approved this. Taken from the
+                // body it recorded whoever the caller nominated.
                 $stmt->execute([
-                    $data['status'],
-                    $data['reviewed_by'] ?? null,
+                    $status,
+                    $auth->getUserId(),
                     $registration_id
                 ]);
 
@@ -518,7 +621,7 @@ try {
                 $invoice_id = null;
 
                 // If approving, ensure athlete_payment + invoice exist
-                if ($data['status'] === 'approved') {
+                if ($status === 'approved') {
                     // Check if athlete_payment already exists
                     $stmt = $connection->prepare("
                         SELECT id, final_amount, base_amount, discount_amount, due_date
@@ -642,7 +745,7 @@ try {
                 // them a "set your password" link. Wrapped so a failure here can
                 // NEVER break approval.
                 $parent_invite_status = null;
-                if ($data['status'] === 'approved') {
+                if ($status === 'approved') {
                     try {
                         require_once __DIR__ . '/../config/env.php';
                         require_once __DIR__ . '/../lib/ParentInvite.php';
@@ -705,8 +808,25 @@ try {
             break;
 
         case 'DELETE':
+            // A hard DELETE, so one integer removed a family's registration
+            // permanently. It required no token until 2026-09-02.
+            $auth = AuthMiddleware::requireAuth();
+
             // Delete registration
-            $registration_id = $_GET['id'] ?? 0;
+            $registration_id = (int)($_GET['id'] ?? 0);
+
+            $clubId = te_registration_club_id($connection, $registration_id);
+            if ($clubId === null) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Registration not found']);
+                exit();
+            }
+
+            if (!te_is_club_staff($auth, $clubId)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this registration']);
+                exit();
+            }
 
             $stmt = $connection->prepare("DELETE FROM registrations WHERE id = ?");
             $stmt->execute([$registration_id]);

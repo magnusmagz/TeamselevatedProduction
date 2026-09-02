@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { EvaluationCriterion, TryoutSession, Program } from '../types';
 import EvaluationCriteriaBuilder from './EvaluationCriteriaBuilder';
 
+const tryoutAuthHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+});
+
 interface TryoutCreationWizardProps {
   clubId: number;
   existingProgram?: Program | null;
@@ -163,7 +167,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
     try {
       const [sessionsRes, criteriaRes] = await Promise.all([
         fetch(`${API_URL}/registration/tryouts-api.php?path=sessions&program_id=${programId}`),
-        fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`)
+        fetch(`${API_URL}/registration/tryouts-api.php?path=criteria&program_id=${programId}`, { headers: tryoutAuthHeaders() })
       ]);
 
       const sessionsData = await sessionsRes.json();
@@ -260,7 +264,7 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
       const response = await fetch(endpoint, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
         body: JSON.stringify({
           club_id: clubId,
           name: formData.name,
