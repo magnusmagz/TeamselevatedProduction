@@ -65,6 +65,17 @@ class SchemaConformanceTest extends TestCase
      * self-check (testPendingTablesAreStillPending).
      */
     private const PENDING_MIGRATION_TABLES = [
+        // Migration 086 (mid-year athlete evaluations + IDP, CKU R76/R77) is
+        // written and NOT yet applied to Neon. lib/athlete_evaluations.php probes
+        // for both tables and degrades rather than 500ing until it is. Delete
+        // these two lines in the same commit as the fixture refresh.
+        'athlete_evaluations'       => '086_athlete_evaluations.sql',
+        'athlete_evaluation_scores' => '086_athlete_evaluations.sql',
+        // Migration 087 (coach invited player, CKU R86) is written and NOT yet
+        // applied to Neon. lib/tryout_coach_invite.php probes for the table and
+        // the three tryouts-api paths answer 503 with a sentence until it is.
+        // Delete this line in the same commit as the fixture refresh.
+        'tryout_coach_invites'      => '087_tryout_coach_invites.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */

@@ -5,7 +5,9 @@ import {
   TryoutRanking,
   EvaluationCriterion,
   TryoutSession,
-  TryoutStatus
+  TryoutStatus,
+  CoachInvite,
+  CoachInviteStatus
 } from '../types';
 import EvaluationModal from './EvaluationModal';
 import { useOrg } from '../../../contexts/OrgContext';
@@ -22,7 +24,47 @@ interface TryoutManagementProps {
   onClose: () => void;
 }
 
-type Tab = 'registrations' | 'evaluations' | 'rankings' | 'offers';
+type Tab = 'registrations' | 'evaluations' | 'rankings' | 'offers' | 'coach-invites';
+
+/**
+ * "Coach invited player" (CKU R86, slice 8.2) — the button state.
+ *
+ * The colour answers "has ANYONE claimed this player", not "have I". A coach
+ * who cannot see that a colleague already wants a registrant is exactly the
+ * situation the director is trying to stop, so the button is coloured by the
+ * whole club's claims and the label names who made them.
+ *
+ * These three are pure and exported so the colour state is testable without
+ * mounting the whole tryout screen.
+ */
+export const coachInviteNamesFor = (
+  invites: CoachInvite[],
+  registrationId: number
+): string[] =>
+  invites
+    .filter(i => i.registration_id === registrationId && i.status !== 'withdrawn')
+    .map(i => i.invited_by_name)
+    // A name we do not have renders as "Unknown coach" from the backend rather
+    // than as a blank, so there is nothing to filter out here.
+    .filter((name, index, all) => all.indexOf(name) === index);
+
+/** Distinct once claimed. Never a colour ALONE — the label changes too. */
+export const coachInviteButtonClass = (invited: boolean): string =>
+  invited
+    ? 'bg-amber-100 text-amber-900 border border-amber-400'
+    : 'bg-white text-brand-primary border border-brand-secondary hover:bg-gray-50';
+
+export const coachInviteLabel = (names: string[]): string => {
+  if (names.length === 0) return 'Invite to my team';
+  if (names.length === 1) return `Invited by ${names[0]}`;
+  return `Invited by ${names.length} coaches`;
+};
+
+/** The hover text always names everyone, however many there are. */
+export const coachInviteTitle = (names: string[]): string =>
+  names.length > 0
+    ? `Invited by ${names.join(', ')}`
+    : 'Invite this player to your team';
 
 const TryoutManagement: React.FC<TryoutManagementProps> = ({
   programId,
@@ -31,7 +73,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   onClose
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
-  const { currentClubId, activeContext } = useOrg();
+  const { currentClubId, activeContext, isClubAdmin } = useOrg();
   const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [activeTab, setActiveTab] = useState<Tab>('registrations');
   const [registrations, setRegistrations] = useState<TryoutRegistration[]>([]);
@@ -41,6 +83,16 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
   const [teams, setTeams] = useState<{ id: number; name: string; age_group?: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Coach invites (CKU R86, slice 8.2). `unavailable` is a THIRD state, not an
+  // empty list: migration 087 is applied to Neon by hand and `main` is shared,
+  // so this UI reaches production before the table exists and the endpoint
+  // answers 503. "No coach has invited anyone" and "this feature is not there
+  // yet" are opposite answers, and showing the first for the second is how a
+  // button that does nothing looks like a button that worked.
+  const [coachInvites, setCoachInvites] = useState<CoachInvite[]>([]);
+  const [invitesUnavailable, setInvitesUnavailable] = useState(false);
+  const [invitingId, setInvitingId] = useState<number | null>(null);
 
   // Modals
   const [evaluatingRegistration, setEvaluatingRegistration] = useState<TryoutRegistration | null>(null);
@@ -67,6 +119,7 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
         setRegistrations(await regRes.json());
         setSessions(await sessRes.json());
         setCriteria(await critRes.json());
+        await loadCoachInvites();
       } else if (activeTab === 'rankings') {
         const token = localStorage.getItem('auth_token');
         const [rankRes, teamsRes] = await Promise.all([
@@ -81,11 +134,82 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
       } else if (activeTab === 'offers') {
         const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=offers&program_id=${programId}`, { headers: tryoutAuthHeaders() });
         setOffers(await res.json());
+      } else if (activeTab === 'coach-invites') {
+        await loadCoachInvites();
       }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * The coach-invite list, tolerant of migration 087 being unapplied.
+   *
+   * A 503 is the documented answer while the table is missing, and it is the
+   * ONLY response that switches the feature off in the UI. Any other failure
+   * leaves the previous state alone rather than claiming the feature is absent.
+   */
+  const loadCoachInvites = async () => {
+    try {
+      const res = await fetch(
+        `${API_URL}/registration/tryouts-api.php?path=coach-invites&program_id=${programId}`,
+        { headers: tryoutAuthHeaders() }
+      );
+      if (res.status === 503) {
+        setInvitesUnavailable(true);
+        setCoachInvites([]);
+        return;
+      }
+      const data = await res.json();
+      // fetch() does not reject on 4xx/5xx, so an error body parses happily.
+      // Anything that is not an array is not a list of invites.
+      if (Array.isArray(data)) {
+        setInvitesUnavailable(false);
+        setCoachInvites(data);
+      }
+    } catch (error) {
+      console.error('Error loading coach invites:', error);
+    }
+  };
+
+  /**
+   * Claim a player. The backend takes the inviting coach from the TOKEN — this
+   * never sends a coach id, and must not start.
+   */
+  const handleCoachInvite = async (registrationId: number, teamId?: number) => {
+    setInvitingId(registrationId);
+    try {
+      const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=coach-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
+        body: JSON.stringify({ registration_id: registrationId, team_id: teamId })
+      });
+      if (res.status === 503) {
+        setInvitesUnavailable(true);
+        return;
+      }
+      await loadCoachInvites();
+    } catch (error) {
+      console.error('Error inviting player:', error);
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
+  const handleCoachInviteStatus = async (inviteId: number, status: CoachInviteStatus) => {
+    try {
+      const res = await fetch(`${API_URL}/registration/tryouts-api.php?path=coach-invite-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...tryoutAuthHeaders() },
+        body: JSON.stringify({ invite_id: inviteId, status })
+      });
+      if (res.ok) {
+        await loadCoachInvites();
+      }
+    } catch (error) {
+      console.error('Error updating coach invite:', error);
     }
   };
 
@@ -200,7 +324,11 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
     { key: 'registrations', label: 'Check-In' },
     { key: 'evaluations', label: 'Evaluate' },
     { key: 'rankings', label: 'Rankings' },
-    { key: 'offers', label: 'Offers' }
+    { key: 'offers', label: 'Offers' },
+    // The director's view. Coaches make the claims; the club admin is who reads
+    // the whole board back, which is the half of R86 the button alone does not
+    // deliver.
+    ...(isClubAdmin ? [{ key: 'coach-invites' as Tab, label: 'Coach invites' }] : [])
   ];
 
   return (
@@ -302,6 +430,10 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                     registrations={filteredRegistrations}
                     onCheckIn={handleCheckIn}
                     getStatusBadge={getStatusBadge}
+                    coachInvites={coachInvites}
+                    invitesUnavailable={invitesUnavailable}
+                    invitingId={invitingId}
+                    onCoachInvite={handleCoachInvite}
                   />
                 )}
 
@@ -314,6 +446,10 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                     criteria={criteria}
                     onEvaluate={(reg) => setEvaluatingRegistration(reg)}
                     getStatusBadge={getStatusBadge}
+                    coachInvites={coachInvites}
+                    invitesUnavailable={invitesUnavailable}
+                    invitingId={invitingId}
+                    onCoachInvite={handleCoachInvite}
                   />
                 )}
 
@@ -333,6 +469,15 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                     offers={offers}
                     onUpdateOffer={handleUpdateOffer}
                     onAddToRoster={handleAddToRoster}
+                  />
+                )}
+
+                {/* Coach invites Tab */}
+                {activeTab === 'coach-invites' && (
+                  <CoachInvitesTable
+                    invites={coachInvites}
+                    unavailable={invitesUnavailable}
+                    onSetStatus={handleCoachInviteStatus}
                   />
                 )}
               </div>
@@ -360,16 +505,77 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
 };
 
 // Sub-components for each tab
+
+/**
+ * The colour-coded "Invite to my team" button (CKU R86, slice 8.2).
+ *
+ * Rendered on both the Check-In and Evaluate rows, because a coach decides they
+ * want a player at whichever point they are looking at them.
+ *
+ * It is NEVER hidden once someone has claimed the player: a second coach must
+ * still be able to make their own claim, which is the situation the director's
+ * table exists to surface. It only becomes inert while migration 087 is
+ * unapplied, and it says so rather than silently doing nothing.
+ */
+interface CoachInviteButtonProps {
+  registrationId: number;
+  coachInvites: CoachInvite[];
+  unavailable: boolean;
+  busy: boolean;
+  onCoachInvite: (registrationId: number, teamId?: number) => void;
+}
+
+export const CoachInviteButton: React.FC<CoachInviteButtonProps> = ({
+  registrationId,
+  coachInvites,
+  unavailable,
+  busy,
+  onCoachInvite
+}) => {
+  const names = coachInviteNamesFor(coachInvites, registrationId);
+  const invited = names.length > 0;
+
+  if (unavailable) {
+    return (
+      <span className="text-xs text-gray-500" title="The database migration for coach invites has not been applied yet.">
+        Invites not available yet
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onCoachInvite(registrationId)}
+      disabled={busy}
+      title={coachInviteTitle(names)}
+      aria-label={coachInviteTitle(names)}
+      data-invited={invited ? 'true' : 'false'}
+      className={`px-2 py-1 rounded text-xs font-semibold uppercase tracking-wide disabled:opacity-50 ${coachInviteButtonClass(invited)}`}
+    >
+      {busy ? 'Inviting…' : coachInviteLabel(names)}
+    </button>
+  );
+};
+
 interface RegistrationsTableProps {
   registrations: TryoutRegistration[];
   onCheckIn: (id: number, tryoutNumber?: string) => void;
   getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
+  coachInvites: CoachInvite[];
+  invitesUnavailable: boolean;
+  invitingId: number | null;
+  onCoachInvite: (registrationId: number, teamId?: number) => void;
 }
 
 const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
   registrations,
   onCheckIn,
-  getStatusBadge
+  getStatusBadge,
+  coachInvites,
+  invitesUnavailable,
+  invitingId,
+  onCoachInvite
 }) => {
   const [tryoutNumbers, setTryoutNumbers] = React.useState<Record<number, string>>({});
 
@@ -426,14 +632,23 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
               {reg.submitted_at ? new Date(reg.submitted_at).toLocaleDateString() : '-'}
             </td>
             <td className="py-3 px-4">
-              {(!reg.tryout_status || reg.tryout_status === 'registered') && (
-                <button
-                  onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
-                  className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                >
-                  Check In
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {(!reg.tryout_status || reg.tryout_status === 'registered') && (
+                  <button
+                    onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
+                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                  >
+                    Check In
+                  </button>
+                )}
+                <CoachInviteButton
+                  registrationId={reg.id}
+                  coachInvites={coachInvites}
+                  unavailable={invitesUnavailable}
+                  busy={invitingId === reg.id}
+                  onCoachInvite={onCoachInvite}
+                />
+              </div>
             </td>
           </tr>
         ))}
@@ -447,6 +662,10 @@ interface EvaluationsTableProps {
   criteria: EvaluationCriterion[];
   onEvaluate: (reg: TryoutRegistration) => void;
   getStatusBadge: (status?: TryoutStatus) => React.ReactElement;
+  coachInvites: CoachInvite[];
+  invitesUnavailable: boolean;
+  invitingId: number | null;
+  onCoachInvite: (registrationId: number, teamId?: number) => void;
 }
 
 /**
@@ -573,7 +792,11 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
   registrations,
   criteria,
   onEvaluate,
-  getStatusBadge
+  getStatusBadge,
+  coachInvites,
+  invitesUnavailable,
+  invitingId,
+  onCoachInvite
 }) => {
   const [sort, setSort] = useState<EvaluationSort>(readStoredEvaluationSort);
   const [progress, setProgress] = useState<EvaluationProgressFilter>('all');
@@ -717,12 +940,21 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
                   ) : '-'}
                 </td>
                 <td className="py-3 px-4">
-                  <button
-                    onClick={() => onEvaluate(reg)}
-                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                  >
-                    {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onEvaluate(reg)}
+                      className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                    >
+                      {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
+                    </button>
+                    <CoachInviteButton
+                      registrationId={reg.id}
+                      coachInvites={coachInvites}
+                      unavailable={invitesUnavailable}
+                      busy={invitingId === reg.id}
+                      onCoachInvite={onCoachInvite}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -1073,6 +1305,160 @@ const OffersTable: React.FC<OffersTableProps> = ({
         ))}
       </tbody>
     </table>
+  );
+};
+
+/**
+ * The director's board (CKU R86, slice 8.2) — who each coach claimed, and what
+ * happened next.
+ *
+ * "What happened next" is COMPUTED server-side from `tryout_offers` and
+ * `team_members`; nothing on this table is a stored copy of the roster, so it
+ * cannot drift from it.
+ *
+ * `Emailed` and `Invited` are shown as separate columns on purpose. The row
+ * existing means a coach made a selection; `email_sent_at` means the family was
+ * actually told, and the second one fails on its own. Collapsing them is the
+ * bug this slice exists downstream of — send-offers reporting "sent" when
+ * nothing had been.
+ */
+interface CoachInvitesTableProps {
+  invites: CoachInvite[];
+  unavailable: boolean;
+  onSetStatus: (inviteId: number, status: CoachInviteStatus) => void;
+}
+
+const COACH_INVITE_STATUS_LABELS: Record<string, string> = {
+  invited: 'Invited',
+  registered: 'Registered',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn'
+};
+
+const COACH_INVITE_STATUS_COLORS: Record<string, string> = {
+  invited: 'bg-amber-100 text-amber-900',
+  registered: 'bg-green-100 text-green-800',
+  declined: 'bg-red-100 text-red-700',
+  withdrawn: 'bg-gray-100 text-gray-600'
+};
+
+const CoachInvitesTable: React.FC<CoachInvitesTableProps> = ({
+  invites,
+  unavailable,
+  onSetStatus
+}) => {
+  const [statusFilter, setStatusFilter] = useState<CoachInviteStatus | 'all'>('all');
+
+  if (unavailable) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        Coach invites are not available yet — the database migration has not been applied.
+      </div>
+    );
+  }
+
+  const visible = invites.filter(i => statusFilter === 'all' || i.status === statusFilter);
+
+  return (
+    <div>
+      {/* Rendered even when the filter matches nothing, so the choice that
+          emptied the list can be undone. */}
+      <div className="mb-4 flex flex-wrap items-center gap-4 border-b border-gray-100 pb-3">
+        <label
+          className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+          htmlFor="coach-invites-status"
+        >
+          Status
+          <select
+            id="coach-invites-status"
+            aria-label="Filter coach invites by status"
+            className="border border-brand-secondary rounded-md px-2 py-1 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as CoachInviteStatus | 'all')}
+          >
+            <option value="all">All statuses</option>
+            <option value="invited">Invited</option>
+            <option value="registered">Registered</option>
+            <option value="declined">Declined</option>
+            <option value="withdrawn">Withdrawn</option>
+          </select>
+        </label>
+        <span className="ml-auto text-sm text-gray-600">
+          Showing {visible.length} of {invites.length}
+        </span>
+      </div>
+
+      {invites.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No coach has invited a player yet.
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No coach invites match this filter.
+        </div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-brand-secondary">
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Coach</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Team</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Emailed</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Rostered</th>
+              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map(invite => (
+              <tr key={invite.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-3 px-4 font-medium">{invite.athlete_name}</td>
+                <td className="py-3 px-4">{invite.invited_by_name}</td>
+                <td className="py-3 px-4 text-gray-600">{invite.team_name || 'No team yet'}</td>
+                <td className="py-3 px-4">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      COACH_INVITE_STATUS_COLORS[invite.status] || 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {COACH_INVITE_STATUS_LABELS[invite.status] || 'Unknown'}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-gray-600">
+                  {/* "Not sent" is a real answer and must not read as blank —
+                      the family not having been told is the thing a director
+                      needs to see. */}
+                  {invite.email_sent_at ? 'Sent' : 'Not sent'}
+                </td>
+                <td className="py-3 px-4 text-gray-600">
+                  {invite.rostered ? 'Yes' : 'No'}
+                </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-3">
+                    {invite.status !== 'declined' && (
+                      <button
+                        onClick={() => onSetStatus(invite.id, 'declined')}
+                        className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                      >
+                        Declined
+                      </button>
+                    )}
+                    {invite.status !== 'withdrawn' && (
+                      <button
+                        onClick={() => onSetStatus(invite.id, 'withdrawn')}
+                        className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 };
 

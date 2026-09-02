@@ -50,6 +50,7 @@ class TryoutsApiScopeTest extends TestCase
             'evaluations'   => 'staff',
             'rankings'      => 'staff',
             'offers'        => 'staff',
+            'coach-invites' => 'staff',
         ],
         'handlePost' => [
             'create'          => 'staff',
@@ -61,6 +62,10 @@ class TryoutsApiScopeTest extends TestCase
             'update-offer'    => 'staff',
             'add-to-roster'   => 'staff',
             'update-rankings' => 'staff',
+            // Slice 8.2 — a coach claiming a tryout registrant, and closing the
+            // loop on that claim.
+            'coach-invite'        => 'staff',
+            'coach-invite-status' => 'staff',
         ],
         'handlePut' => [
             'update'   => 'staff',

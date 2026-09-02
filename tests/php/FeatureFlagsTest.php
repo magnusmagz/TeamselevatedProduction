@@ -15,13 +15,22 @@ use PHPUnit\Framework\TestCase;
  */
 class FeatureFlagsTest extends TestCase
 {
-    /** Phase 2 send paths → the switch each must consult. Extend as slices land. */
+    /**
+     * Phase 2 send paths → the switch each must consult. Extend as slices land.
+     *
+     * A value may be a LIST when one file grew a second independent send: a
+     * kill switch is per feature, not per file, so folding two sends onto one
+     * name would mean turning off tryout offers to stop coach invites.
+     */
     private const GATED = [
         'api/invoices.php' => 'TRANSACTIONAL_EMAIL',
         'registration/registrations-api.php' => 'REGISTRATION_CONFIRMATION',
         // Slice 2.2 — send-offers answered "Offers sent successfully" with no
         // send of any kind anywhere in the handler.
-        'registration/tryouts-api.php' => 'TRYOUT_OFFER_EMAIL',
+        // Slice 8.2 — the coach-invite email is a SEPARATE switch from the
+        // offer email in the same file. They fail differently and a club may
+        // want one dark and the other live.
+        'registration/tryouts-api.php' => ['TRYOUT_OFFER_EMAIL', 'TRYOUT_COACH_INVITE_EMAIL'],
         // Slice 2.1a — the three payment endpoints that logged
         // "DEMO: Would send ..." and answered success. PaymentEmailStubsTest
         // checks the stronger property (the switch is consulted BEFORE each send
@@ -101,10 +110,12 @@ class FeatureFlagsTest extends TestCase
 
     public function testEveryGatedSendPathConsultsItsSwitch(): void
     {
-        foreach (self::GATED as $rel => $flag) {
+        foreach (self::GATED as $rel => $flags) {
             $src = file_get_contents(__DIR__ . '/../../' . $rel);
-            $this->assertStringContainsString("te_feature_enabled('$flag')", $src,
-                "$rel must check te_feature_enabled('$flag') before sending");
+            foreach ((array) $flags as $flag) {
+                $this->assertStringContainsString("te_feature_enabled('$flag')", $src,
+                    "$rel must check te_feature_enabled('$flag') before sending");
+            }
         }
         $this->assertTrue(true);
     }

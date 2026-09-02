@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFinancialPermissions } from '../../contexts/FinancialPermissionsContext';
 import { ParentHeader } from '../components/ParentHeader';
 import { JerseySizeCard } from '../components/JerseySizeCard';
+import AthleteEvaluationsPanel from '../../components/evaluations/AthleteEvaluationsPanel';
 
 interface AthleteDetails {
   id: number;
@@ -416,6 +417,24 @@ export const AthleteDetailPage: React.FC = () => {
             setAthlete((prev) => (prev ? { ...prev, jersey_size: size } : prev))
           }
         />
+
+        {/* Coach evaluations and the development plan, READ ONLY.
+            The same component the staff profile renders, not a portal-specific
+            copy: a parent must see exactly what the coach wrote. `readOnly`
+            removes every write control, and the server refuses a guardian's
+            write regardless — api/athlete-evaluations.php gates reads on
+            userCanAccessAthlete (a guardian passes) and writes on
+            staffCanManageAthlete AND coaching the athlete (they do not). */}
+        <div className="px-4 mb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <AthleteEvaluationsPanel
+              athleteId={athlete.id}
+              athleteName={`${athlete.first_name} ${athlete.last_name}`}
+              readOnly
+              apiUrl={API_URL}
+            />
+          </div>
+        </div>
 
         {/* Upcoming Schedule for this athlete */}
         <div className="px-4 mb-4">
