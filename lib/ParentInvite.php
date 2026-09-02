@@ -20,6 +20,7 @@
  */
 
 require_once __DIR__ . '/AuditLogger.php';
+require_once __DIR__ . '/role_cache.php';
 
 if (!function_exists('parentInvite_ensureUserAndToken')) {
     /**
@@ -169,6 +170,9 @@ if (!function_exists('parentInvite_ensureUserAndToken')) {
             DO UPDATE SET active = TRUE, revoked_at = NULL, revoked_by = NULL
         ");
         $stmt->execute([$userId, $clubId]);
+        // The parent role just appeared (or came back from revoked); drop any
+        // cached context so the portal is reachable on their next request.
+        te_role_cache_invalidate($userId);
 
         // 5. Invalidate any prior unused parent_invite tokens for this email so
         //    only the freshest link works.

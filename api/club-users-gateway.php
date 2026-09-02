@@ -12,6 +12,7 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 try {
     $db = Database::getInstance();
@@ -102,6 +103,7 @@ try {
                 WHERE club_profile_id = ? AND user_id = ? AND active = true
             ");
             $stmt->execute([$newRole, $clubId, $userId]);
+            te_role_cache_invalidate($userId);
 
             echo json_encode([
                 'success' => true,
@@ -140,6 +142,8 @@ try {
                 WHERE club_profile_id = ? AND user_id = ? AND active = true
             ");
             $stmt->execute([$clubId, $userId]);
+            // A REVOCATION — see the note in super-admin-gateway.php.
+            te_role_cache_invalidate($userId);
 
             echo json_encode([
                 'success' => true,

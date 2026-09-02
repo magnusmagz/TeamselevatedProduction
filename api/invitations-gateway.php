@@ -13,6 +13,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 require_once __DIR__ . '/../lib/Email.php';
 
 $db = Database::getInstance();
@@ -611,6 +612,7 @@ function handleAcceptInvitation($conn, $input) {
             'club_profile_id' => $clubId,
             'role' => $role
         ]);
+        te_role_cache_invalidate($userId);
 
         // Mark invitation as accepted (if email invitation).
         // NOTE: only set columns that exist on the table — `accepted_by` was

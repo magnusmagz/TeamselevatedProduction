@@ -26,6 +26,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/background_check.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 $auth = AuthMiddleware::requireAuth();
 
@@ -119,6 +120,7 @@ try {
                 if (!$ucaCheck->fetch()) {
                     $ucaStmt = $db->prepare("INSERT INTO user_club_access (user_id, club_profile_id, role, active, granted_at) VALUES (?, ?, 'volunteer', true, NOW())");
                     $ucaStmt->execute([$newUserId, $clubId]);
+                    te_role_cache_invalidate($newUserId);
                 }
 
                 // Check if already a volunteer on this team
