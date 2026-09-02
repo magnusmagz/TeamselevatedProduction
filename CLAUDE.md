@@ -1270,6 +1270,14 @@ coaches stopped being shown every team in the club.
   lib-only under `TE_RECIPIENT_SEARCH_LIB_ONLY`) and was confirmed to fail on the old code
   with both reported symptoms.
 
+### Creating a tryout is club-admin only (decision 2026-09-02)
+`registration/tryouts-api.php` `create` gates on `te_is_club_admin`; every other tryout path
+stays staff (admin or coach). The `+ Tryout` button renders for admins only. Maggie's rule:
+it should be a permission; if clubs need coaches to create tryouts, add a per-role toggle,
+do not widen the gate back to staff. There is **no primary parent/guardian** in the product
+either (reaffirmed the same day): `athlete_guardians.is_primary` is legacy, unread and
+unwritten; guardians are equal. Team branding (`context_type=team`) stays as is by decision.
+
 ### ⚠️ Chat team scope — `chat-server/lib/team_scope.js` (2026-08-14)
 Reported on Central Kansas United: every coach saw every team's chat. Root cause was
 `getAccessibleTeamIds` unioning in the whole club whenever `canInitiateConversation(role)`

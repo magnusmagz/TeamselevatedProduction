@@ -37,7 +37,11 @@ Pre-existing mismatch, surfaced by the tile.
 - **Recommendation:** (a). The treasurer role exists to see money. Payments worktree.
 - **If left:** one live treasurer account (club 51) sees a tile that never loads.
 
-### 3. Coaches can create tryouts
+### 3. Coaches can create tryouts — DECIDED 2026-09-02: admin-only
+**Maggie:** creating a tryout should be a permission that is enabled; admin-only for now, revisit
+with a per-role permission toggle if users need it. Shipped (branch `fix/tryout-create-admin-only`).
+
+_Original item:_
 The security fix could have made "Create Tryout" admin-only. Every coach has the button
 today and `/program-management` has no role gate, so I matched the live UI (staff).
 - **Options:** (a) keep staff; (b) admin-only — one token in `tryouts-api.php`
@@ -59,7 +63,11 @@ halves disagree about would hide the wrong athletes.
 - **Recommendation:** (c), default Aug 1. Unblocks R84, R14 and R73 together.
 - **If left:** coaches see the whole club's tryout list, scoped to their club only.
 
-### 5. Team branding for multi-team users (R75)
+### 5. Team branding for multi-team users (R75) — DEFERRED 2026-09-02
+**Maggie:** we will want team branding because of Canva and socials; leave it in its current state
+and revisit when the use case is clearer. Nothing to build or delete now.
+
+_Original item:_
 Recorded decision: a coach on multiple teams, or a parent with kids on different teams,
 sees club branding. Still open: the single-team case, and whether to delete the dead
 `context_type=team` endpoint (`organization-branding.php:111`, no caller).
