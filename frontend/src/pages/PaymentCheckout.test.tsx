@@ -49,15 +49,21 @@ const mockPaymentData = {
 
 // The page fires TWO independent requests on mount: athlete-payments.php for the
 // invoice, and payment-plans.php?action=list for the club's plan options. A blanket
-// mockResolvedValue answers BOTH with the athlete payload, and `data.plans` is then
-// undefined -> PaymentCheckout.tsx:485 does `paymentPlans.length` on undefined and the
-// page renders as a blank div. So the stub routes by URL instead of answering
-// everything identically.
-const mockApi = (opts: { submit?: unknown } = {}) => {
+// mockResolvedValue answers BOTH with the athlete payload, so `data.plans` comes back
+// undefined - which used to take the whole page down (`paymentPlans.length` on
+// undefined) and now degrades to the "plans unavailable" notice instead. Either way the
+// stub routes by URL so the two requests can be answered separately; `plans` overrides
+// only the payment-plans.php response.
+const mockApi = (opts: { submit?: unknown; plans?: { ok?: boolean; body?: unknown } } = {}) => {
   (fetch as jest.Mock).mockImplementation((url: string) => {
     const u = String(url);
     if (u.includes('payment-plans.php')) {
-      return Promise.resolve({ ok: true, json: async () => ({ success: true, plans: [] }) });
+      const plans = opts.plans ?? { ok: true, body: { success: true, plans: [] } };
+      return Promise.resolve({
+        ok: plans.ok !== false,
+        status: plans.ok === false ? 500 : 200,
+        json: async () => plans.body ?? { success: true, plans: [] },
+      });
     }
     if (u.includes('payments-stub.php')) {
       return Promise.resolve({
@@ -222,6 +228,55 @@ describe('PaymentCheckout', () => {
       fireEvent.click(submitButton);
 
       expect(submitButton).toBeDisabled();
+    });
+  });
+
+  // The plans request is optional to this page: a failure must degrade to pay-in-full
+  // with a notice, never a blank page and never a silent empty plans list (which would
+  // claim the club offers no plans - a different fact from "we could not ask").
+  describe('when payment plans cannot be loaded', () => {
+    let consoleError: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    const expectCheckoutWithoutPlans = async () => {
+      await waitFor(() => {
+        expect(screen.getByText('Payment Checkout')).toBeInTheDocument();
+      });
+
+      // The notice, and the pay-in-full path still fully usable.
+      expect(
+        screen.getByText(/Payment plans are unavailable right now; pay in full below/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+      expect(screen.getByText('Payment Details')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Pay \$150\.00/ })).toBeInTheDocument();
+
+      // and no plans UI pretending the club has none
+      expect(screen.queryByText('Payment Options')).not.toBeInTheDocument();
+      expect(screen.queryByText('Use Payment Plan')).not.toBeInTheDocument();
+    };
+
+    test('success:true with no plans key renders pay-in-full plus the notice', async () => {
+      mockApi({ plans: { ok: true, body: { success: true } } });
+
+      renderComponent();
+
+      await expectCheckoutWithoutPlans();
+    });
+
+    test('a 500 from payment-plans renders pay-in-full plus the notice', async () => {
+      mockApi({ plans: { ok: false, body: { success: false, error: 'boom' } } });
+
+      renderComponent();
+
+      await expectCheckoutWithoutPlans();
     });
   });
 

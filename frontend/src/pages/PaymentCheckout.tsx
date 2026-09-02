@@ -67,6 +67,8 @@ export const PaymentCheckout: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [usePaymentPlan, setUsePaymentPlan] = useState(false);
+  // Distinct from "this club offers no plans" (an empty array), which is a real answer.
+  const [plansUnavailable, setPlansUnavailable] = useState(false);
 
   const isDemoMode = process.env.REACT_APP_PAYMENT_MODE === 'demo';
 
@@ -119,20 +121,40 @@ export const PaymentCheckout: React.FC = () => {
       });
   }, [athleteId, paymentId]);
 
-  // Fetch available payment plans
+  // Fetch available payment plans.
+  //
+  // Plans are optional to the checkout: pay-in-full works without them. So a failure
+  // here must never take the page down, and must never be silently swallowed into an
+  // empty list either - an empty list claims the club offers no plans, which is a
+  // different statement from "we could not ask". Failure sets plansUnavailable and the
+  // page renders a notice above the payment form.
+  //
+  // fetch() does not reject on 4xx/5xx, so res.ok is checked explicitly; a payload with
+  // success:true but no plans array is treated as a failed answer for the same reason.
   useEffect(() => {
     if (clubId == null) return;
     const token = localStorage.getItem('auth_token');
     fetch(`${process.env.REACT_APP_API_URL}/api/payment-plans.php?action=list&club_id=${clubId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setPaymentPlans(data.plans);
+      .then(async res => {
+        if (!res.ok) {
+          throw new Error(`payment-plans returned ${res.status}`);
         }
+        const data = await res.json();
+        if (!data?.success || !Array.isArray(data.plans)) {
+          throw new Error('payment-plans returned no plans list');
+        }
+        setPaymentPlans(data.plans);
+        setPlansUnavailable(false);
       })
-      .catch(err => console.error('Error fetching payment plans:', err));
+      .catch(err => {
+        console.error('Error fetching payment plans:', err);
+        setPaymentPlans([]);
+        setSelectedPlan(null);
+        setUsePaymentPlan(false);
+        setPlansUnavailable(true);
+      });
   }, [clubId]);
 
   // Fetch installment schedule when plan is selected
@@ -146,7 +168,8 @@ export const PaymentCheckout: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setInstallments(data.installments);
+          // Same shape as the plans guard: a success without an array is a failed answer.
+          setInstallments(Array.isArray(data.installments) ? data.installments : []);
         }
       })
       .catch(err => console.error('Error calculating installments:', err));
@@ -481,8 +504,19 @@ export const PaymentCheckout: React.FC = () => {
           </div>
         )}
 
+        {/* Payment plans could not be loaded. Say so rather than rendering nothing:
+            without this the section is simply absent and the parent is left assuming
+            their club offers no plan. Pay in full below is unaffected. */}
+        {plansUnavailable && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6" role="status">
+            <p className="text-sm text-yellow-800">
+              Payment plans are unavailable right now; pay in full below.
+            </p>
+          </div>
+        )}
+
         {/* Payment Plan Selection */}
-        {paymentPlans.length > 0 && (
+        {!plansUnavailable && paymentPlans.length > 0 && (
           <div className="bg-white shadow rounded-lg p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">Payment Options</h2>
 
