@@ -36,14 +36,19 @@ class RsvpTokenTest extends TestCase
     public function testAGuardianTokenSurvivesTheRoundTrip(): void
     {
         $token = RsvpToken::make(['e' => 4021, 'g' => 463]);
-        $this->assertSame(['e' => 4021, 'g' => 463], RsvpToken::verify($token));
+        $payload = RsvpToken::verify($token);
+        $this->assertSame(4021, $payload['e']);
+        $this->assertSame(463, $payload['g']);
+        $this->assertArrayHasKey('x', $payload, 'links minted now carry an expiry');
     }
 
     // Mutation: same as above, for the athlete-with-own-email shape.
     public function testAnAthleteTokenSurvivesTheRoundTrip(): void
     {
         $token = RsvpToken::make(['e' => 4021, 'a' => 452]);
-        $this->assertSame(['e' => 4021, 'a' => 452], RsvpToken::verify($token));
+        $payload = RsvpToken::verify($token);
+        foreach (['e' => 4021, 'a' => 452] as $k => $v) { $this->assertSame($v, $payload[$k]); }
+        $this->assertArrayHasKey('x', $payload);
     }
 
     // Mutation: replace hash_equals() in verify() with `true` — every tampered payload is accepted.
@@ -122,7 +127,9 @@ class RsvpTokenTest extends TestCase
     {
         // No 'x' claim at all — every invite email sent before 2026-09-02.
         $body = $this->b64u(json_encode(['e' => 4021, 'g' => 463]));
-        $sig = $this->b64u(hash_hmac('sha256', $body, (string) getenv('RSVP_TOKEN_SECRET'), true));
+        $secret = new \ReflectionMethod(RsvpToken::class, 'secret');
+        $secret->setAccessible(true);
+        $sig = $this->b64u(hash_hmac('sha256', $body, $secret->invoke(null), true));
         $payload = RsvpToken::verify("$body.$sig");
         $this->assertIsArray($payload, 'a legacy link without an expiry must keep working');
     }

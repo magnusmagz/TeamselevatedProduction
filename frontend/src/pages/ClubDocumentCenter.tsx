@@ -741,16 +741,22 @@ const ClubDocumentCenter: React.FC = () => {
               {/* Tabs: Upload File | Paste Link */}
               <div>
                 <div className="flex border-b border-brand-secondary">
+                  {/* Upload is offered only while editing a document that already has a
+                      file. New uploads land on the dyno's local disk, which is wiped on
+                      restart, and are served with no login — decision 14 (2026-09-02):
+                      links only until durable, authorised storage ships (roadmap Phase 5). */}
+                  {editingDoc?.file_path && (
                   <button
-                    onClick={() => setModalTab('upload')}
-                    className={`px-4 py-2 text-sm font-semibold uppercase ${
-                      modalTab === 'upload'
-                        ? 'text-brand-primary border-b-2 border-brand-primary'
-                        : 'text-gray-500 hover:text-brand-primary'
-                    }`}
-                  >
-                    Upload File
-                  </button>
+                      onClick={() => setModalTab('upload')}
+                      className={`px-4 py-2 text-sm font-semibold uppercase ${
+                        modalTab === 'upload'
+                          ? 'text-brand-primary border-b-2 border-brand-primary'
+                          : 'text-gray-500 hover:text-brand-primary'
+                      }`}
+                    >
+                      Upload File
+                    </button>
+                  )}
                   <button
                     onClick={() => setModalTab('link')}
                     className={`px-4 py-2 text-sm font-semibold uppercase ${
