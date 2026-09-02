@@ -7,30 +7,35 @@ import VenueManagement from './VenueManagement';
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-// Mock GooglePlacePicker
-jest.mock('./GooglePlacePicker', () => {
-  return function MockGooglePlacePicker({ onPlaceSelect, placeholder }: any) {
+// Mock the address/place picker the form actually renders.
+// (The form used to use GooglePlacePicker; it now uses GooglePlacesAutocomplete,
+// which loads the Google Maps script at mount — mocked here to keep the suite
+// hermetic, exactly as the old picker was.)
+jest.mock('./GooglePlacesAutocomplete', () => {
+  return function MockGooglePlacesAutocomplete({ onPlaceSelect, placeholder, defaultValue }: any) {
     return (
-      <div data-testid="google-place-picker">
-        <input
-          placeholder={placeholder}
-          data-testid="place-picker-input"
-          onChange={(e) => {
-            // Simulate place selection on input
-            if (e.target.value === 'Test Address') {
-              onPlaceSelect({
-                name: 'Test Venue',
-                address: '123 Test St',
-                city: 'Austin',
-                state: 'TX',
-                zip: '78701',
-                lat: 30.2672,
-                lng: -97.7431
-              });
-            }
-          }}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        data-testid="place-picker-input"
+        onChange={(e) => {
+          // Simulate place selection on input
+          if (e.target.value === 'Test Address') {
+            onPlaceSelect({
+              name: 'Test Venue',
+              formatted_address: '123 Test St, Austin, TX 78701',
+              address_line1: '123 Test St',
+              city: 'Austin',
+              state: 'TX',
+              zip_code: '78701',
+              country: 'USA',
+              lat: 30.2672,
+              lng: -97.7431
+            });
+          }
+        }}
+      />
     );
   };
 });
@@ -104,7 +109,7 @@ describe('VenueManagement', () => {
 
       render(<VenueManagement />);
 
-      expect(screen.getByText('Loading venues...')).toBeInTheDocument();
+      expect(screen.getByText('Loading facilities...')).toBeInTheDocument();
     });
   });
 
@@ -118,10 +123,10 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        expect(screen.getByText('No venues yet.')).toBeInTheDocument();
+        expect(screen.getByText('No facilities yet.')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Click "Add Venue" to create your first venue.')).toBeInTheDocument();
+      expect(screen.getByText('Click "Add Facility" to create your first facility.')).toBeInTheDocument();
     });
   });
 
@@ -152,7 +157,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        expect(screen.getByText('2 venues total')).toBeInTheDocument();
+        expect(screen.getByText('2 facilities total')).toBeInTheDocument();
       });
     });
 
@@ -198,12 +203,12 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        expect(screen.getByText('+ Add Venue')).toBeInTheDocument();
+        expect(screen.getByText('+ Add Facility')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('+ Add Venue'));
+      fireEvent.click(screen.getByText('+ Add Facility'));
 
-      expect(screen.getByText('Create New Venue')).toBeInTheDocument();
+      expect(screen.getByText('Create New Facility')).toBeInTheDocument();
     });
 
     it('shows venue form fields', async () => {
@@ -215,13 +220,13 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
-      expect(screen.getByText('Venue Name *')).toBeInTheDocument();
+      expect(screen.getByText('Facility Name *')).toBeInTheDocument();
       expect(screen.getByText('Google Maps URL')).toBeInTheDocument();
       expect(screen.getByText('Website')).toBeInTheDocument();
-      expect(screen.getByTestId('google-place-picker')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search by facility name or address...')).toBeInTheDocument();
     });
 
     it('submits new venue successfully', async () => {
@@ -233,7 +238,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
       // Fill in venue name - find input by placeholder or container
@@ -242,14 +247,16 @@ describe('VenueManagement', () => {
       fireEvent.change(nameInput, { target: { value: 'New Test Venue' } });
 
       // Submit form
-      fireEvent.click(screen.getByText('Create Venue'));
+      fireEvent.click(screen.getByText('Create Facility'));
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/legacy/venues-gateway.php'),
           expect.objectContaining({
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            // The gateway now also carries the bearer token, so assert on the
+            // content type rather than the whole headers object.
+            headers: expect.objectContaining({ 'Content-Type': 'application/json' })
           })
         );
       });
@@ -264,20 +271,20 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
-      expect(screen.getByText('Create New Venue')).toBeInTheDocument();
+      expect(screen.getByText('Create New Facility')).toBeInTheDocument();
 
       fireEvent.click(screen.getByText('Cancel'));
 
       await waitFor(() => {
-        expect(screen.queryByText('Create New Venue')).not.toBeInTheDocument();
+        expect(screen.queryByText('Create New Facility')).not.toBeInTheDocument();
       });
     });
   });
 
-  describe('Edit Venue', () => {
+  describe('Edit Facility', () => {
     it('opens form with venue data when Edit is clicked', async () => {
       mockFetch
         .mockResolvedValueOnce({ ok: true, json: async () => mockVenues }) // Initial load
@@ -293,7 +300,7 @@ describe('VenueManagement', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByText('Edit Venue')).toBeInTheDocument();
+        expect(screen.getByText('Edit Facility')).toBeInTheDocument();
       });
     });
 
@@ -314,10 +321,10 @@ describe('VenueManagement', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByText('Edit Venue')).toBeInTheDocument();
+        expect(screen.getByText('Edit Facility')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Update Venue'));
+      fireEvent.click(screen.getByText('Update Facility'));
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
@@ -347,7 +354,7 @@ describe('VenueManagement', () => {
       fireEvent.click(deleteButtons[0]);
 
       expect(mockConfirm).toHaveBeenCalledWith(
-        'Are you sure you want to delete this venue? This will also delete all associated fields.'
+        'Are you sure you want to delete this facility? This will also delete all associated fields.'
       );
     });
 
@@ -408,7 +415,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
       // Fill in field name
@@ -476,7 +483,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
       // Find status dropdown by its displayed value
@@ -498,7 +505,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Venue Management')).toBeInTheDocument();
+        expect(screen.getByText('Facility Management')).toBeInTheDocument();
       });
 
       // Should have close button
@@ -516,7 +523,7 @@ describe('VenueManagement', () => {
       render(<VenueManagement onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Venue Management')).toBeInTheDocument();
+        expect(screen.getByText('Facility Management')).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByText('×'));
@@ -550,14 +557,14 @@ describe('VenueManagement', () => {
       render(<VenueManagement />);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('+ Add Venue'));
+        fireEvent.click(screen.getByText('+ Add Facility'));
       });
 
       const formInputs = document.querySelectorAll('input[type="text"]');
       const nameInput = formInputs[0];
       fireEvent.change(nameInput, { target: { value: 'Test Venue' } });
 
-      fireEvent.click(screen.getByText('Create Venue'));
+      fireEvent.click(screen.getByText('Create Facility'));
 
       await waitFor(() => {
         expect(alertSpy).toHaveBeenCalledWith('Error saving venue: Save failed');

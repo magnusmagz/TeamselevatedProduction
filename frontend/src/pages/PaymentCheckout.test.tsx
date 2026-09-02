@@ -1,15 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PaymentCheckout } from './PaymentCheckout';
 
-// Mock react-router-dom
+// react-router-dom is served by the manual mock in src/__mocks__/react-router-dom.tsx,
+// which Jest applies to node modules automatically. jest.requireActual cannot be used
+// here: react-router-dom 7 declares its entry point through "exports" and its legacy
+// "main" (dist/main.js) does not exist, so Jest 27's resolver cannot find the real
+// module at all - which is what made this whole suite fail to run.
+//
+// The mock's hooks are jest.fn()s and CRA sets resetMocks: true, so their return
+// values have to be re-established in beforeEach or they hand back undefined.
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-  useParams: () => ({ athleteId: '1', paymentId: '101' })
-}));
 
 // Mock OrgContext so the page can read the active club id without an OrgProvider.
 jest.mock('../contexts/OrgContext', () => ({
@@ -45,10 +47,36 @@ const mockPaymentData = {
   ]
 };
 
+// The page fires TWO independent requests on mount: athlete-payments.php for the
+// invoice, and payment-plans.php?action=list for the club's plan options. A blanket
+// mockResolvedValue answers BOTH with the athlete payload, and `data.plans` is then
+// undefined -> PaymentCheckout.tsx:485 does `paymentPlans.length` on undefined and the
+// page renders as a blank div. So the stub routes by URL instead of answering
+// everything identically.
+const mockApi = (opts: { submit?: unknown } = {}) => {
+  (fetch as jest.Mock).mockImplementation((url: string) => {
+    const u = String(url);
+    if (u.includes('payment-plans.php')) {
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, plans: [] }) });
+    }
+    if (u.includes('payments-stub.php')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => opts.submit ?? { success: true, transaction_id: 'txn_123' },
+      });
+    }
+    // athlete-payments.php
+    return Promise.resolve({ ok: true, json: async () => mockPaymentData });
+  });
+};
+
 describe('PaymentCheckout', () => {
   beforeEach(() => {
-    (fetch as jest.Mock).mockClear();
+    (fetch as jest.Mock).mockReset();
     mockNavigate.mockClear();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    (useParams as jest.Mock).mockReturnValue({ athleteId: '1', paymentId: '101' });
+    (useSearchParams as jest.Mock).mockReturnValue([new URLSearchParams(), jest.fn()]);
     process.env.REACT_APP_PAYMENT_MODE = 'demo';
   });
 
@@ -68,9 +96,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('renders payment form with payment details', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -83,9 +109,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('displays demo mode banner', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -97,9 +121,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('allows selecting payment method', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -115,9 +137,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('validates card number input', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -128,9 +148,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('formats card number with spaces', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -143,9 +161,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('displays discount code field', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -156,13 +172,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('submits payment successfully', async () => {
-    (fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        json: async () => mockPaymentData
-      })
-      .mockResolvedValueOnce({
-        json: async () => ({ success: true, transaction_id: 'txn_123' })
-      });
+    mockApi({ submit: { success: true, transaction_id: 'txn_123' } });
 
     renderComponent();
 
@@ -188,13 +198,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('displays error on payment failure', async () => {
-    (fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        json: async () => mockPaymentData
-      })
-      .mockResolvedValueOnce({
-        json: async () => ({ success: false, error: 'Payment declined' })
-      });
+    mockApi({ submit: { success: false, error: 'Payment declined' } });
 
     renderComponent();
 
@@ -209,9 +213,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('disables submit button during processing', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 
@@ -224,9 +226,7 @@ describe('PaymentCheckout', () => {
   });
 
   test('shows ACH coming soon message', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      json: async () => mockPaymentData
-    });
+    mockApi();
 
     renderComponent();
 

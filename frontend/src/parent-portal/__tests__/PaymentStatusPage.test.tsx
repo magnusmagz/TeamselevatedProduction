@@ -248,37 +248,51 @@ describe('PaymentStatusPage', () => {
   });
 
   test('expanding an invoice fetches and renders line items, amounts, and athlete name', async () => {
-    // First call = family list; second call = action=get detail with items.
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    // Routed by URL, not by call order: expanding a card ALSO kicks off a
+    // supplementary invoice-payments.php request for the payment ledger, and it is
+    // fired before the detail fetch. An ordered stub hands that request the detail
+    // response and the detail request the family list, so nothing renders.
+    const detailResponse = {
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          invoice: {
+            id: 1,
+            invoice_number: 'INV-202402-00001',
+            athlete_first: 'John',
+            athlete_last: 'Doe',
+            program_name: 'Spring Soccer',
+            total_amount: 500,
+            amount_paid: 200,
+            due_date: '2024-02-15',
+            items: [
+              { id: 11, description: 'Registration', quantity: 1, unit_price: 400, line_total: 400 },
+              { id: 12, description: 'Uniform', quantity: 1, unit_price: 100, line_total: 100 },
+            ],
+          },
+        }),
+    };
+
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes('action=get&id=1')) return Promise.resolve(detailResponse);
+      if (u.includes('invoice-payments.php')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, payments: [] }),
+        });
+      }
+      // invoices.php?action=family
+      return Promise.resolve({
         ok: true,
         json: () =>
           Promise.resolve({
             success: true,
             invoices: [mockInvoices[0]], // John Doe, Registration Fee, $500/$300 due
           }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            invoice: {
-              id: 1,
-              invoice_number: 'INV-202402-00001',
-              athlete_first: 'John',
-              athlete_last: 'Doe',
-              program_name: 'Spring Soccer',
-              total_amount: 500,
-              amount_paid: 200,
-              due_date: '2024-02-15',
-              items: [
-                { id: 11, description: 'Registration', quantity: 1, unit_price: 400, line_total: 400 },
-                { id: 12, description: 'Uniform', quantity: 1, unit_price: 100, line_total: 100 },
-              ],
-            },
-          }),
       });
+    });
 
     render(
       <RouterWrapper>
@@ -301,8 +315,10 @@ describe('PaymentStatusPage', () => {
     // Athlete name appears (card + detail header).
     expect(screen.getAllByText('John Doe').length).toBeGreaterThan(0);
 
-    // Detail fetch hit the action=get endpoint for this invoice.
-    expect(global.fetch).toHaveBeenLastCalledWith(
+    // Detail fetch hit the action=get endpoint for this invoice. Not
+    // toHaveBeenLastCalledWith: the payment-ledger request races it and either may
+    // land last.
+    expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('action=get&id=1'),
       expect.anything()
     );

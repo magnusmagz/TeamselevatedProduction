@@ -2,6 +2,13 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { RevenueDashboard } from './RevenueDashboard';
 
+// RevenueDashboard reads the active club from OrgContext, which throws outside an
+// OrgProvider. Mock the hook rather than wrapping in a provider: the provider does its
+// own network work and the club id is the only thing this page takes from it.
+jest.mock('../contexts/OrgContext', () => ({
+  useOrg: () => ({ currentClubId: 32 }),
+}));
+
 // Mock fetch
 global.fetch = jest.fn();
 
@@ -65,9 +72,15 @@ describe('RevenueDashboard', () => {
 
     expect(screen.getByText('Total Revenue')).toBeInTheDocument();
     expect(screen.getByText('$15,090.00')).toBeInTheDocument();
-    expect(screen.getByText('Collected')).toBeInTheDocument();
+    // "Collected" and "Outstanding" label a summary tile AND a column of the program
+    // breakdown table below it, so they are not unique on the page. Assert on the
+    // tile specifically (a <div>, not the table's <th>) rather than loosening to
+    // getAllByText, which would pass on the column header alone.
+    const collectedLabels = screen.getAllByText('Collected');
+    expect(collectedLabels.some((el) => el.tagName === 'DIV')).toBe(true);
     expect(screen.getByText('$9,301.00')).toBeInTheDocument();
-    expect(screen.getByText('Outstanding')).toBeInTheDocument();
+    const outstandingLabels = screen.getAllByText('Outstanding');
+    expect(outstandingLabels.some((el) => el.tagName === 'DIV')).toBe(true);
     expect(screen.getByText('$5,789.00')).toBeInTheDocument();
     expect(screen.getByText(/61\.6%/)).toBeInTheDocument();
   });

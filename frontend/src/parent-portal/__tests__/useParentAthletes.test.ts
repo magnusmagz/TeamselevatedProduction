@@ -87,7 +87,13 @@ describe('useParentAthletes', () => {
     expect(result.current.athletes[0].first_name).toBe('John');
   });
 
-  test('auto-selects first athlete when none selected', async () => {
+  // The hook deliberately does NOT auto-select (useParentAthletes.ts, "Don't
+  // auto-select - let pages decide"): the dashboard shows all children while the
+  // detail and medical pages select a specific one, so a hook-level default would
+  // fight both. This test used to assert the opposite; it now pins the current
+  // contract, because a silent return of auto-select would change which child every
+  // portal page opens on.
+  test('does not auto-select an athlete - selection is the caller\'s job', async () => {
     const mockAthletes = [
       { id: 1, first_name: 'John', last_name: 'Doe' },
     ];
@@ -120,7 +126,9 @@ describe('useParentAthletes', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.selectedAthleteId).toBe(1);
+    expect(result.current.athletes).toHaveLength(1);
+    expect(result.current.selectedAthleteId).toBeNull();
+    expect(result.current.selectedAthlete).toBeNull();
   });
 
   test('selectAthlete updates selected athlete', async () => {
