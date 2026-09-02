@@ -28,6 +28,15 @@
  * not filter athlete status, and neither filters deleted_at. Those choices are
  * documented there. If that file changes, this one changes with it.
  *
+ * ⚠️ The guardian branch resolves identity through te_guardian_link_sql() —
+ * `user_guardians` links UNION the case-insensitive email match — and NOT by
+ * comparing the two email columns inline. chat-server/lib/guardian_identity.js
+ * is the port of that same rule and is what actually admits the parent to the
+ * conversation. The two are one rule written twice, so they must move together:
+ * if chat scope widens and this does not, a family silently stops being told
+ * their coach messaged them; if this widens and chat scope does not, we mail
+ * them a link to a 403.
+ *
  * ⚠️ Club admins are NOT notified about team chats they merely oversee.
  * expandsToWholeClub() lets an admin READ every team conversation in their club,
  * which is correct for oversight and wrong as a mailing list — an admin of 16
@@ -37,6 +46,7 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/guardian_identity.php';
 
 /**
  * How long an EMAIL waits, so an active back-and-forth is never mailed
@@ -103,6 +113,12 @@ function te_chat_conversation_audience(PDO $pdo, int $conversationId): array
     // Mirror of team_scope.js. Written as a UNION of targeted selects rather than
     // a scan over users with EXISTS clauses — the audience is small and known,
     // and the whole users table is not.
+    //
+    // The guardian join condition is te_guardian_link_sql() verbatim, so this
+    // branch admits exactly the people chat-server/lib/team_scope.js admits.
+    // Never re-inline the email comparison here.
+    $guardianLink = te_guardian_link_sql('u', 'g');
+
     $sql = "
         SELECT t.primary_coach_id AS user_id
           FROM teams t
@@ -121,7 +137,7 @@ function te_chat_conversation_audience(PDO $pdo, int $conversationId): array
 
         SELECT u.id AS user_id
           FROM users u
-          JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
+          JOIN guardians g ON {$guardianLink}
           JOIN athlete_guardians ag ON ag.guardian_id = g.id
           JOIN team_members tm ON tm.athlete_id = ag.athlete_id
          WHERE tm.team_id = :team_c

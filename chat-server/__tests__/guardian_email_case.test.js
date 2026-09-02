@@ -68,11 +68,22 @@ test('every guardian/user email comparison lowercases BOTH sides', () => {
 
 /**
  * The scan above would pass a file that stopped joining guardians altogether, so
- * pin that the three known identity sites still exist and still lowercase. If one
- * of these legitimately goes away — the `user_guardians` link table is the planned
- * end of this whole class — delete its entry deliberately.
+ * pin that the three known identity sites still exist and still lowercase.
+ *
+ * ⚠️ UPDATED for phase 2 of the user_guardians rollout. The comparison is no
+ * longer written out at each site: it moved into `lib/guardian_identity.js`, and
+ * the three sites now interpolate `GUARDIAN_JOIN_SQL` from there. That is the
+ * `user_guardians` link table this comment used to name as the planned end of
+ * this class — it has arrived, and the email match survives alongside it as the
+ * second half of a UNION, because 194 guardian emails still have no account and
+ * dropping the fallback would empty their families' portals.
+ *
+ * So the assertion changed from "each file lowercases" to "each file resolves
+ * through the one place that lowercases". The case-sensitivity scan above is
+ * unchanged and still covers the whole app, guardian_identity.js included.
+ * Behaviour is proved against a real database in guardian_identity.test.js.
  */
-test('the three known guardian-identity joins are present and case-insensitive', () => {
+test('the three known guardian-identity sites resolve through the shared join', () => {
   const expected = [
     ['lib/team_scope.js', 'guardian team scope'],
     ['lib/participants.js', 'DM participant allowlist'],
@@ -83,10 +94,18 @@ test('the three known guardian-identity joins are present and case-insensitive',
     const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     assert.match(
       src,
-      /JOIN\s+guardians\s+g\s+ON\s+LOWER\(g\.email\)\s*=\s*LOWER\(u\.email\)/i,
-      `${rel} (${what}) no longer carries a case-insensitive guardian join`
+      /\$\{GUARDIAN_JOIN_SQL\}/,
+      `${rel} (${what}) no longer resolves guardians through lib/guardian_identity.js`
     );
   }
+
+  // And that one place still lowercases both sides.
+  const resolver = fs.readFileSync(path.join(ROOT, 'lib/guardian_identity.js'), 'utf8');
+  assert.match(
+    resolver,
+    /LOWER\(\$\{g\}\.email\) = LOWER\(\$\{u\}\.email\)/i,
+    'lib/guardian_identity.js no longer carries a case-insensitive guardian comparison'
+  );
 });
 
 /**

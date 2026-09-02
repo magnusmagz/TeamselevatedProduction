@@ -36,6 +36,15 @@ class ChatPushTest extends TestCase
             CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            -- Guardian identity is te_guardian_link_sql(): user_guardians links UNION the
+            -- email match. The table must exist even when a test seeds no rows into it, or
+            -- every audience query errors instead of falling through to the email branch.
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL, guardian_id INTEGER NOT NULL,
+                source TEXT, confidence TEXT, linked_by INTEGER, created_at TEXT,
+                UNIQUE (user_id, guardian_id)
+            );
             CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT, club_id INTEGER, primary_coach_id INTEGER);
             CREATE TABLE team_members (id INTEGER PRIMARY KEY, team_id INTEGER, user_id INTEGER,
                                        athlete_id INTEGER, role TEXT, status TEXT);
@@ -378,15 +387,25 @@ class ChatPushTest extends TestCase
      * With push in the mix, a person with no email address can still be
      * perfectly reachable — so a missing address must not disqualify them
      * before the push attempt.
+     *
+     * ⚠️ Standing here comes from a `user_guardians` row, and it has to. This test
+     * used to blank both email columns and rely on the audience query still
+     * matching them — which it did, because `'' = ''` is TRUE in SQL. That was the
+     * blank-collapse bug: an account with no address was treated as a guardian of
+     * every emailless guardian row (24 of them in production) and would have been
+     * notified about all their teams. te_guardian_link_sql() guards the email
+     * branch on the user's address being non-blank, so the only honest way to say
+     * "a real guardian who happens to have no address" is a recorded link — which
+     * is the whole point of migration 072.
      */
     public function testAUserWithNoEmailIsStillReachableByPush(): void
     {
-        $this->pdo->exec("UPDATE users SET email = 'Parent@Example.com' WHERE id = 2");
-        $this->pdo->exec("UPDATE guardians SET email = 'Parent@Example.com' WHERE id = 500");
-        // Keep them in the audience, then remove the deliverable address.
-        $this->assertContains(2, te_chat_conversation_audience($this->pdo, 55));
+        $this->pdo->exec("INSERT INTO user_guardians (user_id, guardian_id, source) VALUES (2, 500, 'admin')");
         $this->pdo->exec("UPDATE users SET email = '' WHERE id = 2");
         $this->pdo->exec("UPDATE guardians SET email = '' WHERE id = 500");
+
+        // Still in the audience — on the strength of the link, not of a blank match.
+        $this->assertContains(2, te_chat_conversation_audience($this->pdo, 55));
 
         $result = te_chat_dispatch_notifications($this->pdo, [
             'now' => self::NOW,

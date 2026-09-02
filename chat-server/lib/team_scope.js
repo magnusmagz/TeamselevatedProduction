@@ -1,5 +1,7 @@
 'use strict';
 
+const { GUARDIAN_JOIN_SQL } = require('./guardian_identity');
+
 /**
  * Which teams a user may see, join, and message in.
  *
@@ -83,23 +85,19 @@ const COACH_TEAM_IDS_SQL = `
  * scoping them to coached teams alone would have taken away their own child's
  * team chat — a regression disguised as a security fix.
  *
- * Joins guardians on email, which is the identity-by-email workaround recorded
- * in CLAUDE.md. It is what the rest of the product does today; the fix is the
- * `user_guardians` link table on the backlog, not a different join here.
- *
- * LOWER() on BOTH sides is load-bearing. Postgres `=` is case-sensitive, and the
- * two columns are independently editable, so one capital letter severs a family:
- * Emily Govier's guardian row read `Emilygovier0@gmail.com` against a login of
- * `emilygovier0@gmail.com` and her portal was empty. The PHP side was fixed on
- * 2026-08-18 (migration 071); this app was missed and stayed broken for two more
- * days. Four accounts are in that state today, three with children on teams.
- * Stored emails are deliberately NOT normalised — the comparison was wrong, so
- * the comparison changed. Guarded by __tests__/guardian_email_case.test.js.
+ * Guardian identity comes from `lib/guardian_identity.js` and nowhere else:
+ * recorded `user_guardians` links UNION the old case-insensitive email match.
+ * That union is strictly wider than the email match it replaces, so this change
+ * cannot take a team chat away from anyone — it gives one back to the families
+ * whose login address and guardian record had drifted apart (Allix Boyce's
+ * @yahoo account against her @gmail guardian row). Do not inline the comparison
+ * again; the rule lives in one file so the notification audience in
+ * `lib/chat_notification_scope.php` can be held to the same answer.
  */
 const GUARDIAN_TEAM_IDS_SQL = `
   SELECT DISTINCT tm.team_id AS id
   FROM users u
-  JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
+  ${GUARDIAN_JOIN_SQL}
   JOIN athlete_guardians ag ON ag.guardian_id = g.id
   JOIN athletes a ON a.id = ag.athlete_id
   JOIN team_members tm ON tm.athlete_id = a.id

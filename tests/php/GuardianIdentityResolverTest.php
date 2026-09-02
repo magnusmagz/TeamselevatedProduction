@@ -257,6 +257,11 @@ class GuardianIdentityResolverTest extends TestCase
         'api/consent.php',
         'api/documents-gateway.php',
         'lib/AthleteScope.php',
+        // Converted in slice 4.1b, together with its mirror. Its audience must match
+        // chat-server/lib/team_scope.js exactly or a parent is emailed a link to a 403, so
+        // it could only move once the chat server did — that app is a separate subtree
+        // deploy and now resolves identity through chat-server/lib/guardian_identity.js.
+        'lib/chat_notification_scope.php',
     ];
 
     /**
@@ -264,10 +269,6 @@ class GuardianIdentityResolverTest extends TestCase
      * file moves to the resolver; never add one to silence a new finding.
      */
     private const DEFERRED = [
-        'lib/chat_notification_scope.php' =>
-            'Its audience must mirror chat-server/lib/team_scope.js exactly, and the chat '
-            . 'server is a separate subtree deploy still on the email match (phase 4.1b). '
-            . 'Widening this side first would email someone a link to a 403.',
         'lib/background_check.php' =>
             'A child-safety gate, not an access scope: it reads a volunteer\'s background '
             . 'check off their guardian row. A household link (confidence=household) would '
@@ -282,7 +283,10 @@ class GuardianIdentityResolverTest extends TestCase
     //     staff (plan §3), so it ships with that change announced, not inside a sweep.
     //   lib/ParentInvite.php  — invite-time identity repair. Phase 3 writes the link at
     //     accept; converting the lookup first would change which account gets reclaimed.
-    // The chat server (chat-server/lib/*.js) carries its own copy and is phase 4.1b.
+    // The chat server (chat-server/lib/*.js) carries its own port of this rule —
+    // chat-server/lib/guardian_identity.js, converted in slice 4.1b and guarded there by
+    // __tests__/guardian_identity.test.js. It is a separate subtree deploy, so it cannot
+    // share this file and must be deployed separately when identity changes.
 
     public function testNoConvertedFileStillComparesAnAccountEmailToAGuardianEmail(): void
     {
