@@ -3,8 +3,30 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import TryoutCreationWizard from '../TryoutCreationWizard';
 
-// Mock fetch
+// Mock fetch. Routed by URL rather than by call order: the wizard loads venues.php
+// and fields.php on mount, so an ordered mockResolvedValueOnce is spent on those two
+// requests and the create call gets `undefined` back - which surfaces as the wizard's
+// generic catch message instead of the submission being exercised at all.
 global.fetch = jest.fn();
+
+const CREATE_URL = 'tryouts-api.php?path=create';
+
+/**
+ * @param create response for the create request; omit for a successful create.
+ */
+const mockApi = (create?: { ok: boolean; body: unknown }) => {
+  (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    const u = String(url);
+    if (u.includes(CREATE_URL)) {
+      return Promise.resolve({
+        ok: create ? create.ok : true,
+        json: async () => (create ? create.body : { success: true, id: 123, embed_code: 'TRY123' }),
+      });
+    }
+    // venues.php / fields.php location pickers - both expect an array.
+    return Promise.resolve({ ok: true, json: async () => [] });
+  });
+};
 
 describe('TryoutCreationWizard', () => {
   const mockOnComplete = jest.fn();
@@ -13,7 +35,8 @@ describe('TryoutCreationWizard', () => {
   beforeEach(() => {
     mockOnComplete.mockClear();
     mockOnCancel.mockClear();
-    (global.fetch as jest.Mock).mockClear();
+    (global.fetch as jest.Mock).mockReset();
+    mockApi();
   });
 
   // Helper to get the name input
@@ -204,10 +227,7 @@ describe('TryoutCreationWizard', () => {
   });
 
   it('submits tryout on final step', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, id: 123, embed_code: 'TRY123' })
-    });
+    mockApi({ ok: true, body: { success: true, id: 123, embed_code: 'TRY123' } });
 
     render(
       <TryoutCreationWizard
@@ -233,10 +253,7 @@ describe('TryoutCreationWizard', () => {
   });
 
   it('shows error on failed submission', async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: 'Failed to create tryout' })
-    });
+    mockApi({ ok: false, body: { error: 'Failed to create tryout' } });
 
     render(
       <TryoutCreationWizard

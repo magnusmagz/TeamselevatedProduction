@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AthleteManagement from './AthleteManagement';
 
@@ -54,11 +54,20 @@ describe('AthleteManagement search + filters (CA-18)', () => {
     expect(screen.getByText('Carol Clark')).toBeInTheDocument();
   });
 
+  // The single "Search athletes..." box, the two standalone dropdowns and the bulk
+  // "Clear Filters" button were replaced by per-column filters rendered in the table
+  // header: columns with options render a <select>, the rest an
+  // <input type="text" placeholder="Filter…"> doing a case-insensitive substring match.
+  const columnFilterInput = (column: RegExp) =>
+    within(screen.getByRole('columnheader', { name: column })).getByPlaceholderText('Filter\u2026');
+  const columnFilterSelect = (column: RegExp) =>
+    within(screen.getByRole('columnheader', { name: column })).getByRole('combobox');
+
   it('filters by name search', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Alice Anders')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByPlaceholderText('Search athletes...'), {
+    fireEvent.change(columnFilterInput(/name/i), {
       target: { value: 'carol' },
     });
 
@@ -71,9 +80,8 @@ describe('AthleteManagement search + filters (CA-18)', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Bob Brown')).toBeInTheDocument());
 
-    // The gender select is the first <select> (All Genders)
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'Male' } });
+    // Gender option values are lowercase.
+    fireEvent.change(columnFilterSelect(/gender/i), { target: { value: 'male' } });
 
     expect(screen.getByText('Bob Brown')).toBeInTheDocument();
     expect(screen.queryByText('Alice Anders')).not.toBeInTheDocument();
@@ -84,9 +92,8 @@ describe('AthleteManagement search + filters (CA-18)', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Alice Anders')).toBeInTheDocument());
 
-    const selects = screen.getAllByRole('combobox');
-    // Second select is grade; value '6' matches Alice and Carol.
-    fireEvent.change(selects[1], { target: { value: '6' } });
+    // Grade option values are the stored integer as a string; '6' matches Alice and Carol.
+    fireEvent.change(columnFilterSelect(/grade/i), { target: { value: '6' } });
 
     expect(screen.getByText('Alice Anders')).toBeInTheDocument();
     expect(screen.getByText('Carol Clark')).toBeInTheDocument();
@@ -97,11 +104,10 @@ describe('AthleteManagement search + filters (CA-18)', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Alice Anders')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByPlaceholderText('Search athletes...'), {
+    fireEvent.change(columnFilterInput(/name/i), {
       target: { value: 'a' }, // matches Alice (Anders) and Carol (Clark) by letter
     });
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'Female' } });
+    fireEvent.change(columnFilterSelect(/gender/i), { target: { value: 'female' } });
 
     expect(screen.getByText('Alice Anders')).toBeInTheDocument();
     expect(screen.getByText('Carol Clark')).toBeInTheDocument();
@@ -112,12 +118,18 @@ describe('AthleteManagement search + filters (CA-18)', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Alice Anders')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByPlaceholderText('Search athletes...'), {
+    // There is no bulk "Clear Filters" button any more — clearing the field back to ''
+    // is the equivalent user action, and must restore every row.
+    fireEvent.change(columnFilterInput(/name/i), {
       target: { value: 'zzz' },
     });
     expect(screen.queryByText('Alice Anders')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bob Brown')).not.toBeInTheDocument();
+    expect(screen.queryByText('Carol Clark')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
+    fireEvent.change(columnFilterInput(/name/i), {
+      target: { value: '' },
+    });
 
     expect(screen.getByText('Alice Anders')).toBeInTheDocument();
     expect(screen.getByText('Bob Brown')).toBeInTheDocument();

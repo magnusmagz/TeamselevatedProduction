@@ -45,11 +45,21 @@ const familyResponse = (amountPaid: number, remaining: number, status: string) =
     }),
 });
 
-const emptyMethods = { ok: true, json: () => Promise.resolve({ success: true, methods: [] }) };
-
 describe('MakePaymentPage payment flow (PAR-17)', () => {
+  // jsdom will not navigate, and asserting on the redirect is the point of the
+  // Stripe-checkout test, so window.location is replaced with a plain object.
+  const realLocation = window.location;
+  beforeAll(() => {
+    delete (window as unknown as { location?: Location }).location;
+    (window as unknown as { location: { href: string } }).location = { href: '' };
+  });
+  afterAll(() => {
+    (window as unknown as { location: Location }).location = realLocation;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (window as unknown as { location: { href: string } }).location.href = '';
     localStorage.setItem('auth_token', 'test-token');
     mockUseAuth.mockReturnValue({ user: { id: 1, email: 'parent@example.com', name: 'P' } } as any);
   });
@@ -61,8 +71,7 @@ describe('MakePaymentPage payment flow (PAR-17)', () => {
   test('shows the selected invoice balance on load', async () => {
     (global.fetch as jest.Mock) = jest
       .fn()
-      .mockResolvedValueOnce(familyResponse(200, 300, 'partial')) // family
-      .mockResolvedValueOnce(emptyMethods); // payment-methods
+      .mockResolvedValueOnce(familyResponse(200, 300, 'partial')); // family
 
     render(<MakePaymentPage />);
 
@@ -72,15 +81,19 @@ describe('MakePaymentPage payment flow (PAR-17)', () => {
     });
   });
 
-  test('POSTs to payments.php, refetches balances, and navigates on success', async () => {
+  test('POSTs to checkout-sessions.php and hands the browser to Stripe', async () => {
+    // The parent no longer pays inside the portal: this page opens a hosted Stripe
+    // Checkout session and redirects. The webhook - not the redirect back - is what
+    // marks the invoice paid, so there is deliberately no refetch and no navigate()
+    // here. (The earlier version of this test asserted a POST to payments.php plus an
+    // in-app navigate; that flow was replaced by Stripe Connect.)
     const fetchMock = jest
       .fn()
-      // initial load
       .mockResolvedValueOnce(familyResponse(200, 300, 'partial')) // family
-      .mockResolvedValueOnce(emptyMethods) // payment-methods
-      // after submit
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ success: true, amount_applied: 300 }) }) // payments.php
-      .mockResolvedValueOnce(familyResponse(500, 0, 'paid')); // family refetch (now paid off)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, url: 'https://checkout.stripe.com/c/pay/cs_test_123' }),
+      }); // checkout-sessions.php
     (global.fetch as jest.Mock) = fetchMock;
 
     render(<MakePaymentPage />);
@@ -90,37 +103,35 @@ describe('MakePaymentPage payment flow (PAR-17)', () => {
     fireEvent.click(payButton);
 
     await waitFor(() => {
-      // Payment was recorded against payments.php with the selected invoice.
-      const paymentCall = fetchMock.mock.calls.find((c) =>
-        String(c[0]).includes('/api/payments.php')
+      const checkoutCall = fetchMock.mock.calls.find((c) =>
+        String(c[0]).includes('/api/checkout-sessions.php')
       );
-      expect(paymentCall).toBeTruthy();
-      expect(paymentCall![1].method).toBe('POST');
-      const body = JSON.parse(paymentCall![1].body as string);
+      expect(checkoutCall).toBeTruthy();
+      expect(checkoutCall![1].method).toBe('POST');
+      const body = JSON.parse(checkoutCall![1].body as string);
       expect(body.invoice_ids).toContain(1);
       expect(body.amount).toBe(300);
+      expect(body.return_context).toBe('parent');
     });
 
+    // The browser is sent to the Stripe-hosted page.
     await waitFor(() => {
-      // Balances were refetched (family endpoint called a second time)...
-      const familyCalls = fetchMock.mock.calls.filter((c) =>
-        String(c[0]).includes('action=family')
-      );
-      expect(familyCalls.length).toBe(2);
-      // ...and navigation happened with the success flash.
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/parent/payments',
-        expect.objectContaining({ state: { message: 'Payment successful!' } })
-      );
+      expect(window.location.href).toBe('https://checkout.stripe.com/c/pay/cs_test_123');
     });
+
+    // Nothing is marked paid client-side, and the parent is not routed away by us.
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(screen.queryByText('Could not start payment')).not.toBeInTheDocument();
   });
 
   test('surfaces a server error and does not navigate', async () => {
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce(familyResponse(200, 300, 'partial')) // family
-      .mockResolvedValueOnce(emptyMethods) // payment-methods
-      .mockResolvedValueOnce({ ok: false, json: () => Promise.resolve({ error: 'You are not authorized to pay invoice 1' }) }); // payments.php 403
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'You are not authorized to pay invoice 1' }),
+      }); // checkout-sessions.php 403
     (global.fetch as jest.Mock) = fetchMock;
 
     render(<MakePaymentPage />);
@@ -132,5 +143,7 @@ describe('MakePaymentPage payment flow (PAR-17)', () => {
       expect(screen.getByText('You are not authorized to pay invoice 1')).toBeInTheDocument();
     });
     expect(mockNavigate).not.toHaveBeenCalled();
+    // The refusal must not have moved the browser anywhere.
+    expect(window.location.href).toBe('');
   });
 });
