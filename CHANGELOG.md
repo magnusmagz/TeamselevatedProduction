@@ -32,6 +32,15 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Chat server on the same identity rule (chat v26, Heroku v569)
+
+`chat-server/lib/guardian_identity.js` ports `te_guardian_link_sql()`; team scope, the DM
+boundary and the participant picker use it, and `lib/chat_notification_scope.php` mirrors it
+so the notification audience equals the chat scope. Fixed on the way: blank guardian emails
+matched each other (`'' = ''`), so an account with no address was in the notification audience
+for every one of the 24 blank-email families' team chats. Deployed together: backend push +
+chat subtree push.
+
 ### Guardian identity resolver + parent-portal empty state (Heroku v568, Netlify `977dc0d`)
 
 Parent standing now resolves through `lib/guardian_identity.php` (user_guardians links UNION
