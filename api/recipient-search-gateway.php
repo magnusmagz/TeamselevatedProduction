@@ -13,6 +13,7 @@
 if (defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/coach_scope.php';
     require_once __DIR__ . '/../lib/guardian_identity.php';
+    require_once __DIR__ . '/../lib/program_scope.php';
     return;
 }
 
@@ -25,6 +26,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/coach_scope.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
+require_once __DIR__ . '/../lib/program_scope.php';
 
 try {
     $db = Database::getInstance();
@@ -148,20 +150,76 @@ function te_chat_parent_team_ids(PDO $connection, $userId, $clubProfileId): arra
 // ============================================
 // Helper: Build team filter SQL + params
 // ============================================
-function getTeamFilterClause($connection, $auth, $userId, $clubProfileId, $teamColumn = 'tm.team_id') {
+/**
+ * Athletes this user reaches as PROGRAM staff, within one club.
+ *
+ * The counterpart to getCoachTeamIds() for camps, clinics and drop-ins, which
+ * have registrants and no roster — so team scope correctly answers "no teams"
+ * and every scope built on it then answers "nobody".
+ *
+ * Both halves come from lib/program_scope.php and nowhere else. Club scoping is
+ * NOT applied here: every caller's own query already carries `a.club_id = ?`, so
+ * an athlete id from another club cannot survive it, and a second club predicate
+ * here would be a second thing to keep in step.
+ */
+function te_search_program_athlete_ids($connection, $userId): array {
+    $programIds = te_program_ids_for_user($connection, (int)$userId);
+    if (empty($programIds)) {
+        return [];
+    }
+
+    $athleteIds = [];
+    foreach ($programIds as $programId) {
+        foreach (te_program_registrant_athlete_ids($connection, $programId) as $athleteId) {
+            $athleteIds[$athleteId] = true;
+        }
+    }
+    return array_map('intval', array_keys($athleteIds));
+}
+
+/**
+ * Build the non-admin scope fragment for one query.
+ *
+ * $athleteColumn is what makes this ADDITIVE for program staff. When a caller
+ * passes it, a coach's reach becomes "the teams I coach OR the athletes
+ * registered to the programs I staff" — an OR, so nothing a coach could reach
+ * before is removed. Callers with no athlete column in scope (the group list,
+ * which selects FROM teams) pass nothing and behave exactly as before.
+ *
+ * `AND 1=0` when neither holds: array_fill(0, 0, '?') would produce `IN ()`,
+ * which is a syntax error rather than an empty result, and an unfiltered query
+ * would be a club-wide leak.
+ */
+function getTeamFilterClause($connection, $auth, $userId, $clubProfileId, $teamColumn = 'tm.team_id', $athleteColumn = null) {
     if (isClubAdmin($auth, $clubProfileId)) {
         return ['sql' => '', 'params' => []];
     }
 
     $coachTeamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
-    if (empty($coachTeamIds)) {
+    $programAthleteIds = $athleteColumn === null
+        ? []
+        : te_search_program_athlete_ids($connection, $userId);
+
+    if (empty($coachTeamIds) && empty($programAthleteIds)) {
         return ['sql' => "AND 1=0", 'params' => []];
     }
 
-    $placeholders = implode(',', array_fill(0, count($coachTeamIds), '?'));
+    $branches = [];
+    $params = [];
+
+    if (!empty($coachTeamIds)) {
+        $branches[] = "{$teamColumn} IN (" . implode(',', array_fill(0, count($coachTeamIds), '?')) . ")";
+        $params = array_merge($params, $coachTeamIds);
+    }
+
+    if (!empty($programAthleteIds)) {
+        $branches[] = "{$athleteColumn} IN (" . implode(',', array_fill(0, count($programAthleteIds), '?')) . ")";
+        $params = array_merge($params, $programAthleteIds);
+    }
+
     return [
-        'sql' => "AND {$teamColumn} IN ({$placeholders})",
-        'params' => $coachTeamIds
+        'sql' => 'AND (' . implode(' OR ', $branches) . ')',
+        'params' => $params
     ];
 }
 
@@ -244,7 +302,9 @@ function handleSearch($connection, $auth, $userId) {
     }
 
     $searchPattern = '%' . $q . '%';
-    $teamFilter = getTeamFilterClause($connection, $auth, $userId, $clubProfileId);
+    // 'a.id' widens a coach's reach to the athletes registered to programs they
+    // staff. Both queries below alias athletes as `a`, so one call serves both.
+    $teamFilter = getTeamFilterClause($connection, $auth, $userId, $clubProfileId, 'tm.team_id', 'a.id');
     $results = [];
     $seenKeys = []; // For deduplication by email/phone
 
@@ -528,10 +588,138 @@ function handleGroups($connection, $auth, $userId) {
         $groups = array_merge(getSpecialGroups($connection, $clubProfileId, $channel), $groups);
     }
 
+    // Programs, offered the same way teams are: a club admin sees every program
+    // in the club, a coach sees only the ones they staff. Additive — a coach who
+    // staffs nothing gets exactly the list they got before.
+    $groups = array_merge($groups, getProgramGroups($connection, $auth, $userId, $clubProfileId, $channel));
+
     echo json_encode([
         'success' => true,
         'groups' => $groups
     ]);
+}
+
+/**
+ * Programs offered as selectable groups — "All families in Summer Camp".
+ *
+ * Membership is the REGISTRATION list, not a roster: that is the whole point of
+ * the program axis. A camp has families and no teams, so a group built on
+ * team_members would be empty for exactly the programs that need it.
+ *
+ * Scoping mirrors the team groups above rather than inventing a second rule:
+ *   club admin → every program in the club
+ *   anyone else → only programs in te_program_ids_for_user(), intersected with
+ *                 this club, so a coach can never select a group reaching beyond
+ *                 what they staff.
+ *
+ * Programs with no reachable registrant are omitted. An empty group in a picker
+ * is a promise the send cannot keep, and the counts here are channel-aware for
+ * the same reason getSpecialGroups()' are.
+ */
+function getProgramGroups($connection, $auth, $userId, $clubProfileId, $channel = 'email') {
+    $isAdmin = isClubAdmin($auth, $clubProfileId);
+
+    $programFilter = '';
+    $params = [$clubProfileId, $clubProfileId];
+    if (!$isAdmin) {
+        $programIds = te_program_ids_for_user($connection, (int)$userId);
+        if (empty($programIds)) {
+            return [];
+        }
+        // Guarded above: array_fill(0, 0, '?') is `IN ()`, a syntax error.
+        $programFilter = ' AND p.id IN (' . implode(',', array_fill(0, count($programIds), '?')) . ')';
+        $params = array_merge($params, $programIds);
+    }
+
+    $aContact = ($channel === 'sms') ? 'a.phone' : 'a.email';
+    $gContact = ($channel === 'sms') ? 'g.mobile_phone' : 'g.email';
+
+    $sql = "
+        SELECT p.id, p.name, p.type,
+               COUNT(DISTINCT a.id)
+                 FILTER (WHERE {$aContact} IS NOT NULL AND trim({$aContact}) <> '') AS athlete_count,
+               COUNT(DISTINCT g.id)
+                 FILTER (WHERE {$gContact} IS NOT NULL AND trim({$gContact}) <> '') AS guardian_count,
+               COUNT(DISTINCT a.id)
+                 FILTER (WHERE {$aContact} IS NULL OR trim({$aContact}) = '') AS athlete_missing,
+               COUNT(DISTINCT g.id)
+                 FILTER (WHERE {$gContact} IS NULL OR trim({$gContact}) = '') AS guardian_missing
+        FROM programs p
+        JOIN registrations r ON r.program_id = p.id
+             AND r.athlete_id IS NOT NULL
+             AND (r.status IS NULL OR LOWER(r.status) <> 'rejected')
+        JOIN athletes a ON a.id = r.athlete_id
+             AND a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+        LEFT JOIN athlete_guardians ag ON ag.athlete_id = a.id
+        LEFT JOIN guardians g ON g.id = ag.guardian_id
+        WHERE p.club_id = ?{$programFilter}
+        GROUP BY p.id, p.name, p.type
+        ORDER BY p.name
+    ";
+
+    $stmt = $connection->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Distinct ADDRESSES, counted separately because reachable + missing !=
+    // people: a household sharing one mobile is two people, nobody missing, one
+    // message. Deriving this by subtraction would report that household as
+    // someone lacking a phone number — the same mistake getSpecialGroups()
+    // documents.
+    $reachableSql = "
+        SELECT program_id, COUNT(DISTINCT addr) AS reachable FROM (
+            SELECT r.program_id AS program_id, LOWER(TRIM({$aContact})) AS addr
+              FROM registrations r
+              JOIN athletes a ON a.id = r.athlete_id
+                   AND a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+              JOIN programs p ON p.id = r.program_id
+             WHERE p.club_id = ?{$programFilter}
+               AND (r.status IS NULL OR LOWER(r.status) <> 'rejected')
+               AND {$aContact} IS NOT NULL AND TRIM({$aContact}) <> ''
+            UNION ALL
+            SELECT r.program_id AS program_id, LOWER(TRIM({$gContact})) AS addr
+              FROM registrations r
+              JOIN athletes a ON a.id = r.athlete_id
+                   AND a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+              JOIN athlete_guardians ag ON ag.athlete_id = a.id
+              JOIN guardians g ON g.id = ag.guardian_id
+              JOIN programs p ON p.id = r.program_id
+             WHERE p.club_id = ?{$programFilter}
+               AND (r.status IS NULL OR LOWER(r.status) <> 'rejected')
+               AND {$gContact} IS NOT NULL AND TRIM({$gContact}) <> ''
+        ) x
+        GROUP BY program_id
+    ";
+    $reachStmt = $connection->prepare($reachableSql);
+    $reachStmt->execute(array_merge($params, $params));
+    $reachable = [];
+    foreach ($reachStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $reachable[(int)$r['program_id']] = (int)$r['reachable'];
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        $athleteCount = (int)$row['athlete_count'];
+        $guardianCount = (int)$row['guardian_count'];
+        $missing = (int)$row['athlete_missing'] + (int)$row['guardian_missing'];
+        if ($athleteCount + $guardianCount + $missing === 0) {
+            continue;
+        }
+        $out[] = [
+            'id' => (int)$row['id'],
+            'name' => 'All families in ' . $row['name'],
+            'program_name' => $row['name'],
+            'age_group' => $row['type'],
+            'athlete_count' => $athleteCount,
+            'guardian_count' => $guardianCount,
+            'missing_contact_count' => $missing,
+            'missing_contact_label' => ($channel === 'sms') ? 'phone number' : 'email address',
+            'recipient_count' => $reachable[(int)$row['id']] ?? 0,
+            'people_count' => $athleteCount + $guardianCount + $missing,
+            'group_type' => 'program',
+        ];
+    }
+    return $out;
 }
 
 /**
@@ -835,6 +1023,55 @@ function handleResolveGroup($connection, $auth, $userId) {
         return;
     }
 
+    // Program groups come in as program_ids. Handled before the team_ids
+    // requirement below, the same way special_group is — a program group carries
+    // no teams at all, which is the entire reason it exists.
+    $programIds = $data['program_ids'] ?? [];
+    if (!empty($programIds) && is_array($programIds)) {
+        $programIds = array_values(array_unique(array_map('intval', $programIds)));
+        $programIds = array_values(array_filter($programIds, fn($id) => $id > 0));
+        if (empty($programIds)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'program_ids must contain program ids']);
+            exit();
+        }
+
+        // Every id is re-checked against THIS club. The ids come from the
+        // browser, so a resolve that trusted them would let one club's admin
+        // read another club's registration list.
+        $ph = implode(',', array_fill(0, count($programIds), '?'));
+        $stmt = $connection->prepare("SELECT id FROM programs WHERE id IN ({$ph}) AND club_id = ?");
+        $stmt->execute(array_merge($programIds, [$clubProfileId]));
+        $validProgramIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN, 0) ?: []);
+        if (count($validProgramIds) !== count($programIds)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'One or more program_ids do not belong to this club']);
+            exit();
+        }
+
+        // A non-admin may resolve only programs they actually staff — the same
+        // check the team branch makes with getCoachTeamIds(), against the one
+        // source of program standing.
+        if (!isClubAdmin($auth, $clubProfileId)) {
+            $staffed = te_program_ids_for_user($connection, (int)$userId);
+            foreach ($programIds as $pid) {
+                if (!in_array($pid, $staffed, true)) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'Access denied to program ID ' . $pid]);
+                    exit();
+                }
+            }
+        }
+
+        $excludeLookup = [];
+        foreach ($excludeIds as $exc) {
+            $excludeLookup[($exc['type'] ?? '') . ':' . ($exc['id'] ?? 0)] = true;
+        }
+
+        resolveProgramGroup($connection, $clubProfileId, $programIds, $recipientTypes, $channel, $excludeLookup);
+        return;
+    }
+
     if (empty($teamIds)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'team_ids is required and must not be empty']);
@@ -1066,6 +1303,215 @@ function handleResolveGroup($connection, $auth, $userId) {
     }
 
     // Sort by last_name, first_name
+    usort($recipients, function ($a, $b) {
+        $cmp = strcasecmp($a['last_name'], $b['last_name']);
+        if ($cmp === 0) {
+            return strcasecmp($a['first_name'], $b['first_name']);
+        }
+        return $cmp;
+    });
+
+    echo json_encode([
+        'success' => true,
+        'recipients' => $recipients,
+        'total' => count($recipients),
+        'suppressed_count' => $suppressedCount,
+        'missing_contact_count' => $missingContactCount
+    ]);
+}
+
+/**
+ * Resolve one or more PROGRAM groups to individual recipients.
+ *
+ * Membership is the registration list — `registrations` → `athletes` — with no
+ * team join anywhere, because a camp has no roster. Same response shape as the
+ * team and special-group paths: suppressed contacts are RETURNED and flagged,
+ * never silently dropped, so compose can warn instead of quietly reaching fewer
+ * people than the picker promised.
+ *
+ * The caller has already verified the programs belong to $clubProfileId and that
+ * the requester staffs them (or is a club admin).
+ */
+function resolveProgramGroup($connection, $clubProfileId, array $programIds, $recipientTypes, $channel, array $excludeLookup) {
+    $recipients = [];
+    $seenKeys = [];
+    $suppressedCount = 0;
+    $missingContactCount = 0;
+
+    $ph = implode(',', array_fill(0, count($programIds), '?'));
+
+    // ----- Athletes registered to the programs -----
+    if (in_array('athletes', $recipientTypes)) {
+        $sql = "
+            SELECT DISTINCT a.id, a.first_name, a.last_name, a.email, a.phone, 'athlete' as type,
+                   p.id as program_id, p.name as program_name
+            FROM athletes a
+            JOIN registrations r ON r.athlete_id = a.id
+                 AND r.program_id IN ({$ph})
+                 AND (r.status IS NULL OR LOWER(r.status) <> 'rejected')
+            JOIN programs p ON p.id = r.program_id
+            WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+        ";
+        $stmt = $connection->prepare($sql);
+        $stmt->execute(array_merge($programIds, [$clubProfileId]));
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $athlete) {
+            if (isset($excludeLookup["athlete:{$athlete['id']}"])) {
+                continue;
+            }
+            $contactField = ($channel === 'email') ? $athlete['email'] : $athlete['phone'];
+            if (empty($contactField)) {
+                $missingContactCount++;
+                continue;
+            }
+            $dedupeKey = $channel . ':' . strtolower($contactField);
+            if (isset($seenKeys[$dedupeKey])) {
+                continue;
+            }
+            $seenKeys[$dedupeKey] = true;
+
+            $suppression = checkSuppression($connection, $clubProfileId, $athlete['email'], $athlete['phone'], $channel);
+            if ($suppression['suppressed']) {
+                $suppressedCount++;
+            }
+
+            $recipients[] = [
+                'id' => (int)$athlete['id'],
+                'type' => 'athlete',
+                'first_name' => $athlete['first_name'],
+                'last_name' => $athlete['last_name'],
+                'email' => $athlete['email'],
+                'phone' => $athlete['phone'],
+                'team_id' => null,
+                'team_name' => null,
+                'program_id' => (int)$athlete['program_id'],
+                'program_name' => $athlete['program_name'],
+                'suppressed' => $suppression['suppressed'],
+                'suppression_reason' => $suppression['suppression_reason'],
+                'missing_contact' => false
+            ];
+        }
+    }
+
+    // ----- Guardians of those athletes -----
+    if (in_array('guardians', $recipientTypes)) {
+        $sql = "
+            SELECT DISTINCT g.id, g.first_name, g.last_name, g.email, g.mobile_phone as phone, 'guardian' as type,
+                   a.id as athlete_id, a.first_name as athlete_first_name, a.last_name as athlete_last_name,
+                   p.id as program_id, p.name as program_name
+            FROM guardians g
+            JOIN athlete_guardians ag ON g.id = ag.guardian_id
+            JOIN athletes a ON ag.athlete_id = a.id
+            JOIN registrations r ON r.athlete_id = a.id
+                 AND r.program_id IN ({$ph})
+                 AND (r.status IS NULL OR LOWER(r.status) <> 'rejected')
+            JOIN programs p ON p.id = r.program_id
+            WHERE a.club_id = ? AND a.deleted_at IS NULL AND a.active_status = true
+        ";
+        $stmt = $connection->prepare($sql);
+        $stmt->execute(array_merge($programIds, [$clubProfileId]));
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $guardian) {
+            if (isset($excludeLookup["guardian:{$guardian['id']}"])) {
+                continue;
+            }
+            $contactField = ($channel === 'email') ? $guardian['email'] : $guardian['phone'];
+            if (empty($contactField)) {
+                $missingContactCount++;
+                continue;
+            }
+            $dedupeKey = $channel . ':' . strtolower($contactField);
+            if (isset($seenKeys[$dedupeKey])) {
+                continue;
+            }
+            $seenKeys[$dedupeKey] = true;
+
+            $suppression = checkSuppression($connection, $clubProfileId, $guardian['email'], $guardian['phone'], $channel);
+            if ($channel === 'sms' && !$suppression['suppressed']) {
+                if (checkGuardianSmsOptOut($connection, $guardian['id'])) {
+                    $suppression['suppressed'] = true;
+                    $suppression['suppression_reason'] = 'twilio_stop';
+                }
+            }
+            if ($suppression['suppressed']) {
+                $suppressedCount++;
+            }
+
+            $recipients[] = [
+                'id' => (int)$guardian['id'],
+                'type' => 'guardian',
+                'first_name' => $guardian['first_name'],
+                'last_name' => $guardian['last_name'],
+                'email' => $guardian['email'],
+                'phone' => $guardian['phone'],
+                'athlete_id' => (int)$guardian['athlete_id'],
+                'athlete_first_name' => $guardian['athlete_first_name'],
+                'athlete_last_name' => $guardian['athlete_last_name'],
+                'athlete_name' => trim(($guardian['athlete_first_name'] ?? '') . ' ' . ($guardian['athlete_last_name'] ?? '')),
+                'team_id' => null,
+                'team_name' => null,
+                'program_id' => (int)$guardian['program_id'],
+                'program_name' => $guardian['program_name'],
+                'suppressed' => $suppression['suppressed'],
+                'suppression_reason' => $suppression['suppression_reason'],
+                'missing_contact' => false
+            ];
+        }
+    }
+
+    // ----- Staff assigned to the programs -----
+    // Only when the caller asked for coaches, and only from program_staff — a
+    // program has no primary_coach_id to fall back on.
+    if (in_array('coaches', $recipientTypes) && te_program_staff_table_present($connection)) {
+        $sql = "
+            SELECT DISTINCT u.id, u.first_name, u.last_name, u.email, u.phone, 'coach' as type,
+                   p.id as program_id, p.name as program_name
+            FROM program_staff ps
+            JOIN users u ON u.id = ps.user_id
+            JOIN programs p ON p.id = ps.program_id
+            WHERE ps.program_id IN ({$ph})
+        ";
+        $stmt = $connection->prepare($sql);
+        $stmt->execute($programIds);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $coach) {
+            if (isset($excludeLookup["coach:{$coach['id']}"])) {
+                continue;
+            }
+            $contactField = ($channel === 'email') ? $coach['email'] : $coach['phone'];
+            if (empty($contactField)) {
+                $missingContactCount++;
+                continue;
+            }
+            $dedupeKey = $channel . ':' . strtolower($contactField);
+            if (isset($seenKeys[$dedupeKey])) {
+                continue;
+            }
+            $seenKeys[$dedupeKey] = true;
+
+            $suppression = checkSuppression($connection, $clubProfileId, $coach['email'], $coach['phone'], $channel);
+            if ($suppression['suppressed']) {
+                $suppressedCount++;
+            }
+
+            $recipients[] = [
+                'id' => (int)$coach['id'],
+                'type' => 'coach',
+                'first_name' => $coach['first_name'],
+                'last_name' => $coach['last_name'],
+                'email' => $coach['email'],
+                'phone' => $coach['phone'],
+                'team_id' => null,
+                'team_name' => null,
+                'program_id' => (int)$coach['program_id'],
+                'program_name' => $coach['program_name'],
+                'suppressed' => $suppression['suppressed'],
+                'suppression_reason' => $suppression['suppression_reason'],
+                'missing_contact' => false
+            ];
+        }
+    }
+
     usort($recipients, function ($a, $b) {
         $cmp = strcasecmp($a['last_name'], $b['last_name']);
         if ($cmp === 0) {

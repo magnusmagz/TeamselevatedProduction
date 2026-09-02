@@ -7,6 +7,7 @@ import EmbedCodeModal from '../components/EmbedCodeModal';
 import RegistrationsModal from '../components/RegistrationsModal';
 import TryoutCreationWizard from '../components/TryoutCreationWizard';
 import TryoutManagement from '../components/TryoutManagement';
+import ProgramStaffModal from '../components/ProgramStaffModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { useOrg } from '../../../contexts/OrgContext';
 import { listTournaments } from '../../tournament/api/tournamentApi';
@@ -76,6 +77,10 @@ const ProgramManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showArchived, setShowArchived] = useState(false);
   const [busyProgramId, setBusyProgramId] = useState<number | null>(null);
+  // Admin-only: who runs this program. A camp has registrants and no roster, so
+  // this assignment is the only thing that puts it on a coach's calendar and
+  // lets them message the families signed up.
+  const [staffProgram, setStaffProgram] = useState<Program | null>(null);
   const [collapsedTypes, setCollapsedTypes] = useState<string[]>(() => readCollapsedTypes());
   const [activeTab, setActiveTab] = useState<ProgramTab>(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem(TAB_STORAGE_KEY) : null;
@@ -620,6 +625,14 @@ const ProgramManagement: React.FC = () => {
                                     )}
                                     {isClubAdmin && (
                                       <button
+                                        onClick={() => setStaffProgram(program)}
+                                        className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
+                                      >
+                                        Staff
+                                      </button>
+                                    )}
+                                    {isClubAdmin && (
+                                      <button
                                         onClick={() => handleArchiveToggle(program)}
                                         disabled={busyProgramId === program.id}
                                         className="text-gray-600 hover:text-gray-500 uppercase text-xs font-semibold disabled:opacity-50"
@@ -748,6 +761,14 @@ const ProgramManagement: React.FC = () => {
                                     Link
                                   </button>
                                 </>
+                              )}
+                              {isClubAdmin && (
+                                <button
+                                  onClick={() => setStaffProgram(program)}
+                                  className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
+                                >
+                                  Staff
+                                </button>
                               )}
                               {isClubAdmin && (
                                 <button
@@ -949,6 +970,15 @@ const ProgramManagement: React.FC = () => {
               fetchPrograms();
             }}
             onCancel={() => setEditingTryout(null)}
+          />
+        )}
+
+        {/* Program Staff */}
+        {staffProgram && staffProgram.id != null && (
+          <ProgramStaffModal
+            programId={staffProgram.id}
+            programName={staffProgram.name}
+            onClose={() => setStaffProgram(null)}
           />
         )}
 

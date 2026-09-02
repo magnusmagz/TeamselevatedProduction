@@ -57,6 +57,25 @@ class QueriedTablesExistTest extends TestCase
     ];
 
     /**
+     * Tables a WRITTEN migration creates that are not in Neon yet.
+     *
+     * Same window, and the same reasoning, as SchemaConformanceTest's
+     * PENDING_MIGRATION: migrations here are applied by hand, so between
+     * committing one and running it there is a period where correct code names a
+     * table this fixture cannot have. Refreshing the fixture early would assert
+     * the table exists in production when it does not — the exact lie that let
+     * MergeFieldService query a table nobody had.
+     *
+     * ⚠️ Not a suppression list. testPendingTablesAreStillPending() below fails
+     * the moment the table lands in the fixture, so an entry cannot outlive the
+     * window it was added for. Delete it in the same commit as the fixture
+     * refresh.
+     */
+    private const PENDING_MIGRATION_TABLES = [
+        'program_staff' => '085_program_staff.sql',
+    ];
+
+    /**
      * Names that follow FROM/JOIN but are not tables: CTEs, derived-table aliases
      * and PL/pgSQL keywords. `coaches` and `parents` are CTEs in
      * recipient-search-gateway.php — the real lesson of this test is that the same
@@ -175,6 +194,7 @@ class QueriedTablesExistTest extends TestCase
                         if (isset($ctes[$n])) { continue; }
                         if (in_array($n, self::$tables, true)) { continue; }
                         if (array_key_exists("{$rel}:{$n}", self::KNOWN_BROKEN)) { continue; }
+                        if (array_key_exists($n, self::PENDING_MIGRATION_TABLES)) { continue; }
                         $problems[] = "{$rel}: FROM/JOIN `{$name}` — not a table in production-schema.json";
                     }
                 }
@@ -190,6 +210,31 @@ class QueriedTablesExistTest extends TestCase
             . "\n\nIf it is a CTE, define it with WITH in the same file. If the file is "
             . "dead, add it to KNOWN_DEAD with the reason."
         );
+    }
+
+    /**
+     * Every PENDING_MIGRATION_TABLES entry must still be pending, and must be real.
+     *
+     * The third assertion is the point: without it this list becomes the place a
+     * phantom table goes to be forgotten.
+     */
+    public function testPendingTablesAreStillPending(): void
+    {
+        $dir = __DIR__ . '/../../database/migrations/';
+        $this->addToAssertionCount(1);
+
+        foreach (self::PENDING_MIGRATION_TABLES as $table => $migration) {
+            $this->assertFileExists($dir . $migration,
+                "PENDING_MIGRATION_TABLES names $migration for `$table`, but that migration does not exist.");
+
+            $this->assertStringContainsString($table, file_get_contents($dir . $migration),
+                "$migration does not mention `$table` — the entry is a typo or a guess, " .
+                'so the real SQL is going unchecked.');
+
+            $this->assertNotContains($table, self::$tables,
+                "`$table` is in the schema fixture now, so $migration has been applied. " .
+                'Delete its PENDING_MIGRATION_TABLES entry — leaving it exempts a live table from this test forever.');
+        }
     }
 
     /** The specific regression, named, so the reason survives a refactor. */
