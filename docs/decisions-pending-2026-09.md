@@ -77,7 +77,10 @@ sees club branding. Still open: the single-team case, and whether to delete the 
   parent's two children.
 - **If left:** everyone sees club branding, as today. The dead endpoint stays.
 
-### 6. Facilities edit and Google Maps search (R64, R5)
+### 6. Facilities edit and Google Maps search (R64, R5) — CLOSED 2026-09-02
+**Maggie: "facilities is good."** Both rows close; the stale `api/venues.php` PUT now answers 405.
+
+_Original item:_
 Code review says both work: edit goes through the legacy venues gateway with the full
 field set, and the Maps key and component are in place. Needs one retest in prod.
 - **Ask:** open Facilities, edit a saved venue, save; then type an address in the search
@@ -90,7 +93,10 @@ field set, and the Maps key and component are in place. Needs one retest in prod
 
 ## Carried from the roadmap plan
 
-### 7. Spanish interface (R69)
+### 7. Spanish interface (R69) — DEFERRED 2026-09-02
+**Maggie:** still a nice-to-have; browser translation is enough for now. Revisit later.
+
+_Original item:_
 Needs an i18n framework choice and a translation cost on every new screen from then on.
 - **Ask:** is this a contract requirement for CKU or any prospect? If yes, when.
 - **If left:** parked.
@@ -101,7 +107,10 @@ background-check visibility at council and division level, ~30,000 coaches, 270 
 Getting its own architecture plan (`docs/gotr-hierarchy-plan-2026-09.md`). No longer a
 decision; tracked in the roadmap plan.
 
-### 9. Chat polls show voter names
+### 9. Chat polls show voter names — RESOLVED 2026-09-02
+**Maggie:** the poll creator already chooses anonymous or not. Nothing to change.
+
+_Original item:_
 Documented choice (`docs/chat-polls-scope.md`): voters are visible unless the coach
 ticks anonymous. If a CKU coach runs "who can make Saturday?" as a poll, families see
 each other's answers there, which reads like the RSVP complaint.
@@ -109,13 +118,20 @@ each other's answers there, which reads like the RSVP complaint.
   to anonymous.
 - **If left:** unchanged.
 
-### 10. `evaluate` takes `evaluator_id` from the request body
+### 10. `evaluate` takes `evaluator_id` from the request body — DECIDED 2026-09-02: from the token
+Shipped (branch `fix/evaluator-token-and-venues`).
+
+_Original item:_
 Any staff member can file a tryout evaluation attributed to another coach. Now bounded
 to authenticated club staff, still a spoof.
 - **Recommendation:** take it from the token, as `marked_by` now does for attendance.
   Small; I will fold it into the next tryouts slice unless you say otherwise.
 
-### 11. RSVP email replies: three behaviours found by the new tests (2026-09-02)
+### 11. RSVP email replies: three behaviours found by the new tests (2026-09-02) — 11c DECIDED, 11a/11b WAIT
+**Maggie:** do (c) now — 60-day expiry on links minted from today, older links unaffected (shipped).
+Hold (a) UID routing and (b) second replies for now.
+
+_Original item:_
 Pinned as `_KNOWN_DEFECT` tests in `tests/php/CalendarReplyParserTest.php` and
 `RsvpTokenTest.php`; each test says to delete it when the behaviour changes.
 - **(a) A reply lands on the newest pending invitation, not the event replied to.** The
@@ -131,7 +147,10 @@ Pinned as `_KNOWN_DEFECT` tests in `tests/php/CalendarReplyParserTest.php` and
   to links minted from the change forward, page copy kept.
 - **If left:** all three stay as they are; the tests keep documenting them.
 
-### 12. Should "not selected" tryout families get an automated email? (2026-09-02)
+### 12. Should "not selected" tryout families get an automated email? — DECIDED 2026-09-02: (a) manual
+**Maggie: yes to (a).** The club tells those families itself; the send-offers result reports the held-back count.
+
+_Original item:_
 Send-offers now emails roster and waitlist offers (Phase 2, behind
 `TE_FEATURE_TRYOUT_OFFER_EMAIL`). Rows marked `not_selected` are recorded but deliberately
 NOT emailed by that path; the response reports how many were held back.
