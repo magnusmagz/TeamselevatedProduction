@@ -40,7 +40,11 @@ today and `/program-management` has no role gate, so I matched the live UI (staf
 - **Recommendation:** ask CKU. If coaches run their own age-group tryouts, keep (a).
 - **If left:** unchanged from before today.
 
-### 4. Age-group narrowing on the tryout registrations list (R84)
+### 4. Age-group narrowing on the tryout registrations list (R84) — DECIDED 2026-09-02
+**Maggie: the age matrix runs 1 August to 31 July, replacing the calendar birth-year rule.**
+One rule everywhere (option a); no per-club setting for now. Unblocks R84, R14, R73.
+
+_Original item:_
 CKU wants coaches to see only their age groups. The auth/club scoping shipped; the
 narrowing did not, because the frontend rolls the season year on Aug 1 and
 `AgeEligibilityService.php` uses the tournament start year — filtering on a rule that two

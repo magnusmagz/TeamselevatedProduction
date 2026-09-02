@@ -140,14 +140,14 @@ Needs the S3 bucket + IAM key as Heroku config vars before 5.1 ships.
 
 ---
 
-## Phase 6 — One age-group rule (R7b, R14, R73)
+## Phase 6 — One age-group rule (R7b, R14, R73) — DECIDED 2026-09-02: 1 August to 31 July, everywhere
 
-Blocked on a **rules decision**: does the season year roll on Aug 1 (frontend) or follow the
-tournament start year (backend)? Decide once, then:
+Maggie: "The age matrix runs from August 1 to July 31, replacing the previous January 1 to
+December 31 calendar birth-year mandate." No per-club setting for now. Then:
 
 | # | Slice | Test |
 |---|---|---|
-| 6.1 | Migration **085** `club_profile.age_cutoff_month/day` (default Aug 1); one PHP rule in `lib/age_rule.php`; `AgeEligibilityService` reads it | PHP + TS tests assert identical answers for the same DOB/date pairs (shared JSON fixture) |
+| 6.1 | One PHP rule in `lib/age_rule.php` (1 Aug roll); `AgeEligibilityService` uses it; no migration (per-club cutoff dropped) | PHP + TS tests assert identical answers for the same DOB/date pairs (shared JSON fixture) |
 | 6.2 | `utils/ageGroup.ts` reads the club's cutoff from the club profile it already loads | existing `ageGroup.test.ts` + fixture |
 | 6.3 | R73 field size: `venues`/fields `field_size` (7v7/9v9/11v11) + age-group→size map; scheduler filters | gateway filter test |
 
