@@ -4,6 +4,15 @@
  * Handles RSVP responses from calendar invitations
  */
 
+// Tests require this file for handleRSVPResponse/handleGetRSVPStatus. PHP
+// early-binds top-level functions, so returning here still defines them while
+// skipping CORS, the header, the request dispatch and the Neon connect below.
+// Never defined in production — this must stay above everything with a side
+// effect. Same pattern as api/communications-gateway.php:15.
+if (defined('TE_RSVP_WEBHOOK_LIB_ONLY')) {
+    return;
+}
+
 header('Content-Type: application/json');
 require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();

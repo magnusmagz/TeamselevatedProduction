@@ -5,6 +5,16 @@
  * Parses RSVP responses and updates database
  */
 
+// Tests require this file for parseCalendarReply/mapPartstatToRsvpStatus/
+// processCalendarReply. PHP early-binds top-level functions, so returning here
+// still defines them while skipping the request logging (which reads $_SERVER
+// keys that do not exist on CLI) and the Neon connect below. Never defined in
+// production — this must stay above everything with a side effect.
+// Same pattern as api/communications-gateway.php:15.
+if (defined('TE_CALENDAR_REPLY_LIB_ONLY')) {
+    return;
+}
+
 // Log all incoming requests for debugging
 error_log('Calendar REPLY Parser: Request received');
 error_log('Method: ' . $_SERVER['REQUEST_METHOD']);
