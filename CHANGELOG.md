@@ -32,6 +32,20 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Phase 3 CKU quick wins shipped (Heroku v560, Netlify `056fb3e`) — migration 084 applied
+
+Merged `fix/cku-quick-wins`, frontend first. **Migration 084** (`programs.sort_order`,
+`archived_at`, `archived_by` + index) applied 13:06 PT through the new
+`scripts/apply-migration.php` (writes a `migration_applied` audit row); schema fixture
+refreshed, diff = the three columns. Smoke test 75/75, PHP suite 912.
+
+- **R78 primary guardian sticks.** Cause was `AthleteForm.tsx` writing primary by list
+  position on every save. Existing athletes with two primary links are untouched —
+  `scripts/report-duplicate-primaries.php` lists them (read-only) for a decision.
+- **R89–R91 programs**: reorder (move up/down), archive without deleting, collapsible
+  type sections. Admin-only writes, audited.
+- Lint ratchet 74 → 50.
+
 ### Phase 0 security sweep shipped (Heroku v559, Netlify `71acc12`)
 
 Eight slices from `docs/roadmap-execution-plan-2026-09.md` Phase 0, merged from

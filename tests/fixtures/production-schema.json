@@ -1351,7 +1351,10 @@
     "venue_id",
     "participant_type",
     "season_year",
-    "is_recurring"
+    "is_recurring",
+    "sort_order",
+    "archived_at",
+    "archived_by"
   ],
   "push_subscriptions": [
     "id",

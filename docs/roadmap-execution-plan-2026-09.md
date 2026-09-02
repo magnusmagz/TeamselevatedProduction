@@ -88,7 +88,7 @@ path from prod, per `feedback-ship-to-prod-then-she-tests`.
 
 ---
 
-## Phase 3 — CKU quick wins with a known cause
+## Phase 3 — CKU quick wins with a known cause — 3.1, 3.3 SHIPPED 2026-09-02 (Heroku v560); 3.2 folded into 0.8
 
 Small, independent, mostly frontend. Each is its own PR and revert.
 
