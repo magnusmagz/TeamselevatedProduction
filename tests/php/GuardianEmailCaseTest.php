@@ -101,21 +101,39 @@ class GuardianEmailCaseTest extends TestCase
     }
 
     /**
-     * The two sites that actually decide parent standing, pinned by name so a rewrite
-     * of either file cannot quietly drop the normalisation.
+     * Where parent standing is decided, pinned so a rewrite cannot drop the
+     * normalisation.
+     *
+     * Both of these queries moved into lib/guardian_identity.php on 2026-09-02 (phase 2
+     * of docs/user-guardians-identity-plan.md) — the resolver reads `user_guardians`
+     * UNION the email match, so there is now one comparison instead of ten. The
+     * normalisation still has to be there, and the two call sites still have to use it
+     * rather than growing their own copy back.
      */
     public function testTheParentStandingQueriesNormalise(): void
     {
+        $resolver = file_get_contents(self::ROOT . 'lib/guardian_identity.php');
+        $this->assertStringContainsString(
+            'LOWER(g.email) = LOWER(u.email)',
+            $resolver,
+            'The resolver is the only guardian email comparison left; it must normalise.'
+        );
+        $this->assertStringContainsString(
+            'LOWER(g.email) = LOWER(:email_direct)',
+            $resolver,
+            'te_guardian_ids_for_email resolves a bare address at sign-up; it must normalise.'
+        );
+
         $perms = file_get_contents(self::ROOT . 'api/financial-permissions.php');
         $this->assertStringContainsString(
-            'LOWER(g.email) = LOWER(:email)',
+            'te_guardian_ids_for_user(',
             $perms,
-            'financial-permissions derives the parent athlete list; it must normalise.'
+            'financial-permissions derives the parent athlete list through the resolver.'
         );
 
         $scope = file_get_contents(self::ROOT . 'lib/AthleteScope.php');
         $this->assertStringContainsString(
-            'LOWER(g.email) = LOWER(:email)',
+            'te_user_is_guardian_of_athlete(',
             $scope,
             'AthleteScope::isGuardianOfAthlete gates consent, medical and jersey writes.'
         );

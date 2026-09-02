@@ -64,6 +64,10 @@ class ChatSearchCoachScopeTest extends TestCase
                 club_id INTEGER, deleted_at TEXT, active_status INTEGER);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            -- Recorded account<->guardian links (migration 072). Empty here on purpose:
+            -- these cases exercise the email fallback in lib/guardian_identity.php, which
+            -- is what production still runs on for most families.
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
         ");
 
         $p = $this->pdo;

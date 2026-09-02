@@ -52,6 +52,8 @@ class AthleteScopeClubIdTest extends TestCase
                 id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, club_id INTEGER
             );
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
             CREATE TABLE athlete_guardians (
                 id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER
             );

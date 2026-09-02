@@ -12,6 +12,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/financial_scope.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
 require_once __DIR__ . '/../lib/email_invoice_and_registration.php';
 
@@ -49,11 +50,9 @@ try {
                 $whereClauses[] = 'i.athlete_id = :athlete_id';
                 $params['athlete_id'] = $athlete_id;
             } elseif ($guardian_id) {
-                // Resolve ALL guardian rows matching the authenticated user's email — shared-household support.
-                $userEmail = $auth->getPayload()->email ?? '';
-                $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE LOWER(g.email) = LOWER(:email)");
-                $guardianStmt->execute(['email' => $userEmail]);
-                $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
+                // ALL guardian rows belonging to this account — recorded links UNION the
+                // email match, resolved once in lib/guardian_identity.php.
+                $resolvedGuardianIds = te_guardian_ids_for_user($pdo, (int) $auth->getUserId());
 
                 if (empty($resolvedGuardianIds)) {
                     echo json_encode(['success' => true, 'invoices' => [], 'summary' => ['total_invoices' => 0, 'total_outstanding' => 0, 'total_paid' => 0, 'overdue_count' => 0]]);
@@ -530,11 +529,9 @@ try {
 
         case 'family':
             // Get all invoices for the authenticated user's family.
-            // Resolve ALL guardian rows matching the JWT email — shared-household support.
-            $userEmail = $auth->getPayload()->email ?? '';
-            $guardianStmt = $pdo->prepare("SELECT g.id FROM guardians g WHERE LOWER(g.email) = LOWER(:email)");
-            $guardianStmt->execute(['email' => $userEmail]);
-            $resolvedGuardianIds = $guardianStmt->fetchAll(PDO::FETCH_COLUMN);
+            // ALL guardian rows belonging to this account — recorded links UNION the email
+            // match, resolved once in lib/guardian_identity.php.
+            $resolvedGuardianIds = te_guardian_ids_for_user($pdo, (int) $auth->getUserId());
 
             if (empty($resolvedGuardianIds)) {
                 echo json_encode([

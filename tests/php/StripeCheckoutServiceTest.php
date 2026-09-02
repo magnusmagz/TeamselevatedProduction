@@ -31,6 +31,8 @@ class StripeCheckoutServiceTest extends TestCase {
             CREATE TABLE athletes (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, club_id INTEGER);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
             CREATE TABLE programs (id INTEGER PRIMARY KEY, club_id INTEGER);
             CREATE TABLE invoices (
                 id INTEGER PRIMARY KEY, invoice_number TEXT, athlete_id INTEGER,
@@ -51,6 +53,8 @@ class StripeCheckoutServiceTest extends TestCase {
             (200, 'alice@family-a.com'), (201, 'bob@family-b.com')");
         $this->pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES
             (1, 1, 200), (2, 2, 200), (3, 3, 201)");
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php).
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES (70,'alice@family-a.com'),(71,'bob@family-b.com')");
         $this->pdo->exec("INSERT INTO programs (id, club_id) VALUES (10, 32), (11, 44)");
         // 101/102: alice's kids, club 32. 103: bob's kid, club 44 (via athlete fallback, no program).
         $this->pdo->exec("INSERT INTO invoices (id, invoice_number, athlete_id, program_id, total_amount, amount_paid, status) VALUES

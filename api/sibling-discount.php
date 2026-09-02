@@ -10,6 +10,7 @@ Cors::handle();
 
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 
 try {
     $db = Database::getInstance();
@@ -142,12 +143,19 @@ try {
                 throw new Exception('guardian_email and program_id are required');
             }
 
-            // Find guardian by email
-            $stmt = $pdo->prepare("SELECT id FROM guardians WHERE LOWER(email) = LOWER(:email) LIMIT 1");
-            $stmt->execute(['email' => $guardianEmail]);
-            $guardian = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Find the guardian rows this address reaches. There is no account in hand
+            // here — this runs during sign-up, before one exists — so the resolver is
+            // asked by email: guardians carrying that address, UNION guardians an account
+            // on that address is linked to (lib/guardian_identity.php).
+            //
+            // ALL of them, not the first: a household is regularly two guardian rows on
+            // one address, and the previous LIMIT 1 picked one of them arbitrarily (no
+            // ORDER BY), so which siblings were detected depended on row order. Taking
+            // the whole set is both wider and deterministic, and matches how every other
+            // call site treats a shared address.
+            $guardianIds = te_guardian_ids_for_email($pdo, (string) $guardianEmail);
 
-            if (!$guardian) {
+            if (empty($guardianIds)) {
                 echo json_encode([
                     'success' => true,
                     'applies' => false,
@@ -156,14 +164,15 @@ try {
                 exit;
             }
 
-            // Find athletes linked to this guardian
+            // Find athletes linked to those guardian rows
+            $guardianClause = te_guardian_ids_in_clause('ag.guardian_id', $guardianIds);
             $stmt = $pdo->prepare("
-                SELECT ag.athlete_id, a.first_name, a.last_name
+                SELECT DISTINCT ag.athlete_id, a.first_name, a.last_name
                 FROM athlete_guardians ag
                 JOIN athletes a ON ag.athlete_id = a.id
-                WHERE ag.guardian_id = :guardian_id
+                WHERE {$guardianClause['sql']}
             ");
-            $stmt->execute(['guardian_id' => $guardian['id']]);
+            $stmt->execute($guardianClause['params']);
             $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($athletes)) {

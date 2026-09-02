@@ -16,6 +16,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -242,7 +243,7 @@ try {
                 JOIN athletes a ON a.id = tm.athlete_id
                 JOIN athlete_guardians ag ON ag.athlete_id = a.id
                 JOIN guardians g ON g.id = ag.guardian_id
-                JOIN users u ON u.email = g.email
+                JOIN users u ON " . te_guardian_link_sql('u', 'g') . "
                 WHERE u.id = :requesting_user_id
                   AND ce.event_date >= CURRENT_DATE
                   AND (ce.status IS NULL OR ce.status != 'cancelled')
@@ -371,7 +372,7 @@ try {
                           SELECT ag2.athlete_id
                           FROM athlete_guardians ag2
                           JOIN guardians g2 ON ag2.guardian_id = g2.id
-                          JOIN users u2 ON LOWER(g2.email) = LOWER(u2.email)
+                          JOIN users u2 ON " . te_guardian_link_sql('u2', 'g2') . "
                           WHERE u2.id = ?
                       )
                 ";
@@ -421,7 +422,7 @@ try {
                   SELECT 1
                   FROM guardians g
                   JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                  WHERE LOWER(g.email) = LOWER(u.email) AND ag.athlete_id = :aid
+                  WHERE " . te_guardian_link_sql('u', 'g') . " AND ag.athlete_id = :aid
               )
         ");
         $stmt->execute(['uid' => $userId, 'aid' => $athlete_id]);
@@ -541,7 +542,7 @@ try {
             JOIN athletes a ON a.id = tm.athlete_id
             JOIN athlete_guardians ag ON ag.athlete_id = a.id
             JOIN guardians g ON g.id = ag.guardian_id
-            JOIN users u ON u.email = g.email
+            JOIN users u ON " . te_guardian_link_sql('u', 'g') . "
             LEFT JOIN calendar_event_attendees cea
                 ON cea.event_id = ?
                 AND cea.user_id = u.id

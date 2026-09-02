@@ -70,6 +70,17 @@ class AthleteScopeTest extends TestCase
                 athlete_id INTEGER,
                 guardian_id INTEGER
             );
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                email TEXT
+            );
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                guardian_id INTEGER,
+                source TEXT,
+                confidence TEXT
+            );
         ");
     }
 
@@ -104,11 +115,23 @@ class AthleteScopeTest extends TestCase
         $this->pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES
             (1, 1, 200),
             (2, 2, 201)");
+
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php), so
+        // the fixture needs the users rows the resolver reads. 80 and 81 match their
+        // guardian row by email; no user_guardians link is seeded, so these cases
+        // exercise the email fallback exactly as production does today.
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES
+            (50, 'coach50@club.test'),
+            (51, 'coach51@club.test'),
+            (60, 'admin@club.test'),
+            (70, 'nobody@example.com'),
+            (80, 'alice@family-a.com'),
+            (81, 'bob@family-b.com')");
     }
 
     // ---- Helpers to build AuthMiddleware contexts ----
 
-    private function guardian(string $email, int $userId = 70): AuthMiddleware
+    private function guardian(string $email, int $userId): AuthMiddleware
     {
         return AuthMiddleware::fromContext([
             'user_id' => $userId,
@@ -160,13 +183,13 @@ class AthleteScopeTest extends TestCase
 
     public function testGuardianCanAccessOwnAthlete(): void
     {
-        $auth = $this->guardian('alice@family-a.com');
+        $auth = $this->guardian('alice@family-a.com', 80);
         $this->assertTrue(AthleteScope::userCanAccessAthlete($this->pdo, $auth, 1));
     }
 
     public function testGuardianCannotAccessAnotherFamilysAthlete(): void
     {
-        $auth = $this->guardian('alice@family-a.com');
+        $auth = $this->guardian('alice@family-a.com', 80);
         // Athlete 2 belongs to the Brown family (bob@family-b.com).
         $this->assertFalse(AthleteScope::userCanAccessAthlete($this->pdo, $auth, 2));
     }
@@ -255,7 +278,7 @@ class AthleteScopeTest extends TestCase
 
     public function testAccessibleFilterForGuardianReturnsOwnAthlete(): void
     {
-        $auth = $this->guardian('bob@family-b.com');
+        $auth = $this->guardian('bob@family-b.com', 81);
         $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
         $this->assertSame([2], $filter['athlete_ids']);
     }
