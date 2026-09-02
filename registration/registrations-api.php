@@ -529,6 +529,40 @@ try {
 
                 $connection->commit();
 
+                // Record the account↔guardian link this sign-up just established, if
+                // the registrant already has an account.
+                //
+                // Phase 3 of docs/user-guardians-identity-plan.md. Parent standing is
+                // still derived by comparing `guardians.email` to `users.email`, two
+                // independently-editable strings; the day either one is edited the
+                // family's portal empties out with no error anywhere. Writing the link
+                // here means a returning family who registers online stops depending on
+                // that comparison.
+                //
+                // ⚠️ AFTER commit(), in its OWN try/catch, for the same reason the
+                // confirmation email below is: a throw while the transaction was open
+                // rolls back the family's registration. They would lose their place in
+                // the program because a bookkeeping row could not be written.
+                // `Throwable`, not `Exception` — the enclosing catch calls rollBack() on
+                // an already-committed transaction, and an Error is not an Exception.
+                //
+                // It never creates a users row (`users.email` is UNIQUE, so a wrong one
+                // is permanent) and never sets an actor: a public sign-up has no
+                // operator, and NULL is the honest record.
+                $guardian_link = null;
+                try {
+                    require_once __DIR__ . '/../lib/guardian_link_writer.php';
+                    $linkResult = te_link_guardian_on_registration(
+                        $connection,
+                        (int) $guardian_id,
+                        (string) $guardianEmail
+                    );
+                    $guardian_link = $linkResult['outcome'];
+                } catch (Throwable $e) {
+                    error_log("guardian link failed for registration {$registration_id}: "
+                        . $e->getMessage());
+                }
+
                 // ⚠️ The confirmation is sent AFTER commit(), never inside the
                 // transaction. A throw in here while the transaction was open
                 // would roll back the family's registration — they would lose
@@ -609,6 +643,9 @@ try {
                     'athlete_id' => $athlete_id,
                     'guardian_id' => $guardian_id,
                     'athlete_matched' => $matchedExisting,
+                    // 'linked' | 'already_linked' | 'no_account' | ... — always present so
+                    // "nothing recorded" is a fact rather than a missing key.
+                    'guardian_link' => $guardian_link,
                     'athlete_payment_id' => $athlete_payment_id,
                     'payment_amount' => $payment_amount,
                     'sibling_discount_applied' => $sibling_discount_applied,

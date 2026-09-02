@@ -656,15 +656,37 @@ function handleAcceptInvitation($conn, $input) {
 
     $token = JWT::generate($userId, $invitationEmail, $userName, $additionalClaims);
 
-    // For a Crew invite, say whether they actually reached their family.
+    // For a Crew invite, RECORD the account↔guardian relationship and then say whether
+    // they actually reached their family.
     //
-    // Parent standing is derived from guardians.email = users.email; there is no
-    // user_guardians link table. So this is 0 whenever they accepted on a different
-    // address than their guardian record carries, or when the guardian row does not
-    // exist yet — and the parent portal will be empty for them. The caller needs to
-    // know that here, because by the time the family notices they are already stuck.
+    // Until phase 3 (docs/user-guardians-identity-plan.md) this only reported the
+    // number: parent standing was derived by comparing guardians.email to users.email,
+    // so a family who accepted on a different address than their guardian record carries
+    // landed in an empty portal, permanently, with nothing recorded anywhere. Writing
+    // the link makes the relationship a row that survives either address changing.
+    //
+    // ⚠️ AFTER the transaction, never inside it, and never fatal. A link is bookkeeping
+    // about a relationship athlete_guardians already holds; it must not be the reason an
+    // invitation fails to be accepted, and the email fallback still answers for anyone
+    // it declines to write.
+    //
+    // ⚠️ A household is refused rather than guessed. Six production addresses carry two
+    // guardian rows, and users.email is UNIQUE so those households share one account —
+    // `linked_guardian_id` comes back null and a club admin resolves it in
+    // api/crew-link.php. Choosing by name is the rule the plan measured and rejected.
     $linkedAthletes = null;
+    $linkedGuardianId = null;
+    $guardianLink = null;
     if ($role === 'parent') {
+        try {
+            require_once __DIR__ . '/../lib/guardian_link_writer.php';
+            $linkResult = te_link_guardian_on_accept($conn, (int) $userId, null, $invitationEmail);
+            $guardianLink = $linkResult['outcome'];
+            $linkedGuardianId = $linkResult['guardian_id'];
+        } catch (Throwable $e) {
+            error_log('guardian link on invite accept failed: ' . $e->getMessage());
+        }
+
         $linkedAthletes = te_linked_athlete_count($conn, $invitationEmail);
     }
 
@@ -674,7 +696,11 @@ function handleAcceptInvitation($conn, $input) {
         'token' => $token,
         'userId' => $userId,
         'role' => $role,
-        'linked_athletes' => $linkedAthletes
+        'linked_athletes' => $linkedAthletes,
+        // Null on a staff invite, on a household that needs a human, and on a family
+        // whose guardian row does not exist yet. `guardian_link` says which.
+        'linked_guardian_id' => $linkedGuardianId,
+        'guardian_link' => $guardianLink
     ];
 }
 
