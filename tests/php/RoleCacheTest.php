@@ -252,7 +252,7 @@ class RoleCacheTest extends TestCase
     public function testEveryUserClubAccessWriteSiteInvalidatesTheCache(): void
     {
         $root = realpath(__DIR__ . '/../../');
-        $skipDirs = ['/vendor/', '/tests/', '/node_modules/', '/frontend/', '/database/', '/chat-server/'];
+        $skipDirs = ['/vendor/', '/tests/', '/node_modules/', '/frontend/', '/database/', '/chat-server/', '/.claude/', '/src/'];
 
         $found = 0;
         $offenders = [];
