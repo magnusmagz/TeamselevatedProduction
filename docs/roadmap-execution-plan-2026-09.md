@@ -44,6 +44,8 @@ Plus two mechanisms that make rollback cheaper than a deploy:
 | 5 Storage | 5.0 audit fixes + upload folder refused | v578, v581 |
 | 6 Age rule | 6.1–6.3 | v582, migration 088 |
 | 8 Coaches | 8.1, 8.2, 8.3 (already built), 8.4 | v574, v577 |
+| GOTR G1 | org_units, user_org_access, set-based resolver, super-admin Organizations page (dark) | v586, migration 090 |
+| GOTR G2 | worker queue assignment + tick locks + rate limiter (v584); cached role context + token diet + context switcher, switches OFF (v588–v590) | v584, v590 |
 | Decisions | 3, 10, 11c | v579, v580 |
 
 Open: 5.1–5.5 (needs S3), 4.5 (time), 2.5, 8.5, 8.6, Phase 10, GOTR G0–G7, decisions 2 and 13.
