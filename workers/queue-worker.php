@@ -3,10 +3,27 @@
  * Long-running CLI queue worker for processing email and SMS jobs.
  *
  * Usage:
- *   php workers/queue-worker.php
+ *   php workers/queue-worker.php                            # all queues, ticks on
+ *   php workers/queue-worker.php --queues=email,sms --ticks=off
  *
- * On Heroku, add to Procfile:
- *   worker: php workers/queue-worker.php
+ * Options (CLI beats env beats default):
+ *   --queues=email,sms   TE_WORKER_QUEUES   which queues this process drains.
+ *                        Names: email, sms, import, calendar, or all. Default all.
+ *   --ticks=on|off       TE_WORKER_TICKS    run the throttled sweeps. Default on.
+ *
+ * ⚠️ No arguments and no environment must behave EXACTLY as this worker did before
+ * the assignment existed. `Procfile`'s `worker:` line is unchanged and takes that
+ * path; `worker_sends:` is the new, subset process and is scaled to 0 until someone
+ * scales it up.
+ *
+ * An assignment is not exclusivity. Two processes may both list email_queue —
+ * BRPOP hands each job to exactly one of them, which is the point: throughput, so a
+ * 30,000-person onboarding blast cannot serialise ahead of a scheduled broadcast
+ * (docs/gotr-hierarchy-plan-2026-09.md §5).
+ *
+ * On Heroku, in Procfile:
+ *   worker:       php workers/queue-worker.php
+ *   worker_sends: php workers/queue-worker.php --queues=email,sms --ticks=off
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -20,8 +37,37 @@ require_once __DIR__ . '/../services/CalendarSyncService.php';
 require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
 require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
 require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
+require_once __DIR__ . '/../lib/worker_queue_assignment.php';
+require_once __DIR__ . '/../lib/worker_tick_lock.php';
 
-echo "[Worker] Starting queue worker...\n";
+/**
+ * Thrown to skip a tick another process is already running.
+ *
+ * A control-flow signal, not a failure: it is caught by its own arm ahead of the
+ * Throwable arm so a held lock never reaches the error log, and the finally still
+ * runs (releasing nothing, since we hold nothing).
+ */
+class TeWorkerTickHeld extends RuntimeException {}
+
+try {
+    $assignment = te_worker_parse_queue_assignment($argv ?? [], $_ENV + getenv());
+} catch (InvalidArgumentException $e) {
+    // Fail fast and loudly. A worker that misread its assignment and quietly fell
+    // back to "everything" (or to nothing) is indistinguishable from a quiet queue,
+    // and would burn a dyno for days before anyone noticed.
+    fwrite(STDERR, '[Worker] ' . $e->getMessage() . "\n");
+    exit(1);
+}
+
+$queues        = $assignment['queues'];
+$ticksEnabled  = $assignment['ticks'];
+
+echo sprintf(
+    "[Worker] Starting queue worker — queues: %s, ticks: %s (from %s)\n",
+    implode(', ', $queues),
+    $ticksEnabled ? 'on' : 'off',
+    $assignment['source']
+);
 
 $queue = RedisQueue::getInstance();
 $database = Database::getInstance();
@@ -65,7 +111,18 @@ $ensureDb = function () use ($database, $buildServices, &$db, &$services) {
     }
 };
 
-$queues = ['email_queue', 'sms_queue', 'import_queue', 'calendar_sync_queue'];
+// $queues is the process's assignment, resolved above. A subset process sweeps and
+// pops only its own queues; it must not sweep another process's retry sets, or two
+// workers race to move the same delayed job back onto a list neither of them drains.
+
+// The Redis client the tick locks use. Null is a supported state everywhere below:
+// no lock server means single-process semantics, which is what we had before.
+$lockClient = null;
+try {
+    $lockClient = $queue->getClient();
+} catch (Throwable $e) {
+    error_log('[Worker] tick locking disabled: ' . $e->getMessage());
+}
 
 // Graceful shutdown via signals (SIGTERM from Heroku dyno manager)
 $running = true;
@@ -147,7 +204,11 @@ while ($running) {
         // processing) would otherwise sit in 'queued' forever. Re-drive any that are
         // still 'queued' after 90s. Single worker + processJob claiming the row
         // ('processing') makes this safe from double-processing. Throttled to 1/min.
-        if (time() - $lastImportSweep > 60) {
+        // Ticks-gated AND assignment-gated: a sends-only process has no business
+        // re-driving import jobs, and the default assignment includes both so this
+        // is unchanged for the single-worker case.
+        if ($ticksEnabled && in_array('import_queue', $queues, true)
+            && time() - $lastImportSweep > 60) {
             $lastImportSweep = time();
             try {
                 $ensureDb();
@@ -173,9 +234,14 @@ while ($running) {
         // dispatcher already guards each individual send, so anything reaching
         // this handler is a failure of the whole sweep (a dead connection, a
         // missing table) and must still leave the queues running.
-        if (time() - $lastChatNotifySweep > TE_CHAT_NOTIFY_TICK_SECONDS) {
+        if ($ticksEnabled && time() - $lastChatNotifySweep > TE_CHAT_NOTIFY_TICK_SECONDS) {
             $lastChatNotifySweep = time();
+            // ⚠️ Locked because this tick is NOT idempotent across processes: the
+            // pending list is SELECTed, the digest is sent, and only then is the
+            // watermark upserted. Two processes overlapping in that gap both send.
+            $chatLock = te_worker_tick_lock($lockClient, 'chat_notify');
             try {
+                if ($chatLock === null) { throw new TeWorkerTickHeld(); }
                 $ensureDb();
                 $notified = te_chat_dispatch_notifications($db);
                 // Count PUSHED and IN_APP too. The first version tested only
@@ -196,8 +262,16 @@ while ($running) {
                 foreach ($notified['errors'] as $chatError) {
                     error_log('[Worker] chat notification error: ' . $chatError);
                 }
+            } catch (TeWorkerTickHeld $held) {
+                // Another worker is mid-sweep. Not an error, and not worth a log
+                // line every ten seconds.
             } catch (Throwable $e) {
                 error_log('[Worker] chat notification sweep error: ' . $e->getMessage());
+            } finally {
+                // Released here, not left to the TTL: this tick fires every 10s and
+                // the TTL is 25s, so relying on expiry would throttle a single
+                // process to one sweep per 25 seconds.
+                te_worker_tick_unlock($lockClient, 'chat_notify', $chatLock);
             }
 
         }
@@ -205,9 +279,15 @@ while ($running) {
         // Moderation alerts: their own throttle AND their own catch. Sharing a
         // catch would mean a failure in the family-facing digests silently skips
         // the child-safety alerts, which is the wrong thing to couple together.
-        if (time() - $lastModAlertSweep > TE_CHAT_MOD_TICK_SECONDS) {
+        if ($ticksEnabled && time() - $lastModAlertSweep > TE_CHAT_MOD_TICK_SECONDS) {
             $lastModAlertSweep = time();
+            // ⚠️ Locked. The UNIQUE partial index on (user_id, report_id) stops a
+            // duplicate alert ROW, but the email has already left by the time the
+            // second INSERT throws — and the digest path has no unique constraint
+            // at all, only a MAX(sent_at) cadence check.
+            $modLock = te_worker_tick_lock($lockClient, 'chat_moderation');
             try {
+                if ($modLock === null) { throw new TeWorkerTickHeld(); }
                 $ensureDb();
                 $modAlerts = te_chat_dispatch_moderation_alerts($db);
                 if ($modAlerts['alerts_sent'] || $modAlerts['digests_sent'] || $modAlerts['failed']) {
@@ -221,8 +301,12 @@ while ($running) {
                 foreach ($modAlerts['errors'] as $modError) {
                     error_log('[Worker] moderation alert error: ' . $modError);
                 }
+            } catch (TeWorkerTickHeld $held) {
+                // Another worker holds it.
             } catch (Throwable $e) {
                 error_log('[Worker] moderation alert sweep error: ' . $e->getMessage());
+            } finally {
+                te_worker_tick_unlock($lockClient, 'chat_moderation', $modLock);
             }
         }
 
@@ -239,9 +323,16 @@ while ($running) {
         // EmailSendService or SmsSendService here instead would pin this tick to the
         // boot-time handle, so four queues would recover from an overnight drop and
         // this one silently would not.
-        if (time() - $lastBroadcastSweep > TE_BROADCAST_TICK_SECONDS) {
+        if ($ticksEnabled && time() - $lastBroadcastSweep > TE_BROADCAST_TICK_SECONDS) {
             $lastBroadcastSweep = time();
+            // This one was ALREADY safe for two processes — te_broadcast_claim()'s
+            // UPDATE ... WHERE status = 'scheduled' is the claim, so two workers
+            // cannot both take a campaign. Locked for uniformity, and to save the
+            // second process a pointless pass; the correctness still lives in the
+            // claim, and must stay there.
+            $bcLock = te_worker_tick_lock($lockClient, 'broadcast');
             try {
+                if ($bcLock === null) { throw new TeWorkerTickHeld(); }
                 $ensureDb();
                 $broadcasts = te_broadcast_dispatch_due(
                     $db,
@@ -262,13 +353,32 @@ while ($running) {
                 foreach ($broadcasts['errors'] as $broadcastError) {
                     error_log('[Worker] scheduled broadcast error: ' . $broadcastError);
                 }
+            } catch (TeWorkerTickHeld $held) {
+                // Another worker holds it.
             } catch (Throwable $e) {
                 error_log('[Worker] scheduled broadcast sweep error: ' . $e->getMessage());
+            } finally {
+                te_worker_tick_unlock($lockClient, 'broadcast', $bcLock);
             }
         }
 
-        // Block-pop from both queues (2 second timeout so we can check $running)
-        $job = $queue->pop($queues, 2);
+        // Pace the send queues, if a limit is configured.
+        //
+        // ⚠️ This never drops a job. An exhausted queue is simply left out of the
+        // next BRPOP, so its jobs stay in Redis until the window rolls over — the
+        // worker sleeps and asks again. Unset limits and an unreachable Redis both
+        // mean NO limit: pacing must never be the reason a club's mail stops.
+        $popQueues = te_worker_rate_allowed_queues($queue, $queues);
+
+        if ($popQueues === []) {
+            // Every assigned queue is at its cap. Sleep briefly rather than spin —
+            // short enough that the ticks above still fire on time.
+            usleep(500000);
+            continue;
+        }
+
+        // Block-pop (2 second timeout so we can check $running)
+        $job = $queue->pop($popQueues, 2);
 
         if ($job === null) {
             continue;
@@ -278,6 +388,11 @@ while ($running) {
         $payload['attempts'] = ($payload['attempts'] ?? 0) + 1;
 
         echo "[Worker] Processing job {$payload['id']} from {$fromQueue} (attempt {$payload['attempts']})\n";
+
+        // Spend the token now that a job is genuinely in hand. Spending it on the
+        // peek above would drain the allowance on an idle system, where BRPOP
+        // usually returns nothing.
+        $queue->rateLimitConsume($fromQueue);
 
         // A job may be the first database work in hours. Verify the handle before
         // handing it to a service, or the send fails on a dead connection and
