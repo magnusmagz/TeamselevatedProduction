@@ -12,6 +12,8 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/financial_scope.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
+require_once __DIR__ . '/../lib/email_invoice_and_registration.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -411,7 +413,9 @@ try {
                     a.last_name as athlete_last,
                     g.first_name as guardian_first,
                     g.email as guardian_email,
-                    p.name as program_name
+                    p.name as program_name,
+                    p.club_id as program_club_id,
+                    a.club_id as athlete_club_id
                 FROM invoices i
                 JOIN athletes a ON i.athlete_id = a.id
                 LEFT JOIN programs p ON i.program_id = p.id
@@ -430,32 +434,98 @@ try {
                 throw new Exception('No guardian email found for this athlete');
             }
 
-            // Update invoice status
-            $pdo->prepare("
-                UPDATE invoices
-                SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id
-            ")->execute(['id' => $invoice_id]);
+            // The club is reached through the invoice's PROGRAM, falling back to
+            // the athlete's own club. Never from the request body: the From name a
+            // family sees has to belong to the club that owns the bill.
+            $clubId = $invoice['program_club_id'] ?? $invoice['athlete_club_id'] ?? null;
+            $clubId = ($clubId === null || $clubId === '') ? null : (int) $clubId;
 
-            // Log email
             $subject = "Invoice {$invoice['invoice_number']} - {$invoice['athlete_first']} {$invoice['athlete_last']}";
-            $pdo->prepare("
-                INSERT INTO invoice_emails (invoice_id, email_type, sent_to, subject)
-                VALUES (:invoice_id, 'initial', :sent_to, :subject)
-            ")->execute([
-                'invoice_id' => $invoice_id,
-                'sent_to' => $invoice['guardian_email'],
-                'subject' => $subject
-            ]);
 
-            // In production, send actual email here
-            error_log("DEMO: Would send invoice email to {$invoice['guardian_email']}");
+            if (te_feature_enabled('TRANSACTIONAL_EMAIL')) {
+                $itemStmt = $pdo->prepare("
+                    SELECT description, quantity, unit_price, line_total
+                    FROM invoice_items
+                    WHERE invoice_id = :id
+                    ORDER BY id
+                ");
+                $itemStmt->execute(['id' => $invoice_id]);
+                $invoiceItems = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            echo json_encode([
-                'success' => true,
-                'message' => 'Invoice sent successfully',
-                'sent_to' => $invoice['guardian_email']
-            ]);
+                $amountDue = (float) $invoice['total_amount'] - (float) $invoice['amount_paid'];
+
+                $emailSent = false;
+                $emailError = null;
+
+                try {
+                    $mailer = (new Email())->forClub($pdo, $clubId);
+                    $emailSent = te_send_invoice_email($mailer, $invoice['guardian_email'], [
+                        'club_name'      => te_email_from_name($pdo, $clubId),
+                        'guardian_first' => $invoice['guardian_first'],
+                        'athlete_name'   => trim($invoice['athlete_first'] . ' ' . $invoice['athlete_last']),
+                        'program_name'   => $invoice['program_name'],
+                        'invoice_number' => $invoice['invoice_number'],
+                        'invoice_date'   => $invoice['invoice_date'],
+                        'due_date'       => $invoice['due_date'],
+                        'total_amount'   => $invoice['total_amount'],
+                        'amount_paid'    => $invoice['amount_paid'],
+                        'amount_due'     => $amountDue,
+                        'memo'           => $invoice['memo'],
+                        'items'          => $invoiceItems,
+                        'pay_url'        => te_invoice_pay_url($invoice_id),
+                    ]);
+                } catch (Throwable $e) {
+                    $emailError = $e->getMessage();
+                    error_log("invoice email failed for invoice {$invoice_id}: {$emailError}");
+                }
+
+                if (!$emailSent) {
+                    // The invoice keeps its current status and no invoice_emails row
+                    // is written. Marking it 'sent' when nothing left the building is
+                    // the failure the DEMO stub used to hide.
+                    http_response_code(502);
+                    echo json_encode([
+                        'success' => false,
+                        'sent' => false,
+                        'sent_to' => $invoice['guardian_email'],
+                        'error' => $emailError ?? 'The email provider did not accept the message'
+                    ]);
+                    break;
+                }
+
+                // Only now: it really went.
+                $pdo->prepare("
+                    UPDATE invoices
+                    SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                ")->execute(['id' => $invoice_id]);
+
+                $pdo->prepare("
+                    INSERT INTO invoice_emails (invoice_id, email_type, sent_to, subject)
+                    VALUES (:invoice_id, 'initial', :sent_to, :subject)
+                ")->execute([
+                    'invoice_id' => $invoice_id,
+                    'sent_to' => $invoice['guardian_email'],
+                    'subject' => $subject
+                ]);
+
+                echo json_encode([
+                    'success' => true,
+                    'sent' => true,
+                    'message' => 'Invoice sent successfully',
+                    'sent_to' => $invoice['guardian_email']
+                ]);
+            } else {
+                // Switched off. Nothing sent, nothing recorded as sent, and the
+                // response says which switch did it.
+                echo json_encode(array_merge(
+                    [
+                        'message' => 'Invoice email not sent',
+                        'sent_to' => $invoice['guardian_email']
+                    ],
+                    te_feature_disabled_response('TRANSACTIONAL_EMAIL')
+                ));
+            }
             break;
 
         case 'family':

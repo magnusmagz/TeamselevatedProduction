@@ -12,6 +12,9 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/financial_scope.php';
+require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
 
 try {
     $db = Database::getInstance();
@@ -124,7 +127,7 @@ try {
             // Admin-only, scoped to the payment's club.
             te_assert_financial_admin($auth, $pdo, ['payment' => $paymentId]);
 
-            // Get payment details
+            // Get payment details. Club comes off the program row, not the body.
             $stmt = $pdo->prepare("
                 SELECT
                     ap.*,
@@ -133,13 +136,16 @@ try {
                     g.email as guardian_email,
                     g.first_name as guardian_first,
                     pi.name as item_name,
-                    p.name as program_name
+                    p.name as program_name,
+                    p.club_id as club_id,
+                    cp.name as club_name
                 FROM athlete_payments ap
                 JOIN athletes a ON ap.athlete_id = a.id
                 JOIN programs p ON ap.program_id = p.id
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
+                LEFT JOIN club_profile cp ON cp.id = p.club_id
                 WHERE ap.id = :payment_id
             ");
             $stmt->execute(['payment_id' => $paymentId]);
@@ -154,34 +160,57 @@ try {
                 throw new Exception('No email address on file');
             }
 
-            // Build reminder message
             $isOverdue = $payment['due_date'] && strtotime($payment['due_date']) < time();
+            $athleteName = trim($payment['athlete_first'] . ' ' . $payment['athlete_last']);
+            $clubId = $payment['club_id'] !== null ? (int)$payment['club_id'] : null;
+            $clubName = $payment['club_name'] ?: 'Teams Elevated';
+            $paymentLink = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/') . '/parent/payments';
+
+            // No money in the subject — a reminder subject renders on a lock screen.
             $subject = $isOverdue
-                ? "Payment Overdue: {$payment['item_name']} for {$payment['athlete_first']}"
-                : "Payment Reminder: {$payment['item_name']} for {$payment['athlete_first']}";
+                ? "Payment overdue for {$payment['athlete_first']}"
+                : "Payment reminder for {$payment['athlete_first']}";
 
-            $message = "
-Dear {$payment['guardian_first']},
+            // Kill switch. Nothing is sent and, critically, nothing is logged:
+            // payment_reminder_log is the record that a family was contacted.
+            if (!te_feature_enabled('TRANSACTIONAL_EMAIL')) {
+                echo json_encode(array_merge(
+                    ['recipient' => $guardianEmail, 'logged' => false],
+                    te_feature_disabled_response('TRANSACTIONAL_EMAIL')
+                ));
+                break;
+            }
 
-This is a " . ($isOverdue ? "reminder that your payment is overdue" : "friendly reminder about an upcoming payment") . ".
+            $sent = (new Email())->forClub($pdo, $clubId)->sendPaymentReminder(
+                $guardianEmail,
+                $payment['guardian_first'] ?: 'there',
+                $athleteName,
+                $payment['item_name'] ?: 'Registration Fee',
+                $payment['program_name'] ?: '',
+                $payment['amount_remaining'],
+                $payment['due_date'],
+                $isOverdue,
+                $clubName,
+                $paymentLink
+            );
 
-Payment Details:
-- Athlete: {$payment['athlete_first']} {$payment['athlete_last']}
-- Program: {$payment['program_name']}
-- Item: {$payment['item_name']}
-- Amount Due: $" . number_format($payment['amount_remaining'], 2) . "
-" . ($payment['due_date'] ? "- Due Date: " . date('F j, Y', strtotime($payment['due_date'])) : "") . "
+            if (!$sent) {
+                // ⚠️ No log row on a failed send. The old handler INSERTed first and
+                // then logged "would send", so payment_reminder_log recorded contact
+                // that never happened — and `list` reads MAX(sent_at) from it to
+                // decide who still needs chasing.
+                http_response_code(502);
+                echo json_encode([
+                    'success' => false,
+                    'sent' => false,
+                    'logged' => false,
+                    'recipient' => $guardianEmail,
+                    'error' => 'Reminder could not be sent. Nothing was recorded against this payment.'
+                ]);
+                break;
+            }
 
-To make a payment, please log in to your account or click here:
-[Payment Link]
-
-If you have any questions, please contact us.
-
-Thank you,
-Teams Elevated
-            ";
-
-            // Log the reminder
+            // Log the reminder — only now that it actually left.
             $stmt = $pdo->prepare("
                 INSERT INTO payment_reminder_log
                 (athlete_payment_id, reminder_type, sent_to, subject, message, sent_at)
@@ -192,17 +221,16 @@ Teams Elevated
                 'type' => $reminderType,
                 'email' => $guardianEmail,
                 'subject' => $subject,
-                'message' => $message
+                'message' => 'Payment ' . ($isOverdue ? 'overdue' : 'reminder')
+                    . " notice for $athleteName ({$payment['item_name']})"
             ]);
-
-            // In demo mode, just log (in production, would send email)
-            error_log("DEMO: Would send reminder email to $guardianEmail");
-            error_log("Subject: $subject");
 
             echo json_encode([
                 'success' => true,
-                'message' => "Reminder sent to $guardianEmail",
-                'demo_mode' => true
+                'sent' => true,
+                'logged' => true,
+                'recipient' => $guardianEmail,
+                'message' => "Reminder sent to $guardianEmail"
             ]);
             break;
 
@@ -262,44 +290,110 @@ Teams Elevated
             $sentCount = 0;
             $errors = [];
 
+            $paymentLink = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/') . '/parent/payments';
+
+            // Kill switch, checked once before the loop. Nothing sends and nothing
+            // is written to payment_reminder_log.
+            if (!te_feature_enabled('TRANSACTIONAL_EMAIL')) {
+                echo json_encode(array_merge(
+                    ['sent_count' => 0, 'failed_count' => 0, 'total_eligible' => count($paymentIds), 'errors' => []],
+                    te_feature_disabled_response('TRANSACTIONAL_EMAIL')
+                ));
+                break;
+            }
+
             foreach ($paymentIds as $paymentId) {
                 try {
-                    // Reuse single send logic (simplified for batch)
+                    // Full details per payment — a reminder that cannot name the
+                    // athlete or the amount is not worth sending. Club comes off
+                    // the program row, same as the single-send path.
                     $stmt = $pdo->prepare("
-                        SELECT ap.id, g.email
+                        SELECT
+                            ap.id,
+                            ap.due_date,
+                            ap.amount_remaining,
+                            a.first_name as athlete_first,
+                            a.last_name as athlete_last,
+                            g.email as guardian_email,
+                            g.first_name as guardian_first,
+                            pi.name as item_name,
+                            p.name as program_name,
+                            p.club_id as club_id,
+                            cp.name as club_name
                         FROM athlete_payments ap
                         JOIN athletes a ON ap.athlete_id = a.id
+                        JOIN programs p ON ap.program_id = p.id
                         LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                         LEFT JOIN guardians g ON ag.guardian_id = g.id
+                        LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
+                        LEFT JOIN club_profile cp ON cp.id = p.club_id
                         WHERE ap.id = :payment_id
                     ");
                     $stmt->execute(['payment_id' => $paymentId]);
                     $payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                    if ($payment && $payment['email']) {
-                        $stmt = $pdo->prepare("
-                            INSERT INTO payment_reminder_log
-                            (athlete_payment_id, reminder_type, sent_to, subject, message, sent_at)
-                            VALUES (:payment_id, 'scheduled', :email, 'Payment Reminder', 'Batch reminder', CURRENT_TIMESTAMP)
-                        ");
-                        $stmt->execute([
-                            'payment_id' => $paymentId,
-                            'email' => $payment['email']
-                        ]);
-                        $sentCount++;
+                    if (!$payment || !$payment['guardian_email']) {
+                        $errors[] = "Payment $paymentId: no email address on file";
+                        continue;
                     }
+
+                    $isOverdue = $payment['due_date'] && strtotime($payment['due_date']) < time();
+                    $athleteName = trim($payment['athlete_first'] . ' ' . $payment['athlete_last']);
+                    $clubName = $payment['club_name'] ?: 'Teams Elevated';
+
+                    $sent = (new Email())
+                        ->forClub($pdo, $payment['club_id'] !== null ? (int)$payment['club_id'] : null)
+                        ->sendPaymentReminder(
+                            $payment['guardian_email'],
+                            $payment['guardian_first'] ?: 'there',
+                            $athleteName,
+                            $payment['item_name'] ?: 'Registration Fee',
+                            $payment['program_name'] ?: '',
+                            $payment['amount_remaining'],
+                            $payment['due_date'],
+                            $isOverdue,
+                            $clubName,
+                            $paymentLink
+                        );
+
+                    if (!$sent) {
+                        // No log row. See the single-send path: a row here is a
+                        // record that the family was contacted.
+                        $errors[] = "Payment $paymentId: provider rejected the message";
+                        continue;
+                    }
+
+                    $stmt = $pdo->prepare("
+                        INSERT INTO payment_reminder_log
+                        (athlete_payment_id, reminder_type, sent_to, subject, message, sent_at)
+                        VALUES (:payment_id, 'scheduled', :email, :subject, :message, CURRENT_TIMESTAMP)
+                    ");
+                    $stmt->execute([
+                        'payment_id' => $paymentId,
+                        'email' => $payment['guardian_email'],
+                        'subject' => ($isOverdue ? 'Payment overdue for ' : 'Payment reminder for ')
+                            . $payment['athlete_first'],
+                        'message' => 'Scheduled payment ' . ($isOverdue ? 'overdue' : 'reminder')
+                            . " notice for $athleteName"
+                    ]);
+                    $sentCount++;
                 } catch (Exception $e) {
                     $errors[] = "Payment $paymentId: " . $e->getMessage();
                 }
             }
 
-            echo json_encode([
-                'success' => true,
+            // A batch that mailed nobody must not answer success.
+            $response = [
+                'success' => count($errors) === 0,
                 'sent_count' => $sentCount,
+                'failed_count' => count($errors),
                 'total_eligible' => count($paymentIds),
-                'errors' => $errors,
-                'demo_mode' => true
-            ]);
+                'errors' => $errors
+            ];
+            if ($errors) {
+                $response['error'] = count($errors) . ' of ' . count($paymentIds) . ' reminders could not be sent';
+            }
+            echo json_encode($response);
             break;
 
         case 'history':

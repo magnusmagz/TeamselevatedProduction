@@ -17,7 +17,18 @@ class FeatureFlagsTest extends TestCase
 {
     /** Phase 2 send paths → the switch each must consult. Extend as slices land. */
     private const GATED = [
-        // 'api/invoices.php' => 'TRANSACTIONAL_EMAIL',
+        'api/invoices.php' => 'TRANSACTIONAL_EMAIL',
+        'registration/registrations-api.php' => 'REGISTRATION_CONFIRMATION',
+        // Slice 2.2 — send-offers answered "Offers sent successfully" with no
+        // send of any kind anywhere in the handler.
+        'registration/tryouts-api.php' => 'TRYOUT_OFFER_EMAIL',
+        // Slice 2.1a — the three payment endpoints that logged
+        // "DEMO: Would send ..." and answered success. PaymentEmailStubsTest
+        // checks the stronger property (the switch is consulted BEFORE each send
+        // site, in the same case block); this list is the roll call.
+        'api/payment-receipt.php' => 'TRANSACTIONAL_EMAIL',
+        'api/payment-failures.php' => 'TRANSACTIONAL_EMAIL',
+        'api/payment-reminders.php' => 'TRANSACTIONAL_EMAIL',
     ];
 
     protected function setUp(): void
