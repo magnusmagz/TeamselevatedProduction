@@ -230,8 +230,14 @@ describe('ParentDashboard', () => {
       <ParentDashboard />
     );
 
+    // The empty dashboard now says WHY it is empty and names the address the
+    // club admin has to match — see NoAthletesLinked.
     await waitFor(() => {
-      expect(screen.getByText('No Athletes Found')).toBeInTheDocument();
+      expect(screen.getByText('No athletes connected yet')).toBeInTheDocument();
     });
+    expect(
+      screen.getByText(/Ask your club administrator to connect you to your athlete/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(mockUser.email)).toBeInTheDocument();
   });
 });

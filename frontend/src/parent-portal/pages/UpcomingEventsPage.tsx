@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
 import { AthleteSelector } from '../components/AthleteSelector';
+import { NoAthletesLinked } from '../components/NoAthletesLinked';
 
 interface Event {
   id: number;
@@ -20,7 +21,8 @@ interface Event {
 
 export const UpcomingEventsPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
-  const { athletes, selectedAthleteId, selectAthlete } = useParentAthletes();
+  const { athletes, loading: athletesLoading, selectedAthleteId, selectAthlete } =
+    useParentAthletes();
   const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,8 +208,12 @@ export const UpcomingEventsPage: React.FC = () => {
           </div>
         )}
 
+        {/* Nobody is connected to this account, so an empty schedule is not a
+            statement about the calendar. Say which one it is. */}
+        {!loading && !athletesLoading && athletes.length === 0 && <NoAthletesLinked />}
+
         {/* Empty State */}
-        {!loading && !error && events.length === 0 && (
+        {!loading && !athletesLoading && !error && athletes.length > 0 && events.length === 0 && (
           <div className="text-center py-12 px-4">
             <svg
               className="mx-auto h-12 w-12 text-gray-400"
