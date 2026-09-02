@@ -227,14 +227,14 @@ class Team {
             return $stmt->execute([':coach_id' => $coachId, ':team_id' => $teamId]);
         } else {
             $sql = "INSERT INTO team_members (team_id, user_id, role, join_date)
-                    VALUES (:team_id, :user_id, 'assistant_coach', CURDATE())";
+                    VALUES (:team_id, :user_id, 'assistant_coach', CURRENT_DATE)";
             $stmt = $this->db->prepare($sql);
             return $stmt->execute([':team_id' => $teamId, ':user_id' => $coachId]);
         }
     }
 
     public function removeCoach($teamId, $userId) {
-        $sql = "UPDATE team_members SET leave_date = CURDATE()
+        $sql = "UPDATE team_members SET leave_date = CURRENT_DATE
                 WHERE team_id = :team_id AND user_id = :user_id AND role = 'assistant_coach'";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([':team_id' => $teamId, ':user_id' => $userId]);
