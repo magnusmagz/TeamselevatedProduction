@@ -95,9 +95,11 @@ user_org_access (id, user_id, org_unit_id, role CHECK ('org_admin','org_viewer')
 ### 4. Compliance model: person-level, expiring, verified
 
 ```
-compliance_requirements (id, org_unit_id → org_units NULL for platform-wide,
+compliance_requirements (id, org_unit_id → org_units NULL, club_profile_id → club_profile NULL,
+    -- exactly one of the two is set: a tier-wide rule or a single club's own
     kind CHECK ('background_check','cpr_first_aid','training','document','custom'),
-    name, description, validity_days INT NULL, required BOOL, active BOOL, sort_order)
+    name, description, proof CHECK ('document','attested_date','external_link'),
+    proof_url, validity_days INT NULL, required BOOL, active BOOL, sort_order, created_by)
 person_credentials (id, user_id, requirement_id, status CHECK
     ('missing','submitted','verified','rejected','expired'),
     issued_at DATE, expires_at DATE, document_id → documents NULL,
@@ -112,7 +114,17 @@ compliance_reminder_streams (id, requirement_id, org_unit_id, active,
 compliance_reminder_log (credential_id, stream_id, days_before, sent_at)  -- never twice per step
 ```
 
-- **Admins at any tier define requirements** (Maggie, 2026-09-02): a national, region or
+- **Requirements are user-defined, never a fixed list** (Maggie, 2026-09-02): we cannot
+  predict what paperwork makes someone compliant — concussion protocol, SafeSport, a state
+  background check, a council's own training. So the builder is generic: name, description,
+  what counts as proof (an uploaded document, a completion date the person attests, or a
+  link to complete elsewhere), validity period, which roles it applies to, and a
+  **required** flag that decides whether a missing or expired record puts the person out
+  of compliance. `kind` is a category for reporting, with `custom` always available.
+  **Because club = council, every club admin gets this tool**, GOTR or not — CKU can define
+  SafeSport and concussion protocol for its coaches the same way. That also finally gives
+  the unwired `guardians.safesport_*` columns a home.
+- **Admins at any tier define requirements**: a national, region or
   council admin creates a check type such as *State background check*, *CPR/First Aid*,
   *GOTR core training*, and says which staff roles it applies to. Coaches and volunteers
   have different lists that may overlap, so a requirement carries a set of roles, not one.
@@ -210,7 +222,9 @@ overlapping. G0 gates G3's seed data but nothing else.
 
 ## What this changes for existing clubs
 
-Nothing, by construction. `org_unit_id` is null for every non-GOTR club, the token diet and
+One thing, and it is a gain: club admins get the requirement builder and the coach compliance
+view (G3/G4), usable for SafeSport and concussion protocol today. Everything else is nothing, by
+construction. `org_unit_id` is null for every non-GOTR club, the token diet and
 cached context apply to everyone and make things faster, and the compliance tables are
 unused unless a club is under an org unit or turns the switch on. CKU keeps its volunteer
 gate as it is today, now with an honest "expired" state.
