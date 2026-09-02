@@ -114,3 +114,13 @@ Pinned as `_KNOWN_DEFECT` tests in `tests/php/CalendarReplyParserTest.php` and
   Adding a TTL invalidates links in emails already sent. Recommend: 60-day TTL, applied
   to links minted from the change forward, page copy kept.
 - **If left:** all three stay as they are; the tests keep documenting them.
+
+### 12. Should "not selected" tryout families get an automated email? (2026-09-02)
+Send-offers now emails roster and waitlist offers (Phase 2, behind
+`TE_FEATURE_TRYOUT_OFFER_EMAIL`). Rows marked `not_selected` are recorded but deliberately
+NOT emailed by that path; the response reports how many were held back.
+- **Options:** (a) keep it manual — the club tells those families itself; (b) send a
+  short, kind "not selected this season" email from the same path, with copy you approve.
+- **Recommendation:** (a) for CKU's first tryout cycle on the platform; revisit after.
+- **If left:** staff see "N not notified (not selected)" in the send-offers result and
+  contact those families directly.
