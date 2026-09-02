@@ -1779,6 +1779,10 @@ interface, the mock, and `overviewAggregate()` together or that test fails.
 
 ## What Claude Should NOT Change
 - Do not modify the authentication system (`lib/JWT.php`, `lib/AuthMiddleware.php`, `api/auth-gateway.php`)
+  — **one approved exception (Maggie, 2026-09-02): the GOTR plan's G2 "token diet + cached role
+  context"** may change `lib/JWT.php` and `lib/AuthMiddleware.php` on branch
+  `feature/g2-token-diet`, behind `TE_FEATURE_SLIM_TOKEN` / `TE_FEATURE_ROLE_CACHE`, frontend
+  first. `api/auth-gateway.php` stays off-limits except the decision-13 one-liner if approved.
 - Do not alter existing table structures — add new tables/columns only.
   **One approved exception exists**: migration 063 dropped `NOT NULL` from
   `consent_records.guardian_id`, because that column is an FK to `users(id)` and a parent
