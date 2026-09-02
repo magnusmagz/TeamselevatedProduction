@@ -224,6 +224,17 @@ Every US timezone hits it; it is not intermittent and not data-dependent.
   `event_date` values are untouched, so corrected events stay corrected and any uncorrected
   ones stay wrong until someone edits them.
 
+**Ages and age groups have the same rule, in `frontend/src/utils/ageGroup.ts`** (2026-09-02).
+That file is the single source for U-group (`ageGroup`), birth quarter (`ageQuarter`) and
+age in whole years (`ageInYears`) — all three read the year/month off the date STRING, and
+**none of them may use `new Date(dob)`**. `getAgeQuarter` had been copied into four
+components and was wrong on **all four** quarter-boundary firsts (Jan/Apr/Jul/Oct 1 each
+reported the PRIOR quarter), and three copies of `calcAge` aged a child up one day early.
+Consolidated 2026-09-02; `ageGroup.test.ts` failed 7 ways on the old logic. ⚠️ The frontend
+rolls the season year on **Aug 1** while `services/AgeEligibilityService.php` uses the
+tournament `start_date` year with no roll — a known one-year divergence, unresolved, and a
+rules decision rather than a bug to patch on one side.
+
 ### ⚠️ The queue worker's DB handle dies overnight — rebuild services, don't just reconnect (2026-08-25)
 Neon's pooler drops idle connections and PDO never notices: the handle stays a perfectly
 ordinary object and every query on it throws `no connection to the server`. The worker

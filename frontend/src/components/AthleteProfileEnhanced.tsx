@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatGrade } from '../utils/grade';
 import { formatJerseySize } from '../utils/jerseySize';
-import { ageGroup } from '../utils/ageGroup';
+import { ageGroup, ageInYears, ageQuarter } from '../utils/ageGroup';
 import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import CommunicationHistory from './communications/CommunicationHistory';
@@ -262,27 +262,11 @@ const AthleteProfileEnhanced: React.FC = () => {
     fetchAthleteData();
   }, [athleteId]);
 
-  const calculateAge = (birthDate: string) => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
+  // NaN preserves what this rendered before for a missing DOB — this one call site is
+  // NOT guarded, so returning 0 would silently start claiming an age of 0.
+  const calculateAge = (birthDate: string) => ageInYears(birthDate) ?? NaN;
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-
-    return age;
-  };
-
-  const getAgeQuarter = (dob: string): string | null => {
-    if (!dob) return null;
-    const month = new Date(dob).getMonth();
-    if (month <= 2) return 'Q1';
-    if (month <= 5) return 'Q2';
-    if (month <= 8) return 'Q3';
-    return 'Q4';
-  };
+  const getAgeQuarter = (dob: string): string | null => ageQuarter(dob);
 
   const getUGroup = (dob: string): string | null => ageGroup(dob);
 

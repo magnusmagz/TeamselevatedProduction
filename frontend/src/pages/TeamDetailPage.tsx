@@ -1,5 +1,5 @@
 import React from 'react';
-import { ageGroup } from '../utils/ageGroup';
+import { ageGroup, ageInYears, ageQuarter } from '../utils/ageGroup';
 import { useParams, Link } from 'react-router-dom';
 import TeamFormWithTabs from '../components/TeamFormWithTabs';
 import RosterDownloadButton from '../components/RosterDownloadButton';
@@ -30,21 +30,14 @@ interface RosterMember {
   primary_position?: string;
 }
 
+// NaN, not 0, when the DOB is unreadable: every call site is already guarded by
+// `date_of_birth &&`, and NaN is what this returned before, so nothing renders differently.
 function calcAge(dob: string): number {
-  const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
+  return ageInYears(dob) ?? NaN;
 }
 
 function getAgeQuarter(dob: string): string {
-  const month = new Date(dob).getMonth();
-  if (month <= 2) return 'Q1';
-  if (month <= 5) return 'Q2';
-  if (month <= 8) return 'Q3';
-  return 'Q4';
+  return ageQuarter(dob) ?? '';
 }
 
 function getUGroup(dob: string): string {

@@ -6,7 +6,7 @@ import {
   consentStatusRank,
 } from '../utils/consentStatus';
 import { Link } from 'react-router-dom';
-import { ageGroup, ageInYears } from '../utils/ageGroup';
+import { ageGroup, ageInYears, ageQuarter } from '../utils/ageGroup';
 import { formatGrade, GRADE_OPTIONS as GRADE_LEVEL_OPTIONS } from '../utils/grade';
 import AthleteForm from './AthleteForm';
 import GuardianManagement from './GuardianManagement';
@@ -599,10 +599,7 @@ export const AthleteListContent: React.FC<{
                       {athlete.date_of_birth ? (() => {
                         const age = calculateAge(athlete.date_of_birth);
                         if (age === null) return 'Invalid date';
-                        // Birth quarter from the date string (no timezone shift).
-                        const mm = /^\d{4}-(\d{2})/.exec(athlete.date_of_birth);
-                        const month = mm ? parseInt(mm[1], 10) - 1 : 0;
-                        const quarter = month <= 2 ? 'Q1' : month <= 5 ? 'Q2' : month <= 8 ? 'Q3' : 'Q4';
+                        const quarter = ageQuarter(athlete.date_of_birth) ?? '';
                         const uGroup = ageGroup(athlete.date_of_birth) ?? '';
                         return (
                           <>
