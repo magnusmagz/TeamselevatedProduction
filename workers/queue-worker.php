@@ -19,6 +19,7 @@ require_once __DIR__ . '/../services/ImportJobProcessor.php';
 require_once __DIR__ . '/../services/CalendarSyncService.php';
 require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
 require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
+require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
 
 echo "[Worker] Starting queue worker...\n";
 
@@ -79,6 +80,11 @@ $lastImportSweep = 0;
 $lastChatNotifySweep = 0;
 $lastModAlertSweep = 0;
 
+// Throttle for the scheduled-broadcast dispatch tick. Same reasoning again:
+// docs/sms-scheduled-and-replies-scope.md Part 1 rules out a separate scheduler
+// process because scheduled jobs do not yet justify a dyno.
+$lastBroadcastSweep = 0;
+
 /**
  * How often we look for chat messages to notify about.
  *
@@ -99,6 +105,21 @@ const TE_CHAT_NOTIFY_TICK_SECONDS = 10;
  * than 10. Only chat notifications needed to get faster.
  */
 const TE_CHAT_MOD_TICK_SECONDS = 60;
+
+/**
+ * How often we look for scheduled broadcasts whose time has come.
+ *
+ * This is the floor on how late a scheduled send can be under normal running: a
+ * campaign due at 8:00:00 goes out somewhere in 8:00:00–8:00:30. Nobody schedules a
+ * club broadcast to the second, and the query behind it is one indexed read of a
+ * partial index over the handful of rows in status='scheduled', so there is no
+ * reason to make it tighter or looser.
+ *
+ * It is NOT the staleness ceiling — that is TE_BROADCAST_MAX_LATENESS_SECONDS in
+ * lib/broadcast_dispatcher.php, and it covers the case this throttle cannot: the
+ * worker being down for hours.
+ */
+const TE_BROADCAST_TICK_SECONDS = 30;
 
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
@@ -202,6 +223,47 @@ while ($running) {
                 }
             } catch (Throwable $e) {
                 error_log('[Worker] moderation alert sweep error: ' . $e->getMessage());
+            }
+        }
+
+        // Scheduled broadcasts: send the campaigns whose time has come.
+        //
+        // ⚠️ Its own catch, and the dispatcher catches per campaign inside that.
+        // Both layers are load-bearing. A club that cleared its SMS number makes
+        // queueSms throw a RuntimeException, and an uncaught throw here stops email,
+        // SMS, imports and calendar sync along with it — one club's misconfiguration
+        // taking down every queue for every club.
+        //
+        // Services come from $services, which $ensureDb() rebuilds through
+        // $buildServices() when the Neon handle has died. Constructing an
+        // EmailSendService or SmsSendService here instead would pin this tick to the
+        // boot-time handle, so four queues would recover from an overnight drop and
+        // this one silently would not.
+        if (time() - $lastBroadcastSweep > TE_BROADCAST_TICK_SECONDS) {
+            $lastBroadcastSweep = time();
+            try {
+                $ensureDb();
+                $broadcasts = te_broadcast_dispatch_due(
+                    $db,
+                    $services['email'],
+                    $services['sms'],
+                    function (string $line) { echo "[Worker] {$line}\n"; }
+                );
+                if ($broadcasts['sent'] || $broadcasts['failed']) {
+                    echo sprintf(
+                        "[Worker] scheduled broadcasts: %d sent (%d queued, %d skipped), %d failed, %d too late\n",
+                        $broadcasts['sent'],
+                        $broadcasts['queued'],
+                        $broadcasts['skipped'],
+                        $broadcasts['failed'],
+                        $broadcasts['stale']
+                    );
+                }
+                foreach ($broadcasts['errors'] as $broadcastError) {
+                    error_log('[Worker] scheduled broadcast error: ' . $broadcastError);
+                }
+            } catch (Throwable $e) {
+                error_log('[Worker] scheduled broadcast sweep error: ' . $e->getMessage());
             }
         }
 

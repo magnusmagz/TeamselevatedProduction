@@ -29,6 +29,12 @@ class FeatureFlagsTest extends TestCase
         'api/payment-receipt.php' => 'TRANSACTIONAL_EMAIL',
         'api/payment-failures.php' => 'TRANSACTIONAL_EMAIL',
         'api/payment-reminders.php' => 'TRANSACTIONAL_EMAIL',
+        // Slices 2.3/2.4 — scheduled broadcasts were stored as status='scheduled'
+        // and never dispatched. The switch stops the worker tick AND the endpoint
+        // that accepts a schedule, so flipping it off cannot leave campaigns
+        // accumulating for a dispatcher that is not running.
+        'lib/broadcast_dispatcher.php' => 'SCHEDULED_DISPATCH',
+        'api/communications-gateway.php' => 'SCHEDULED_DISPATCH',
     ];
 
     protected function setUp(): void

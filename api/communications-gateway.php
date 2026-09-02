@@ -16,6 +16,7 @@ if (defined('TE_COMMUNICATIONS_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/suppression.php';
     require_once __DIR__ . '/../lib/coach_scope.php';
     require_once __DIR__ . '/../lib/sms_sender.php';
+    require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
     return;
 }
 
@@ -34,6 +35,10 @@ require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/MergeFieldService.php';
 require_once __DIR__ . '/../lib/sms_merge.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
+// The scheduled-campaign column probe and the dispatcher share one definition;
+// this endpoint must not accept a schedule the worker tick cannot then send.
+require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
 
 try {
     $db = Database::getInstance();
@@ -481,14 +486,47 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
         return;
     }
 
-    // INTERIM (silent-failure fix): no worker dispatches due 'scheduled' campaigns
-    // yet, so a scheduled broadcast would be stored and silently never sent. Reject
-    // scheduling with a clear message until the dispatcher ships, rather than
-    // accepting input that never happens. Remove this guard when the dispatcher lands.
+    // Scheduled campaigns are dispatched by te_broadcast_dispatch_due(), from the
+    // 30-second tick in workers/queue-worker.php. Three things must be true before
+    // we may accept one; when any is false the honest answer is a refusal, because
+    // storing a campaign nothing will send is exactly the silent failure the
+    // 2026-07-06 sweep added the original guard for.
     if (!empty($scheduledAt)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Scheduled sending is not available yet — please send now.']);
-        return;
+        // `main` is shared and deploys are by push, so this file reaches production
+        // the moment any session pushes — possibly days before migration 083 is
+        // applied to Neon by hand. Until it is there is nowhere to store the body,
+        // so the original 400 stands, message unchanged.
+        if (!te_broadcast_scheduled_columns_present($connection)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Scheduled sending is not available yet — please send now.']);
+            return;
+        }
+
+        // The kill switch stops the dispatcher. Accepting a schedule while it is off
+        // would re-create the silent failure one config var at a time.
+        if (!te_feature_enabled('SCHEDULED_DISPATCH')) {
+            http_response_code(400);
+            echo json_encode(array_merge(
+                te_feature_disabled_response('SCHEDULED_DISPATCH'),
+                ['error' => 'Scheduled sending is switched off right now — please send now.']
+            ));
+            return;
+        }
+
+        $scheduledTs = strtotime((string) $scheduledAt);
+        if ($scheduledTs === false) {
+            http_response_code(400);
+            echo json_encode(['error' => 'scheduled_at is not a date this server can read.']);
+            return;
+        }
+        // A time already past would sit in 'scheduled' until the next tick and then
+        // fire immediately, which is a confusing way to say "send now". Refuse it
+        // and let the caller send now if that is what they meant.
+        if ($scheduledTs <= time()) {
+            http_response_code(400);
+            echo json_encode(['error' => 'scheduled_at must be in the future — send now instead.']);
+            return;
+        }
     }
 
     $authError = broadcastAuthError($auth, $connection, $clubProfileId, $isClubWide, $teamIds);
@@ -509,41 +547,60 @@ function handleSendBroadcast($auth, $connection, $emailService, $smsService, $me
     }
 
     // Create broadcast_campaigns record
-    $stmt = $connection->prepare("
-        INSERT INTO broadcast_campaigns
-            (club_profile_id, user_id, template_id, name, subject, channel, recipient_criteria, status, scheduled_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP)
-        RETURNING id
-    ");
     $campaignName = ($channel === 'email' ? $subject : substr($body, 0, 80));
     $criteria = json_encode([
         'scope'           => $scope,
-        'team_ids'        => $teamIds,
+        // ⚠️ SINGULAR — 'athlete' / 'guardian' / 'coach'. resolveBroadcastRecipients
+        // reads these back at dispatch time and the plural forms resolve nobody.
         'recipient_types' => $recipientTypes,
+        'team_ids'        => $teamIds,
         'exclude_ids'     => $excludeIds,
     ]);
     $status = $scheduledAt ? 'scheduled' : 'sending';
 
-    $stmt->execute([
-        $clubProfileId,
-        $auth->getUserId(),
-        $templateId,
-        $campaignName,
-        $subject ?? '',
-        $channel,
-        $criteria,
-        $status,
-        $scheduledAt,
-    ]);
+    // body / html_body / event_id arrive with migration 083 and are written for
+    // scheduled AND immediate sends. Immediate does not need them, but a campaign
+    // row that sometimes carries a body and sometimes does not is a trap for
+    // whoever writes reporting later.
+    //
+    // The column list is built rather than written out because this handler runs
+    // against Neon both before and after 083 is applied by hand — naming a column
+    // that is not there yet is 42703, which would break every broadcast for every
+    // club, not merely the scheduled ones.
+    $columns      = ['club_profile_id', 'user_id', 'template_id', 'name', 'subject',
+                     'channel', 'recipient_criteria', 'status', 'scheduled_at', 'created_at'];
+    $placeholders = ['?', '?', '?', '?', '?', '?', '?::jsonb', '?', '?', 'CURRENT_TIMESTAMP'];
+    $values       = [$clubProfileId, $auth->getUserId(), $templateId, $campaignName,
+                     $subject ?? '', $channel, $criteria, $status, $scheduledAt];
+
+    if (te_broadcast_scheduled_columns_present($connection)) {
+        // Spliced in before created_at, which takes no bound value.
+        array_splice($columns, 9, 0, ['body', 'html_body', 'event_id']);
+        array_splice($placeholders, 9, 0, ['?', '?', '?']);
+        $values[] = $body;
+        $values[] = $htmlBody;
+        $values[] = $eventId;
+    }
+
+    $stmt = $connection->prepare(
+        'INSERT INTO broadcast_campaigns (' . implode(', ', $columns) . ')'
+        . ' VALUES (' . implode(', ', $placeholders) . ')'
+        . ' RETURNING id'
+    );
+    $stmt->execute($values);
     $campaignId = $stmt->fetchColumn();
 
-    // If scheduled for later, return the campaign record
+    // Scheduled: stored, and now genuinely dispatched. Recipients are deliberately
+    // NOT resolved here — the worker re-resolves them at dispatch, so the roster at
+    // send time is the audience rather than the roster at schedule time. That is
+    // also why no recipient count is returned: any number given now would be a
+    // guess about a list that has not been drawn yet.
     if ($scheduledAt) {
         echo json_encode([
             'success' => true,
             'data'    => [
-                'campaign_id' => $campaignId,
-                'status'      => 'scheduled',
+                'campaign_id'  => $campaignId,
+                'status'       => 'scheduled',
                 'scheduled_at' => $scheduledAt,
             ]
         ]);
