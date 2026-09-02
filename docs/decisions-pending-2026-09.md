@@ -170,7 +170,11 @@ fallback, which still works.
 - **Recommendation:** approve it as the one exception; it is a call-out, not a change to auth.
 - **If left:** phase 4.5 (retiring the email match) cannot complete for invited families.
 
-### 14. Uploaded documents: block the folder now, or stream through an authenticated endpoint? (2026-09-02)
+### 14. Uploaded documents — DECIDED 2026-09-02: (b) now, (a) next
+**Maggie: go with the recommendation.** Shipped: `/uploads/club-documents/` refused, Upload tab
+hidden for new documents. Phase 5 (S3 + authenticated download) is next and needs a bucket + key.
+
+_Original item:_
 Audit finding: `api/upload.php` writes to the dyno's local disk, which is wiped on every restart
 or deploy, and Apache serves `/uploads/` as static files — no login, no ownership check — for
 as long as they exist. Any file uploaded through the Club Document Center is gone within a day
@@ -183,7 +187,10 @@ and readable by anyone with the URL until then. Most real rows are probably "Pas
   Needs the bucket and key from you for (a).
 - **If left:** uploads keep silently disappearing and are public while they exist.
 
-### 15. `document_acknowledgments`: build the signing flow or drop the table (2026-09-02)
+### 15. `document_acknowledgments` — DECIDED 2026-09-02: (a) build signing into GOTR G3/G4
+**Maggie: yes to (a).** Acknowledge-and-sign becomes the proof path for attested requirements.
+
+_Original item:_
 The table exists in production (signature, IP, expiry) and zero code reads or writes it. Same
 pattern as the consent checkbox removed on 07-30: the schema asserts signing and stores none.
 `is_required` is a badge that blocks nothing; `expires_at` is a badge with no reminder.
