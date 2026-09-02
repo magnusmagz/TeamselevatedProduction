@@ -32,6 +32,16 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Home overview + evaluations sort shipped (Netlify `2ce4368`, frontend only, Heroku stays v560)
+
+- **R88** `/dashboard` is now a four-tile overview (Teams / Athletes / Programs / Revenue;
+  coaches get three). Teams moved to `/teams`; `/` → `/dashboard` and `ParentRedirect`
+  unchanged. Known: a treasurer sees Revenue as "Unavailable" — `revenue-summary.php` gates
+  on club_admin while `financial-permissions` grants treasurers `can_view_revenue`. Decision
+  pending, not a regression.
+- **R85** tryout Evaluations tab: sort + status + age-group filters. Also fixed: an athlete
+  with zero evaluations showed "View/Edit" instead of "Evaluate" (`"0"` is truthy).
+
 ### Phase 3 CKU quick wins shipped (Heroku v560, Netlify `056fb3e`) — migration 084 applied
 
 Merged `fix/cku-quick-wins`, frontend first. **Migration 084** (`programs.sort_order`,
