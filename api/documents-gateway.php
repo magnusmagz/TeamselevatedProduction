@@ -43,6 +43,7 @@ header('Content-Type: application/json; charset=UTF-8');
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 
 try {
     $db = Database::getInstance();
@@ -703,7 +704,7 @@ function userCanReadDocument(PDO $conn, $auth, array $doc): bool {
             OR (da.target_type = 'athlete' AND da.target_id IN (
                   SELECT ag.athlete_id FROM athlete_guardians ag
                   JOIN guardians g ON g.id = ag.guardian_id
-                  JOIN users u ON u.email = g.email
+                  JOIN users u ON " . te_guardian_link_sql('u', 'g') . "
                   WHERE u.id = ?
             ))
           )
@@ -729,15 +730,10 @@ function userCanReadAthleteDocs(PDO $conn, $auth, int $athleteId, int $clubId, a
         if ($stmt->fetchColumn()) return true;
     }
 
-    $stmt = $conn->prepare("
-        SELECT 1 FROM athlete_guardians ag
-        JOIN guardians g ON g.id = ag.guardian_id
-        JOIN users u ON u.email = g.email
-        WHERE ag.athlete_id = ? AND u.id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$athleteId, $userId]);
-    return (bool) $stmt->fetchColumn();
+    // Guardian standing is resolved in one place — recorded links UNION the email
+    // match. This join used to be `u.email = g.email`, case-sensitive, so one capital
+    // letter on a guardian row hid a parent's own child's documents from them.
+    return te_user_is_guardian_of_athlete($conn, $userId, $athleteId);
 }
 
 function getCoachTeamIds(PDO $conn, int $userId, int $clubId): array {

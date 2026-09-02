@@ -79,6 +79,17 @@ class AthleteControllerScopeTest extends TestCase
                 relationship TEXT,
                 is_primary INTEGER
             );
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                email TEXT
+            );
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                guardian_id INTEGER,
+                source TEXT,
+                confidence TEXT
+            );
             CREATE TABLE emergency_contacts (
                 id INTEGER PRIMARY KEY,
                 athlete_id INTEGER,
@@ -109,6 +120,12 @@ class AthleteControllerScopeTest extends TestCase
         $this->pdo->exec("INSERT INTO team_members (id, team_id, user_id, athlete_id, role, status) VALUES (1, 10, NULL, 1, 'player', 'active')");
         $this->pdo->exec("INSERT INTO guardians (id, first_name, last_name, email) VALUES (200, 'Alice', 'Aaron', 'alice@family-a.com')");
         $this->pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id, relationship, is_primary) VALUES (1, 1, 200, 'Mother', 1)");
+
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php), so
+        // the accounts these cases sign in as must exist.
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES
+            (50, 'coach50@club.test'), (60, 'admin@club.test'),
+            (70, 'alice@family-a.com'), (999, 'nobody@example.com')");
 
         // Sensitive medical record for athlete 1 — must NOT leak to unrelated users.
         $this->pdo->exec("INSERT INTO medical_records (id, athlete_id, blood_type, has_asthma) VALUES (1, 1, 'O+', 1)");

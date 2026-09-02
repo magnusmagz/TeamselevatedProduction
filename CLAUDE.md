@@ -632,6 +632,22 @@ undercounted Luis at 11 and reported Samantha Archer (196) as unaffected when sh
 - Same shape as `userCanAccessAthlete` vs `staffCanManageAthlete` and `canAccessClub` vs
   `te_is_club_admin`: the predicate was never wrong, which one got called was.
 
+### Guardian identity is resolved ONCE — `lib/guardian_identity.php` (2026-09-02)
+`te_guardian_ids_for_user($pdo, $userId)` = `user_guardians` links UNION guardians whose
+`LOWER(email)` matches the account's `LOWER(email)`. Strictly wider than the old email
+match, so nothing lost access; a linked account whose sign-in address differs from the
+guardian row (the Allix Boyce case) now resolves. `te_guardian_link_sql()` is the same
+rule as a SQL fragment for sites that must stay one statement; `te_guardian_ids_in_clause()`
+emits `1=0` for an empty list, never `IN ()`. `AthleteScope::isGuardianOfAthlete` now takes
+a **user id**, not an email. **Do not write a `guardians.email ↔ users.email` comparison
+anywhere else** — `GuardianIdentityResolverTest` scans for one. The 08-18 sweep below missed
+six sites (`calendar-events-gateway` ×3, `recipient-search-gateway` ×3, `documents-gateway`
+×2 — four of them case-SENSITIVE, hiding a parent's own child's documents on one capital
+letter) because its regex only matched `g.email =`, not `u.email = g.email`. All converted.
+Still email-based on purpose: `lib/portal_status.php`, `lib/ParentInvite.php`,
+`lib/chat_notification_scope.php` (must mirror the chat server, which is a separate deploy
+— slice 4.1b), `lib/background_check.php` (a child-safety gate, not an access scope).
+
 ### ⚠️ Guardian email comparisons must be LOWER() on both sides (2026-08-18)
 Reported by CKU: Emily Govier could sign in but the parent portal said no athletes were
 registered to her. Her `guardians` row read `Emilygovier0@gmail.com`, her `users` row

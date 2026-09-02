@@ -58,6 +58,8 @@ class AthleteWriteScopeTest extends TestCase
                 id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, club_id INTEGER
             );
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
             CREATE TABLE athlete_guardians (
                 id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER
             );
@@ -75,11 +77,17 @@ class AthleteWriteScopeTest extends TestCase
             (3, 12, 3, 'player', 'active')");
         $this->pdo->exec("INSERT INTO guardians (id, email) VALUES (200, 'alice@family-a.com')");
         $this->pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES (1, 1, 200)");
+        // Guardian standing comes from the ACCOUNT now (lib/guardian_identity.php).
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES
+            (70,'alice@family-a.com'),(71,'nobody@example.com'),
+            (60,'admin@club.test'),(50,'coach50@club.test')");
     }
 
-    private function guardian(string $email): AuthMiddleware
+    // A user id, not just an address: guardian standing is resolved from the account
+    // (lib/guardian_identity.php), so two different people cannot share id 70.
+    private function guardian(string $email, int $userId): AuthMiddleware
     {
-        return AuthMiddleware::fromContext(['user_id' => 70, 'email' => $email, 'roles' => []]);
+        return AuthMiddleware::fromContext(['user_id' => $userId, 'email' => $email, 'roles' => []]);
     }
 
     private function coach(int $userId): AuthMiddleware
@@ -108,7 +116,7 @@ class AthleteWriteScopeTest extends TestCase
     /** THE REGRESSION. A guardian reads their child and may not rewrite them. */
     public function testGuardianCanReadButNotManageOwnAthlete(): void
     {
-        $auth = $this->guardian('alice@family-a.com');
+        $auth = $this->guardian('alice@family-a.com', 70);
 
         $this->assertTrue(
             AthleteScope::userCanAccessAthlete($this->pdo, $auth, 1),
@@ -160,7 +168,7 @@ class AthleteWriteScopeTest extends TestCase
 
     public function testUnrelatedUserHasNeither(): void
     {
-        $auth = $this->guardian('nobody@example.com');
+        $auth = $this->guardian('nobody@example.com', 71);
 
         $this->assertFalse(AthleteScope::userCanAccessAthlete($this->pdo, $auth, 1));
         $this->assertFalse(AthleteScope::staffCanManageAthlete($this->pdo, $auth, 1));

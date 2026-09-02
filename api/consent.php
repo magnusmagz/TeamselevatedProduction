@@ -121,8 +121,9 @@ try {
 
             // consent_records.guardian_id is a FOREIGN KEY to users(id) — the
             // consenting adult's ACCOUNT, not a guardians-table row. The two are
-            // linked by email (see AthleteScope::isGuardianOfAthlete), which is
-            // also how the rest of the app derives the parent role.
+            // linked by user_guardians, falling back to the email match (see
+            // lib/guardian_identity.php), which is also how the rest of the app
+            // derives the parent role.
             $u = $pdo->prepare('SELECT id, email, first_name, last_name FROM users WHERE id = ?');
             $u->execute([$guardianId]);
             $guardianUser = $u->fetch(PDO::FETCH_ASSOC);
@@ -132,7 +133,7 @@ try {
 
             // That account must actually be a guardian of this athlete, or consent
             // could be recorded by (or against) an unrelated party.
-            if (!AthleteScope::isGuardianOfAthlete($pdo, (string) $guardianUser['email'], $athleteId)) {
+            if (!AthleteScope::isGuardianOfAthlete($pdo, (int) $guardianUser['id'], $athleteId)) {
                 fail(422, 'That user is not a guardian of that athlete');
             }
 

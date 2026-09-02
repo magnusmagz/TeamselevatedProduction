@@ -68,6 +68,17 @@ class PaymentServiceTest extends TestCase
                 athlete_id INTEGER,
                 guardian_id INTEGER
             );
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                email TEXT
+            );
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                guardian_id INTEGER,
+                source TEXT,
+                confidence TEXT
+            );
             CREATE TABLE invoices (
                 id INTEGER PRIMARY KEY,
                 athlete_id INTEGER,
@@ -95,6 +106,11 @@ class PaymentServiceTest extends TestCase
             (1, 1, 200),
             (2, 2, 200),
             (3, 3, 201)");
+
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php).
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES
+            (70, 'alice@family-a.com'),
+            (71, 'bob@family-b.com')");
 
         // Invoices: 101 & 102 belong to alice's kids; 103 belongs to bob's kid.
         $this->pdo->exec("INSERT INTO invoices (id, athlete_id, total_amount, amount_paid, status) VALUES

@@ -6,8 +6,9 @@
  *   - club_admin: athletes belonging to a club the admin can access
  *   - coach:      athletes on a team the user coaches (primary_coach_id OR
  *                 active assistant_coach/team_manager team_members row)
- *   - guardian:   athletes the user is a guardian of (guardians.email matches
- *                 the requester's email, linked via athlete_guardians)
+ *   - guardian:   athletes the user is a guardian of (resolved by user id through
+ *                 lib/guardian_identity.php — user_guardians links UNION the
+ *                 guardians.email match — linked via athlete_guardians)
  *   - super_admin: everything
  *   - otherwise:  no access
  *
@@ -19,11 +20,13 @@
  *    team_members.athlete_id -> teams.club_id (mirrors recipient-search-gateway).
  *  - Coach->teams definition mirrors models/Coach.php::getCoachTeams() and
  *    recipient-search-gateway::getCoachTeamIds().
- *  - Guardian detection mirrors api/financial-permissions.php (email match).
+ *  - Guardian detection is te_guardian_ids_for_user() / te_user_is_guardian_of_athlete()
+ *    in lib/guardian_identity.php, shared with api/financial-permissions.php.
  *  - PostgreSQL booleans use TRUE/FALSE.
  */
 
 require_once __DIR__ . '/AuthMiddleware.php';
+require_once __DIR__ . '/guardian_identity.php';
 
 class AthleteScope {
 
@@ -106,29 +109,25 @@ class AthleteScope {
 
     /**
      * Is this user a guardian of the given athlete?
-     * Parent detection = guardians.email matches the requester's email
-     * (aggregated across all guardian rows sharing that email), linked via
-     * athlete_guardians to the athlete.
+     *
+     * ⚠️ This takes a USER ID. It used to take the requester's email string, which made
+     * identity a string comparison at a security boundary — this predicate gates consent
+     * recording, medical edits and jersey writes. An account and its guardian row can
+     * legitimately hold different addresses (Allix Boyce: @gmail login, @yahoo guardian
+     * row), and when they did, the parent was refused their own child. Changed
+     * 2026-09-02 as phase 2 of docs/user-guardians-identity-plan.md; both callers already
+     * had the user in hand.
+     *
+     * The answer itself lives in lib/guardian_identity.php so the resolver, and not this
+     * class, is the single definition of "which guardian rows belong to this account".
      *
      * @param PDO $pdo
-     * @param string $email requester email
+     * @param int $userId requester's users.id
      * @param int $athleteId
      * @return bool
      */
-    public static function isGuardianOfAthlete(PDO $pdo, string $email, int $athleteId): bool {
-        if ($email === '') {
-            return false;
-        }
-        $sql = "
-            SELECT 1
-            FROM guardians g
-            JOIN athlete_guardians ag ON ag.guardian_id = g.id
-            WHERE LOWER(g.email) = LOWER(:email) AND ag.athlete_id = :aid
-            LIMIT 1
-        ";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':email' => $email, ':aid' => $athleteId]);
-        return $stmt->fetch() !== false;
+    public static function isGuardianOfAthlete(PDO $pdo, int $userId, int $athleteId): bool {
+        return te_user_is_guardian_of_athlete($pdo, $userId, $athleteId);
     }
 
     /**
@@ -212,15 +211,10 @@ class AthleteScope {
             return true;
         }
 
-        // Guardian: allow if requester's email is a guardian of the athlete.
-        $payload = $auth->getPayload();
-        $email = '';
-        if (is_object($payload) && isset($payload->email)) {
-            $email = (string) $payload->email;
-        } elseif (is_array($payload) && isset($payload['email'])) {
-            $email = (string) $payload['email'];
-        }
-        if ($email !== '' && self::isGuardianOfAthlete($pdo, $email, $athleteId)) {
+        // Guardian: allow if the requester's ACCOUNT is a guardian of the athlete —
+        // by recorded link or by the email match, resolved in one place.
+        $userId = (int) $auth->getUserId();
+        if ($userId > 0 && self::isGuardianOfAthlete($pdo, $userId, $athleteId)) {
             return true;
         }
 
@@ -286,26 +280,12 @@ class AthleteScope {
             $ids[$aid] = true;
         }
 
-        // Guardian-of athletes.
-        $payload = $auth->getPayload();
-        $email = '';
-        if (is_object($payload) && isset($payload->email)) {
-            $email = (string) $payload->email;
-        } elseif (is_array($payload) && isset($payload['email'])) {
-            $email = (string) $payload['email'];
-        }
-        if ($email !== '') {
-            $sql = "
-                SELECT DISTINCT ag.athlete_id
-                FROM guardians g
-                JOIN athlete_guardians ag ON ag.guardian_id = g.id
-                WHERE LOWER(g.email) = LOWER(?)
-            ";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$email]);
-            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
-                $ids[(int) $aid] = true;
-            }
+        // Guardian-of athletes. Resolved by user id through lib/guardian_identity.php —
+        // recorded links (user_guardians) UNION the email match — so a parent whose
+        // account address has drifted from their guardian row keeps their own children.
+        $userId = (int) $auth->getUserId();
+        foreach (te_athlete_ids_for_user($pdo, $userId) as $aid) {
+            $ids[(int) $aid] = true;
         }
 
         return array_keys($ids);

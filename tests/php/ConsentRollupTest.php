@@ -139,6 +139,8 @@ class ConsentRollupTest extends TestCase
             CREATE TABLE athletes (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, club_id INTEGER);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
         ");
         $pdo->exec("INSERT INTO athletes (id, first_name, last_name, club_id) VALUES
             (1,'Anna','Aaron',100), (2,'Ben','Brown',100), (3,'Cara','Cross',101)");
@@ -148,6 +150,12 @@ class ConsentRollupTest extends TestCase
             (1,10,1,'player','active'), (2,11,2,'player','active'), (3,12,3,'player','active')");
         $pdo->exec("INSERT INTO guardians (id, email) VALUES (200,'alice@family-a.com')");
         $pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES (1,1,200)");
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php),
+        // so the accounts these tests authenticate as must exist. No user_guardians row
+        // is seeded — these cases exercise the email fallback, as production does today.
+        $pdo->exec("INSERT INTO users (id, email) VALUES
+            (50,'coach50@club.test'),(51,'coach51@club.test'),
+            (60,'admin@club.test'),(70,'alice@family-a.com')");
         return $pdo;
     }
 

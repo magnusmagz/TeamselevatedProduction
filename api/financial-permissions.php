@@ -18,6 +18,7 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 
 // Helper to extract JWT token — signature-verified (never trust an unverified payload).
 function getJWTPayload() {
@@ -68,7 +69,6 @@ try {
             }
 
             $userId = $payload['user_id'] ?? null;
-            $userEmail = $payload['email'] ?? '';
 
             // Query database directly for roles (more reliable than JWT cache)
             $isLeagueAdmin = false;
@@ -92,24 +92,28 @@ try {
                 if ($role === 'parent') $isParent = true;
             }
 
-            // Aggregate across ALL guardian rows sharing this email — shared-household support.
-            // NOTE: does NOT fix the separate bug where users.email != guardians.email —
-            // that requires the Phase 2 user_guardians link table (see project_household_shared_email.md).
-            $guardianStmt = $pdo->prepare("
-                SELECT g.id, COUNT(ag.athlete_id) as athlete_count
-                FROM guardians g
-                LEFT JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                WHERE LOWER(g.email) = LOWER(:email)
-                GROUP BY g.id
-            ");
-            $guardianStmt->execute(['email' => $userEmail]);
-            $guardianRows = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Which guardian rows belong to this account: recorded links (user_guardians,
+            // migration 072) UNION the email match, resolved in exactly one place —
+            // lib/guardian_identity.php. Aggregating across all of them is what supports a
+            // shared household; reading the link table is what keeps a family whose
+            // users.email has drifted from their guardians.email (Allix Boyce, Emily
+            // Govier) from landing in an empty portal.
+            $guardianIds = te_guardian_ids_for_user($pdo, (int) $userId);
 
-            $guardianIds = [];
             $totalAthleteCount = 0;
-            foreach ($guardianRows as $row) {
-                $guardianIds[] = $row['id'];
-                $totalAthleteCount += (int) $row['athlete_count'];
+            if (!empty($guardianIds)) {
+                $countClause = te_guardian_ids_in_clause('g.id', $guardianIds);
+                $guardianStmt = $pdo->prepare("
+                    SELECT g.id, COUNT(ag.athlete_id) as athlete_count
+                    FROM guardians g
+                    LEFT JOIN athlete_guardians ag ON g.id = ag.guardian_id
+                    WHERE {$countClause['sql']}
+                    GROUP BY g.id
+                ");
+                $guardianStmt->execute($countClause['params']);
+                foreach ($guardianStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $totalAthleteCount += (int) $row['athlete_count'];
+                }
             }
 
             if ($totalAthleteCount > 0) {
@@ -311,19 +315,10 @@ try {
                 exit;
             }
 
-            // Check if user is guardian of this athlete
-            $guardianCheck = $pdo->prepare("
-                SELECT g.id
-                FROM guardians g
-                JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                WHERE LOWER(g.email) = LOWER(:email) AND ag.athlete_id = :athlete_id
-            ");
-            $guardianCheck->execute([
-                'email' => $payload['email'] ?? '',
-                'athlete_id' => $athleteId
-            ]);
-
-            if ($guardianCheck->fetch()) {
+            // Check if user is guardian of this athlete. Asked of the resolver by user
+            // id, not by the token's email string — the account and the guardian row can
+            // legitimately hold different addresses (lib/guardian_identity.php).
+            if (te_user_is_guardian_of_athlete($pdo, (int) $userId, (int) $athleteId)) {
                 echo json_encode([
                     'success' => true,
                     'can_view' => true,

@@ -12,6 +12,7 @@
 // production — this must stay above everything with a side effect.
 if (defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/coach_scope.php';
+    require_once __DIR__ . '/../lib/guardian_identity.php';
     return;
 }
 
@@ -23,6 +24,7 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/coach_scope.php';
+require_once __DIR__ . '/../lib/guardian_identity.php';
 
 try {
     $db = Database::getInstance();
@@ -133,7 +135,7 @@ function te_chat_parent_team_ids(PDO $connection, $userId, $clubProfileId): arra
     $stmt = $connection->prepare("
         SELECT DISTINCT tm.team_id
         FROM users u
-        JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
+        JOIN guardians g ON " . te_guardian_link_sql('u', 'g') . "
         JOIN athlete_guardians ag ON ag.guardian_id = g.id
         JOIN team_members tm ON tm.athlete_id = ag.athlete_id AND tm.status = 'active'
         JOIN teams t ON t.id = tm.team_id AND t.club_id = ? AND t.deleted_at IS NULL
@@ -1317,7 +1319,7 @@ function handleChatSearch($connection, $auth, $userId) {
                 SELECT 1 FROM guardians g2
                 JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
                 JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($ph)
-                WHERE g2.email = u.email
+                WHERE " . te_guardian_link_sql('u', 'g2') . "
             )";
         $params = array_merge($params, $coachTeamIds);
     }
@@ -1360,7 +1362,7 @@ function handleChatSearch($connection, $auth, $userId) {
                 JOIN athlete_guardians ag5 ON ag5.guardian_id = g5.id
                 JOIN team_members tm5 ON tm5.athlete_id = ag5.athlete_id
                      AND tm5.team_id IN ($ph2) AND tm5.status = 'active'
-                WHERE g5.email = u.email
+                WHERE " . te_guardian_link_sql('u', 'g5') . "
             )";
         $params = array_merge($params, $parentTeamIds);
     }
@@ -1391,7 +1393,7 @@ function handleChatSearch($connection, $auth, $userId) {
                 OR EXISTS (SELECT 1 FROM guardians g6
                            JOIN athlete_guardians ag6 ON ag6.guardian_id = g6.id
                            JOIN team_members tm7 ON tm7.athlete_id = ag6.athlete_id AND tm7.team_id = t6.id
-                           WHERE g6.email = u.email)
+                           WHERE " . te_guardian_link_sql('u', 'g6') . ")
               )
         ) AS team_names";
         $teamNameParams = $visibleTeamIds;
@@ -1549,7 +1551,7 @@ function handleChatResolveTeams($connection, $auth, $userId) {
             SELECT tm.user_id FROM team_members tm WHERE tm.team_id IN ($teamPlaceholders) AND tm.role IN ('assistant_coach','team_manager') AND tm.status = 'active' AND tm.user_id IS NOT NULL
             UNION
             SELECT u2.id FROM users u2
-              JOIN guardians g ON LOWER(g.email) = LOWER(u2.email)
+              JOIN guardians g ON " . te_guardian_link_sql('u2', 'g') . "
               JOIN athlete_guardians ag ON ag.guardian_id = g.id
               JOIN team_members tm2 ON tm2.athlete_id = ag.athlete_id AND tm2.team_id IN ($teamPlaceholders) AND tm2.status = 'active'
         ) src

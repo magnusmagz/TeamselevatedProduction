@@ -30,6 +30,8 @@ class ContributionLinkServiceTest extends TestCase {
             CREATE TABLE athletes (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, club_id INTEGER);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER, source TEXT, confidence TEXT);
             CREATE TABLE programs (id INTEGER PRIMARY KEY, club_id INTEGER);
             CREATE TABLE club_profile (id INTEGER PRIMARY KEY, name TEXT);
             CREATE TABLE invoices (
@@ -56,6 +58,9 @@ class ContributionLinkServiceTest extends TestCase {
         $this->pdo->exec("INSERT INTO athletes VALUES (1, 'Anna', 'Aaron', 32), (3, 'Ben', 'Brown', 32)");
         $this->pdo->exec("INSERT INTO guardians VALUES (200, 'alice@family-a.com'), (201, 'bob@family-b.com')");
         $this->pdo->exec("INSERT INTO athlete_guardians VALUES (1, 1, 200), (2, 3, 201)");
+        // The resolver reads the ACCOUNT, so the users rows these tests sign in as
+        // have to exist (lib/guardian_identity.php).
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES (70,'alice@family-a.com'),(71,'bob@family-b.com')");
         $this->pdo->exec("INSERT INTO programs VALUES (10, 32)");
         $this->pdo->exec("INSERT INTO club_profile VALUES (32, 'Teams Elevated')");
         $this->pdo->exec("INSERT INTO invoices (id, invoice_number, athlete_id, program_id, total_amount, amount_paid, status)

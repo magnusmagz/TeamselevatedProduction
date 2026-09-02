@@ -55,6 +55,25 @@ describe('ConsentGate', () => {
     expect(screen.getByText('Rachel Jones')).toBeInTheDocument();
   });
 
+  /**
+   * A family with NO children connected — the mismatched-email case the portal's
+   * empty state exists for (NoAthletesLinked). The gate must not stand in front
+   * of them: there is no child to consent about, so there is nothing to ask, and
+   * a gate that rendered here would replace an explanation with a dead end.
+   * ConsentGate is unchanged; this pins the behaviour the empty state relies on.
+   */
+  test('does not block a family with zero children, and asks nothing', async () => {
+    setAthletes([]);
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+
+    render(<ConsentGate><div>PORTAL</div></ConsentGate>);
+
+    expect(await screen.findByText('PORTAL')).toBeInTheDocument();
+    expect(screen.queryByText('Parental consent')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   test('lets the portal through once both consents are on file', async () => {
     setAthletes([{ id: 1, first_name: 'Rachel', last_name: 'Jones' }]);
     global.fetch = jest.fn().mockResolvedValue({

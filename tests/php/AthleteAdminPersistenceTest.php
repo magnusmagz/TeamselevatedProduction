@@ -72,7 +72,16 @@ class AthleteAdminPersistenceTest extends TestCase
                 athlete_id INTEGER, guardian_id INTEGER, relationship TEXT,
                 is_primary INTEGER, can_pickup INTEGER, emergency_contact INTEGER
             );
+            CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER,
+                source TEXT, confidence TEXT
+            );
         ");
+
+        // Guardian standing is resolved from the ACCOUNT (lib/guardian_identity.php).
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES
+            (60, 'admin@club.test'), (999, 'nobody@example.com')");
 
         // Athlete 1 belongs to club 100 (admin's club).
         $this->pdo->exec("INSERT INTO athletes (id, first_name, last_name, date_of_birth, gender, club_id)
