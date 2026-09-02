@@ -27,6 +27,7 @@
 
 require_once __DIR__ . '/AuthMiddleware.php';
 require_once __DIR__ . '/guardian_identity.php';
+require_once __DIR__ . '/scope_sql.php';
 
 class AthleteScope {
 
@@ -139,18 +140,18 @@ class AthleteScope {
      * @return bool
      */
     public static function coachesAthlete(PDO $pdo, int $userId, int $athleteId): bool {
-        $teamIds = self::coachTeamIdsForUser($pdo, $userId);
-        if (empty($teamIds)) {
-            return false;
-        }
-        $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+        // One statement: the coach's teams are a SUBQUERY, not a list fetched
+        // into PHP and re-bound one placeholder at a time. Same set as
+        // coachTeamIdsForUser() (soft-deleted teams excluded), and the empty
+        // case is an empty subquery rather than `IN ()`.
+        $coach = te_scope_coach_team_ids_sql($userId, null, true, 'co');
         $sql = "
             SELECT 1 FROM team_members tm
-            WHERE tm.athlete_id = ? AND tm.team_id IN ($placeholders)
+            WHERE tm.athlete_id = ? AND tm.team_id IN ({$coach['sql']})
             LIMIT 1
         ";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(array_merge([$athleteId], $teamIds));
+        $stmt->execute(array_merge([$athleteId], $coach['params']));
         return $stmt->fetch() !== false;
     }
 
@@ -223,21 +224,42 @@ class AthleteScope {
 
     /**
      * Build a WHERE fragment + params restricting a LIST query to athletes the
-     * requester may access. Designed for queries that join athletes `a` to
-     * team_members and (optionally) teams.
+     * requester may access.
      *
-     * Returns the set of accessible athlete IDs and a ready-made SQL fragment of
-     * the form "AND a.id IN (?, ?, ...)" (or "AND 1=0" when nothing accessible,
-     * or "" for super_admin = unrestricted).
+     * Returns a ready-made fragment of the form "AND (EXISTS (...) OR ...)"
+     * (or "AND 1=0" when nothing is accessible, or "" for super_admin =
+     * unrestricted), plus its positional parameters.
      *
-     * Using an explicit id list keeps the caller's existing query shape intact
-     * regardless of how it joins, avoiding accidental row multiplication.
+     * ⚠️ **This used to inline one placeholder per ATHLETE.** It SELECTed the
+     * whole accessible set into PHP and emitted `AND a.id IN (?,?,?,…)`, one
+     * bind per athlete. Postgres caps bind parameters at 65,535 and the planner
+     * gives up long before that, so a club admin over a few thousand athletes
+     * paid for it on every list request and a GOTR division admin would have hit
+     * a hard protocol error (docs/gotr-hierarchy-plan-2026-09.md §5). The
+     * predicate is now three EXISTS branches over the caller's STANDING, with a
+     * handful of binds regardless of how many athletes that reaches.
+     *
+     * The branches are exactly the three sources accessibleAthleteIds() unions,
+     * in the same order, and each one is the same SQL that built its half of the
+     * old list:
+     *   1. club admin — athletes on a team in an admin club, plus (when the
+     *      column exists) athletes carrying that club_id directly (CA-18);
+     *   2. coach — athletes on a team the caller coaches;
+     *   3. guardian — the caller's own children, through te_guardian_link_sql().
+     *
+     * ⚠️ **`athlete_ids` is now always null.** The key is kept so an existing
+     * caller reading it does not fatal, but it no longer carries a list for
+     * anyone — that list is the thing this function exists not to build. A
+     * caller that genuinely needs the ids must ask accessibleAthleteIds() or
+     * staffManageableAthleteIds() and accept the cost. Nothing in the runtime
+     * tree reads it (verified 2026-09-02): the three callers —
+     * legacy/athletes-gateway.php, legacy/team-players-gateway.php and
+     * controllers/AthleteController.php — use `sql` and `params` only.
      *
      * @param PDO $pdo
      * @param AuthMiddleware $auth
      * @param string $athleteIdColumn column to scope (default 'a.id')
-     * @return array{sql:string, params:array, athlete_ids:int[]|null}
-     *               athlete_ids is null for super_admin (unrestricted).
+     * @return array{sql:string, params:array, athlete_ids:null}
      */
     public static function accessibleAthleteFilter(PDO $pdo, AuthMiddleware $auth, string $athleteIdColumn = 'a.id'): array {
         // Super admin: unrestricted.
@@ -245,17 +267,60 @@ class AthleteScope {
             return ['sql' => '', 'params' => [], 'athlete_ids' => null];
         }
 
-        $ids = self::accessibleAthleteIds($pdo, $auth);
+        $branches = [];
+        $params = [];
 
-        if (empty($ids)) {
-            return ['sql' => 'AND 1=0', 'params' => [], 'athlete_ids' => []];
+        // (1) Club admin. Club ids stay a materialised IN list on purpose: a
+        //     person holds a role in a handful of clubs, the list is already in
+        //     the token, and a subquery here would add a user_club_access join
+        //     to every scoped read to save nothing.
+        $adminClubIds = array_values(self::clubAdminClubIds($auth));
+        $clubPh = te_scope_placeholders($adminClubIds);
+        if ($clubPh !== null) {
+            $branches[] = "EXISTS (SELECT 1
+                                     FROM team_members tm_sa
+                                     JOIN teams t_sa ON t_sa.id = tm_sa.team_id
+                                    WHERE tm_sa.athlete_id = {$athleteIdColumn}
+                                      AND t_sa.club_id IN ({$clubPh}))";
+            $params = array_merge($params, $adminClubIds);
+
+            // athletes.club_id is probed rather than try/catch'd: this is one
+            // arm of a single composite predicate now, so a missing column
+            // would take the whole list query down instead of quietly omitting
+            // a source of athletes the way the id-list version could.
+            if (te_scope_athletes_have_club_id($pdo)) {
+                $branches[] = "EXISTS (SELECT 1 FROM athletes a_sa
+                                        WHERE a_sa.id = {$athleteIdColumn}
+                                          AND a_sa.club_id IN ({$clubPh}))";
+                $params = array_merge($params, $adminClubIds);
+            }
         }
 
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $userId = (int) $auth->getUserId();
+        if ($userId > 0) {
+            // (2) Coach of a team the athlete is on.
+            $coach = te_scope_coach_team_ids_sql($userId, null, true, 'co');
+            $branches[] = "EXISTS (SELECT 1 FROM team_members tm_cx
+                                    WHERE tm_cx.athlete_id = {$athleteIdColumn}
+                                      AND tm_cx.team_id IN ({$coach['sql']}))";
+            $params = array_merge($params, $coach['params']);
+
+            // (3) Guardian of the athlete.
+            $guardian = te_scope_guardian_athlete_exists_sql($athleteIdColumn, $userId, 'sg');
+            $branches[] = $guardian['sql'];
+            $params = array_merge($params, $guardian['params']);
+        }
+
+        // No standing of any kind and no account: refuse everything explicitly.
+        // An unfiltered query here would be a platform-wide leak.
+        if (empty($branches)) {
+            return ['sql' => 'AND 1=0', 'params' => [], 'athlete_ids' => null];
+        }
+
         return [
-            'sql' => "AND {$athleteIdColumn} IN ({$placeholders})",
-            'params' => array_values($ids),
-            'athlete_ids' => array_values($ids),
+            'sql' => 'AND (' . implode(' OR ', $branches) . ')',
+            'params' => $params,
+            'athlete_ids' => null,
         ];
     }
 
@@ -315,6 +380,8 @@ class AthleteScope {
         // Club admin clubs (from JWT roles).
         $adminClubIds = self::clubAdminClubIds($auth);
         if (!empty($adminClubIds)) {
+            // CLUB ids, not athlete or team ids: a handful of values already in
+            // the token. Allowlisted in tests/php/NoScopeIdListsTest.php.
             $ph = implode(',', array_fill(0, count($adminClubIds), '?'));
 
             // (a) Athletes on a team in the admin's club(s).
@@ -350,20 +417,20 @@ class AthleteScope {
         // Coached teams.
         $userId = (int) $auth->getUserId();
         if ($userId > 0) {
-            $teamIds = self::coachTeamIdsForUser($pdo, $userId);
-            if (!empty($teamIds)) {
-                $ph = implode(',', array_fill(0, count($teamIds), '?'));
-                $sql = "
-                    SELECT DISTINCT tm.athlete_id
-                    FROM team_members tm
-                    WHERE tm.team_id IN ($ph)
-                      AND tm.athlete_id IS NOT NULL
-                ";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute(array_values($teamIds));
-                foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
-                    $ids[(int) $aid] = true;
-                }
+            // The coach's teams are a subquery, not a fetched list: a council
+            // coach can hold many teams and this used to bind one placeholder
+            // per team on top of the round trip that produced them.
+            $coach = te_scope_coach_team_ids_sql($userId, null, true, 'co');
+            $sql = "
+                SELECT DISTINCT tm.athlete_id
+                FROM team_members tm
+                WHERE tm.team_id IN ({$coach['sql']})
+                  AND tm.athlete_id IS NOT NULL
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($coach['params']);
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $aid) {
+                $ids[(int) $aid] = true;
             }
         }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import { pageQuery } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -122,13 +123,18 @@ const ClubDocumentCenter: React.FC = () => {
     // has no `list` case and no `default:`, so that request returned 200 with an
     // EMPTY BODY, `.json()` threw, the `.catch(() => null)` swallowed it, and the
     // Coaches / Volunteers section of the picker simply never rendered — no error,
-    // no empty state, just a missing assignment target. `available` returns a bare
-    // array (not `{coaches: [...]}`), which is why the Array.isArray branch is the
-    // one that fires.
+    // no empty state, just a missing assignment target.
+    //
+    // ⚠️ `available` used to return a BARE ARRAY and now returns
+    // `{success, coaches, page}` (GOTR G2 pagination — a truncated array cannot
+    // say it is truncated). Both branches below stay: the frontend deploys
+    // before the backend, so the array shape is live for the deploy window.
+    // Both lists ask for limit=1000 because these are PICKERS — an assignable
+    // person missing from the list is invisible, with no "load more" to press.
     const [teamsRes, athletesRes, coachesRes] = await Promise.all([
       fetch(`${API_URL}/api/teams.php?club_profile_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
-      fetch(`${API_URL}/legacy/athletes-gateway.php?club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
-      fetch(`${API_URL}/legacy/coaches-gateway.php?action=available&club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } })
+      fetch(`${API_URL}/legacy/athletes-gateway.php?club_id=${clubId}${pageQuery(null, 1000)}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      fetch(`${API_URL}/legacy/coaches-gateway.php?action=available&club_id=${clubId}${pageQuery(null, 1000)}`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .catch(() => ({ __failed: true })),
     ]);

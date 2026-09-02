@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { pageQuery, rowsFrom } from '../../../utils/pagination';
 
 /**
  * Who runs this program.
@@ -93,12 +94,17 @@ const ProgramStaffModal: React.FC<Props> = ({ programId, programName, onClose })
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`, {
-          headers: authHeaders(),
-        });
+        // A picker: ask for the ceiling rather than the default page, since a
+        // name absent from a dropdown is indistinguishable from a name that does
+        // not exist. rowsFrom() accepts the old bare array and the new
+        // {coaches, page} object, so this works against either backend.
+        const res = await fetch(
+          `${API_URL}/legacy/coaches-gateway.php?action=available${pageQuery(null, 1000)}`,
+          { headers: authHeaders() }
+        );
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && Array.isArray(data)) setCoaches(data);
+        if (!cancelled) setCoaches(rowsFrom<any>(data, 'coaches'));
       } catch {
         // Non-fatal: the assigned list still renders, the picker is just empty.
       }

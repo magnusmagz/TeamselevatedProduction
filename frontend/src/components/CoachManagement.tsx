@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
+import LoadMore from './LoadMore';
+import { PageMeta, pageQuery, readPage, rowsFrom } from '../utils/pagination';
 
 interface Coach {
   id: number;
@@ -45,24 +47,50 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingTeamsCoach, setViewingTeamsCoach] = useState<Coach | null>(null);
   const [coachTeams, setCoachTeams] = useState<{ id: number; name: string }[]>([]);
+  // The coach list is paginated (200 a page). Without <LoadMore> a 900-coach
+  // council would show 200 and read as complete.
+  const [page, setPage] = useState<PageMeta | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchCoaches();
   }, []);
 
-  const fetchCoaches = async () => {
+  /**
+   * One page of coaches. A null cursor loads the first page and replaces the
+   * list; a cursor appends.
+   *
+   * ⚠️ Shape: `available` used to return a BARE ARRAY and now returns
+   * `{success, coaches, page}` — a truncated array cannot say it is truncated,
+   * which is the whole reason it changed. rowsFrom() reads both, because the
+   * frontend deploys before the backend and an error object still arrives on
+   * 401/403 (and yields an empty list, as before).
+   */
+  const fetchCoaches = async (cursor: string | null = null) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(
+        `${API_URL}/legacy/coaches-gateway.php?action=available${pageQuery(cursor)}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
       const data = await response.json();
-      // Endpoint returns an array on success, or an error object on 401/403.
-      setCoaches(Array.isArray(data) ? data : []);
+      const rows = rowsFrom<Coach>(data, 'coaches');
+      setPage(readPage(data));
+      setCoaches((previous) => (cursor ? [...previous, ...rows] : rows));
     } catch (error) {
       console.error('Error fetching coaches:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreCoaches = async () => {
+    if (!page?.nextCursor) return;
+    setLoadingMore(true);
+    try {
+      await fetchCoaches(page.nextCursor);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -431,6 +459,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     ))}
                   </tbody>
                 </table>
+                <LoadMore
+                  page={page}
+                  loading={loadingMore}
+                  shown={coaches.length}
+                  label="coaches"
+                  onLoadMore={loadMoreCoaches}
+                />
                 </div>
               </div>
             )}
@@ -712,6 +747,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     ))}
                   </tbody>
                 </table>
+                <LoadMore
+                  page={page}
+                  loading={loadingMore}
+                  shown={coaches.length}
+                  label="coaches"
+                  onLoadMore={loadMoreCoaches}
+                />
               </div>
             )}
         </div>

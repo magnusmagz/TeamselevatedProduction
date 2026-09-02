@@ -13,6 +13,8 @@ import GuardianManagement from './GuardianManagement';
 import EmailCompose from './communications/EmailCompose';
 import SmsCompose from './communications/SmsCompose';
 import { useOrg } from '../contexts/OrgContext';
+import LoadMore from './LoadMore';
+import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 interface Athlete {
   id: number;
@@ -75,6 +77,11 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   // behind a different permission check than the rest of the consent API.
   const [consentByAthlete, setConsentByAthlete] = useState<Record<number, string>>({});
 
+  // ⚠️ The athlete list is PAGINATED (200 a page). Without `page` on screen this
+  // table would show the first 200 of a council's roster and look complete.
+  const [page, setPage] = useState<PageMeta | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   useEffect(() => {
     fetchAthletes();
     fetchAvailableTeams();
@@ -98,26 +105,37 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
     }
   };
 
-  const fetchAthletes = async () => {
+  /**
+   * One page of athletes. `cursor` null loads the first page and REPLACES the
+   * list; a cursor appends, so "Load more" never loses what is already on screen.
+   */
+  const fetchAthletes = async (cursor: string | null = null) => {
     try {
       // Fetch athletes
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
-      });
+      const response = await fetch(
+        `${API_URL}/legacy/athletes-gateway.php?list=1${pageQuery(cursor)}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        }
+      );
       const data = await response.json();
       const athleteList: Athlete[] = data.athletes || [];
+      setPage(readPage(data));
       // The gateway builds its crew list with a LATERAL join and a separate
       // keyed query, so it returns one row per athlete. This dedupe stays as a
       // belt: duplicate React keys silently break row re-ordering on sort (the
       // first sort applies, later ones no-op) and inflate the count, which is a
-      // failure with no error message attached to it.
-      const seen = new Set<number>();
-      const uniqueAthletes = athleteList.filter((a) => {
-        if (seen.has(a.id)) return false;
-        seen.add(a.id);
-        return true;
+      // failure with no error message attached to it. It now also spans PAGES:
+      // a row edited between two requests can legitimately arrive twice.
+      setAthletes((previous) => {
+        const merged = cursor ? [...previous, ...athleteList] : athleteList;
+        const seen = new Set<number>();
+        return merged.filter((a) => {
+          if (seen.has(a.id)) return false;
+          seen.add(a.id);
+          return true;
+        });
       });
-      setAthletes(uniqueAthletes);
 
       // Fetch team-player relationships
       const teamPlayersResponse = await fetch(`${API_URL}/legacy/team-players-gateway.php`, {
@@ -345,6 +363,18 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         availableTeams={availableTeams}
         handleAddToTeam={handleAddToTeam}
               consentByAthlete={consentByAthlete}
+        page={page}
+        loadingMore={loadingMore}
+        totalLoaded={athletes.length}
+        onLoadMore={async () => {
+          if (!page?.nextCursor) return;
+          setLoadingMore(true);
+          try {
+            await fetchAthletes(page.nextCursor);
+          } finally {
+            setLoadingMore(false);
+          }
+        }}
       />
 
       {showForm && (
@@ -399,6 +429,14 @@ export const AthleteListContent: React.FC<{
   /** athlete id -> consent rollup status. Optional: a caller without it renders
    *  "Unknown", which is honest — a blank cell would read as "fine". */
   consentByAthlete?: Record<number, string>;
+  /** Cursor-pagination state for the athlete list. Optional so the embedded
+   *  callers that hand this component a fixed array keep compiling; when it is
+   *  absent nothing is rendered, which is correct — those lists are complete. */
+  page?: PageMeta | null;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
+  /** Rows loaded so far, before the client-side filters narrow them. */
+  totalLoaded?: number;
 }> = ({
   athletes,
   loading,
@@ -413,6 +451,10 @@ export const AthleteListContent: React.FC<{
   availableTeams,
   handleAddToTeam,
   consentByAthlete = {},
+  page = null,
+  loadingMore = false,
+  onLoadMore,
+  totalLoaded,
 }) => {
   const { currentClubId } = useOrg();
   const [showEmailCompose, setShowEmailCompose] = useState(false);
@@ -820,6 +862,13 @@ export const AthleteListContent: React.FC<{
             </tbody>
           </table>
           </div>
+          <LoadMore
+            page={page}
+            loading={loadingMore}
+            shown={totalLoaded ?? athletes.length}
+            label="athletes"
+            onLoadMore={() => onLoadMore?.()}
+          />
         </div>
       )}
 

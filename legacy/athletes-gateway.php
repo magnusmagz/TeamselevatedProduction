@@ -11,6 +11,7 @@ require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/athlete_writes.php';
 require_once __DIR__ . '/../lib/jersey_size.php';
 require_once __DIR__ . '/../lib/athlete_crew.php';
+require_once __DIR__ . '/../lib/pagination.php';
 
 try {
     $db = Database::getInstance();
@@ -271,6 +272,22 @@ try {
                 // returns nothing (COACH-13 / COACH-14).
                 $filter = AthleteScope::accessibleAthleteFilter($pdo, $auth, 'a.id');
 
+                // ─── Paginated (GOTR G2) ─────────────────────────────────────
+                // Keyset on (last_name, first_name, a.id). The ORDER BY below is
+                // built from the SAME expression array as the cursor comparison,
+                // so the two cannot drift — a sort that disagrees with its cursor
+                // either loops or skips rows.
+                $sortExprs = [
+                    te_page_text_key('a.last_name'),
+                    te_page_text_key('a.first_name'),
+                    'a.id',
+                ];
+                $limit = te_page_limit($_GET['limit'] ?? null);
+                $cursor = te_page_decode_cursor($_GET['cursor'] ?? null, count($sortExprs));
+                $keyset = te_page_keyset_clause($sortExprs, $cursor);
+                $orderBy = te_page_order_by($sortExprs);
+                $fetchLimit = te_page_fetch_limit($limit);
+
                 $stmt = $pdo->prepare("
                     SELECT a.id, a.first_name, a.middle_initial, a.last_name, a.preferred_name,
                            a.date_of_birth, a.gender, a.school_name, a.grade_level, a.active_status,
@@ -316,10 +333,22 @@ try {
                     ) ateams ON true
                     WHERE a.active_status = true
                     {$filter['sql']}
-                    ORDER BY a.last_name, a.first_name
+                    {$keyset['sql']}
+                    {$orderBy}
+                    LIMIT {$fetchLimit}
                 ");
-                $stmt->execute($filter['params']);
-                $athletes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $stmt->execute(array_merge($filter['params'], $keyset['params']));
+
+                $pageResult = te_page_finish(
+                    $stmt->fetchAll(PDO::FETCH_ASSOC),
+                    $limit,
+                    fn(array $row) => [
+                        te_page_text_value($row['last_name'] ?? null),
+                        te_page_text_value($row['first_name'] ?? null),
+                        (int)$row['id'],
+                    ]
+                );
+                $athletes = $pageResult['rows'];
 
                 // PDO hands back the aggregate as a JSON string; decode it so the
                 // frontend gets a real array rather than having to re-parse.
@@ -334,7 +363,11 @@ try {
                 // representative — one query for the page, keyed by athlete id.
                 te_attach_crew_to_athletes($pdo, $athletes);
 
-                echo json_encode(['success' => true, 'athletes' => $athletes]);
+                echo json_encode([
+                    'success' => true,
+                    'athletes' => $athletes,
+                    'page' => $pageResult['page'],
+                ]);
             }
             break;
 

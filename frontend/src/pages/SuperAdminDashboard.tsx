@@ -9,6 +9,8 @@ import AthletesList from '../components/superadmin/AthletesList';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationHealth from '../components/superadmin/NotificationHealth';
+import LoadMore from '../components/LoadMore';
+import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -132,6 +134,17 @@ const SuperAdminDashboard: React.FC = () => {
 
   // Clubs state
   const [clubs, setClubs] = useState<Club[]>([]);
+  // Clubs and users are both PAGINATED (200 a page). At GOTR's ~270 councils
+  // this list is already past one page, and the two modals below build their
+  // "assign to club" / "assign user" pickers out of these SAME arrays — so a
+  // silently truncated list is not just a short table, it is a picker that
+  // cannot reach the second half of the platform.
+  const [clubsPage, setClubsPage] = useState<PageMeta | null>(null);
+  const [clubsLoadingMore, setClubsLoadingMore] = useState(false);
+  const [clubsSearch, setClubsSearch] = useState('');
+  const [usersPage, setUsersPage] = useState<PageMeta | null>(null);
+  const [usersLoadingMore, setUsersLoadingMore] = useState(false);
+  const [usersSearch, setUsersSearch] = useState('');
   const [clubsLoading, setClubsLoading] = useState(false);
   const [selectedClub, setSelectedClub] = useState<ClubDetailData | null>(null);
   const [clubTeams, setClubTeams] = useState<Team[]>([]);
@@ -173,16 +186,21 @@ const SuperAdminDashboard: React.FC = () => {
   }, []);
 
   // Fetch clubs
-  const fetchClubs = useCallback(async (search = '') => {
-    setClubsLoading(true);
+  const fetchClubs = useCallback(async (search = '', cursor: string | null = null) => {
+    if (!cursor) setClubsLoading(true);
     try {
-      const url = search
-        ? `${API_URL}/api/super-admin-gateway.php?action=clubs&search=${encodeURIComponent(search)}`
-        : `${API_URL}/api/super-admin-gateway.php?action=clubs`;
+      // The search term rides along on every page: a cursor is a position within
+      // ONE result set, so paging a filtered list without re-sending the filter
+      // would walk into rows the search had excluded.
+      const url = `${API_URL}/api/super-admin-gateway.php?action=clubs`
+        + (search ? `&search=${encodeURIComponent(search)}` : '')
+        + pageQuery(cursor);
       const response = await fetch(url, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
-        setClubs(data.clubs);
+        setClubsPage(readPage(data));
+        setClubs((previous) => (cursor ? [...previous, ...data.clubs] : data.clubs));
+        if (!cursor) setClubsSearch(search);
       }
     } catch (error) {
       console.error('Error fetching clubs:', error);
@@ -213,16 +231,18 @@ const SuperAdminDashboard: React.FC = () => {
   }, []);
 
   // Fetch users
-  const fetchUsers = useCallback(async (search = '') => {
-    setUsersLoading(true);
+  const fetchUsers = useCallback(async (search = '', cursor: string | null = null) => {
+    if (!cursor) setUsersLoading(true);
     try {
-      const url = search
-        ? `${API_URL}/api/super-admin-gateway.php?action=users&search=${encodeURIComponent(search)}`
-        : `${API_URL}/api/super-admin-gateway.php?action=users`;
+      const url = `${API_URL}/api/super-admin-gateway.php?action=users`
+        + (search ? `&search=${encodeURIComponent(search)}` : '')
+        + pageQuery(cursor);
       const response = await fetch(url, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
-        setUsers(data.users);
+        setUsersPage(readPage(data));
+        setUsers((previous) => (cursor ? [...previous, ...data.users] : data.users));
+        if (!cursor) setUsersSearch(search);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -593,25 +613,59 @@ const SuperAdminDashboard: React.FC = () => {
       )}
 
       {activeTab === 'clubs' && (
-        <ClubsList
-          clubs={clubs}
-          loading={clubsLoading}
-          onViewDetails={fetchClubDetails}
-          onSearch={fetchClubs}
-          onCreateClub={handleCreateClub}
-        />
+        <>
+          <ClubsList
+            clubs={clubs}
+            loading={clubsLoading}
+            onViewDetails={fetchClubDetails}
+            onSearch={(term: string) => fetchClubs(term)}
+            onCreateClub={handleCreateClub}
+          />
+          <LoadMore
+            page={clubsPage}
+            loading={clubsLoadingMore}
+            shown={clubs.length}
+            label="clubs"
+            onLoadMore={async () => {
+              if (!clubsPage?.nextCursor) return;
+              setClubsLoadingMore(true);
+              try {
+                await fetchClubs(clubsSearch, clubsPage.nextCursor);
+              } finally {
+                setClubsLoadingMore(false);
+              }
+            }}
+          />
+        </>
       )}
 
       {activeTab === 'users' && (
-        <UsersList
-          users={users}
-          loading={usersLoading}
-          onViewDetails={fetchUserDetails}
-          onToggleSuperAdmin={handleToggleSuperAdmin}
-          onSearch={fetchUsers}
-          onCreateUser={handleCreateUser}
-          onImpersonate={handleImpersonate}
-        />
+        <>
+          <UsersList
+            users={users}
+            loading={usersLoading}
+            onViewDetails={fetchUserDetails}
+            onToggleSuperAdmin={handleToggleSuperAdmin}
+            onSearch={(term: string) => fetchUsers(term)}
+            onCreateUser={handleCreateUser}
+            onImpersonate={handleImpersonate}
+          />
+          <LoadMore
+            page={usersPage}
+            loading={usersLoadingMore}
+            shown={users.length}
+            label="users"
+            onLoadMore={async () => {
+              if (!usersPage?.nextCursor) return;
+              setUsersLoadingMore(true);
+              try {
+                await fetchUsers(usersSearch, usersPage.nextCursor);
+              } finally {
+                setUsersLoadingMore(false);
+              }
+            }}
+          />
+        </>
       )}
 
       {activeTab === 'athletes' && (

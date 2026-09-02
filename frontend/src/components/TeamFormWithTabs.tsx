@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogoColorExtractor } from './LogoColorExtractor';
+import { pageQuery, rowsFrom } from '../utils/pagination';
 
 interface TeamFormProps {
   team: any | null;
@@ -170,12 +171,18 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
       // Fetch coaches
       try {
         const token = localStorage.getItem('auth_token');
-        const coachesRes = await fetch(`${API_URL}/legacy/coaches-gateway.php?action=available`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // limit=1000 (the contract's ceiling): this is a PICKER, and a coach
+        // missing from a dropdown is invisible — there is no "load more" to
+        // click when you are looking for a name that is not there. rowsFrom()
+        // reads both the old bare-array shape and the new {coaches, page} one,
+        // because the frontend ships before the backend.
+        const coachesRes = await fetch(
+          `${API_URL}/legacy/coaches-gateway.php?action=available${pageQuery(null, 1000)}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
         if (coachesRes.ok) {
           const coachesData = await coachesRes.json();
-          setCoaches(Array.isArray(coachesData) ? coachesData : []);
+          setCoaches(rowsFrom<any>(coachesData, 'coaches'));
         }
       } catch (error) {
         console.error('Error fetching coaches:', error);

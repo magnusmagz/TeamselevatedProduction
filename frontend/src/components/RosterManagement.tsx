@@ -5,6 +5,7 @@ import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
 import RosterDownloadButton from './RosterDownloadButton';
+import { pageQuery } from '../utils/pagination';
 
 interface Team {
   id: number;
@@ -416,9 +417,15 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
 
   const fetchAllAthletes = async () => {
     try {
-      const response = await fetch(`${API_URL}/legacy/athletes-gateway.php`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
-      });
+      // limit=1000, the contract's ceiling: this feeds the "add a player" PICKER,
+      // and an athlete missing from it is invisible — there is no Load more to
+      // press when you are searching for a name that is not on the page.
+      const response = await fetch(
+        `${API_URL}/legacy/athletes-gateway.php?list=1${pageQuery(null, 1000)}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        }
+      );
       const data = await response.json();
       const athletes = data.athletes || [];
       setAllAthletes(athletes);

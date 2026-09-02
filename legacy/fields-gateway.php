@@ -76,6 +76,7 @@ try {
     $params = [];
     if ($accessibleClubIds !== null) {
         if (empty($accessibleClubIds)) { echo json_encode([]); exit(); }
+        // CLUB ids, not athlete or team ids — see NoScopeIdListsTest's allowlist.
         $scopeSql = 'AND v.club_id IN (' . implode(',', array_fill(0, count($accessibleClubIds), '?')) . ')';
         $params = $accessibleClubIds;
     }
