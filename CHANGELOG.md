@@ -32,6 +32,12 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Links written at source (Heroku v572)
+
+Registration and shareable-invite accept now write `user_guardians` (exact-one-guardian rule;
+shared household addresses are left for the Crew tool). Parent-invite redemption still does not
+— it lives in `auth-gateway.php`; decisions doc item 13.
+
 ### Crew: connect a stuck account to its family (Heroku v571, then Netlify)
 
 `api/crew-link.php` + `CrewAccountLinkPanel` on the Crew page (club admins only, hidden when

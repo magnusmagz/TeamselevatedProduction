@@ -124,3 +124,13 @@ NOT emailed by that path; the response reports how many were held back.
 - **Recommendation:** (a) for CKU's first tryout cycle on the platform; revisit after.
 - **If left:** staff see "N not notified (not selected)" in the send-offers result and
   contact those families directly.
+
+### 13. One line in `api/auth-gateway.php` so parent-invite redemption writes the link (2026-09-02)
+`auth-gateway.php` is on the do-not-modify list. Registration and the shareable-invite accept now
+write `user_guardians` links; the "Invite to portal" / approval flow redeems in
+`handleSetParentPassword` and does not. Until this lands those families rely on the email
+fallback, which still works.
+- **The change:** after the write/commit catch block (~line 911), one guarded call:
+  `te_link_guardian_on_accept($db, (int)$user['id'], null, $email)` inside try/catch, never fatal.
+- **Recommendation:** approve it as the one exception; it is a call-out, not a change to auth.
+- **If left:** phase 4.5 (retiring the email match) cannot complete for invited families.
