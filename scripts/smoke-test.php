@@ -26,6 +26,97 @@
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../lib/JWT.php';
 
+// ── index.php's GET route table ──────────────────────────────────────────────
+/**
+ * index.php performs NO authentication — every route it dispatches is as open as
+ * the method it lands on. On 2026-09-02 five endpoint families were found
+ * unauthenticated in production, TeamController's fifteen methods among them, and
+ * this file had never probed a single one of them.
+ *
+ * So the table is PARSED out of index.php rather than copied here: a route added
+ * tomorrow is probed on the next run, without anyone remembering to add it.
+ * tests/php/SmokeTestRouteCoverageTest.php fails if this parser stops seeing a
+ * route that index.php declares.
+ *
+ * Kept above the TE_SMOKE_TEST_LIB_ONLY guard so that test can call the real
+ * function instead of a lookalike — it needs no database and no network.
+ */
+function smoke_index_get_routes(string $indexPath): array
+{
+    $src = file_get_contents($indexPath);
+    if ($src === false) {
+        throw new RuntimeException("cannot read {$indexPath}");
+    }
+    // The 'GET' => [ ... ] block only. The route table has no nested arrays, so
+    // the first closing bracket at the block's own indentation ends it.
+    if (!preg_match("/['\"]GET['\"]\s*=>\s*\[(.*?)\n\s*\],/s", $src, $block)) {
+        throw new RuntimeException("no GET route table found in {$indexPath}");
+    }
+
+    $routes = [];
+    preg_match_all(
+        '/[\'"]([^\'"]+)[\'"]\s*=>\s*[\'"]([A-Za-z_]+@[A-Za-z_]+)[\'"]/',
+        $block[1],
+        $rows,
+        PREG_SET_ORDER
+    );
+    foreach ($rows as $r) {
+        $routes[$r[1]] = $r[2];
+    }
+    if ($routes === []) {
+        throw new RuntimeException("parsed the GET table in {$indexPath} and found no routes");
+    }
+
+    return $routes;
+}
+
+/** '/api/teams/(\d+)/roster' -> '/api/teams/1/roster'. */
+function smoke_route_to_path(string $route): string
+{
+    return str_replace('(\d+)', '1', $route);
+}
+
+/**
+ * GET routes in index.php that are PUBLIC BY DESIGN, each with the reason.
+ *
+ * An entry here is a claim that the handler was read and is meant to answer
+ * anonymously. It is NOT a place to park a route that currently leaks — a route
+ * answering 200 without a token because nobody wrote a gate is a finding, and it
+ * belongs in the failure list where someone will see it, not in this array where
+ * they never will. (Same rule as QueriedTablesExistTest's KNOWN_BROKEN: delete an
+ * entry when it is fixed, never add one to silence a new finding.)
+ *
+ * Empty as of 2026-09-02: every route in index.php's GET table is a staff read.
+ */
+const SMOKE_PUBLIC_GET_ROUTES = [
+    // '/api/example' => 'why the handler is deliberately anonymous',
+];
+
+/**
+ * The forged token from tests/php/ForgedTokenAuthGateTest.php, built the same way:
+ * a real-looking header and payload with a junk signature.
+ *
+ * JWT::decode() does not verify signatures — it splits the token and base64-decodes
+ * the payload, and that is all. Three endpoints authenticated with it until
+ * 2026-09-02, so `{"user_id":"999999"}` was a login as whoever that is. A missing
+ * Authorization header proves nothing about those: they refused an ABSENT token
+ * correctly the whole time. The forged one is the probe that matters.
+ */
+function smoke_forged_token(int $userId = 999999): string
+{
+    $b64 = fn(string $s): string => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
+
+    return $b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT']))
+        . '.' . $b64(json_encode(['user_id' => (string) $userId, 'exp' => time() + 3600]))
+        . '.not-a-real-signature';
+}
+
+// Loaded by SmokeTestRouteCoverageTest for the two functions and the allowlist
+// above; nothing below this line may run in a test process.
+if (defined('TE_SMOKE_TEST_LIB_ONLY')) {
+    return;
+}
+
 $base = 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 $verbose = in_array('--verbose', $argv, true);
 foreach ($argv as $a) {
@@ -224,6 +315,76 @@ foreach ([
 ] as $p) {
     check(substr($p, 5, 46), get($base, $p, null), [401, 403]);
 }
+
+// ── Closed doors (must be 401 without a token) ───────────────────────────────
+/**
+ * On 2026-09-02 five endpoint families were found answering anonymously in
+ * production — TeamController's fifteen routes, registrations-api, tryouts-api,
+ * event-attendance and rsvp-webhook status. Every one had been open for months and
+ * this file probed none of them: it walked the endpoints a screen calls, and an
+ * open door is by definition the one nothing calls.
+ *
+ * So the sweep is now the route table itself. 401 is asserted strictly. A 403
+ * without a token is not obviously wrong, but it means something answered other
+ * than the auth gate, and that is worth reading rather than accepting — as is a
+ * 405 or a 400, which would say the method or the parameter check runs BEFORE
+ * authentication and that the endpoint is telling anonymous callers what it
+ * expects. Every one of these answers 401 today.
+ */
+echo "\nClosed doors (must be 401 without a token)\n";
+
+$indexRoutes = smoke_index_get_routes(__DIR__ . '/../index.php');
+printf("  index.php declares %d GET routes; %d allowlisted as public\n",
+    count($indexRoutes), count(SMOKE_PUBLIC_GET_ROUTES));
+
+foreach ($indexRoutes as $route => $handler) {
+    if (array_key_exists($route, SMOKE_PUBLIC_GET_ROUTES)) {
+        printf("  \033[2m·\033[0m %s — public: %s\n", $route, SMOKE_PUBLIC_GET_ROUTES[$route]);
+        continue;
+    }
+    $path = smoke_route_to_path($route);
+    check("{$path} ({$handler})", get($base, $path, null), 401);
+}
+
+/**
+ * Endpoints reached directly rather than through index.php's table — the four
+ * closed on 2026-09-02, plus the three that authenticated with JWT::decode().
+ * A file endpoint has no route table to parse, so these are listed by hand.
+ */
+foreach ([
+    '/registration/registrations-api.php?program_id=1',
+    '/registration/tryouts-api.php?path=registrations&program_id=1',
+    '/api/event-attendance.php?action=get&event_id=1',
+    '/api/rsvp-webhook.php?action=status&event_id=1',
+    '/api/invitations-gateway.php?action=list',
+    '/api/user-profile.php',
+    '/api/coach-notes.php?action=list',
+] as $p) {
+    check($p, get($base, $p, null), 401);
+}
+
+/**
+ * The same three, with a FORGED token. This is the check a missing header cannot
+ * make: `JWT::decode()` accepts any well-formed token, so these three answered as
+ * user 999999 while refusing an absent header perfectly.
+ */
+$forged = smoke_forged_token();
+foreach ([
+    '/api/invitations-gateway.php?action=list',
+    '/api/user-profile.php',
+    '/api/coach-notes.php?action=list',
+] as $p) {
+    check("forged token → {$p}", get($base, $p, $forged), 401);
+}
+
+/**
+ * The one tryouts path that must NOT close. PublicTryoutRegistration.tsx renders a
+ * program's session list to families with no account, and this is the only
+ * tryouts-api call that page makes — so a 401 here is a broken sign-up page, not a
+ * tightened gate. An empty list for program 1 is fine; the status code is the assertion.
+ */
+check('public tryout sessions stay reachable',
+    get($base, '/registration/tryouts-api.php?path=sessions&program_id=1', null), 200);
 
 // ── Per club, as an admin ────────────────────────────────────────────────────
 foreach ([51 => 'Central Kansas', 32 => 'Teams Elevated'] as $club => $clubName) {

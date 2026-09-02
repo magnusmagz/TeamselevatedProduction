@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../config/database.php';
 
 class SeasonController {
@@ -9,6 +10,15 @@ class SeasonController {
     }
 
     public function getSeasons() {
+        // GET /api/seasons is served by api/seasons/index.php (directory shadowing), so
+        // this is live. Staff read; seasons carry no club_id, so standing anywhere is
+        // the gate. Had no auth until 2026-09-02.
+        $auth = AuthMiddleware::requireAuth();
+        if (!$auth->isSuperAdmin() && !$auth->hasRole('club_admin') && !$auth->hasRole('coach')) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Staff access required']);
+            return;
+        }
         $sql = "SELECT * FROM seasons ORDER BY start_date DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
