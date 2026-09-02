@@ -84,48 +84,21 @@ function tpg_requireTeamAccess($pdo, $auth, $teamId) {
 function tpg_requireTeamViewAccess($pdo, $auth, $teamId) {
     $teamId = (int)$teamId;
 
-    $stmt = $pdo->prepare("SELECT club_id FROM teams WHERE id = ?");
-    $stmt->execute([$teamId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$row) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Team not found']);
-        exit;
-    }
-
-    if ($auth->isSuperAdmin()) {
-        return $teamId;
-    }
-
-    $clubId = $row['club_id'] !== null ? (int)$row['club_id'] : null;
-    if ($clubId !== null && $auth->hasRole('club_admin', $clubId, 'club')) {
-        return $teamId;
-    }
-
-    $coachTeamIds = AthleteScope::coachTeamIdsForUser($pdo, (int)$auth->getUserId());
-    if (in_array($teamId, $coachTeamIds, true)) {
-        return $teamId;
-    }
-
-    // Guardian of (or) a player on this team.
-    $accessibleIds = AthleteScope::accessibleAthleteIds($pdo, $auth);
-    if (!empty($accessibleIds)) {
-        $ph = implode(',', array_fill(0, count($accessibleIds), '?'));
-        $stmt = $pdo->prepare("
-            SELECT 1 FROM team_members
-            WHERE team_id = ? AND athlete_id IN ({$ph})
-            LIMIT 1
-        ");
-        $stmt->execute(array_merge([$teamId], array_values($accessibleIds)));
-        if ($stmt->fetchColumn()) {
+    // The predicate itself lives in lib/team_roster_scope.php beside the staff
+    // one, so a second read endpoint (legacy/fields-gateway.php's for-team) can
+    // gate on the SAME rule. Do not re-implement it here.
+    switch (te_team_view_standing($pdo, $auth, $teamId)) {
+        case TE_TEAM_ROSTER_OK:
             return $teamId;
-        }
+        case TE_TEAM_ROSTER_NOT_FOUND:
+            http_response_code(404);
+            echo json_encode(['error' => 'Team not found']);
+            exit;
+        default:
+            http_response_code(403);
+            echo json_encode(['error' => 'You do not have permission to view this team\'s roster']);
+            exit;
     }
-
-    http_response_code(403);
-    echo json_encode(['error' => 'You do not have permission to view this team\'s roster']);
-    exit;
 }
 
 /**

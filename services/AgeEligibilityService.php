@@ -1,13 +1,25 @@
 <?php
+
+require_once __DIR__ . '/../lib/age_rule.php';
+
 /**
  * AgeEligibilityService
  *
  * Decides whether an athlete with a given date_of_birth is eligible for a
  * given division (e.g., U10) under the rules of the tournament's governing
- * body. Modern USYS / US Club / AYSO have all converged on a calendar-year
- * birth-year format: for U-N during season Y, the player must be born in
- * year (Y - N) or later. The "season year" for a tournament is the year
- * of its start_date.
+ * body. Modern USYS / US Club / AYSO have all converged on a birth-year
+ * format: for U-N during season Y, the player must be born in year (Y - N)
+ * or later.
+ *
+ * ⚠️ The SEASON YEAR is `te_season_year()` (lib/age_rule.php), not the
+ * calendar year of start_date. DECISION (Maggie, 2026-09-02): "The age matrix
+ * runs from August 1 to July 31, replacing the previous January 1 to
+ * December 31 calendar birth-year mandate." So a tournament starting
+ * 2026-08-15 is season 2027 and its U10 cutoff is birth year 2017 — under the
+ * old code it was season 2026 and 2016, one year looser, and it disagreed
+ * with the U-group the staff app had been showing for that same athlete since
+ * frontend/src/utils/ageGroup.ts shipped. The two halves now share
+ * tests/fixtures/age-rule-cases.json.
  *
  * Birth-year cutoff math (the modern standard):
  *   max_birth_year = season_year - age_number
@@ -57,20 +69,26 @@ class AgeEligibilityService {
             return $defaultOk;
         }
 
-        $seasonTs = strtotime($seasonStart);
-        if ($seasonTs === false) return $defaultOk;
-        $seasonYear = (int)date('Y', $seasonTs);
+        // Aug 1 – Jul 31. Never strtotime()/date() on a date-only value: a
+        // start_date of 2026-08-01 parsed as UTC and read back locally is
+        // 2026-07-31, which is the wrong side of the boundary and therefore a
+        // whole season year out.
+        $seasonYear = te_season_year($seasonStart);
+        if ($seasonYear === null) return $defaultOk;
 
         // Birth-year rule (modern standard, used by USYS, US Club, and
         // current-era AYSO). max_birth_year is the EARLIEST acceptable
         // birth year — players born BEFORE Jan 1 of this year are too old.
         $maxBirthYear = $seasonYear - $ageNumber;
 
-        $dobTs = strtotime($dob);
-        if ($dobTs === false) return $defaultOk;
-        $dobYear = (int)date('Y', $dobTs);
+        $dobParts = te_date_parts($dob);
+        if ($dobParts === null) return $defaultOk;
+        $dobYear = $dobParts[0];
 
-        $ageAtSeasonEnd = $seasonYear - $dobYear; // approx; off by a few months — sufficient for warning copy
+        // The birth-year age, i.e. the U-number this player falls in for the
+        // season — deliberately NOT te_age_in_years(), which answers the
+        // different question "how old are they today".
+        $ageAtSeasonEnd = $seasonYear - $dobYear;
 
         if ($dobYear < $maxBirthYear) {
             $bodyLabel = $this->bodyLabel($governingBody);

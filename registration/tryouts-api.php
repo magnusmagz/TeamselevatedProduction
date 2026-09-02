@@ -40,6 +40,8 @@ require_once __DIR__ . '/../lib/club_standing.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
 require_once __DIR__ . '/../lib/tryout_offer_notify.php';
 require_once __DIR__ . '/../lib/tryout_coach_invite.php';
+require_once __DIR__ . '/../lib/age_rule.php';
+require_once __DIR__ . '/../lib/coach_scope.php';
 
 // ============================================
 // SCOPE HELPERS
@@ -282,6 +284,96 @@ function tryout_requireCoachInvitesTable($connection): void
     }
 }
 
+/**
+ * R84 — a coach reads the tryout list for THEIR age groups, not the club's.
+ *
+ * Reported by CKU: a U12 coach opening Tryouts saw every registrant in the
+ * club. The authorization half was fixed 2026-09-02 (a coach must at least be
+ * staff in the owning club); this is the narrowing half, which waited on the
+ * age rule being settled. It now is — Aug 1 to Jul 31, `lib/age_rule.php`.
+ *
+ * Rules:
+ *  - Club admin (and super admin, who resolves as admin) sees everything. They
+ *    run the tryout; narrowing them would break the job.
+ *  - A coach sees registrants whose age group matches one of the teams they
+ *    coach, via `getCoachTeamIds()` — the ONE coach-team predicate, which also
+ *    counts assistant_coach / team_manager memberships. Never
+ *    `teams.primary_coach_id` on its own; that undercounts.
+ *  - `?all=1` lets a coach opt out. The director does ask a coach to help with
+ *    another group's evaluations, and a filter with no way off is a filter
+ *    people work around by sharing an admin login.
+ *  - A coach with NO team sees NOTHING, narrowed — not everything. "No team
+ *    assigned" is the empty scope, and an empty scope and "everything" are
+ *    opposite answers. (Their standing as a coach is unaffected: role decides
+ *    standing, team assignment decides reach.)
+ *
+ * ⚠️ A registrant with an unreadable or missing date_of_birth has no age group
+ * and is therefore invisible to every coach — deliberately, because the
+ * alternative is showing them to all of them. Admins still see them, and the
+ * `narrowed` flag in the response is what tells the UI a count is partial.
+ *
+ * The comparison is normalised on BOTH sides with te_normalize_age_group():
+ * `teams.age_group` is free text and prod holds 'U12', 'U-12' and '12U'.
+ *
+ * No output and no exit — the caller has already gated. Returns the payload
+ * fields so the shape lives in one place.
+ *
+ * @param array $registrations rows carrying `date_of_birth`
+ * @return array{registrations: array, narrowed: bool, age_groups: string[]}
+ */
+function tryout_narrowRegistrationsForCaller(
+    $connection,
+    $auth,
+    ?string $standing,
+    int $clubId,
+    array $registrations,
+    ?string $onDate,
+    bool $optOut
+): array {
+    if ($standing === 'admin') {
+        // Not "no age groups" — no narrowing concept applies.
+        return ['registrations' => $registrations, 'narrowed' => false, 'age_groups' => []];
+    }
+
+    $teamIds = getCoachTeamIds($connection, $auth->getUserId(), $clubId);
+
+    $ageGroups = [];
+    if (!empty($teamIds)) {
+        $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+        // array_fill(0, 0, '?') would produce `IN ()`, which is a syntax error
+        // rather than an empty result — hence the guard above, not a ternary here.
+        $stmt = $connection->prepare(
+            "SELECT age_group FROM teams WHERE id IN ($placeholders)"
+        );
+        $stmt->execute(array_values($teamIds));
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $raw) {
+            $normalized = te_normalize_age_group($raw);
+            if ($normalized !== null) {
+                $ageGroups[$normalized] = true;
+            }
+        }
+    }
+    $ageGroups = array_keys($ageGroups);
+    sort($ageGroups);
+
+    if ($optOut) {
+        // Their own groups are still reported, so the UI can say whose list
+        // this would normally be.
+        return ['registrations' => $registrations, 'narrowed' => false, 'age_groups' => $ageGroups];
+    }
+
+    $onDate = $onDate ?: date('Y-m-d');
+    $kept = [];
+    foreach ($registrations as $row) {
+        $group = te_age_group($row['date_of_birth'] ?? null, $onDate);
+        if ($group !== null && in_array($group, $ageGroups, true)) {
+            $kept[] = $row;
+        }
+    }
+
+    return ['registrations' => array_values($kept), 'narrowed' => true, 'age_groups' => $ageGroups];
+}
+
 // Tests require this file for the scope helpers above. PHP early-binds top-level
 // functions, so returning here still defines handleGet/handlePost/handlePut/
 // handleDelete while skipping CORS, the headers, the request dispatch and the
@@ -386,14 +478,12 @@ function handleGet($connection, $path, $auth) {
             // Returns every registrant's name, date of birth and gender, so this
             // was the worst of the open reads.
             $program_id = $_GET['program_id'] ?? 0;
-            tryout_requireClubStaff($connection, $auth, $program_id);
-            // TODO (Phase 6): CKU report R84 — a coach sees the whole club's
-            // tryout list, not just their own age group. The AUTHORIZATION half
-            // is fixed here (a coach must at least be staff in the owning club);
-            // narrowing a coach to their age group is NOT done, because the age
-            // rule is unresolved — frontend/src/utils/ageGroup.ts rolls the
-            // season year on Aug 1 while services/AgeEligibilityService.php uses
-            // the tournament start_date year. Pick one before filtering on it.
+            $reg_club_id = tryout_requireClubStaff($connection, $auth, $program_id);
+            // R84: a coach reads their own age groups. Standing is re-read (no
+            // query — it is pure token work) because the gate returns the club,
+            // not who you are in it. See tryout_narrowRegistrationsForCaller.
+            $reg_standing = tryout_clubStanding($auth, $reg_club_id);
+            $reg_all = isset($_GET['all']) && in_array((string) $_GET['all'], ['1', 'true', 'yes'], true);
             $stmt = $connection->prepare("
                 SELECT
                     r.id,
@@ -424,8 +514,36 @@ function handleGet($connection, $path, $auth) {
             foreach ($registrations as &$reg) {
                 $reg['form_data'] = json_decode($reg['form_data'], true);
             }
+            unset($reg);
 
-            echo json_encode($registrations);
+            // The age question is asked as of the program's start date when it
+            // has one — a tryout held in July for the season starting in August
+            // must group players by the season they are trying out FOR, not the
+            // one that is ending. `date('Y-m-d')` is a local date-only string,
+            // which is what te_age_group() wants; never a timestamp.
+            $reg_start = $connection->prepare("SELECT start_date FROM programs WHERE id = ?");
+            $reg_start->execute([$program_id]);
+            $reg_on_date = $reg_start->fetchColumn() ?: date('Y-m-d');
+
+            $scoped = tryout_narrowRegistrationsForCaller(
+                $connection,
+                $auth,
+                $reg_standing,
+                $reg_club_id,
+                $registrations,
+                $reg_on_date,
+                $reg_all
+            );
+
+            // ⚠️ This response was a bare ARRAY until 2026-09-02 and is now an
+            // object. TryoutManagement.tsx reads either shape, because `main` is
+            // shared and a browser tab can outlive a deploy — see the
+            // stale-bundle note in CLAUDE.md.
+            echo json_encode([
+                'registrations' => $scoped['registrations'],
+                'narrowed'      => $scoped['narrowed'],
+                'age_groups'    => $scoped['age_groups'],
+            ]);
             break;
 
         case 'evaluations':

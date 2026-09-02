@@ -54,9 +54,15 @@ class SchemaConformanceTest extends TestCase
      * Nothing may be added here for a column that has no migration file.
      */
     private const PENDING_MIGRATION = [
-        // Empty. Add a 'table.column' => 'NNN_file.sql' entry only for a migration that is
+        // Add a 'table.column' => 'NNN_file.sql' entry only for a migration that is
         // written but not yet applied; testPendingMigrationEntriesAreStillPending fails the
         // moment it lands in the fixture, so an entry cannot outlive its window.
+
+        // Migration 088 (field size for age-group-aware scheduling, CKU R73) is
+        // written and NOT yet applied to Neon. lib/field_size.php probes for the
+        // column and both readers and both writers build their SQL around what is
+        // actually there. Delete this line in the same commit as the fixture refresh.
+        'fields.field_size' => '088_field_size.sql',
     ];
 
     /**

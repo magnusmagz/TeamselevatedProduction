@@ -17,6 +17,7 @@ try {
 }
 
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/field_size.php';
 $auth = AuthMiddleware::requireAuth();
 $accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin (all clubs)
 
@@ -186,16 +187,23 @@ try {
 
                 // Insert fields if provided
                 if (!empty($data['fields'])) {
-                    $field_stmt = $connection->prepare("
-                        INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ");
+                    // `field_size` (migration 088) is written only when the column
+                    // is actually there. `main` is shared and deploys are by push, so
+                    // this file can reach production days before the migration runs,
+                    // and on Postgres a missing column is 42703 — which would fail the
+                    // whole facility save, not just drop the new value.
+                    $withSize = te_field_size_available($connection);
+                    $field_stmt = $connection->prepare($withSize
+                        ? "INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status, field_size)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        : "INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)");
 
                     foreach ($data['fields'] as $field) {
                         // Explicitly convert has_lights to boolean for PostgreSQL
                         $hasLights = filter_var($field['has_lights'] ?? $field['lights'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-                        $field_stmt->execute([
+                        $values = [
                             $venue_id,
                             $field['name'],
                             $field['field_type'] ?? 'Soccer',
@@ -203,7 +211,13 @@ try {
                             $field['dimensions'] ?? $field['size'] ?? null,
                             $hasLights ? 't' : 'f',  // PostgreSQL boolean format
                             $field['status'] ?? 'available'
-                        ]);
+                        ];
+                        if ($withSize) {
+                            // The form submits '' for a field nobody has sized, and
+                            // '' violates the CHECK constraint — normalise to NULL.
+                            $values[] = te_normalize_field_size($field['field_size'] ?? null);
+                        }
+                        $field_stmt->execute($values);
                     }
                 }
 
@@ -314,16 +328,23 @@ try {
 
                 // Insert new fields
                 if (!empty($data['fields'])) {
-                    $field_stmt = $connection->prepare("
-                        INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ");
+                    // `field_size` (migration 088) is written only when the column
+                    // is actually there. `main` is shared and deploys are by push, so
+                    // this file can reach production days before the migration runs,
+                    // and on Postgres a missing column is 42703 — which would fail the
+                    // whole facility save, not just drop the new value.
+                    $withSize = te_field_size_available($connection);
+                    $field_stmt = $connection->prepare($withSize
+                        ? "INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status, field_size)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        : "INSERT INTO fields (venue_id, name, field_type, surface_type, dimensions, has_lights, status)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)");
 
                     foreach ($data['fields'] as $field) {
                         // Explicitly convert has_lights to boolean for PostgreSQL
                         $hasLights = filter_var($field['has_lights'] ?? $field['lights'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-                        $field_stmt->execute([
+                        $values = [
                             $venue_id,
                             $field['name'],
                             $field['field_type'] ?? 'Soccer',
@@ -331,7 +352,13 @@ try {
                             $field['dimensions'] ?? $field['size'] ?? null,
                             $hasLights ? 't' : 'f',  // PostgreSQL boolean format
                             $field['status'] ?? 'available'
-                        ]);
+                        ];
+                        if ($withSize) {
+                            // The form submits '' for a field nobody has sized, and
+                            // '' violates the CHECK constraint — normalise to NULL.
+                            $values[] = te_normalize_field_size($field['field_size'] ?? null);
+                        }
+                        $field_stmt->execute($values);
                     }
                 }
 
