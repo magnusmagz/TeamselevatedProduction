@@ -22,6 +22,22 @@ class Team {
 
         $params = [];
 
+        // Club scope from the caller's standing (null = super admin, no filter).
+        // An EMPTY list must yield no rows, not every row — IN () is a syntax error
+        // and "no filter" is the opposite answer, so it is written as 1=0.
+        if (array_key_exists('club_ids', $filters) && $filters['club_ids'] !== null) {
+            if (count($filters['club_ids']) === 0) {
+                $where .= " AND 1=0";
+            } else {
+                $marks = [];
+                foreach (array_values($filters['club_ids']) as $i => $cid) {
+                    $marks[] = ":club_$i";
+                    $params[":club_$i"] = (int)$cid;
+                }
+                $where .= " AND t.club_id IN (" . implode(',', $marks) . ")";
+            }
+        }
+
         if (!empty($filters['search'])) {
             // ILIKE, not LIKE: MySQL's LIKE is case-insensitive by default and
             // Postgres' is not, so searching "Thunder" for a team named "thunder"
@@ -106,11 +122,12 @@ class Team {
     }
 
     public function createTeam($data) {
-        $sql = "INSERT INTO teams (name, logo_url, age_group, division, season_id, primary_coach_id, home_field_id, max_players)
-                VALUES (:name, :logo_url, :age_group, :division, :season_id, :primary_coach_id, :home_field_id, :max_players)";
+        $sql = "INSERT INTO teams (club_id, name, logo_url, age_group, division, season_id, primary_coach_id, home_field_id, max_players)
+                VALUES (:club_id, :name, :logo_url, :age_group, :division, :season_id, :primary_coach_id, :home_field_id, :max_players)";
 
         $stmt = $this->db->prepare($sql);
         $result = $stmt->execute([
+            ':club_id' => (int)$data['club_id'],
             ':name' => $data['name'],
             ':logo_url' => $data['logo_url'] ?? null,
             ':age_group' => $data['age_group'],
@@ -240,7 +257,13 @@ class Team {
         return $stmt->execute([':team_id' => $teamId, ':user_id' => $userId]);
     }
 
-    public function assignVolunteer($teamId, $data) {
+    /**
+     * $bgStatus and $assignedBy come from the CONTROLLER (looked up / the verified
+     * token), never from $data. The request body used to supply both — a
+     * background-check status the caller typed, and `$_SESSION['user_id'] ?? 1`
+     * for the assigner, which on this stateless API was always 1.
+     */
+    public function assignVolunteer($teamId, $data, string $bgStatus, int $assignedBy) {
         $sql = "INSERT INTO team_volunteers
                 (team_id, user_id, volunteer_role, start_date, end_date, background_check_status, notes, assigned_by)
                 VALUES (:team_id, :user_id, :role, :start_date, :end_date, :bg_status, :notes, :assigned_by)";
@@ -252,9 +275,9 @@ class Team {
             ':role' => $data['volunteer_role'],
             ':start_date' => $data['start_date'],
             ':end_date' => $data['end_date'] ?? null,
-            ':bg_status' => $data['background_check_status'] ?? 'pending',
+            ':bg_status' => $bgStatus,
             ':notes' => $data['notes'] ?? null,
-            ':assigned_by' => $_SESSION['user_id'] ?? 1
+            ':assigned_by' => $assignedBy
         ]);
     }
 

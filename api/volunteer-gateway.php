@@ -25,6 +25,7 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/background_check.php';
 
 $auth = AuthMiddleware::requireAuth();
 
@@ -913,36 +914,7 @@ function getVolunteerRecord($db, $volunteerId) {
  * Checks team_volunteers first, then guardians table.
  */
 function getUserBackgroundCheckStatus($db, $checkUserId) {
-    // Check if they have a cleared status in any volunteer record
-    $stmt = $db->prepare("
-        SELECT background_check_status FROM team_volunteers
-        WHERE user_id = ? AND background_check_status = 'cleared'
-        LIMIT 1
-    ");
-    $stmt->execute([$checkUserId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($result) return 'cleared';
-
-    // Check guardians table (parents may have bg check tracked there)
-    $stmt = $db->prepare("
-        SELECT background_check_status FROM guardians g
-        JOIN users u ON u.email = g.email
-        WHERE u.id = ? AND g.background_check_status = 'cleared'
-        LIMIT 1
-    ");
-    $stmt->execute([$checkUserId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($result) return 'cleared';
-
-    // Check if pending anywhere
-    $stmt = $db->prepare("
-        SELECT background_check_status FROM team_volunteers
-        WHERE user_id = ? AND background_check_status = 'pending'
-        LIMIT 1
-    ");
-    $stmt->execute([$checkUserId]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($result) return 'pending';
-
-    return 'none';
+    // Body lives in lib/background_check.php since 2026-09-02 so TeamController can
+    // apply the identical gate. Do not re-inline it here.
+    return te_background_check_status($db, (int)$checkUserId);
 }
