@@ -234,6 +234,9 @@ class SchemaConformanceTest extends TestCase
     {
         $dir = __DIR__ . '/../../database/migrations/';
 
+        // An empty list is the normal state; count it so PHPUnit does not mark this risky.
+        $this->addToAssertionCount(1);
+
         foreach (self::PENDING_MIGRATION as $qualified => $migration) {
             [$table, $col] = explode('.', $qualified, 2);
 
