@@ -32,6 +32,26 @@ Plus two mechanisms that make rollback cheaper than a deploy:
 
 ---
 
+## Completed (as of 2026-09-02 16:20 PT, Heroku v583, chat v26)
+
+| Phase | Slices | Release |
+|---|---|---|
+| 0 Security | 0.1–0.9 | v559, v561 |
+| 1 Test health | 1.1–1.5 | v561, Netlify |
+| 2 Silent sends | 2.1–2.4 (dark, switches off), 2.6 | v564, v567, Netlify |
+| 3 CKU wins | 3.1 (superseded: no primary guardian, v583), 3.3, 3.4, 3.5, 3.7 | v560, v580, Netlify |
+| 4 Identity | 4.1, 4.1b, 4.2, 4.3, 4.4 | v568–v573, chat v26 |
+| 5 Storage | 5.0 audit fixes + upload folder refused | v578, v581 |
+| 6 Age rule | 6.1–6.3 | v582, migration 088 |
+| 8 Coaches | 8.1, 8.2, 8.3 (already built), 8.4 | v574, v577 |
+| Decisions | 3, 10, 11c | v579, v580 |
+
+Open: 5.1–5.5 (needs S3), 4.5 (time), 2.5, 8.5, 8.6, Phase 10, GOTR G0–G7, decisions 2 and 13.
+Punted/skipped: Phase 7, Phase 9, Spanish, team branding, the larger bets. The phase tables
+below keep the per-slice tests and rollback notes and carry ✅ markers on shipped rows.
+
+---
+
 ## Phase 0 — Close the open doors (security) — ✅ SHIPPED 2026-09-02, Heroku v559
 
 Not on the sheet as a phase, but every one of these is verified live in production and cheaper
