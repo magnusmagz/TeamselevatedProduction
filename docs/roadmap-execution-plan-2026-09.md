@@ -47,6 +47,7 @@ irrelevant and rollback is a single revert. Estimated 2–3 days total.
 | 0.5 | `registration/tryouts-api.php` — authenticate, scope list to coach's age groups (R84) | coach sees only own age groups; club admin sees all | revert |
 | 0.6 | `api/payment-reminders.php:242` parenthesise the OR (latent, in stripe worktree) | SQL fixture asserts the filtered row set | revert |
 | 0.7 | `MysqlOnlySqlTest` gains `CURDATE(` and scans `models/` | fails on `models/Team.php:230` today | n/a |
+| 0.9 | (found by the 1.5 route walk) `/api/athletes`, `/api/coach/players/search`, `/api/seasons` reached by directory shadowing with no auth; gated + scoped, Heroku v561 | `DirectoryShadowedListScopeTest` | revert |
 | 0.8 | (found by the R81 hunt) `event-attendance.php` get/save/history and `rsvp-webhook.php?action=status` gate on `te_event_staff_standing()` in `lib/event_standing.php` | `EventStandingTest` | revert |
 
 **Gate to Phase 1:** `scripts/smoke-test.php` green against prod; the forged-token probe from the
@@ -54,7 +55,7 @@ scope doc returns 401 on all three endpoints.
 
 ---
 
-## Phase 1 — Make the test signal trustworthy (R8, R9, R21)
+## Phase 1 — Make the test signal trustworthy (R8, R9, R21) — ✅ 1.1, 1.2, 1.5 SHIPPED 2026-09-02; 1.4 partial (two guards added)
 
 Rollback of anything later depends on CI telling the truth. Runs in parallel with Phase 0.
 
@@ -81,6 +82,7 @@ switch so a bad template or a send storm is a config-var flip, not a deploy.
 | 2.2 | Tryout "Send offers" → offer email (+SMS if number on file) per family, one `communication_log` row each (R2, R12 first touchpoint) | `TE_FEATURE_TRYOUT_OFFER_EMAIL` | offers endpoint enqueues N sends for N offers; zero sends when switch off; existing `joined_date` acceptance test still green | backend only |
 | 2.3 | Migration **083** `broadcast_campaigns.body` / `html_body` (additive; reverse = `DROP COLUMN`) | — | fixture refresh diff is ~2 lines | apply before 2.4; safe to leave if 2.4 reverts |
 | 2.4 | Scheduled-send dispatcher as a throttled tick in `workers/queue-worker.php` (copy the chat-notification tick; per-campaign try/catch; rebuilt via `$buildServices()`); then remove the 400 guard at `communications-gateway.php:488` | `TE_FEATURE_SCHEDULED_DISPATCH` | **first:** a throwing campaign does not stop the other queues; due campaign dispatches once; not-yet-due does not; worker reconnect rebuilds the dispatcher | backend; flip switch → campaigns sit as `scheduled`, nothing lost |
+| 2.6 | `PaymentCheckout.tsx:485` renders an empty page when the plans response has no `plans` key (found by 1.1); guard + real error state. Stripe worktree. | jest | frontend revert |
 | 2.5 | Rich HTML signature editor (R13). Append already ships (`EmailSendService.php:167-183`, `nl2br` of a plain textarea); only the editor is missing. | — | signature HTML round-trips and is sanitised server-side; append test unchanged | frontend + a sanitiser in the send path |
 
 **Staged test before flipping each switch on:** one real send to a Teams Elevated address per
