@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Assign coaches to programs (Heroku v574, then Netlify) — migration 085 applied
+
+`program_staff` applied 15:1x PT via `scripts/apply-migration.php`; fixture refreshed (diff = one
+table). Admins assign coaches to a program from the program page; an assigned coach sees the
+program's events on their upcoming calendar and can reach its registrant families in compose
+("All families in <program>"). CKU R66. Nothing narrows; every widened read is additive.
+
 ### Links written at source (Heroku v573; v572 carried nothing new)
 
 Registration and shareable-invite accept now write `user_guardians` (exact-one-guardian rule;

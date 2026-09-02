@@ -171,7 +171,7 @@ In the `te-stripe-payments` worktree only. Small first.
 
 | # | Row | Slice |
 |---|---|---|
-| 8.1 | R66 | `program_staff` table (migration **087**) so coaches see assigned programs in calendar and recipient search |
+| 8.1 | R66 | ✅ SHIPPED 2026-09-02 (Heroku v574, migration 085) — `program_staff`, `lib/program_scope.php`; calendar upcoming + recipient search widened additively |
 | 8.2 | R86 | "Coach invited player" control: sends the team-invitation template, records the selection for the director |
 | 8.3 | R80 | ✅ ALREADY BUILT — `users.coaching_background` rendered on the portal athlete page's Coaches card via `api/team-coaches.php`. Sheet was wrong; closed 2026-09-02. |
 | 8.4 | R76/R77 | Mid-year evaluations on the athlete profile (reuse the tryout evaluation component), then year-over-year graph |

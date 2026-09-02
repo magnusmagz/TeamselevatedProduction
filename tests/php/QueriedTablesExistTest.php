@@ -72,7 +72,6 @@ class QueriedTablesExistTest extends TestCase
      * refresh.
      */
     private const PENDING_MIGRATION_TABLES = [
-        'program_staff' => '085_program_staff.sql',
     ];
 
     /**

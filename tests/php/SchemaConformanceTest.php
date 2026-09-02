@@ -65,7 +65,6 @@ class SchemaConformanceTest extends TestCase
      * self-check (testPendingTablesAreStillPending).
      */
     private const PENDING_MIGRATION_TABLES = [
-        'program_staff' => '085_program_staff.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */

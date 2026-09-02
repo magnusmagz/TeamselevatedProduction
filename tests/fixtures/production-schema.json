@@ -1327,6 +1327,14 @@
     "display_order",
     "created_at"
   ],
+  "program_staff": [
+    "id",
+    "program_id",
+    "user_id",
+    "role",
+    "assigned_by",
+    "created_at"
+  ],
   "programs": [
     "id",
     "name",
