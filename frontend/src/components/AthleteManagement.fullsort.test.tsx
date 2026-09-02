@@ -59,8 +59,8 @@ test('full component: repeated Name clicks keep toggling asc/desc', async () => 
   expect(ascAgain).toEqual(asc); // third click flips back to asc (never unsorts)
 });
 
-test('dedupes duplicate-id rows (multi-primary-guardian) and still re-sorts', async () => {
-  // Real gateway returns a duplicate row for an athlete with 2 primary guardians.
+test('dedupes duplicate-id rows (multi-guardian household) and still re-sorts', async () => {
+  // The gateway used to return a duplicate row for an athlete with 2 guardians.
   const dupRows = [...athletes, { ...athletes[0] }]; // Zoe Adams (id 1) appears twice
   (global as any).fetch = jest.fn((url: any) => {
     const u = String(url);

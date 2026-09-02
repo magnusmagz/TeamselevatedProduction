@@ -116,7 +116,6 @@ function te_roster_export_crew(PDO $pdo, array $athleteIds): array
     $stmt = $pdo->prepare("
         SELECT ag.athlete_id,
                ag.relationship,
-               ag.is_primary,
                g.first_name,
                g.last_name,
                g.email,
@@ -124,7 +123,9 @@ function te_roster_export_crew(PDO $pdo, array $athleteIds): array
         FROM athlete_guardians ag
         JOIN guardians g ON g.id = ag.guardian_id
         WHERE ag.athlete_id IN ({$ph})
-        ORDER BY ag.athlete_id, ag.is_primary DESC NULLS LAST, g.last_name, g.id
+        -- Crew members are equal (2026-09-02): no primary leads a family's
+        -- columns. Link id first so the column order is stable run to run.
+        ORDER BY ag.athlete_id, ag.id, g.last_name, g.id
     ");
     $stmt->execute(array_values($athleteIds));
 

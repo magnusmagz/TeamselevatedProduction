@@ -24,13 +24,29 @@ interface Athlete {
   gender?: string;
   school_name?: string;
   grade_level?: number;
-  primary_guardian_name?: string;
-  primary_guardian_email?: string;
-  primary_guardian_phone?: string;
+  // Every crew member on the athlete, in link order. Crew members are EQUAL —
+  // there is no primary guardian in this product (2026-09-02) — so the list
+  // screen shows the whole family instead of electing one to stand for it.
+  //
+  // The gateway still returns `primary_guardian_name/email/phone` for one
+  // release (they are simply the first crew member, not a ranked one). Nothing
+  // here reads them; they exist so an older deployed bundle does not blank its
+  // column mid-deploy.
+  guardians?: AthleteCrewMember[];
   email?: string;
   active_status?: boolean;
   created_at?: string;
   teams?: string[];
+}
+
+interface AthleteCrewMember {
+  guardian_id: number;
+  first_name: string;
+  last_name: string;
+  name: string;
+  email?: string | null;
+  mobile_phone?: string | null;
+  relationship?: string | null;
 }
 
 interface AthleteManagementProps {
@@ -90,10 +106,11 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
       });
       const data = await response.json();
       const athleteList: Athlete[] = data.athletes || [];
-      // The gateway LEFT JOINs guardians, so an athlete with more than one
-      // primary guardian comes back as duplicate rows sharing the same id.
-      // Dedupe by id — duplicate React keys silently break row re-ordering on
-      // sort (first sort applies, later ones no-op) and inflate the count.
+      // The gateway builds its crew list with a LATERAL join and a separate
+      // keyed query, so it returns one row per athlete. This dedupe stays as a
+      // belt: duplicate React keys silently break row re-ordering on sort (the
+      // first sort applies, later ones no-op) and inflate the count, which is a
+      // failure with no error message attached to it.
       const seen = new Set<number>();
       const uniqueAthletes = athleteList.filter((a) => {
         if (seen.has(a.id)) return false;
@@ -425,7 +442,7 @@ export const AthleteListContent: React.FC<{
       ],
     },
     { key: 'team', label: 'Team' },
-    { key: 'guardian', label: 'Primary Crew' },
+    { key: 'guardian', label: 'Crew' },
     { key: 'contact', label: 'Contact' },
     {
       key: 'consent',
@@ -455,8 +472,16 @@ export const AthleteListContent: React.FC<{
   const sortArrow = (key: ColKey) => (sortKey !== key ? '▾' : sortDir === 'asc' ? '▲' : '▼');
 
   const teamLabel = (a: Athlete) => (athleteTeams[a.id] || a.teams || []).join(', ');
+  // Sorting and filtering see EVERY crew member, not the one that happens to be
+  // rendered. A parent whose name is hidden behind "+1 more" must still be
+  // findable by typing it, or the filter quietly lies about who is in the club.
+  const crewOf = (a: Athlete): AthleteCrewMember[] => a.guardians ?? [];
+  const crewNames = (a: Athlete) =>
+    crewOf(a).map((g) => g.name || `${g.first_name || ''} ${g.last_name || ''}`.trim())
+      .filter(Boolean).join(', ');
   const contactStr = (a: Athlete) =>
-    [a.primary_guardian_email, a.primary_guardian_phone, a.email].filter(Boolean).join(' ');
+    [...crewOf(a).flatMap((g) => [g.email, g.mobile_phone]), a.email]
+      .filter(Boolean).join(' ');
   const ageOf = (a: Athlete) => (a.date_of_birth ? calculateAge(a.date_of_birth) : null);
 
   const sortValue = (a: Athlete, key: ColKey): string | number => {
@@ -466,7 +491,7 @@ export const AthleteListContent: React.FC<{
       case 'grade': return a.grade_level == null ? -Infinity : a.grade_level;
       case 'gender': return (a.gender || '').toLowerCase();
       case 'team': return teamLabel(a).toLowerCase();
-      case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
+      case 'guardian': return crewNames(a).toLowerCase();
       case 'contact': return contactStr(a).toLowerCase();
       case 'consent': return consentStatusRank(consentByAthlete[a.id]);
     }
@@ -478,7 +503,7 @@ export const AthleteListContent: React.FC<{
       case 'grade': return a.grade_level == null ? '' : String(a.grade_level);
       case 'gender': return (a.gender || '').toLowerCase();
       case 'team': return teamLabel(a).toLowerCase();
-      case 'guardian': return (a.primary_guardian_name || '').toLowerCase();
+      case 'guardian': return crewNames(a).toLowerCase();
       case 'contact': return contactStr(a).toLowerCase();
       case 'consent': return (consentByAthlete[a.id] || '').toLowerCase();
     }
@@ -659,55 +684,80 @@ export const AthleteListContent: React.FC<{
                       </button>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-brand-primary">
-                      {athlete.primary_guardian_name || '-'}
-                    </div>
+                  <td className="px-6 py-4 border-r border-gray-300">
+                    {/* The whole family, stacked. Two names fit the row; beyond
+                        that the count is shown rather than a chosen pair, because
+                        picking two of four would put this screen straight back in
+                        the business of ranking crew members. Sorting and
+                        filtering still read every name. */}
+                    {crewOf(athlete).length === 0 ? (
+                      <div className="text-sm text-gray-500">-</div>
+                    ) : (
+                      <div className="text-sm text-brand-primary space-y-0.5">
+                        {crewOf(athlete).slice(0, 2).map((g) => (
+                          <div key={g.guardian_id} className="whitespace-nowrap">
+                            {g.name || `${g.first_name || ''} ${g.last_name || ''}`.trim()}
+                          </div>
+                        ))}
+                        {crewOf(athlete).length > 2 && (
+                          <div className="text-xs text-gray-500">
+                            +{crewOf(athlete).length - 2} more
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div>
-                      {athlete.primary_guardian_email && (
-                        <div className="text-xs">
-                          <button
-                            onClick={() => {
-                              const nameParts = (athlete.primary_guardian_name || '').split(' ');
-                              setComposeRecipient({
-                                id: athlete.id,
-                                type: 'guardian' as const,
-                                first_name: nameParts[0] || '',
-                                last_name: nameParts.slice(1).join(' ') || '',
-                                email: athlete.primary_guardian_email,
-                                phone: athlete.primary_guardian_phone,
-                                suppressed: false
-                              });
-                              setShowEmailCompose(true);
-                            }}
-                            className="text-brand-primary hover:underline cursor-pointer"
-                          >
-                            {athlete.primary_guardian_email}
-                          </button>
+                  <td className="px-6 py-4 border-r border-gray-300">
+                    <div className="space-y-1">
+                      {crewOf(athlete).slice(0, 2).map((g) => (
+                        <div key={g.guardian_id}>
+                          {g.email && (
+                            <div className="text-xs">
+                              <button
+                                onClick={() => {
+                                  setComposeRecipient({
+                                    id: g.guardian_id,
+                                    type: 'guardian' as const,
+                                    first_name: g.first_name || '',
+                                    last_name: g.last_name || '',
+                                    email: g.email || undefined,
+                                    phone: g.mobile_phone || undefined,
+                                    suppressed: false
+                                  });
+                                  setShowEmailCompose(true);
+                                }}
+                                className="text-brand-primary hover:underline cursor-pointer"
+                              >
+                                {g.email}
+                              </button>
+                            </div>
+                          )}
+                          {g.mobile_phone && (
+                            <div className="text-xs">
+                              <button
+                                onClick={() => {
+                                  setComposeRecipient({
+                                    id: g.guardian_id,
+                                    type: 'guardian' as const,
+                                    first_name: g.first_name || '',
+                                    last_name: g.last_name || '',
+                                    email: g.email || undefined,
+                                    phone: g.mobile_phone || undefined,
+                                    suppressed: false
+                                  });
+                                  setShowSmsCompose(true);
+                                }}
+                                className="text-brand-primary hover:underline cursor-pointer"
+                              >
+                                {g.mobile_phone}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {athlete.primary_guardian_phone && (
-                        <div className="text-xs">
-                          <button
-                            onClick={() => {
-                              const nameParts = (athlete.primary_guardian_name || '').split(' ');
-                              setComposeRecipient({
-                                id: athlete.id,
-                                type: 'guardian' as const,
-                                first_name: nameParts[0] || '',
-                                last_name: nameParts.slice(1).join(' ') || '',
-                                email: athlete.primary_guardian_email,
-                                phone: athlete.primary_guardian_phone,
-                                suppressed: false
-                              });
-                              setShowSmsCompose(true);
-                            }}
-                            className="text-brand-primary hover:underline cursor-pointer"
-                          >
-                            {athlete.primary_guardian_phone}
-                          </button>
+                      ))}
+                      {crewOf(athlete).length > 2 && (
+                        <div className="text-xs text-gray-500">
+                          +{crewOf(athlete).length - 2} more
                         </div>
                       )}
                       {athlete.email && (
@@ -715,10 +765,10 @@ export const AthleteListContent: React.FC<{
                           {athlete.email}
                         </div>
                       )}
-                      {!athlete.primary_guardian_email && !athlete.primary_guardian_phone && athlete.email && (
+                      {crewOf(athlete).length === 0 && athlete.email && (
                         <div className="text-xs text-gray-500">Contact via email</div>
                       )}
-                      {!athlete.primary_guardian_email && !athlete.primary_guardian_phone && !athlete.email && (
+                      {crewOf(athlete).length === 0 && !athlete.email && (
                         <div className="text-xs text-gray-500">No contact info</div>
                       )}
                     </div>

@@ -57,7 +57,7 @@ const athlete = {
   guardians: [
     {
       id: 200, first_name: 'John', last_name: 'Stone', email: 'john@stone.com',
-      mobile_phone: '5125551212', relationship_type: 'Father', is_primary_contact: 1,
+      mobile_phone: '5125551212', relationship_type: 'Father',
       can_pickup: 1, can_authorize_medical: 1, financial_responsible: 1,
     },
   ],

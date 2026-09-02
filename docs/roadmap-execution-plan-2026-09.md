@@ -96,7 +96,7 @@ Small, independent, mostly frontend. Each is its own PR and revert.
 
 | # | Row | Slice | Test |
 |---|---|---|---|
-| 3.1 | R78 | Primary guardian does not stick. **The sheet's cause is wrong**: `GuardianManagement.tsx` has the checkbox (add form :567, edit form :337) and the gateway demotes the old primary. Reproduce with a real save and trace the payload before coding. | RTL: toggling primary posts `is_primary_contact: true`; PHP: POST demotes the previous primary |
+| 3.1 | R78 | ~~Primary guardian does not stick.~~ **SUPERSEDED 2026-09-02 — there is no primary guardian.** Maggie: guardians are equal. The row is closed by removing the concept, not by making the flag stick: every control, badge, writer and query predicate is gone and `athlete_guardians.is_primary` is a legacy column. | `tests/php/NoPrimaryGuardianTest.php` + `frontend/src/crewEquality.test.ts` — scans, because the concept lived in 7 writers, 15 query sites and 4 components |
 | 3.2 | R81 | Hide RSVPs from other parents. **The sheet's evidence is wrong**: `calendar-events-gateway.php?action=get` already scopes non-staff to their own family (:315-377). Find the screen where a parent actually sees other families' RSVPs (parent-portal event view / `legacy/events-gateway.php`) and scope that one. | parent token sees own family only on the offending endpoint; coach sees all |
 | 3.3 | R89/R90/R91 | Programs: migration **084** `programs.sort_order`, `programs.archived_at` (additive); reorder, archive, collapsible types | gateway list excludes archived by default; order persists; jest for collapse state |
 | 3.4 | R88 | Home = overview of teams / athletes / revenue / programs; `/` lands there | existing dashboard tests + route test |

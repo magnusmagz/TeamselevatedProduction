@@ -11,7 +11,7 @@ use PDO;
  * Regression: updating a parent's phone number did nothing. legacy/guardian-gateway.php's
  * POST branch matched an existing guardian on email+first+last and then simply took
  * their id — it never wrote the submitted contact fields. The PUT branch only ever
- * touched `athlete_guardians` (relationship, is_primary, can_pickup,
+ * touched `athlete_guardians` (relationship, can_pickup,
  * emergency_contact). Across the whole backend the only `UPDATE guardians`
  * statements were sms_opt_out and last_contacted, from the Twilio webhook and the
  * send services. So no code path anywhere could change a guardian's name, email or

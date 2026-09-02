@@ -94,8 +94,21 @@ try {
         JOIN athletes a ON ap.athlete_id = a.id
         JOIN payment_items pi ON ap.payment_item_id = pi.id
         JOIN programs p ON ap.program_id = p.id
-        LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-        LEFT JOIN guardians g ON ag.guardian_id = g.id
+        -- A contact for the family. There is no primary guardian in this product
+        -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
+        -- by link id rather than a ranked one. It used to join on
+        -- `ag.is_primary = true`, which stops matching the moment nothing writes
+        -- that column: every family added from then on would have shown a blank
+        -- billing contact, silently. LATERAL, not a JOIN, so a two-parent
+        -- household does not multiply the rows behind these totals.
+        LEFT JOIN LATERAL (
+            SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+            FROM athlete_guardians ag
+            JOIN guardians gg ON gg.id = ag.guardian_id
+            WHERE ag.athlete_id = a.id
+            ORDER BY ag.id
+            LIMIT 1
+        ) g ON true
         WHERE $where_clause
         GROUP BY a.id, a.first_name, a.last_name, g.first_name, g.last_name, g.email, g.mobile_phone
         ORDER BY $order_by

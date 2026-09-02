@@ -10,6 +10,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/athlete_writes.php';
 require_once __DIR__ . '/../lib/jersey_size.php';
+require_once __DIR__ . '/../lib/athlete_crew.php';
 
 try {
     $db = Database::getInstance();
@@ -222,21 +223,17 @@ try {
                                g.mobile_phone,
                                g.work_phone,
                                ag.relationship AS relationship_type,
-                               ag.is_primary AS is_primary_contact,
                                ag.can_pickup,
                                ag.emergency_contact
                         FROM athlete_guardians ag
                         JOIN guardians g ON ag.guardian_id = g.id
                         WHERE ag.athlete_id = ?
-                        -- Deterministic, in both directions. A bare
-                        -- `is_primary DESC` puts NULLs FIRST in Postgres, so a
-                        -- link with an unset flag outranked the real primary;
-                        -- and with two primaries the order between them was
-                        -- whatever the plan emitted. AthleteForm used to write
-                        -- position 0 back as the primary on every save, so an
-                        -- arbitrary row got promoted and a deliberate promotion
-                        -- made in the Crew modal was reverted (R78).
-                        ORDER BY ag.is_primary DESC NULLS LAST, ag.id
+                        -- Crew members are EQUAL: there is no primary guardian in
+                        -- this product (2026-09-02). `ag.is_primary` is legacy,
+                        -- unread and unwritten. Order by the link id so the list is
+                        -- deterministic and does not depend on physical row order,
+                        -- which a vacuum can change.
+                        ORDER BY ag.id
                     ");
                     $guardianStmt->execute([$id]);
                     $guardians = $guardianStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -284,15 +281,23 @@ try {
                            g.mobile_phone as primary_guardian_phone,
                            COALESCE(ateams.teams, '[]'::json) as teams
                     FROM athletes a
-                    -- One row per athlete: pick a single primary guardian. A plain
-                    -- JOIN multiplies rows when an athlete has >1 is_primary guardian
-                    -- (two-parent / blended households), which duplicated athlete ids
-                    -- and broke the frontend table (duplicate React keys → sort froze).
+                    -- One row per athlete. A plain JOIN multiplies rows when an
+                    -- athlete has more than one guardian (two-parent / blended
+                    -- households), which duplicated athlete ids and broke the
+                    -- frontend table (duplicate React keys → sort froze).
+                    --
+                    -- The `primary_guardian_*` keys are LEGACY and are kept
+                    -- populated for one release so an older deployed bundle does
+                    -- not blank its Crew column. There is no primary guardian in
+                    -- this product (2026-09-02) — this is simply the FIRST crew
+                    -- member by link id, and the full list is in `guardians`
+                    -- below. Delete these three keys once the frontend that reads
+                    -- them is gone.
                     LEFT JOIN LATERAL (
                         SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
                         FROM athlete_guardians ag
                         JOIN guardians gg ON gg.id = ag.guardian_id
-                        WHERE ag.athlete_id = a.id AND ag.is_primary = true
+                        WHERE ag.athlete_id = a.id
                         ORDER BY ag.id
                         LIMIT 1
                     ) g ON true
@@ -323,6 +328,11 @@ try {
                     $athleteRow['teams'] = is_array($decodedTeams) ? $decodedTeams : [];
                 }
                 unset($athleteRow);
+
+                // EVERY crew member, not a chosen one. Guardians are equal, so the
+                // list screen shows the whole family rather than electing a
+                // representative — one query for the page, keyed by athlete id.
+                te_attach_crew_to_athletes($pdo, $athletes);
 
                 echo json_encode(['success' => true, 'athletes' => $athletes]);
             }

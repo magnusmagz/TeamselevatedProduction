@@ -69,7 +69,7 @@ const ENTITIES_WITH_TEAM_ASSIGNMENT: Partial<Record<ImportEntity, boolean>> = {
 
 const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
   athletes: [
-    'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian1_is_primary,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
+    'athlete_first_name,athlete_last_name,athlete_dob,athlete_gender,athlete_grade_level,athlete_school,guardian1_first_name,guardian1_last_name,guardian1_email,guardian1_mobile,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_email,guardian2_mobile,guardian2_relationship',
     'Ashley,Adams,2018-03-24,Female,3,Lincoln Elementary,Ava,Adams,ava.adams@example.com,5551001000,Parent,true,,,,,',
     'Marcus,Jones,2014-06-15,Male,5,Roosevelt Middle,John,Jones,thejones@example.com,5551002000,Parent,true,Jane,Jones,thejones@example.com,5551002001,Parent',
   ].join('\n'),

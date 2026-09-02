@@ -420,7 +420,9 @@ class TryoutCoachInviteTest extends TestCase
 
         $this->assertTrue(te_tryout_coach_invite_send($this->pdo, $ctx, 'Dana Fields', $this->recorder()));
         $this->assertCount(1, $this->sent);
-        $this->assertSame('theRiveras@Gmail.com', $this->sent[0]['to']);
+        // The address kept is the FIRST crew member by link id (Jane, link 1) —
+        // not the one flagged primary in the fixture. Crew members are equal.
+        $this->assertSame('THERIVERAS@gmail.com', $this->sent[0]['to']);
     }
 
     /** With no guardian link at all, registrant_email is the fallback. */

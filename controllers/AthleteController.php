@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/db_actor.php';
+require_once __DIR__ . '/../lib/athlete_crew.php';
 
 class AthleteController {
     protected $db;
@@ -111,11 +112,16 @@ class AthleteController {
             if (!empty($data['guardian'])) {
                 $guardianId = $this->createOrFindGuardian($data['guardian']);
 
-                // Create relationship
+                // Create relationship.
+                //
+                // `is_primary` is deliberately absent from this INSERT. There is
+                // no primary guardian in this product (2026-09-02) — crew members
+                // are equal — so the column is left at its database default and
+                // never decided here.
                 $sql = "INSERT INTO athlete_guardians (
-                            athlete_id, guardian_id, relationship, is_primary, can_pickup
+                            athlete_id, guardian_id, relationship, can_pickup
                         ) VALUES (
-                            :athlete_id, :guardian_id, :relationship, :is_primary, :can_pickup
+                            :athlete_id, :guardian_id, :relationship, :can_pickup
                         )";
 
                 $stmt = $this->db->prepare($sql);
@@ -123,7 +129,6 @@ class AthleteController {
                     ':athlete_id' => $athleteId,
                     ':guardian_id' => $guardianId,
                     ':relationship' => $data['guardian']['relationship_type'] ?? 'Guardian',
-                    ':is_primary' => true,
                     ':can_pickup' => $data['guardian']['can_pickup'] ?? true,
                 ]);
             }
@@ -258,14 +263,28 @@ class AthleteController {
         $auth = $this->resolveAuth();
         $scope = \AthleteScope::accessibleAthleteFilter($this->db, $auth, 'a.id');
 
+        // The `primary_guardian_*` keys are LEGACY: there is no primary guardian
+        // in this product (2026-09-02). They are kept populated from the FIRST
+        // crew member by link id for one release so an older deployed bundle does
+        // not blank its Crew column, and the whole family is returned in
+        // `guardians`. Delete them once no frontend reads them.
+        //
+        // LATERAL, not a JOIN: joining athlete_guardians multiplies athlete rows
+        // for a two-parent household, which duplicates ids in the response.
         $sql = "SELECT
                     a.*,
                     CONCAT(g.first_name, ' ', g.last_name) as primary_guardian_name,
                     g.email as primary_guardian_email,
                     g.mobile_phone as primary_guardian_phone
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-                LEFT JOIN guardians g ON ag.guardian_id = g.id
+                LEFT JOIN LATERAL (
+                    SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                    FROM athlete_guardians ag
+                    JOIN guardians gg ON gg.id = ag.guardian_id
+                    WHERE ag.athlete_id = a.id
+                    ORDER BY ag.id
+                    LIMIT 1
+                ) g ON true
                 WHERE a.active_status = true
                 {$scope['sql']}
                 ORDER BY a.last_name, a.first_name";
@@ -273,6 +292,8 @@ class AthleteController {
         $stmt = $this->db->prepare($sql);
         $stmt->execute($scope['params']);
         $athletes = $stmt->fetchAll();
+
+        te_attach_crew_to_athletes($this->db, $athletes);
 
         echo json_encode($athletes);
     }
@@ -305,10 +326,14 @@ class AthleteController {
         }
 
         // Get guardians
-        $sql = "SELECT g.*, ag.relationship, ag.is_primary
+        // Ordered by the link id. Crew members are equal — there is no primary
+        // guardian to lead the list — but the order must not be the physical row
+        // order, which a vacuum can change.
+        $sql = "SELECT g.*, ag.relationship
                 FROM guardians g
                 JOIN athlete_guardians ag ON g.id = ag.guardian_id
-                WHERE ag.athlete_id = :athlete_id";
+                WHERE ag.athlete_id = :athlete_id
+                ORDER BY ag.id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':athlete_id' => $id]);
         $athlete['guardians'] = $stmt->fetchAll();
@@ -419,11 +444,16 @@ class AthleteController {
                 return;
             }
 
-            // Create relationship
+            // Create relationship.
+            //
+            // An `is_primary_contact` in the body is IGNORED rather than rejected:
+            // there is no primary guardian in this product (2026-09-02), and a
+            // deployed older bundle may still be sending the key. Refusing it
+            // would break a save that is otherwise entirely valid.
             $sql = "INSERT INTO athlete_guardians (
-                        athlete_id, guardian_id, relationship, is_primary, can_pickup
+                        athlete_id, guardian_id, relationship, can_pickup
                     ) VALUES (
-                        :athlete_id, :guardian_id, :relationship, :is_primary, :can_pickup
+                        :athlete_id, :guardian_id, :relationship, :can_pickup
                     )";
 
             $stmt = $this->db->prepare($sql);
@@ -431,7 +461,6 @@ class AthleteController {
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
                 ':relationship' => $data['relationship_type'] ?? 'Guardian',
-                ':is_primary' => $data['is_primary_contact'] ?? false,
                 ':can_pickup' => $data['can_pickup'] ?? true,
             ]);
 
@@ -491,29 +520,17 @@ class AthleteController {
 
     public function updateGuardianRelationship($athleteId, $guardianId) {
         $data = json_decode(file_get_contents('php://input'), true);
-        $isPrimary = $data['is_primary_contact'] ?? false;
 
         try {
             $this->db->beginTransaction();
 
-            if ($isPrimary) {
-                // Demote any other primary guardian on this athlete so only one stays primary
-                $demote = $this->db->prepare("
-                    UPDATE athlete_guardians
-                    SET is_primary = false
-                    WHERE athlete_id = :athlete_id
-                      AND guardian_id != :guardian_id
-                      AND is_primary = true
-                ");
-                $demote->execute([
-                    ':athlete_id' => $athleteId,
-                    ':guardian_id' => $guardianId,
-                ]);
-            }
-
+            // No promotion and no demotion. Crew members are equal (2026-09-02),
+            // so there is nothing to promote anyone above. An `is_primary_contact`
+            // in the body is IGNORED, not rejected — an older deployed bundle may
+            // still send it, and 400ing an otherwise valid save is worse than
+            // dropping a key that no longer means anything.
             $sql = "UPDATE athlete_guardians
                     SET relationship = :relationship,
-                        is_primary = :is_primary,
                         can_pickup = :can_pickup
                     WHERE athlete_id = :athlete_id AND guardian_id = :guardian_id";
 
@@ -522,7 +539,6 @@ class AthleteController {
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
                 ':relationship' => $data['relationship_type'] ?? 'Guardian',
-                ':is_primary' => $isPrimary,
                 ':can_pickup' => $data['can_pickup'] ?? true,
             ]);
 

@@ -10,7 +10,9 @@ interface Guardian {
   mobile_phone: string;
   work_phone?: string;
   relationship_type: string;
-  is_primary_contact?: boolean;
+  // ⚠️ No `is_primary_contact`. Crew members are equal (product rule,
+  // 2026-09-02): nothing here ranks one guardian above another, and the gateway
+  // neither reads nor writes athlete_guardians.is_primary.
   has_legal_custody?: boolean;
   can_authorize_medical?: boolean;
   can_pickup?: boolean;
@@ -128,7 +130,6 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
     mobile_phone: '',
     work_phone: '',
     relationship_type: 'Parent',
-    is_primary_contact: false,
     has_legal_custody: true,
     can_authorize_medical: true,
     can_pickup: true,
@@ -166,7 +167,6 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
           mobile_phone: '',
           work_phone: '',
           relationship_type: 'Parent',
-          is_primary_contact: false,
           has_legal_custody: true,
           can_authorize_medical: true,
           can_pickup: true,
@@ -294,11 +294,6 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                             <span className="px-2 py-1 bg-brand-primary text-white text-sm">
                               {guardian.relationship_type}
                             </span>
-                            {guardian.is_primary_contact && (
-                              <span className="px-2 py-1 bg-green-600 text-white text-sm">
-                                Primary Contact
-                              </span>
-                            )}
                             {renderStatusChip(guardian)}
                           </div>
 
@@ -330,22 +325,6 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                         {editingGuardian?.id === guardian.id && editingGuardian ? (
                           <div className="mt-4 space-y-2 border-t border-gray-300 pt-4">
                             <h6 className="text-brand-primary font-semibold">Permissions:</h6>
-                            <label className="flex items-center text-brand-primary">
-                              <input
-                                type="checkbox"
-                                className="mr-2"
-                                checked={editingGuardian.is_primary_contact || false}
-                                onChange={(e) => {
-                                  if (editingGuardian) {
-                                    setEditingGuardian({
-                                      ...editingGuardian,
-                                      is_primary_contact: e.target.checked
-                                    });
-                                  }
-                                }}
-                              />
-                              Primary Contact
-                            </label>
                             <label className="flex items-center text-brand-primary">
                               <input
                                 type="checkbox"
@@ -560,15 +539,6 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                 <div className="space-y-2 mb-4 border-t border-gray-300 pt-4">
                   <h5 className="text-brand-primary font-semibold">Permissions:</h5>
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="flex items-center text-brand-primary">
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={formData.is_primary_contact}
-                        onChange={(e) => handleChange('is_primary_contact', e.target.checked)}
-                      />
-                      Primary Contact
-                    </label>
                     <label className="flex items-center text-brand-primary">
                       <input
                         type="checkbox"

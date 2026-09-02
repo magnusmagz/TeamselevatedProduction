@@ -59,8 +59,21 @@ try {
                 END as payment_status
             FROM registrations r
             JOIN athletes a ON r.athlete_id = a.id
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-            LEFT JOIN guardians g ON ag.guardian_id = g.id
+            -- A contact for the family. There is no primary guardian in this product
+            -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
+            -- by link id rather than a ranked one. It used to join on
+            -- `ag.is_primary = true`, which stops matching the moment nothing writes
+            -- that column: every family added from then on would have shown a blank
+            -- billing contact, silently. LATERAL, not a JOIN, so a two-parent
+            -- household does not multiply the rows behind these totals.
+            LEFT JOIN LATERAL (
+                SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                FROM athlete_guardians ag
+                JOIN guardians gg ON gg.id = ag.guardian_id
+                WHERE ag.athlete_id = a.id
+                ORDER BY ag.id
+                LIMIT 1
+            ) g ON true
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id AND ap.program_id = r.program_id
             WHERE r.program_id = :program_id
             AND r.status = 'approved'
@@ -101,8 +114,21 @@ try {
                 END as payment_status
             FROM team_members tm
             JOIN athletes a ON tm.athlete_id = a.id
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-            LEFT JOIN guardians g ON ag.guardian_id = g.id
+            -- A contact for the family. There is no primary guardian in this product
+            -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
+            -- by link id rather than a ranked one. It used to join on
+            -- `ag.is_primary = true`, which stops matching the moment nothing writes
+            -- that column: every family added from then on would have shown a blank
+            -- billing contact, silently. LATERAL, not a JOIN, so a two-parent
+            -- household does not multiply the rows behind these totals.
+            LEFT JOIN LATERAL (
+                SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                FROM athlete_guardians ag
+                JOIN guardians gg ON gg.id = ag.guardian_id
+                WHERE ag.athlete_id = a.id
+                ORDER BY ag.id
+                LIMIT 1
+            ) g ON true
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             WHERE tm.team_id = :team_id
             AND a.active_status = true
@@ -138,8 +164,21 @@ try {
                 END as payment_status,
                 COUNT(DISTINCT ap.program_id) as program_count
             FROM athletes a
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-            LEFT JOIN guardians g ON ag.guardian_id = g.id
+            -- A contact for the family. There is no primary guardian in this product
+            -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
+            -- by link id rather than a ranked one. It used to join on
+            -- `ag.is_primary = true`, which stops matching the moment nothing writes
+            -- that column: every family added from then on would have shown a blank
+            -- billing contact, silently. LATERAL, not a JOIN, so a two-parent
+            -- household does not multiply the rows behind these totals.
+            LEFT JOIN LATERAL (
+                SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                FROM athlete_guardians ag
+                JOIN guardians gg ON gg.id = ag.guardian_id
+                WHERE ag.athlete_id = a.id
+                ORDER BY ag.id
+                LIMIT 1
+            ) g ON true
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
             WHERE (a.club_id = :league_id OR p.club_id = :league_id)
@@ -173,8 +212,21 @@ try {
                 END as payment_status,
                 COUNT(DISTINCT ap.program_id) as program_count
             FROM athletes a
-            LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-            LEFT JOIN guardians g ON ag.guardian_id = g.id
+            -- A contact for the family. There is no primary guardian in this product
+            -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
+            -- by link id rather than a ranked one. It used to join on
+            -- `ag.is_primary = true`, which stops matching the moment nothing writes
+            -- that column: every family added from then on would have shown a blank
+            -- billing contact, silently. LATERAL, not a JOIN, so a two-parent
+            -- household does not multiply the rows behind these totals.
+            LEFT JOIN LATERAL (
+                SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone
+                FROM athlete_guardians ag
+                JOIN guardians gg ON gg.id = ag.guardian_id
+                WHERE ag.athlete_id = a.id
+                ORDER BY ag.id
+                LIMIT 1
+            ) g ON true
             LEFT JOIN athlete_payments ap ON a.id = ap.athlete_id
             LEFT JOIN programs p ON ap.program_id = p.id
             WHERE p.club_id = :club_id

@@ -158,6 +158,10 @@ refreshed, diff = the three columns. Smoke test 75/75, PHP suite 912.
 - **R78 primary guardian sticks.** Cause was `AthleteForm.tsx` writing primary by list
   position on every save. Existing athletes with two primary links are untouched —
   `scripts/report-duplicate-primaries.php` lists them (read-only) for a decision.
+  ⚠️ **Superseded the same week:** on 2026-09-02 Maggie reaffirmed that there is no
+  primary parent/guardian in Teams Elevated — guardians are equal — so the concept was
+  removed end to end rather than repaired, and that script was deleted. The two primary
+  links those athletes carry are now data nobody reads.
 - **R89–R91 programs**: reorder (move up/down), archive without deleting, collapsible
   type sections. Admin-only writes, audited.
 - Lint ratchet 74 → 50.

@@ -35,16 +35,18 @@ try {
     }
 
     // Fetch guardians
-    // Aliases (relationship_type, is_primary_contact) preserve the key names
-    // the frontend TypeScript interfaces expect from the MySQL-era schema.
+    // The `relationship_type` alias preserves the key name the frontend
+    // TypeScript interfaces expect from the MySQL-era schema. `is_primary_contact`
+    // is gone: there is no primary guardian in this product (2026-09-02) and crew
+    // members are equal, so the whole list comes back unranked, ordered by the
+    // link id — deterministic, and not the physical row order a vacuum can change.
     $guardiansQuery = "
         SELECT g.*, ag.relationship AS relationship_type,
-               ag.is_primary AS is_primary_contact,
                ag.can_pickup, ag.emergency_contact
         FROM guardians g
         INNER JOIN athlete_guardians ag ON g.id = ag.guardian_id
         WHERE ag.athlete_id = ?
-        ORDER BY ag.is_primary DESC, g.last_name, g.first_name
+        ORDER BY ag.id
     ";
     $stmt = $pdo->prepare($guardiansQuery);
     $stmt->execute([$athleteId]);

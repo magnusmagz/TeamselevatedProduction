@@ -40,10 +40,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        g.last_name as guardian_last_name,
                        g.email as guardian_email,
                        g.mobile_phone as guardian_phone,
-                       ag.relationship
+                       g.relationship
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-                LEFT JOIN guardians g ON ag.guardian_id = g.id
+                -- LEGACY `guardian_*` keys. There is no primary guardian
+                -- (2026-09-02); this is the FIRST crew member by link id, and the
+                -- whole family is in `guardians` below. LATERAL, not a JOIN, so a
+                -- two-parent household does not duplicate the athlete row.
+                LEFT JOIN LATERAL (
+                    SELECT gg.first_name, gg.last_name, gg.email, gg.mobile_phone,
+                           ag.relationship
+                    FROM athlete_guardians ag
+                    JOIN guardians gg ON gg.id = ag.guardian_id
+                    WHERE ag.athlete_id = a.id
+                    ORDER BY ag.id
+                    LIMIT 1
+                ) g ON true
                 WHERE a.id = ?
                   AND a.active_status = true
             ";
@@ -60,10 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             // Get all guardians
             $guardiansQuery = "
-                SELECT g.*, ag.relationship, ag.is_primary
+                SELECT g.*, ag.relationship
                 FROM guardians g
                 INNER JOIN athlete_guardians ag ON g.id = ag.guardian_id
                 WHERE ag.athlete_id = ?
+                ORDER BY ag.id
             ";
             $stmt = $pdo->prepare($guardiansQuery);
             $stmt->execute([$athleteId]);
@@ -101,8 +113,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        g.email as primary_guardian_email,
                        g.mobile_phone as primary_guardian_phone
                 FROM athletes a
-                LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
-                LEFT JOIN guardians g ON ag.guardian_id = g.id
+                -- LEGACY keys, first crew member by link id — see above.
+                LEFT JOIN LATERAL (
+                    SELECT gg.first_name, gg.email, gg.mobile_phone
+                    FROM athlete_guardians ag
+                    JOIN guardians gg ON gg.id = ag.guardian_id
+                    WHERE ag.athlete_id = a.id
+                    ORDER BY ag.id
+                    LIMIT 1
+                ) g ON true
                 WHERE a.active_status = true
                 ORDER BY a.last_name, a.first_name
             ";
@@ -222,24 +241,15 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Link guardian to athlete.
             //
-            // Only the FIRST crew member an athlete gets is primary. `is_primary`
-            // was a literal `true` here, which is how an athlete ended up with two
-            // primary links and "who is primary" stopped having an answer (R78).
-            // Ask the database rather than assume: this is a fresh athlete today,
-            // but the assumption is not visible at the call site and the same
-            // literal already cost us once in registrations-api.php.
-            $primaryCheck = $pdo->prepare(
-                "SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND is_primary LIMIT 1"
-            );
-            $primaryCheck->execute([$athleteId]);
-            $isPrimary = $primaryCheck->fetchColumn() ? 'false' : 'true';
-
+            // `is_primary` is not written. There is no primary guardian in this
+            // product (2026-09-02) — crew members are equal — so nothing here
+            // decides which of a family's adults represents it.
             $linkQuery = "
                 INSERT INTO athlete_guardians (
-                    athlete_id, guardian_id, relationship, is_primary,
+                    athlete_id, guardian_id, relationship,
                     can_pickup, emergency_contact
                 ) VALUES (
-                    :athlete_id, :guardian_id, :relationship, :is_primary::boolean, true, true
+                    :athlete_id, :guardian_id, :relationship, true, true
                 )
             ";
 
@@ -247,8 +257,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
-                ':relationship' => $guardian['relationship'] ?? 'Guardian',
-                ':is_primary' => $isPrimary
+                ':relationship' => $guardian['relationship'] ?? 'Guardian'
             ]);
         }
 

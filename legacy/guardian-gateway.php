@@ -41,7 +41,6 @@ try {
                 $stmt = $pdo->prepare("
                     SELECT ag.id as relationship_id,
                            ag.relationship as relationship_type,
-                           ag.is_primary as is_primary_contact,
                            ag.can_pickup,
                            ag.emergency_contact,
                            g.id as guardian_id,
@@ -53,7 +52,9 @@ try {
                     FROM athlete_guardians ag
                     JOIN guardians g ON ag.guardian_id = g.id
                     WHERE ag.athlete_id = ?
-                    ORDER BY ag.is_primary DESC, g.first_name ASC
+                    -- Crew members are equal (2026-09-02): no primary leads the
+                    -- list. Link id first so the order is stable across vacuums.
+                    ORDER BY ag.id
                 ");
                 $stmt->execute([$athleteId]);
                 $guardians = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -215,9 +216,19 @@ try {
                     $guardianId = $pdo->lastInsertId();
                 }
 
-                // Link guardian to athlete
+                // Link guardian to athlete.
+                //
+                // `is_primary` is NOT written here, and an `is_primary_contact` in
+                // the body is ignored rather than rejected. There is no primary
+                // guardian in this product (2026-09-02) — crew members are equal —
+                // and a deployed older bundle still posts the key on every athlete
+                // save, so a 400 would break saves that are otherwise valid.
+                //
+                // ⚠️ Omitting the key from the payload is NOT enough on its own:
+                // this branch used to coerce a missing key to 'false' and write it,
+                // so it always decided the column. The column had to leave the
+                // statements, which is what the lines below do.
                 // Convert boolean values to proper format for PostgreSQL
-                $isPrimary = !empty($input['is_primary_contact']) && $input['is_primary_contact'] !== 'false' ? 'true' : 'false';
                 $canPickup = (!isset($input['can_pickup']) || $input['can_pickup'] === true || $input['can_pickup'] === 'true' || $input['can_pickup'] === 1) ? 'true' : 'false';
                 $emergencyContact = !empty($input['emergency_contact']) && $input['emergency_contact'] !== 'false' ? 'true' : 'false';
 
@@ -229,26 +240,15 @@ try {
                 $existingLink->execute([$athleteId, $guardianId]);
                 $linkRow = $existingLink->fetch(PDO::FETCH_ASSOC);
 
-                // If this new link is primary, demote any other primary guardian
-                // on this athlete so exactly one stays primary (mirrors the PUT
-                // path). Without this, adding a second "primary contact" left two.
-                if ($isPrimary === 'true') {
-                    $demote = $pdo->prepare(
-                        "UPDATE athlete_guardians SET is_primary = false WHERE athlete_id = ? AND is_primary = true"
-                    );
-                    $demote->execute([$athleteId]);
-                }
-
                 if ($linkRow) {
                     $stmt = $pdo->prepare("
                         UPDATE athlete_guardians
-                        SET relationship = ?, is_primary = ?::boolean,
+                        SET relationship = ?,
                             can_pickup = ?::boolean, emergency_contact = ?::boolean
                         WHERE id = ?
                     ");
                     $stmt->execute([
                         $relationship_type,
-                        $isPrimary,
                         $canPickup,
                         $emergencyContact,
                         $linkRow['id']
@@ -257,14 +257,13 @@ try {
                     $stmt = $pdo->prepare("
                         INSERT INTO athlete_guardians (
                             athlete_id, guardian_id, relationship,
-                            is_primary, can_pickup, emergency_contact
-                        ) VALUES (?, ?, ?, ?::boolean, ?::boolean, ?::boolean)
+                            can_pickup, emergency_contact
+                        ) VALUES (?, ?, ?, ?::boolean, ?::boolean)
                     ");
                     $stmt->execute([
                         $athleteId,
                         $guardianId,
                         $relationship_type,
-                        $isPrimary,
                         $canPickup,
                         $emergencyContact
                     ]);
@@ -289,8 +288,8 @@ try {
 
             // STAFF ONLY. Like the POST above, this had no scope check at all —
             // it trusted a bare athlete_guardians row id, so any authenticated
-            // user could walk ids and flip `can_pickup`, `emergency_contact` or
-            // `is_primary` on any family in any club. `can_pickup` decides who is
+            // user could walk ids and flip `can_pickup` or `emergency_contact`
+            // on any family in any club. `can_pickup` decides who is
             // allowed to collect a child from a session, which makes this a child
             // safety field rather than a preference.
             $ownerStmt = $pdo->prepare("SELECT athlete_id FROM athlete_guardians WHERE id = ?");
@@ -313,9 +312,14 @@ try {
             $updateValues = [];
 
             // [inputField => [dbColumn, isBoolean]]
+            //
+            // `is_primary_contact` is deliberately absent. Crew members are equal
+            // (2026-09-02), so there is no primary to set — and because this loop
+            // binds on array_key_exists, dropping the entry is exactly what makes
+            // the key ignored rather than rejected: an older bundle can keep
+            // sending it and the rest of the update still applies.
             $fieldMapping = [
                 'relationship_type'  => ['relationship',       false],
-                'is_primary_contact' => ['is_primary',         true],
                 'can_pickup'         => ['can_pickup',         true],
                 'emergency_contact'  => ['emergency_contact',  true],
             ];
@@ -334,25 +338,9 @@ try {
                 }
             }
 
-            $promotingToPrimary = array_key_exists('is_primary_contact', $input)
-                && !empty($input['is_primary_contact'])
-                && $input['is_primary_contact'] !== 'false';
-
             if (!empty($updateFields)) {
                 $pdo->beginTransaction();
                 try {
-                    if ($promotingToPrimary) {
-                        // Demote any other primary guardian on this athlete so only one stays primary
-                        $demoteStmt = $pdo->prepare("
-                            UPDATE athlete_guardians
-                            SET is_primary = false
-                            WHERE athlete_id = (SELECT athlete_id FROM athlete_guardians WHERE id = ?)
-                              AND id != ?
-                              AND is_primary = true
-                        ");
-                        $demoteStmt->execute([$relationshipId, $relationshipId]);
-                    }
-
                     $updateValues[] = $relationshipId;
                     $stmt = $pdo->prepare("
                         UPDATE athlete_guardians
