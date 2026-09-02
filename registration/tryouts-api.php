@@ -230,10 +230,10 @@ function tryout_requireClubAdminForClub($auth, $clubId): int
     if ($clubId === null || $clubId === '' || (int) $clubId <= 0) {
         tryout_refuse(400, 'club_id is required');
     }
-    // Staff, not admin-only: /program-management has no role gate and every coach
-    // sees "Create Tryout" today (App.tsx nav, TryoutManagement.tsx). Narrowing to
-    // te_is_club_admin is a product decision, not a security fix — one token here.
-    if (!te_is_club_staff($auth, (int) $clubId)) {
+    // Admin-only (Maggie, 2026-09-02, decisions doc item 3): creating a tryout is a
+    // club-admin action. If clubs need coaches to do it, the revisit path is a per-role
+    // permission toggle, not widening this back to staff.
+    if (!te_is_club_admin($auth, (int) $clubId)) {
         tryout_refuse(403, 'You do not have access to this club');
     }
 
