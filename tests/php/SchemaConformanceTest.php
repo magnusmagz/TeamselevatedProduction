@@ -36,6 +36,40 @@ class SchemaConformanceTest extends TestCase
         'api/practices.php'               => 'writes to `events` (now calendar_events); no frontend callers',
     ];
 
+    /**
+     * Columns that a WRITTEN migration adds but that are not in Neon yet.
+     *
+     * Migrations in this repo are applied to Neon BY HAND, and the fixture is a
+     * snapshot of what is actually live — so between committing a migration and
+     * running it there is a window where correct code names a column this test
+     * cannot find. Refreshing the fixture early would be worse than this list: it
+     * would assert the column exists in production when it does not, which is the
+     * exact lie that let `MergeFieldService` query a table nobody had.
+     *
+     * ⚠️ This is not a suppression list. Every entry is checked by
+     * testPendingMigrationEntriesAreStillPending() below, which fails when the
+     * migration has landed in the fixture — so an entry cannot outlive the window
+     * it was added for. Delete the entry in the same commit as the fixture refresh.
+     *
+     * Nothing may be added here for a column that has no migration file.
+     */
+    private const PENDING_MIGRATION = [
+        // Migration 083 — what a scheduled broadcast has to say, and what happened
+        // when it didn't. Written 2026-09-02, deliberately not applied: the code
+        // ships first and degrades (te_broadcast_scheduled_columns_present) so that
+        // `main` reaching production ahead of the hand-applied migration is safe.
+        'broadcast_campaigns.body'           => '083_broadcast_campaign_body.sql',
+        'broadcast_campaigns.html_body'      => '083_broadcast_campaign_body.sql',
+        'broadcast_campaigns.event_id'       => '083_broadcast_campaign_body.sql',
+        'broadcast_campaigns.failure_reason' => '083_broadcast_campaign_body.sql',
+    ];
+
+    /** Is this column merely waiting on a migration that is already written? */
+    private static function isPendingMigration(string $table, string $col): bool
+    {
+        return array_key_exists("$table.$col", self::PENDING_MIGRATION);
+    }
+
     public static function setUpBeforeClass(): void
     {
         $path = __DIR__ . '/../fixtures/production-schema.json';
@@ -104,7 +138,8 @@ class SchemaConformanceTest extends TestCase
                     $col = trim($raw, " \t\n\r\"`");
                     // Skip SQL comment lines and anything that isn't a bare identifier.
                     if ($col === '' || !preg_match('/^[a-zA-Z_][\w]*$/', $col)) continue;
-                    if (!in_array($col, self::$schema[$table], true)) {
+                    if (!in_array($col, self::$schema[$table], true)
+                        && !self::isPendingMigration($table, $col)) {
                         $violations[] = "$rel: $table.$col does not exist";
                     }
                 }
@@ -138,7 +173,8 @@ class SchemaConformanceTest extends TestCase
                 }
                 if (!preg_match_all('/([a-zA-Z_][\w]*)\s*=/', $m[2], $cols)) continue;
                 foreach ($cols[1] as $col) {
-                    if (!in_array($col, self::$schema[$table], true)) {
+                    if (!in_array($col, self::$schema[$table], true)
+                        && !self::isPendingMigration($table, $col)) {
                         $violations[] = "$rel: $table.$col does not exist (UPDATE)";
                     }
                 }
@@ -186,6 +222,39 @@ class SchemaConformanceTest extends TestCase
     }
 
     /** The schema fixture must cover the tables these fixes depend on. */
+    /**
+     * Every PENDING_MIGRATION entry must still be pending, and must be real.
+     *
+     * Three ways an entry can be wrong, and each is a failure:
+     *   - the migration file it names is gone, so nothing will ever add the column;
+     *   - the migration does not actually mention the column, so the entry is a
+     *     typo or a guess and the real SQL is unguarded;
+     *   - the column IS in the fixture now, meaning the migration was applied and
+     *     the entry is silently exempting a live column from every future check.
+     *
+     * The last one is the point. Without it this list becomes the place bad SQL
+     * goes to be forgotten, which is what KNOWN_BROKEN already warns about.
+     */
+    public function testPendingMigrationEntriesAreStillPending(): void
+    {
+        $dir = __DIR__ . '/../../database/migrations/';
+
+        foreach (self::PENDING_MIGRATION as $qualified => $migration) {
+            [$table, $col] = explode('.', $qualified, 2);
+
+            $this->assertFileExists($dir . $migration,
+                "PENDING_MIGRATION names $migration for $qualified, but that migration does not exist.");
+
+            $this->assertStringContainsString($col, file_get_contents($dir . $migration),
+                "$migration does not mention `$col` — the PENDING_MIGRATION entry for $qualified is wrong, " .
+                'so the real SQL is going unchecked.');
+
+            $this->assertNotContains($col, self::$schema[$table] ?? [],
+                "$qualified is in the schema fixture now, so $migration has been applied. " .
+                'Delete its PENDING_MIGRATION entry — leaving it exempts a live column from this test forever.');
+        }
+    }
+
     public function testFixtureCoversCriticalTables(): void
     {
         foreach (['athlete_medical', 'emergency_contacts', 'athlete_guardians', 'team_members',

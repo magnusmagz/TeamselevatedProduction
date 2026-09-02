@@ -3,7 +3,9 @@
 use PHPUnit\Framework\TestCase;
 
 // Load the gateway for its resolution helpers only — no dispatch, no Neon connect.
-define('TE_COMMUNICATIONS_LIB_ONLY', true);
+if (!defined('TE_COMMUNICATIONS_LIB_ONLY')) {
+    define('TE_COMMUNICATIONS_LIB_ONLY', true);
+}
 require_once __DIR__ . '/../../api/communications-gateway.php';
 
 /**
