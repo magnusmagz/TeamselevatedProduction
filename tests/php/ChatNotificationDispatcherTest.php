@@ -36,6 +36,15 @@ class ChatNotificationDispatcherTest extends TestCase
             CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT);
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            -- Guardian identity is te_guardian_link_sql(): user_guardians links UNION the
+            -- email match. The table must exist even when a test seeds no rows into it, or
+            -- every audience query errors instead of falling through to the email branch.
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL, guardian_id INTEGER NOT NULL,
+                source TEXT, confidence TEXT, linked_by INTEGER, created_at TEXT,
+                UNIQUE (user_id, guardian_id)
+            );
             CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT, club_id INTEGER, primary_coach_id INTEGER);
             CREATE TABLE team_members (id INTEGER PRIMARY KEY, team_id INTEGER, user_id INTEGER,
                                        athlete_id INTEGER, role TEXT, status TEXT);

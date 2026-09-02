@@ -1,5 +1,7 @@
 'use strict';
 
+const { GUARDIAN_JOIN_SQL } = require('./guardian_identity');
+
 /**
  * Who a user is permitted to start a conversation with.
  *
@@ -47,10 +49,14 @@
  * conversations. The picker is UX; this is the boundary.
  */
 const ALLOWED_PARTICIPANTS_SQL = `
-  -- Guardians of athletes on teams the creator can access
+  -- Guardians of athletes on teams the creator can access.
+  -- Identity via lib/guardian_identity.js: user_guardians links UNION the email
+  -- match. Widening the boundary is the intent — a guardian whose login address
+  -- differs from their guardian record was previously unreachable by DM, which
+  -- read as "that parent does not exist" rather than as a permissions refusal.
   SELECT DISTINCT u.id AS user_id
   FROM users u
-  JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
+  ${GUARDIAN_JOIN_SQL}
   JOIN athlete_guardians ag ON ag.guardian_id = g.id
   JOIN athletes a ON a.id = ag.athlete_id
   JOIN team_members tm ON tm.athlete_id = a.id

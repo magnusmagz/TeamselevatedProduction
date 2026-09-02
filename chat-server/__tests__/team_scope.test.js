@@ -12,6 +12,7 @@ const {
   CLUB_TEAM_IDS_SQL,
   mergeTeamIds,
 } = require('../lib/team_scope');
+const { GUARDIAN_JOIN_SQL } = require('../lib/guardian_identity');
 
 const serverSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
@@ -64,9 +65,27 @@ test('coach scope does not admit player memberships', () => {
 });
 
 test('guardian scope walks the athlete chain, not team_members.user_id', () => {
-  assert.match(GUARDIAN_TEAM_IDS_SQL, /JOIN guardians g ON LOWER\(g\.email\) = LOWER\(u\.email\)/);
+  assert.match(GUARDIAN_TEAM_IDS_SQL, /JOIN guardians g ON/);
   assert.match(GUARDIAN_TEAM_IDS_SQL, /athlete_guardians/);
   assert.match(GUARDIAN_TEAM_IDS_SQL, /tm\.athlete_id = a\.id/);
+});
+
+/**
+ * Identity is resolved by lib/guardian_identity.js, not by an inlined email
+ * comparison: recorded user_guardians links UNION the case-insensitive email
+ * match. Asserting the SHARED constant rather than the literal SQL is the point —
+ * it is what keeps this query, the DM allowlist, the participant picker and
+ * lib/chat_notification_scope.php on one answer. Behaviour is proved against a
+ * real database in __tests__/guardian_identity.test.js.
+ */
+test('guardian identity comes from the shared resolver, both branches', () => {
+  assert.strictEqual(
+    GUARDIAN_TEAM_IDS_SQL.includes(GUARDIAN_JOIN_SQL),
+    true,
+    'team scope must use the shared guardian join verbatim'
+  );
+  assert.match(GUARDIAN_TEAM_IDS_SQL, /EXISTS \(SELECT 1 FROM user_guardians ug/);
+  assert.match(GUARDIAN_TEAM_IDS_SQL, /LOWER\(g\.email\) = LOWER\(u\.email\)/);
 });
 
 test('club query is parameterised by club, not open', () => {

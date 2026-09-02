@@ -6,15 +6,33 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('../lib/participants');
+const { GUARDIAN_JOIN_SQL } = require('../lib/guardian_identity');
 
 const serverSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
 // ─── The allowlist shape ─────────────────────────────────────────────────────
 
 test('allowed set is built from guardians and club staff', () => {
-  assert.match(ALLOWED_PARTICIPANTS_SQL, /JOIN guardians g ON LOWER\(g\.email\) = LOWER\(u\.email\)/);
+  assert.match(ALLOWED_PARTICIPANTS_SQL, /JOIN guardians g ON/);
   assert.match(ALLOWED_PARTICIPANTS_SQL, /FROM user_club_access uca/);
   assert.match(ALLOWED_PARTICIPANTS_SQL, /UNION/);
+});
+
+/**
+ * The guardian half of the allowlist resolves identity through
+ * lib/guardian_identity.js — user_guardians links UNION the email match — so a
+ * parent whose login address differs from their guardian record is reachable by
+ * DM. Previously they were not, and it read as "that parent does not exist"
+ * rather than as a refusal.
+ */
+test('the guardian branch uses the shared resolver, both branches', () => {
+  assert.strictEqual(
+    ALLOWED_PARTICIPANTS_SQL.includes(GUARDIAN_JOIN_SQL),
+    true,
+    'the DM boundary must use the shared guardian join verbatim'
+  );
+  assert.match(ALLOWED_PARTICIPANTS_SQL, /EXISTS \(SELECT 1 FROM user_guardians ug/);
+  assert.match(ALLOWED_PARTICIPANTS_SQL, /LOWER\(g\.email\) = LOWER\(u\.email\)/);
 });
 
 test('staff branch is limited to club_admin and coach, and to the active row', () => {

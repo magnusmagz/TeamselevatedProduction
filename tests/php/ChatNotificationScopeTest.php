@@ -39,6 +39,12 @@ class ChatNotificationScopeTest extends TestCase
             CREATE TABLE guardians (id INTEGER PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT);
             CREATE TABLE athletes (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, deleted_at TEXT);
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER);
+            CREATE TABLE user_guardians (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL, guardian_id INTEGER NOT NULL,
+                source TEXT, confidence TEXT, linked_by INTEGER, created_at TEXT,
+                UNIQUE (user_id, guardian_id)
+            );
             CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT, club_id INTEGER, primary_coach_id INTEGER);
             CREATE TABLE team_members (
                 id INTEGER PRIMARY KEY, team_id INTEGER, user_id INTEGER, athlete_id INTEGER,
@@ -272,6 +278,72 @@ class ChatNotificationScopeTest extends TestCase
             2,
             te_chat_conversation_audience($this->pdo, 55),
             'Guardian email comparison must LOWER() both sides, or one capital letter empties a family.'
+        );
+    }
+
+    /**
+     * The case this phase exists for: a parent whose LOGIN address is not the
+     * address on their guardian record. Allix Boyce signed in on @gmail while her
+     * guardian row said @yahoo, and nothing could derive her standing — her chat
+     * list was empty and she was owed no notification about it either.
+     *
+     * `user_guardians` (migration 072) records the relationship as a row, so the
+     * two addresses no longer have to agree. This mirrors the same union in
+     * chat-server/lib/guardian_identity.js; if the two ever disagree we either
+     * mail someone a link to a 403, or silently stop telling a family that their
+     * coach messaged them.
+     */
+    public function testALinkedGuardianIsNotifiedEvenWhenTheEmailsDiffer(): void
+    {
+        $this->pdo->exec("
+            INSERT INTO users (id, email, first_name, last_name) VALUES
+                (4, 'new-address@example.com', 'Robin', 'Moved');
+
+            INSERT INTO guardians (id, email, first_name, last_name) VALUES
+                (501, 'old-address@example.com', 'Robin', 'Moved');
+
+            INSERT INTO athletes (id, first_name, last_name) VALUES (101, 'Rae', 'Moved');
+            INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES (901, 101, 501);
+            INSERT INTO team_members (id, team_id, user_id, athlete_id, role, status)
+                VALUES (702, 10, NULL, 101, 'player', 'active');
+
+            INSERT INTO user_guardians (user_id, guardian_id, source) VALUES (4, 501, 'admin');
+        ");
+
+        $this->assertContains(
+            4,
+            te_chat_conversation_audience($this->pdo, 55),
+            'A recorded user_guardians link must confer chat standing on its own. '
+            . 'Requiring the two email columns to agree is the bug migration 072 removed.'
+        );
+    }
+
+    /**
+     * The email branch is guarded on the USER's address being non-blank, and that
+     * guard is load-bearing rather than defensive. `guardians.email` is NOT NULL
+     * and 24 production rows hold `''`; in SQL `'' = ''` is true, so an account
+     * with a blank address would otherwise be treated as a guardian of every one
+     * of those unrelated families at once — and be mailed their team chat.
+     */
+    public function testABlankEmailDoesNotMatchEveryBlankGuardian(): void
+    {
+        $this->pdo->exec("
+            INSERT INTO users (id, email, first_name, last_name) VALUES
+                (5, '', 'Blank', 'Account');
+
+            INSERT INTO guardians (id, email, first_name, last_name) VALUES
+                (502, '', 'Someone', 'Else');
+
+            INSERT INTO athletes (id, first_name, last_name) VALUES (102, 'Not', 'Related');
+            INSERT INTO athlete_guardians (id, athlete_id, guardian_id) VALUES (902, 102, 502);
+            INSERT INTO team_members (id, team_id, user_id, athlete_id, role, status)
+                VALUES (703, 10, NULL, 102, 'player', 'active');
+        ");
+
+        $this->assertNotContains(
+            5,
+            te_chat_conversation_audience($this->pdo, 55),
+            'A blank login address must not collapse into every blank guardian row.'
         );
     }
 

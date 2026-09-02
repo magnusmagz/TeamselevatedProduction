@@ -17,6 +17,7 @@ const {
   MARK_READ_SQL,
 } = require('./lib/archive');
 const { ALLOWED_PARTICIPANTS_SQL, disallowedParticipants } = require('./lib/participants');
+const { GUARDIAN_JOIN_SQL } = require('./lib/guardian_identity');
 const {
   expandsToWholeClub,
   COACH_TEAM_IDS_SQL,
@@ -172,7 +173,10 @@ function getClubId(payload) {
 
 /**
  * Get team IDs that a parent has access to via the guardian chain:
- * users.email → guardians.email → athlete_guardians → athletes → team_members
+ * users → guardians → athlete_guardians → athletes → team_members
+ *
+ * The first hop is lib/guardian_identity.js — user_guardians links UNION the
+ * case-insensitive email match — not a bare email comparison.
  */
 async function getParentTeamIds(userId) {
   try {
@@ -588,7 +592,7 @@ async function getTeamMembersForPicker(teamId) {
   const parents = await pool.query(`
     SELECT DISTINCT u.id AS "userId", CONCAT(u.first_name, ' ', u.last_name) AS "displayName", 'parent' AS role
     FROM users u
-    JOIN guardians g ON LOWER(g.email) = LOWER(u.email)
+    ${GUARDIAN_JOIN_SQL}
     JOIN athlete_guardians ag ON ag.guardian_id = g.id
     JOIN athletes a ON a.id = ag.athlete_id
     JOIN team_members tm ON tm.athlete_id = a.id
