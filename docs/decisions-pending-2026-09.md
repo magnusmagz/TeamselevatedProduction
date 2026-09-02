@@ -93,8 +93,14 @@ field set, and the Maps key and component are in place. Needs one retest in prod
 
 ## Carried from the roadmap plan
 
-### 7. Spanish interface (R69) — DEFERRED 2026-09-02
-**Maggie:** still a nice-to-have; browser translation is enough for now. Revisit later.
+### 7. Spanish (R69) — REVISED 2026-09-02: scope outbound comms, examine the portal
+**Maggie:** the portal itself stays browser-translated for now. Worth doing later: a language
+preference on every user's profile (parents, coaches, admins), and a Spanish version of each
+email/SMS template that is sent when the preference is Spanish, falling back to English when
+there is no preference or no Spanish version. Scope written to
+`docs/spanish-outbound-comms-scope.md` and slotted for later. Second: examine how much of the
+parent portal would need translating (a table of strings with translations) — she suspects it is
+light.
 
 _Original item:_
 Needs an i18n framework choice and a translation cost on every new screen from then on.

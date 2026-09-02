@@ -16,6 +16,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/impersonation.php';
+require_once __DIR__ . '/../lib/org_scope.php';
 require_once __DIR__ . '/../lib/role_cache.php';
 
 // Require authentication
@@ -197,6 +198,56 @@ try {
             if ($method !== 'POST') { throw new Exception('POST method required'); }
             $data = json_decode(file_get_contents('php://input'), true);
             handleImpersonate($pdo, $data, $auth);
+            break;
+
+        // ── Organizations (GOTR G1) ──────────────────────────────────────────
+        //
+        // The tier above the club. Every one of these actions is super-admin
+        // only, by the gate at the top of this file — there is no per-action
+        // check because there is no action here a non-super-admin may reach.
+        // Building the tree decides which councils roll up to which division,
+        // which is a platform-shaped decision, not a club's.
+        //
+        // Each action tolerates migration 090 being unapplied: the reader
+        // answers `available: false` and the writers answer 503 with a sentence,
+        // rather than 500ing on a missing table.
+        case 'org-units':
+            handleOrgUnits($pdo);
+            break;
+
+        case 'org-unit-save':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgUnitSave($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth);
+            break;
+
+        case 'org-unit-move':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgUnitMove($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth);
+            break;
+
+        case 'org-unit-delete':
+            if ($method !== 'DELETE') { throw new Exception('DELETE method required'); }
+            handleOrgUnitDelete($pdo, (int) ($_GET['id'] ?? 0), $auth);
+            break;
+
+        case 'org-unit-attach-club':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgUnitAttachClub($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth, true);
+            break;
+
+        case 'org-unit-detach-club':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgUnitAttachClub($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth, false);
+            break;
+
+        case 'org-access-grant':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgAccessGrant($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth);
+            break;
+
+        case 'org-access-revoke':
+            if ($method !== 'POST') { throw new Exception('POST method required'); }
+            handleOrgAccessRevoke($pdo, json_decode(file_get_contents('php://input'), true) ?: [], $auth);
             break;
 
         default:
@@ -761,4 +812,247 @@ function handleImpersonate($pdo, $data, $auth) {
         ],
     ]);
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Organizations (GOTR G1, migration 090)
+//
+// Thin. Every decision — validation, path maintenance, cycle refusal, the
+// not-empty refusal on delete — lives in lib/org_scope.php, where a test can
+// execute it. A procedural gateway that reads php://input and echoes JSON can
+// only ever be asserted about by grepping its source, which is why
+// OrgScopeTest's last test parses this file rather than trusting it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 503 + a sentence when migration 090 has not been applied yet. */
+function orgSchemaUnavailable(): void
+{
+    http_response_code(503);
+    echo json_encode([
+        'error' => 'Organizations are not set up on this environment yet (migration 090).',
+        'reason' => 'schema',
+        'available' => false,
+    ]);
+}
+
+/** Map a lib refusal onto a status code and a message the page can show. */
+function orgRefusal(array $result): void
+{
+    $reason = $result['reason'] ?? 'error';
+    $codes = [
+        'schema' => 503,
+        'not_found' => 404,
+        'parent_not_found' => 404,
+        'club_not_found' => 404,
+        'name_required' => 400,
+        'bad_type' => 400,
+        'bad_role' => 400,
+        'cycle' => 409,
+        'not_empty' => 409,
+    ];
+    $messages = [
+        'schema' => 'Organizations are not set up on this environment yet (migration 090).',
+        'not_found' => 'That organization unit no longer exists.',
+        'parent_not_found' => 'That parent organization unit no longer exists.',
+        'club_not_found' => 'That club no longer exists.',
+        'name_required' => 'A name is required.',
+        'bad_type' => 'Type must be national, division or council.',
+        'bad_role' => 'Role must be org_admin or org_viewer.',
+        'cycle' => 'A unit cannot be moved underneath itself.',
+        'not_empty' => 'Detach its clubs and move its children first.',
+    ];
+    http_response_code($codes[$reason] ?? 400);
+    echo json_encode(array_merge($result, [
+        'error' => $messages[$reason] ?? 'Could not complete that change.',
+        'reason' => $reason,
+    ]));
+}
+
+/**
+ * The whole tree, the clubs attached to it, and the live grants.
+ *
+ * `available` is a first-class part of the contract rather than an empty tree:
+ * "no organizations have been created" and "this environment has no org_units
+ * table" are opposite answers, and a page that cannot tell them apart invites
+ * someone to build a tree that will not save.
+ */
+function handleOrgUnits($pdo)
+{
+    $available = te_org_tables_present($pdo);
+    echo json_encode([
+        'success' => true,
+        'available' => $available,
+        'units' => $available ? te_org_unit_tree($pdo) : [],
+        'attached_clubs' => $available ? te_org_attached_clubs($pdo) : [],
+        'access' => $available ? te_org_access_list($pdo) : [],
+        'types' => TE_ORG_UNIT_TYPES,
+        'roles' => TE_ORG_ROLES,
+    ]);
+}
+
+/** Create (no id) or rename/recode/retype (id). Re-parenting is org-unit-move. */
+function handleOrgUnitSave($pdo, array $data, $auth)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+
+    $actorId = (int) $auth->getUserId();
+    $id = (int) ($data['id'] ?? 0);
+
+    if ($id > 0) {
+        $result = te_org_unit_update($pdo, $id, $data);
+        if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+        AuditLogger::log($pdo, $actorId, 'org_unit_updated', 'org_units', $id, [
+            'name' => $data['name'] ?? null,
+            'type' => $data['type'] ?? null,
+            'external_code' => $data['external_code'] ?? null,
+        ]);
+        echo json_encode(['success' => true, 'id' => $id]);
+        return;
+    }
+
+    $result = te_org_unit_create($pdo, $data, $actorId);
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+    AuditLogger::log($pdo, $actorId, 'org_unit_created', 'org_units', (int) $result['id'], [
+        'name' => $data['name'] ?? null,
+        'type' => $data['type'] ?? null,
+        'parent_id' => $data['parent_id'] ?? null,
+        'path' => $result['path'] ?? null,
+    ]);
+    echo json_encode(['success' => true, 'id' => (int) $result['id'], 'path' => $result['path'] ?? null]);
+}
+
+/**
+ * Re-parent a unit. The audit row records how many descendants were rewritten:
+ * a move is the one edit here whose blast radius is larger than the row named
+ * in the request.
+ */
+function handleOrgUnitMove($pdo, array $data, $auth)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+
+    $id = (int) ($data['id'] ?? 0);
+    $parentRaw = $data['parent_id'] ?? null;
+    $parentId = ($parentRaw === null || $parentRaw === '' || (int) $parentRaw === 0) ? null : (int) $parentRaw;
+
+    $result = te_org_unit_move($pdo, $id, $parentId);
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'org_unit_moved', 'org_units', $id, [
+        'parent_id' => $parentId,
+        'path' => $result['path'] ?? null,
+        'descendants_rewritten' => $result['moved'] ?? 0,
+    ]);
+    echo json_encode(['success' => true, 'moved' => $result['moved'] ?? 0, 'path' => $result['path'] ?? null]);
+}
+
+function handleOrgUnitDelete($pdo, int $id, $auth)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+    if ($id <= 0) { badRequest('id is required'); }
+
+    $unit = te_org_unit($pdo, $id);
+    $result = te_org_unit_delete($pdo, $id);
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'org_unit_deleted', 'org_units', $id, [
+        'name' => $unit['name'] ?? null,
+        'type' => $unit['type'] ?? null,
+        'path' => $unit['path'] ?? null,
+    ]);
+    echo json_encode(['success' => true]);
+}
+
+/**
+ * Attach a council to a unit, or detach it.
+ *
+ * One handler for both because they are the same UPDATE with a different value,
+ * and splitting them is how the audit row on one of them gets forgotten.
+ */
+function handleOrgUnitAttachClub($pdo, array $data, $auth, bool $attach)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+
+    $clubId = (int) ($data['club_id'] ?? 0);
+    if ($clubId <= 0) { badRequest('club_id is required'); }
+
+    $orgUnitId = $attach ? (int) ($data['org_unit_id'] ?? 0) : 0;
+    if ($attach && $orgUnitId <= 0) { badRequest('org_unit_id is required'); }
+
+    $result = te_org_attach_club($pdo, $clubId, $attach ? $orgUnitId : null);
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+
+    AuditLogger::log(
+        $pdo,
+        (int) $auth->getUserId(),
+        $attach ? 'org_unit_club_attached' : 'org_unit_club_detached',
+        'club_profile',
+        $clubId,
+        ['org_unit_id' => $attach ? $orgUnitId : null]
+    );
+    echo json_encode(['success' => true]);
+}
+
+/**
+ * Grant standing at a tier, by email.
+ *
+ * Email because that is what a super admin has in front of them, and because
+ * `users.email` is unique so it identifies exactly one account. An address with
+ * no account is refused rather than invited: standing at a tier is not something
+ * to mint for an identity nobody has verified. Matched case-insensitively —
+ * Postgres `=` is case-sensitive, and one capital letter in a stored address has
+ * already cost this codebase four broken families.
+ */
+function handleOrgAccessGrant($pdo, array $data, $auth)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+
+    $email = trim((string) ($data['email'] ?? ''));
+    $orgUnitId = (int) ($data['org_unit_id'] ?? 0);
+    $role = (string) ($data['role'] ?? '');
+    if ($email === '' || $orgUnitId <= 0) { badRequest('email and org_unit_id are required'); }
+
+    $stmt = $pdo->prepare('SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode([
+            'error' => 'No account on this platform uses that email address.',
+            'reason' => 'user_not_found',
+        ]);
+        return;
+    }
+
+    $result = te_org_access_grant($pdo, (int) $user['id'], $orgUnitId, $role, (int) $auth->getUserId());
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'org_access_granted', 'user_org_access', (int) $user['id'], [
+        'org_unit_id' => $orgUnitId,
+        'role' => strtolower(trim($role)),
+        'email' => $email,
+    ]);
+    echo json_encode(['success' => true, 'user_id' => (int) $user['id']]);
+}
+
+function handleOrgAccessRevoke($pdo, array $data, $auth)
+{
+    if (!te_org_tables_present($pdo)) { orgSchemaUnavailable(); return; }
+
+    $userId = (int) ($data['user_id'] ?? 0);
+    $orgUnitId = (int) ($data['org_unit_id'] ?? 0);
+    $role = (string) ($data['role'] ?? '');
+    if ($userId <= 0 || $orgUnitId <= 0 || $role === '') {
+        badRequest('user_id, org_unit_id and role are required');
+    }
+
+    $result = te_org_access_revoke($pdo, $userId, $orgUnitId, $role, (int) $auth->getUserId());
+    if (!($result['ok'] ?? false)) { orgRefusal($result); return; }
+
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'org_access_revoked', 'user_org_access', $userId, [
+        'org_unit_id' => $orgUnitId,
+        'role' => strtolower(trim($role)),
+    ]);
+    echo json_encode(['success' => true]);
+}
+
 ?>

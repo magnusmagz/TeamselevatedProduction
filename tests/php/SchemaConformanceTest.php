@@ -62,6 +62,9 @@ class SchemaConformanceTest extends TestCase
         // written and NOT yet applied to Neon. lib/field_size.php probes for the
         // column and both readers and both writers build their SQL around what is
         // actually there. Delete this line in the same commit as the fixture refresh.
+        // Migration 090 adds club_profile.org_unit_id (nullable; every existing
+        // club leaves it NULL). Written and NOT yet applied to Neon. Delete this
+        // line in the same commit as the fixture refresh.
     ];
 
     /**
@@ -78,6 +81,10 @@ class SchemaConformanceTest extends TestCase
         // applied to Neon. lib/tryout_coach_invite.php probes for the table and
         // the three tryouts-api paths answer 503 with a sentence until it is.
         // Delete this line in the same commit as the fixture refresh.
+        // Migration 090 (org_units, the tier above the club, GOTR G1) is written
+        // and NOT yet applied to Neon. lib/org_scope.php probes for both tables
+        // and every function degrades to today's club-only scope until it is.
+        // Delete these two lines in the same commit as the fixture refresh.
     ];
 
     /** Is this column merely waiting on a migration that is already written? */
