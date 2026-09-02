@@ -23,8 +23,14 @@ class RsvpToken
         return 'rsvp:' . ($s ?: 'te-rsvp-dev-secret');
     }
 
+    /** Links minted from 2026-09-02 carry an expiry (decision 11c); older links have none and stay valid. */
+    public const TTL_SECONDS = 60 * 86400;
+
     public static function make(array $payload): string
     {
+        if (!array_key_exists('x', $payload)) {
+            $payload['x'] = time() + self::TTL_SECONDS;
+        }
         $body = self::b64u(json_encode($payload));
         $sig  = self::b64u(hash_hmac('sha256', $body, self::secret(), true));
         return $body . '.' . $sig;
@@ -43,7 +49,13 @@ class RsvpToken
             return null;
         }
         $data = json_decode(self::b64uDecode($body), true);
-        return is_array($data) ? $data : null;
+        if (!is_array($data)) {
+            return null;
+        }
+        if (isset($data['x']) && (int) $data['x'] < time()) {
+            return null; // expired — the page's "invalid or has expired" copy is finally true
+        }
+        return $data;
     }
 
     private static function b64u(string $data): string

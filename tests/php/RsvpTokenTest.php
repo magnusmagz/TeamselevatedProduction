@@ -103,28 +103,28 @@ class RsvpTokenTest extends TestCase
         $this->assertNull(RsvpToken::verify($foreign));
     }
 
-    /**
-     * ⚠️ FINDING, not a design pin. RsvpToken has NO expiry: make() stamps no
-     * issued-at or exp claim and verify() checks nothing but the HMAC, so an
-     * invite link mailed in August still writes an RSVP next year — and, because
-     * the payload is only (event, guardian), anyone who ever receives a forwarded
-     * invite email holds a permanent credential for that family on that event.
-     *
-     * api/event-rsvp.php already tells families otherwise: its failure page reads
-     * "This RSVP link is invalid or has expired."
-     *
-     * The test asserts what the code does today, including that a hand-added
-     * expiry claim is carried but ignored, so that adding a real TTL breaks it
-     * and this note gets read.
-     */
-    // Mutation: none needed — this test fails the moment an expiry is honoured, which is the point.
-    public function testThereIsNoExpiryAndAnExpiryClaimIsIgnored(): void
+    /** Decision 11c (2026-09-02): links carry a 60-day expiry from the change forward. */
+    // Mutation: drop the `x < time()` check in verify().
+    public function testAnExpiredLinkIsRejected(): void
     {
         $long_ago = RsvpToken::make(['e' => 4021, 'g' => 463, 'x' => 946684800]); // 2000-01-01
-        $payload = RsvpToken::verify($long_ago);
+        $this->assertNull(RsvpToken::verify($long_ago));
+    }
 
-        $this->assertIsArray($payload, 'RsvpToken grew an expiry — update api/event-rsvp.php copy and this note');
-        $this->assertSame(946684800, $payload['x']);
+    public function testAFreshLinkCarriesASixtyDayExpiry(): void
+    {
+        $payload = RsvpToken::verify(RsvpToken::make(['e' => 4021, 'g' => 463]));
+        $this->assertIsArray($payload);
+        $this->assertEqualsWithDelta(time() + RsvpToken::TTL_SECONDS, $payload['x'], 5);
+    }
+
+    public function testALinkMintedBeforeTheChangeStillWorks(): void
+    {
+        // No 'x' claim at all — every invite email sent before 2026-09-02.
+        $body = $this->b64u(json_encode(['e' => 4021, 'g' => 463]));
+        $sig = $this->b64u(hash_hmac('sha256', $body, (string) getenv('RSVP_TOKEN_SECRET'), true));
+        $payload = RsvpToken::verify("$body.$sig");
+        $this->assertIsArray($payload, 'a legacy link without an expiry must keep working');
     }
 
     private function b64u(string $data): string
