@@ -268,13 +268,26 @@ try {
                 ");
                 $stmt->execute([$athlete_id, $guardian_id]);
                 if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                    // Only the FIRST crew member an athlete gets is primary. This
+                    // used to insert a literal TRUE, so a returning family
+                    // registering a second child's program — or a second guardian
+                    // signing the same athlete up — left the athlete with two
+                    // primary links, and "who is primary" then had no answer (R78).
+                    // Staff promote a different primary in the Crew modal; that
+                    // decision must survive a later registration.
+                    $primaryCheck = $connection->prepare(
+                        "SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND is_primary LIMIT 1"
+                    );
+                    $primaryCheck->execute([$athlete_id]);
+                    $isPrimary = $primaryCheck->fetchColumn() ? 'false' : 'true';
+
                     $stmt = $connection->prepare("
                         INSERT INTO athlete_guardians (
                             athlete_id, guardian_id, relationship,
                             is_primary, created_at
-                        ) VALUES (?, ?, 'Guardian', TRUE, NOW())
+                        ) VALUES (?, ?, 'Guardian', ?::boolean, NOW())
                     ");
-                    $stmt->execute([$athlete_id, $guardian_id]);
+                    $stmt->execute([$athlete_id, $guardian_id, $isPrimary]);
                 }
 
                 // Duplicate-registration guard: if this athlete already has a

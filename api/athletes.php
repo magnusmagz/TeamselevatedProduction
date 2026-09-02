@@ -220,13 +220,26 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $guardianId = $pdo->lastInsertId();
             }
 
-            // Link guardian to athlete
+            // Link guardian to athlete.
+            //
+            // Only the FIRST crew member an athlete gets is primary. `is_primary`
+            // was a literal `true` here, which is how an athlete ended up with two
+            // primary links and "who is primary" stopped having an answer (R78).
+            // Ask the database rather than assume: this is a fresh athlete today,
+            // but the assumption is not visible at the call site and the same
+            // literal already cost us once in registrations-api.php.
+            $primaryCheck = $pdo->prepare(
+                "SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND is_primary LIMIT 1"
+            );
+            $primaryCheck->execute([$athleteId]);
+            $isPrimary = $primaryCheck->fetchColumn() ? 'false' : 'true';
+
             $linkQuery = "
                 INSERT INTO athlete_guardians (
                     athlete_id, guardian_id, relationship, is_primary,
                     can_pickup, emergency_contact
                 ) VALUES (
-                    :athlete_id, :guardian_id, :relationship, true, true, true
+                    :athlete_id, :guardian_id, :relationship, :is_primary::boolean, true, true
                 )
             ";
 
@@ -234,7 +247,8 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([
                 ':athlete_id' => $athleteId,
                 ':guardian_id' => $guardianId,
-                ':relationship' => $guardian['relationship'] ?? 'Guardian'
+                ':relationship' => $guardian['relationship'] ?? 'Guardian',
+                ':is_primary' => $isPrimary
             ]);
         }
 
