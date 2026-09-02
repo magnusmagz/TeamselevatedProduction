@@ -155,7 +155,7 @@ nothing.
 
 ---
 
-## Phase 7 — Payments, next slices (R10, R65, R70)
+## Phase 7 — Payments, next slices (R10, R65, R70) — PUNTED 2026-09-02 (Maggie: clubs are not using discount codes yet)
 
 In the `te-stripe-payments` worktree only. Small first.
 
@@ -173,7 +173,7 @@ In the `te-stripe-payments` worktree only. Small first.
 |---|---|---|
 | 8.1 | R66 | `program_staff` table (migration **087**) so coaches see assigned programs in calendar and recipient search |
 | 8.2 | R86 | "Coach invited player" control: sends the team-invitation template, records the selection for the director |
-| 8.3 | R80 | Coach bio field + parent-portal display |
+| 8.3 | R80 | ✅ ALREADY BUILT — `users.coaching_background` rendered on the portal athlete page's Coaches card via `api/team-coaches.php`. Sheet was wrong; closed 2026-09-02. |
 | 8.4 | R76/R77 | Mid-year evaluations on the athlete profile (reuse the tryout evaluation component), then year-over-year graph |
 | 8.5 | R67 | Lineup builder (new feature, spec first) |
 | 8.6 | R68 | Referee feedback from the coaches portal |
@@ -182,7 +182,7 @@ Each is additive: a new table or a new page, revertable alone.
 
 ---
 
-## Phase 9 — Tournament remainder
+## Phase 9 — Tournament remainder — SKIPPED 2026-09-02 (Maggie; no customer pull)
 
 9.1 R26 schedule export (CSV/ICS, then PDF) + tournament clone → 9.2 R83 bracket options by team count
 → 9.3 R27 match protest + emergency composer → 9.4 R28 referee assignment (tables exist, no API/UI)
@@ -200,8 +200,10 @@ R25 canned responses · R23 unified Messages view (last; it is the layer over ev
 
 ## Parked — needs a decision or a separate discovery, not engineering
 
-- **GOTR rows R44–R63**: a compliance-tracking product for a different customer. Scope it as its
-  own project; do not interleave with TE slices.
+- **GOTR rows R44–R63**: PROMOTED 2026-09-02 — a real engagement. National → division → chapter/council
+  → location hierarchy, coach/volunteer compliance + background checks visible at council AND division
+  level, ~30,000 coaches, 270 locations. Everything today is club/team-based, so this is an
+  architecture plan first: `docs/gotr-hierarchy-plan-2026-09.md` (in progress).
 - **R69 Spanish**: i18n framework choice + ongoing translation cost. Decide whether it is a
   contract requirement before starting.
 - **R33–R37 association / multi-club**, **R42 CRM layer**, **R31/R32 tournament 4–5**, **R43

@@ -78,12 +78,11 @@ Needs an i18n framework choice and a translation cost on every new screen from t
 - **Ask:** is this a contract requirement for CKU or any prospect? If yes, when.
 - **If left:** parked.
 
-### 8. GOTR compliance tracking (R44–R63)
-Twenty user stories for a different customer and a different product shape
-(certifications, LMS integration, council hierarchy).
-- **Ask:** is this a real engagement? If yes, it gets its own discovery and plan, not
-  slices inside the Teams Elevated roadmap.
-- **If left:** parked.
+### 8. GOTR compliance tracking (R44–R63) — DECIDED 2026-09-02: real engagement
+Maggie: a national → division → chapter/council → location hierarchy, compliance and
+background-check visibility at council and division level, ~30,000 coaches, 270 locations.
+Getting its own architecture plan (`docs/gotr-hierarchy-plan-2026-09.md`). No longer a
+decision; tracked in the roadmap plan.
 
 ### 9. Chat polls show voter names
 Documented choice (`docs/chat-polls-scope.md`): voters are visible unless the coach
