@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/ImportStrategy.php';
+require_once __DIR__ . '/../lib/role_cache.php';
 
 /**
  * CoachImportStrategy — imports coaches as users with a club-level coach role.
@@ -130,6 +131,7 @@ class CoachImportStrategy extends ImportStrategy {
             'club'        => $clubId,
             'granted_by'  => $grantedBy,
         ]);
+        te_role_cache_invalidate($userId);
         return 'created';
     }
 }
