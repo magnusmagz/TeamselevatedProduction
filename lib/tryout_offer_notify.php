@@ -14,9 +14,11 @@
  * halves are therefore sequential, not nested.
  *
  * ── Recipient resolution ────────────────────────────────────────────────────
- * registration -> athlete -> athlete_guardians -> guardians, ordered
- * `is_primary` first then link id, so the household's primary contact leads the
- * greeting and is the first address tried. Addresses are deduplicated on the
+ * registration -> athlete -> athlete_guardians -> guardians, ordered by the link
+ * id. Crew members are EQUAL — there is no primary guardian in this product
+ * (2026-09-02) — so nobody leads the greeting by rank; the order is simply
+ * deterministic and independent of physical row order, which a vacuum can change.
+ * Every guardian on the household is mailed. Addresses are deduplicated on the
  * LOWERCASED email (six live addresses are held by two guardians each, and
  * Postgres `=` on email is case-sensitive — the bug that left three families
  * with an empty parent portal), so John and Jane on `thejones@…` receive ONE
@@ -191,7 +193,7 @@ function te_tryout_offer_context(PDO $pdo, int $registrationId, $teamId = null):
  *
  * @param array $registration The joined registration row.
  * @return array<int, array{email:string, key:string, name:string,
- *                          guardians:array, is_primary:bool, source:string}>
+ *                          guardians:array, source:string}>
  */
 function te_tryout_offer_recipients(PDO $pdo, array $registration): array
 {
@@ -199,15 +201,14 @@ function te_tryout_offer_recipients(PDO $pdo, array $registration): array
 
     $rows = [];
     if ($athleteId > 0) {
-        // is_primary first, then the link id, so the order is deterministic and
-        // does not depend on physical row order (which a vacuum can change).
+        // Link id, so the order is deterministic and does not depend on physical
+        // row order (which a vacuum can change). No guardian outranks another.
         $stmt = $pdo->prepare("
-            SELECT g.id, g.first_name, g.last_name, g.email, g.mobile_phone,
-                   ag.is_primary
+            SELECT g.id, g.first_name, g.last_name, g.email, g.mobile_phone
               FROM athlete_guardians ag
               JOIN guardians g ON g.id = ag.guardian_id
              WHERE ag.athlete_id = ?
-             ORDER BY (CASE WHEN ag.is_primary THEN 0 ELSE 1 END), ag.id
+             ORDER BY ag.id
         ");
         $stmt->execute([$athleteId]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -229,7 +230,6 @@ function te_tryout_offer_recipients(PDO $pdo, array $registration): array
                 'key'        => $key,
                 'name'       => '',
                 'guardians'  => [],
-                'is_primary' => (bool) $g['is_primary'],
                 'source'     => 'guardian',
             ];
         }
@@ -263,7 +263,6 @@ function te_tryout_offer_recipients(PDO $pdo, array $registration): array
         'key'        => mb_strtolower($fallback),
         'name'       => NameFormatter::titleCaseName((string) ($registration['registrant_first_name'] ?? '')),
         'guardians'  => [],
-        'is_primary' => true,
         'source'     => 'registrant',
     ]];
 }

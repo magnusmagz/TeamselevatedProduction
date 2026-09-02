@@ -10,18 +10,16 @@ Shareable version: the "Pending Decisions" page (link in memory).
 
 ## From the 2026-09-02 deploys
 
-### 1. Five athletes have broken primary-crew flags
-Before today's fix, two writers marked every crew link primary, so four club-32 athletes
-(Emily Thompson 151, Grace Garcia 164, Gabriel Miller 165, Olivia Thompson 181) have two
-primaries and one club-51 athlete (Bonnie Ziegler 463) has none. The fix stopped new
-cases; existing rows were left alone on purpose.
-- **Options:** (a) fix each in the Crew modal (one click per athlete); (b) I run a one-off
-  that keeps the oldest link as primary and audits it; (c) leave until the families touch it.
-- **Recommendation:** (a) for club 32 (test/demo data, four rows) and ask CKU which parent
-  is primary for Bonnie Ziegler.
-- **Report:** `heroku run --no-tty -a teamselevated-backend php scripts/report-duplicate-primaries.php`
-- **If left:** the athlete list shows the oldest link as primary, deterministically, which
-  may be the wrong parent.
+### 1. Five athletes have broken primary-crew flags — MOOT 2026-09-02
+**Maggie: there is no primary parent/guardian in Teams Elevated. Guardians are equal.**
+
+The question this item asked — which of a family's two adults should carry the flag —
+has no answer, because the flag is gone. `athlete_guardians.is_primary` is now a legacy
+column: nothing writes it, nothing reads it, nothing shows it (see the `athlete_guardians`
+note in CLAUDE.md). The four club-32 rows with two primaries and the club-51 row with none
+need no repair and were left exactly as they are — data nobody consults cannot be wrong.
+
+`scripts/report-duplicate-primaries.php` was deleted with the concept it reported on.
 
 ### 2. Treasurer sees Revenue as "Unavailable" on the new home page
 `financial-permissions` grants treasurers `can_view_revenue`, so the tile renders, but

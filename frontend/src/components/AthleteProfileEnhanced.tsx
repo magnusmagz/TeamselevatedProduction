@@ -22,7 +22,8 @@ interface Guardian {
   mobile_phone: string;
   work_phone?: string;
   relationship_type: string;
-  is_primary_contact: number;
+  // ⚠️ No `is_primary_contact`. Crew members are equal (product rule,
+  // 2026-09-02) and the gateway no longer returns the key.
   has_legal_custody: number;
   can_authorize_medical: number;
   can_pickup: number;
@@ -275,13 +276,12 @@ const AthleteProfileEnhanced: React.FC = () => {
     return phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
   };
 
-  const getPrimaryGuardian = () => {
-    return athlete?.guardians.find(g => g.is_primary_contact === 1) || athlete?.guardians[0];
-  };
-
-  const getEmergencyContact = () => {
-    return athlete?.guardians.find(g => g.is_primary_contact === 0 && g.can_pickup === 1);
-  };
+  // Everyone the club can call about this athlete. There is no primary guardian
+  // (2026-09-02), so the emergency panel lists the whole crew rather than
+  // electing one and demoting the rest to "emergency contact" — which is what
+  // `is_primary_contact === 0 && can_pickup === 1` used to do, and it silently
+  // returned nobody for a single-guardian family.
+  const crew = athlete?.guardians ?? [];
 
   if (loading) {
     return (
@@ -298,9 +298,6 @@ const AthleteProfileEnhanced: React.FC = () => {
       </div>
     );
   }
-
-  const primaryGuardian = getPrimaryGuardian();
-  const emergencyContact = getEmergencyContact();
 
   return (
     <>
@@ -509,35 +506,28 @@ const AthleteProfileEnhanced: React.FC = () => {
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
-            {primaryGuardian && (
-              <div className="mb-4">
-                <div className="font-bold mb-2">Primary Contact</div>
-                <div>{primaryGuardian.first_name} {primaryGuardian.last_name} ({primaryGuardian.relationship_type})</div>
-                <button
-                  onClick={() => {
-                    setComposeRecipient({ id: primaryGuardian.id, type: 'guardian', first_name: primaryGuardian.first_name, last_name: primaryGuardian.last_name, phone: primaryGuardian.mobile_phone, email: primaryGuardian.email });
-                    setShowSmsCompose(true);
-                  }}
-                  className="text-lg font-bold text-brand-primary hover:underline"
-                >
-                  {formatPhoneForDisplay(primaryGuardian.mobile_phone)}
-                </button>
-              </div>
-            )}
-            {emergencyContact && emergencyContact.id !== primaryGuardian?.id && (
-              <div>
-                <div className="font-bold mb-2">Emergency Contact</div>
-                <div>{emergencyContact.first_name} {emergencyContact.last_name} ({emergencyContact.relationship_type})</div>
-                <button
-                  onClick={() => {
-                    setComposeRecipient({ id: emergencyContact.id, type: 'guardian', first_name: emergencyContact.first_name, last_name: emergencyContact.last_name, phone: emergencyContact.mobile_phone, email: emergencyContact.email });
-                    setShowSmsCompose(true);
-                  }}
-                  className="text-lg font-bold text-brand-primary hover:underline"
-                >
-                  {formatPhoneForDisplay(emergencyContact.mobile_phone)}
-                </button>
-              </div>
+            {/* Every crew member, in the order they were attached. In an
+                emergency the useful answer is the whole list of adults who can be
+                called, not one nominated contact — and the previous "primary /
+                emergency" split showed nobody at all for a single-guardian
+                family. */}
+            {crew.length === 0 ? (
+              <div className="text-sm text-gray-600">No crew on file</div>
+            ) : (
+              crew.map((guardian) => (
+                <div key={guardian.id} className="mb-4">
+                  <div>{guardian.first_name} {guardian.last_name} ({guardian.relationship_type})</div>
+                  <button
+                    onClick={() => {
+                      setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
+                      setShowSmsCompose(true);
+                    }}
+                    className="text-lg font-bold text-brand-primary hover:underline"
+                  >
+                    {formatPhoneForDisplay(guardian.mobile_phone)}
+                  </button>
+                </div>
+              ))
             )}
           </div>
           <div>
@@ -667,7 +657,7 @@ const AthleteProfileEnhanced: React.FC = () => {
                       <div className="flex items-center gap-2">
                         {guardianPortalChip(guardian)}
                         <span className="text-xs px-2 py-1 bg-gray-100">
-                          {guardian.is_primary_contact ? 'PRIMARY' : (guardian.relationship_type || 'GUARDIAN').toUpperCase()}
+                          {(guardian.relationship_type || 'GUARDIAN').toUpperCase()}
                         </span>
                       </div>
                     </div>
@@ -786,7 +776,7 @@ const AthleteProfileEnhanced: React.FC = () => {
                         <div className="font-medium">
                           {g.first_name} {g.last_name}
                           <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100">
-                            {g.is_primary_contact ? 'PRIMARY' : (g.relationship_type || 'GUARDIAN').toUpperCase()}
+                            {(g.relationship_type || 'GUARDIAN').toUpperCase()}
                           </span>
                         </div>
                         <div className="text-gray-600">{g.email}</div>

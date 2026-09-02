@@ -35,8 +35,8 @@ const authHeaders = () => ({
 });
 
 /** Count distinct ids. athletes-gateway once returned duplicate rows per
- *  athlete (one per primary guardian); the LATERAL join fixed that, but the
- *  Athletes page still dedupes and the tile must agree with it. */
+ *  athlete (one per guardian); the LATERAL join fixed that, but the Athletes
+ *  page still dedupes and the tile must agree with it. */
 const countById = (rows: unknown): number => {
   if (!Array.isArray(rows)) return 0;
   const seen = new Set<unknown>();

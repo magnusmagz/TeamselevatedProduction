@@ -166,10 +166,13 @@ class AthleteImportStrategy extends ImportStrategy {
                 ]);
 
                 $relationship = $this->normalizeRelationship($this->field($row, $mapping, "guardian{$n}_relationship"));
-                $primaryRaw = $this->field($row, $mapping, "guardian{$n}_is_primary");
-                $isPrimary  = $primaryRaw !== '' ? $this->parseBool($primaryRaw) : ($n === 1);
 
-                $this->upsertAthleteGuardianLink($pdo, $athleteId, $guardianId, $relationship, $isPrimary);
+                // A `guardian1_is_primary` column is still ACCEPTED in the CSV and
+                // deliberately ignored: clubs export from other systems that emit
+                // it, and refusing the file over a column that no longer means
+                // anything would block an otherwise good import. There is no
+                // primary guardian in this product (2026-09-02).
+                $this->upsertAthleteGuardianLink($pdo, $athleteId, $guardianId, $relationship);
             }
 
             if ($teamId !== null) {
@@ -280,7 +283,7 @@ class AthleteImportStrategy extends ImportStrategy {
         return (int) $insert->fetchColumn();
     }
 
-    private function upsertAthleteGuardianLink(PDO $pdo, int $athleteId, int $guardianId, string $relationship, bool $isPrimary): void {
+    private function upsertAthleteGuardianLink(PDO $pdo, int $athleteId, int $guardianId, string $relationship): void {
         $stmt = $pdo->prepare('
             SELECT id FROM athlete_guardians WHERE athlete_id = :a AND guardian_id = :g LIMIT 1
         ');
@@ -288,13 +291,12 @@ class AthleteImportStrategy extends ImportStrategy {
         if ($stmt->fetch()) return;
 
         $pdo->prepare('
-            INSERT INTO athlete_guardians (athlete_id, guardian_id, relationship, is_primary)
-            VALUES (:a, :g, :rel, :primary)
+            INSERT INTO athlete_guardians (athlete_id, guardian_id, relationship)
+            VALUES (:a, :g, :rel)
         ')->execute([
-            'a'       => $athleteId,
-            'g'       => $guardianId,
-            'rel'     => $relationship,
-            'primary' => $isPrimary ? 'true' : 'false',
+            'a'   => $athleteId,
+            'g'   => $guardianId,
+            'rel' => $relationship,
         ]);
     }
 

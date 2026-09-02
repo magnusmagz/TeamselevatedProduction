@@ -77,8 +77,11 @@ class TryoutOfferNotifyTest extends TestCase
             INSERT INTO guardians (id, first_name, last_name, email, mobile_phone)
                 VALUES (2, 'Jane', 'Rivera', 'THERIVERAS@gmail.com', '620-555-0102');
 
-            -- The NON-primary link has the LOWER id on purpose: if the ordering
-            -- ever falls back to insertion order, Jane leads and this fails.
+            -- Jane's link has the LOWER id and JOHN's guardian row the lower id,
+            -- on purpose. Crew members are equal (2026-09-02), so the household
+            -- is ordered by LINK id and Jane leads — if the ordering ever falls
+            -- back to the guardian id, or to a resurrected primary flag (link 2
+            -- still carries a stale `is_primary = 1`), John leads and this fails.
             INSERT INTO athlete_guardians (id, athlete_id, guardian_id, relationship, is_primary)
                 VALUES (1, 100, 2, 'Parent', 0);
             INSERT INTO athlete_guardians (id, athlete_id, guardian_id, relationship, is_primary)
@@ -128,15 +131,26 @@ class TryoutOfferNotifyTest extends TestCase
             'both people stay on the entry — the SMS opt-out check is per guardian id');
     }
 
-    public function testThePrimaryGuardianLeadsTheHousehold(): void
+    /**
+     * NOBODY leads by rank. There is no primary guardian (2026-09-02), so the
+     * household is ordered by the athlete_guardians link id: deterministic,
+     * independent of physical row order, and carrying no claim about which
+     * parent matters more.
+     *
+     * Link 1 is Jane and link 2 is John, and link 2 still carries a stale
+     * `is_primary = 1` from before the rule changed. Jane leading is therefore
+     * the assertion that the flag is not being consulted.
+     */
+    public function testTheHouseholdIsOrderedByLinkIdAndNobodyOutranksAnybody(): void
     {
         $recipients = $this->context(1000)['recipients'];
 
-        $this->assertSame(1, $recipients[0]['guardians'][0]['id'], 'is_primary orders the household');
-        $this->assertSame('John & Jane', $recipients[0]['name']);
-        // The address kept is the primary's stored spelling, not the other row's.
-        $this->assertSame('theRiveras@Gmail.com', $recipients[0]['email']);
-        $this->assertTrue($recipients[0]['is_primary']);
+        $this->assertSame(2, $recipients[0]['guardians'][0]['id'], 'the link id orders the household');
+        $this->assertSame('Jane & John', $recipients[0]['name']);
+        // The address kept is the first-by-link-id row's stored spelling.
+        $this->assertSame('THERIVERAS@gmail.com', $recipients[0]['email']);
+        $this->assertArrayNotHasKey('is_primary', $recipients[0],
+            'a recipient carries no primary flag — there is nothing for it to mean');
     }
 
     public function testRegistrantEmailIsAFallbackAndNotAnExtraRecipient(): void
@@ -191,8 +205,8 @@ class TryoutOfferNotifyTest extends TestCase
                 "an unresolved merge tag in a $part body cannot be unsent");
         }
 
-        $this->assertStringContainsString('John &amp; Jane', $mail['html'], 'both parents are greeted');
-        $this->assertStringContainsString('John & Jane', $mail['text']);
+        $this->assertStringContainsString('Jane &amp; John', $mail['html'], 'both parents are greeted');
+        $this->assertStringContainsString('Jane & John', $mail['text']);
         $this->assertStringContainsString('roster spot', $mail['text']);
         $this->assertStringContainsString('/parent', $mail['text'], 'the response instructions point at the portal');
         $this->assertStringContainsString('Maya Rivera', $mail['subject']);
@@ -240,7 +254,7 @@ class TryoutOfferNotifyTest extends TestCase
         $this->assertSame([], $result['failed']);
         $this->assertSame(2, $result['emails_sent'], 'the shared household is one email, not two');
         $this->assertSame(
-            ['theRiveras@Gmail.com', 'Dana.Alvarez@example.com'],
+            ['THERIVERAS@gmail.com', 'Dana.Alvarez@example.com'],
             array_column($this->sent, 'to')
         );
     }

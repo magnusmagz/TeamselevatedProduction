@@ -313,9 +313,37 @@ into shipped code — see "How the phantom columns got there" at the end of this
   - `athlete_guardians` — athlete↔guardian link. Real columns: **`id, athlete_id, guardian_id,
     relationship, is_primary, can_pickup, emergency_contact, created_at`**.
     - `relationship` is CHECK-constrained to `Parent` / `Guardian` / `Emergency Contact` / `Other` — **capitalized**.
-    - The API layer deliberately aliases these: `legacy/guardian-gateway.php` exposes
-      `relationship` as `relationship_type` and `is_primary` as `is_primary_contact`. Those two
-      names are the **API contract, not column names** — correct in a request body, wrong in SQL.
+    - The API layer deliberately aliases `relationship` as `relationship_type`. That name is the
+      **API contract, not a column name** — correct in a request body, wrong in SQL.
+    - ⚠️ **`is_primary` is LEGACY. There is no primary guardian in this product** (Maggie,
+      2026-09-02). Crew members are equal. As of that date nothing writes the column, nothing
+      filters or orders on it, and no surface shows it; the API alias `is_primary_contact` is
+      gone from every gateway and every component. The column stays only because the schema is
+      additive-only — **do not read it, and do not write it back**, including a `false`.
+      - **Omitting the key from a request body is not enough, and that is the trap.** The
+        guardian gateway's POST used to coerce a missing `is_primary_contact` to `'false'` and
+        write it, so a payload that said nothing still decided the column. The column had to
+        leave the SQL statements. `is_primary_contact` arriving in a body is now **ignored, not
+        rejected** — `main` is shared and an older deployed bundle still sends it, so a 400
+        would break saves that are otherwise entirely valid.
+      - **A read is the more dangerous half.** Eleven billing and reporting sites joined
+        `ON a.id = ag.athlete_id AND ag.is_primary = true` to find "the parent to bill". Once
+        nothing writes the column that join matches nothing for every family created after,
+        and because it is a LEFT join the query still succeeds and returns a blank contact.
+        Silent. All eleven now take the first crew member by `ag.id` through a LATERAL.
+      - Ordering is **`ag.id`** everywhere — deterministic, independent of the physical row
+        order a vacuum can change, and carrying no claim about who matters more.
+      - Where a screen previously showed one chosen guardian it now shows **all** of them:
+        `lib/athlete_crew.php` (`te_crew_for_athletes` / `te_attach_crew_to_athletes`) puts a
+        `guardians` array on every athlete-list row in one keyed query. `legacy/athletes-gateway.php`
+        and `AthleteController::getAthletes` still return `primary_guardian_name/email/phone`
+        for **one release** so an older bundle does not blank its Crew column mid-deploy —
+        those are simply the FIRST crew member by link id, not a ranked one. Delete them once
+        nothing reads them.
+      - Pinned by `tests/php/NoPrimaryGuardianTest.php` (scans for writes, reads and the API
+        alias) and `frontend/src/crewEquality.test.ts` (scans the whole frontend). Both are
+        scans rather than unit tests because the concept lived in 7 writers, 15 query sites and
+        4 components — fixing one and missing the rest is this repo's recurring failure.
     - There is **no `receives_communications` column** in live Neon, and no live code path writes
       one. It likely existed in the MySQL era — `controllers/EmailController.php` (known-dead)
       still selects it.
@@ -755,8 +783,8 @@ token. POST stays public — it is the sign-up form. `RegistrationWriteScopeTest
 by the smoke test's route walk, 2026-09-02). `.htaccess` falls through to `index.php` only
 when the path is neither a file nor a directory; `api/athletes/` and `api/seasons/` are
 directories, so Apache serves *their* `index.php`, which calls the controller method
-directly. `AthleteController::getAthletes` returned 329 athletes across every club with the
-primary guardian's email and mobile, anonymously; `CoachController::searchPlayers` and
+directly. `AthleteController::getAthletes` returned 329 athletes across every club with a
+guardian's email and mobile, anonymously; `CoachController::searchPlayers` and
 `SeasonController::getSeasons` were open too. All three now authenticate and scope
 (`DirectoryShadowedListScopeTest`). Two things to know: the 301 Apache issues carries an
 **`http://` Location**, and libcurl drops `Authorization` on that downgrade — so probe
@@ -1191,7 +1219,8 @@ touched their settings. Pinned by `GuardianSyncTest`.
 
 ### Editing a crew member's contact details goes through the POST branch
 `legacy/guardian-gateway.php` PUT updates the **relationship** row only
-(`athlete_guardians`: relationship, is_primary, can_pickup, emergency_contact). It never
+(`athlete_guardians`: relationship, can_pickup, emergency_contact — `is_primary` was dropped
+from the field map on 2026-09-02, see the athlete_guardians note above). It never
 touches `guardians`. Until 2026-07-30 the POST branch didn't either — it matched an existing
 guardian on email+first+last, took the id and moved on — so **no code path anywhere could
 change a guardian's name, email or phone.** Editing a parent's phone number returned success

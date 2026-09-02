@@ -16,19 +16,24 @@ use AthleteScope;
  * test. Instead we exercise:
  *
  *   1. The exact persistence SQL those endpoints run (athlete UPDATE, and the
- *      find-or-create-guardian + link-with-primary-demotion flow) against an
- *      in-memory SQLite fixture, asserting the writes persist and re-read.
+ *      find-or-create-guardian + link flow) against an in-memory SQLite fixture,
+ *      asserting the writes persist and re-read.
  *   2. AthleteScope::userCanAccessAthlete — the gate both endpoints call before
  *      writing — proving a club admin in-scope is allowed and an out-of-scope
  *      user is denied.
  *
  * Key behaviors locked in:
  *   - Editing name / DOB persists and re-reads (CA-20).
- *   - A guardian is linked with relationship + is_primary (CA-21).
+ *   - A guardian is linked with a relationship (CA-21).
  *   - Guardian lookup matches on email + first + last (composite), NOT email
  *     alone, so two people sharing one household email stay distinct (CA-21 /
  *     household shared-email model).
- *   - Setting a new primary demotes the previous primary (exactly one primary).
+ *   - ⚠️ `is_primary` is NOT written. There is no primary guardian in this
+ *     product (2026-09-02): crew members are equal, so there is no promotion to
+ *     make and nobody to demote. This harness mirrors the gateway, so the
+ *     demotion UPDATE that used to live here had to go with it — a simulation
+ *     that keeps running logic the product removed is a test asserting fiction.
+ *     `NoPrimaryGuardianTest` is what holds the real gateways to it.
  *
  * Never touches production Neon.
  */
@@ -155,13 +160,6 @@ class AthleteAdminPersistenceTest extends TestCase
             $guardianId = (int) $this->pdo->lastInsertId();
         }
 
-        $isPrimary = !empty($g['is_primary_contact']) ? 1 : 0;
-        if ($isPrimary) {
-            $this->pdo->prepare(
-                "UPDATE athlete_guardians SET is_primary = 0 WHERE athlete_id = ? AND is_primary = 1"
-            )->execute([$athleteId]);
-        }
-
         $existing = $this->pdo->prepare(
             "SELECT id FROM athlete_guardians WHERE athlete_id = ? AND guardian_id = ?"
         );
@@ -170,13 +168,13 @@ class AthleteAdminPersistenceTest extends TestCase
 
         if ($link) {
             $this->pdo->prepare(
-                "UPDATE athlete_guardians SET relationship = ?, is_primary = ? WHERE id = ?"
-            )->execute([$g['relationship_type'] ?? 'Guardian', $isPrimary, $link['id']]);
+                "UPDATE athlete_guardians SET relationship = ? WHERE id = ?"
+            )->execute([$g['relationship_type'] ?? 'Guardian', $link['id']]);
         } else {
             $this->pdo->prepare(
-                "INSERT INTO athlete_guardians (athlete_id, guardian_id, relationship, is_primary, can_pickup, emergency_contact)
-                 VALUES (?, ?, ?, ?, 1, 0)"
-            )->execute([$athleteId, $guardianId, $g['relationship_type'] ?? 'Guardian', $isPrimary]);
+                "INSERT INTO athlete_guardians (athlete_id, guardian_id, relationship, can_pickup, emergency_contact)
+                 VALUES (?, ?, ?, 1, 0)"
+            )->execute([$athleteId, $guardianId, $g['relationship_type'] ?? 'Guardian']);
         }
 
         return $guardianId;
@@ -214,9 +212,15 @@ class AthleteAdminPersistenceTest extends TestCase
         $this->assertSame('Male', $row['gender']);
     }
 
-    // ---- CA-21: guardian link persistence, composite match, primary ----
+    // ---- CA-21: guardian link persistence, composite match ----
 
-    public function testGuardianLinkedWithRelationshipAndPrimary(): void
+    /**
+     * The link stores the relationship, and NOTHING about rank. An
+     * `is_primary_contact` in the payload is ignored — an older deployed bundle
+     * still sends it, and refusing an otherwise valid save over a key that no
+     * longer means anything would be worse than dropping it.
+     */
+    public function testGuardianLinkedWithRelationshipAndNoPrimaryFlag(): void
     {
         $gid = $this->linkGuardian(1, [
             'first_name' => 'John', 'last_name' => 'Jones',
@@ -228,7 +232,7 @@ class AthleteAdminPersistenceTest extends TestCase
             "SELECT relationship, is_primary FROM athlete_guardians WHERE athlete_id = 1 AND guardian_id = $gid"
         )->fetch();
         $this->assertSame('Father', $link['relationship']);
-        $this->assertSame(1, (int) $link['is_primary']);
+        $this->assertNull($link['is_primary'], 'the column is left alone, not set to a value');
     }
 
     public function testSharedEmailKeepsTwoDistinctGuardians(): void
@@ -258,29 +262,38 @@ class AthleteAdminPersistenceTest extends TestCase
         $this->assertSame(2, $links);
     }
 
-    public function testSettingNewPrimaryDemotesPrevious(): void
+    /**
+     * Adding a second crew member changes NOTHING about the first.
+     *
+     * This replaces testSettingNewPrimaryDemotesPrevious. Adding Jane used to
+     * demote John — a write to a row the admin was not editing, triggered as a
+     * side effect of adding someone else. With crew members equal there is
+     * nothing to demote, and the assertion that matters is that John's link is
+     * untouched.
+     */
+    public function testAddingASecondCrewMemberDoesNotTouchTheFirst(): void
     {
         $john = $this->linkGuardian(1, [
             'first_name' => 'John', 'last_name' => 'Jones',
             'email' => 'thejones@gmail.com', 'mobile_phone' => '5550001',
             'relationship_type' => 'Father', 'is_primary_contact' => true,
         ]);
-        // Jane added as the new primary -> John must be demoted.
         $this->linkGuardian(1, [
             'first_name' => 'Jane', 'last_name' => 'Jones',
             'email' => 'thejones@gmail.com', 'mobile_phone' => '5550002',
             'relationship_type' => 'Mother', 'is_primary_contact' => true,
         ]);
 
-        $primaries = (int) $this->pdo->query(
-            "SELECT COUNT(*) AS c FROM athlete_guardians WHERE athlete_id = 1 AND is_primary = 1"
-        )->fetch()['c'];
-        $this->assertSame(1, $primaries, 'Exactly one primary guardian must remain');
+        $rows = $this->pdo->query(
+            "SELECT guardian_id, relationship, is_primary FROM athlete_guardians
+             WHERE athlete_id = 1 ORDER BY id"
+        )->fetchAll(\PDO::FETCH_ASSOC);
 
-        $johnPrimary = (int) $this->pdo->query(
-            "SELECT is_primary FROM athlete_guardians WHERE athlete_id = 1 AND guardian_id = $john"
-        )->fetch()['is_primary'];
-        $this->assertSame(0, $johnPrimary);
+        $this->assertCount(2, $rows);
+        $this->assertSame($john, (int) $rows[0]['guardian_id']);
+        $this->assertSame('Father', $rows[0]['relationship']);
+        $this->assertNull($rows[0]['is_primary'], "John's link is untouched by Jane being added");
+        $this->assertNull($rows[1]['is_primary']);
     }
 
     public function testRelinkingSameGuardianDoesNotDuplicate(): void

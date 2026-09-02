@@ -344,26 +344,16 @@ try {
                 ");
                 $stmt->execute([$athlete_id, $guardian_id]);
                 if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
-                    // Only the FIRST crew member an athlete gets is primary. This
-                    // used to insert a literal TRUE, so a returning family
-                    // registering a second child's program — or a second guardian
-                    // signing the same athlete up — left the athlete with two
-                    // primary links, and "who is primary" then had no answer (R78).
-                    // Staff promote a different primary in the Crew modal; that
-                    // decision must survive a later registration.
-                    $primaryCheck = $connection->prepare(
-                        "SELECT 1 FROM athlete_guardians WHERE athlete_id = ? AND is_primary LIMIT 1"
-                    );
-                    $primaryCheck->execute([$athlete_id]);
-                    $isPrimary = $primaryCheck->fetchColumn() ? 'false' : 'true';
-
+                    // `is_primary` is not written. There is no primary guardian
+                    // in this product (2026-09-02) — crew members are equal — so a
+                    // public registration decides nothing about who represents the
+                    // family, which is right: it has no way to know.
                     $stmt = $connection->prepare("
                         INSERT INTO athlete_guardians (
-                            athlete_id, guardian_id, relationship,
-                            is_primary, created_at
-                        ) VALUES (?, ?, 'Guardian', ?::boolean, NOW())
+                            athlete_id, guardian_id, relationship, created_at
+                        ) VALUES (?, ?, 'Guardian', NOW())
                     ");
-                    $stmt->execute([$athlete_id, $guardian_id, $isPrimary]);
+                    $stmt->execute([$athlete_id, $guardian_id]);
                 }
 
                 // Duplicate-registration guard: if this athlete already has a

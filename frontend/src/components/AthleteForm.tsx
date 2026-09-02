@@ -3,37 +3,15 @@ import { useOrg } from '../contexts/OrgContext';
 import { GRADE_OPTIONS } from '../utils/grade';
 import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 
+/**
+ * ⚠️ THERE IS NO PRIMARY CREW MEMBER. Crew members are equal (product rule,
+ * 2026-09-02). This form deliberately has no control that ranks one guardian
+ * above another, sends no `is_primary_contact` on save, and labels the cards
+ * "Crew member 1/2/3" by position only — a number for the reader, not a rank.
+ */
 const emptyGuardian = (): GuardianData => ({
   first_name: '', last_name: '', email: '', mobile_phone: '', relationship_type: 'Parent',
-  is_primary_contact: false,
 });
-
-/**
- * `athlete_guardians.is_primary` arrives from PHP/PDO as a real boolean, but the
- * same field has been seen as 't' / 'true' / 1 depending on the driver and the
- * gateway, and a link row can carry NULL. Read it once, here.
- */
-const isPrimaryFlag = (guardian?: GuardianData): boolean => {
-  const value = guardian?.is_primary_contact;
-  return value === true || value === 1 || value === '1' || value === 't' || value === 'true';
-};
-
-/**
- * Exactly one crew member is primary. The form used to have no primary control at
- * all: it posted `is_primary_contact: i === 0 ? 1 : 0` on every athlete save, so
- * whoever the fetch happened to return first was written back as the primary —
- * silently reverting a promotion made in the Crew modal (R78).
- *
- * A crew list arriving with none flagged (or several) is normalised the same way:
- * keep the first flagged one, or fall back to the first card. Never leave zero
- * primaries on a list the user is about to save.
- */
-const withOnePrimary = (guardians: GuardianData[]): GuardianData[] => {
-  if (guardians.length === 0) return guardians;
-  const flagged = guardians.findIndex(g => isPrimaryFlag(g));
-  const primary = flagged >= 0 ? flagged : 0;
-  return guardians.map((g, i) => ({ ...g, is_primary_contact: i === primary }));
-};
 
 interface GuardianData {
   // athlete_guardians.id — the LINK row, not the guardian. Returned by the
@@ -46,11 +24,6 @@ interface GuardianData {
   mobile_phone: string;
   work_phone?: string;
   relationship_type: string;
-  // athlete_guardians.is_primary for THIS link. Carried in from the fetch and
-  // sent back out on save, so the flag survives a round trip instead of being
-  // re-derived from the card's position. Loose type: the value has arrived as a
-  // boolean, as 't'/'true', and as NULL — read it through isPrimaryFlag().
-  is_primary_contact?: boolean | number | string | null;
   address_line1?: string;
   city?: string;
   state?: string;
@@ -145,8 +118,7 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     grade_level: undefined,
     jersey_size: '',
     dietary_restrictions: [],
-    // A new athlete's first card is the primary until someone says otherwise.
-    guardians: withOnePrimary([emptyGuardian()]),
+    guardians: [emptyGuardian()],
     emergency_contacts: [{
       contact_name: '',
       relationship: '',
@@ -188,9 +160,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     if (athlete) {
       setFormData({
         ...athlete,
-        guardians: withOnePrimary(
-          (athlete.guardians && athlete.guardians.length > 0) ? athlete.guardians : [emptyGuardian()]
-        ),
+        guardians: (athlete.guardians && athlete.guardians.length > 0)
+          ? athlete.guardians
+          : [emptyGuardian()],
         emergency_contacts: athlete.emergency_contacts || formData.emergency_contacts,
         medical: athlete.medical || formData.medical
       });
@@ -255,30 +227,17 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
     });
   };
 
-  // Promote one crew member to primary. Exactly one, always — the radio group is
-  // the only thing that decides this now, and it is what gets posted.
-  const setPrimaryGuardian = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      guardians: (prev.guardians || []).map((g, i) => ({ ...g, is_primary_contact: i === index })),
-    }));
-  };
-
   const addGuardian = () => {
     setFormData(prev => ({
       ...prev,
-      // A newly added card is never the primary — it is blank. withOnePrimary
-      // only steps in if the list somehow has nobody flagged.
-      guardians: withOnePrimary([...(prev.guardians || []), emptyGuardian()]),
+      guardians: [...(prev.guardians || []), emptyGuardian()],
     }));
   };
 
   const removeGuardian = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      // Removing the primary must promote someone, or the save posts an all-false
-      // list and the athlete quietly ends up with no primary crew member.
-      guardians: withOnePrimary((prev.guardians || []).filter((_, i) => i !== index)),
+      guardians: (prev.guardians || []).filter((_, i) => i !== index),
     }));
   };
 
@@ -405,11 +364,10 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
         // the link id, and updates the athlete link), so re-saving on edit won't
         // duplicate.
         //
-        // WHICH crew member is primary comes from the card's own flag, never from
-        // its position. Posting `i === 0` here is what made a promotion made in
-        // the Crew modal disappear on the next athlete save (R78): the crew list
-        // is fetched primary-first, so the current primary was position 0 and got
-        // written straight back over any newer choice.
+        // No `is_primary_contact` is sent. Crew members are equal (2026-09-02),
+        // and the gateway no longer reads the key — but the reason to omit it
+        // rather than send a false is that a payload which says "nobody is
+        // primary" is still a payload making a claim about primaries.
         //
         // A row with NOTHING in it is the blank placeholder the form always
         // renders — skip it. A row with SOME fields is someone the user was
@@ -446,27 +404,15 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
           return;
         }
 
-        // The flagged card may have been filtered out above as a blank placeholder.
-        // When that happens on an EXISTING athlete we post no primary at all, which
-        // the gateway treats as "leave the current primary alone" — better than
-        // promoting whoever happens to be first. A brand-new athlete has no primary
-        // to preserve, so fall back to the first entered crew member.
-        let primaryIndex = enteredGuardians.findIndex(g => isPrimaryFlag(g));
-        if (primaryIndex < 0 && !athlete && enteredGuardians.length > 0) {
-          primaryIndex = 0;
-        }
-
         for (let i = 0; i < enteredGuardians.length; i++) {
-          const isPrimary = i === primaryIndex;
           const guardianData = {
             athlete_id: athleteId,
             ...enteredGuardians[i],
-            is_primary_contact: isPrimary ? 1 : 0,
             has_legal_custody: 1,
             can_authorize_medical: 1,
             can_pickup: 1,
             receives_communications: 1,
-            financial_responsible: isPrimary ? 1 : 0
+            financial_responsible: 1
           };
 
           // The response used to be discarded, exactly like the medical save
@@ -833,10 +779,11 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                 {(formData.guardians || []).map((guardian, gi) => (
                   <div key={gi} className="space-y-4 border border-brand-secondary rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                      {/* Driven by the flag, not the position. Position used to be
-                          the only thing that decided this, on screen and on save. */}
+                      {/* A position, not a rank. Crew members are equal — this
+                          heading numbers the cards so the required-field messages
+                          below can name one, and nothing more. */}
                       <span className="text-sm font-semibold text-brand-primary uppercase">
-                        {isPrimaryFlag(guardian) ? 'Primary Crew Member' : `Crew Member ${gi + 1}`}
+                        {`Crew Member ${gi + 1}`}
                       </span>
                       {(formData.guardians?.length || 0) > 1 && (
                         <button
@@ -848,22 +795,6 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         </button>
                       )}
                     </div>
-
-                    {/* The primary control. Before this the form had none: the
-                        first card was labelled primary and the save posted the
-                        position, so the Crew modal's promotion was reverted on
-                        the next athlete save. One radio group, exactly one
-                        primary. */}
-                    <label className="flex items-center gap-2 text-sm text-brand-primary cursor-pointer">
-                      <input
-                        type="radio"
-                        name="primary-crew-member"
-                        className="accent-brand-accent"
-                        checked={isPrimaryFlag(guardian)}
-                        onChange={() => setPrimaryGuardian(gi)}
-                      />
-                      <span>Primary contact</span>
-                    </label>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>

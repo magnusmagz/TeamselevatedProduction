@@ -89,6 +89,9 @@ class RosterExportTest extends TestCase
             (3, 'Pia',  'Zamora',  'pia@example.com',  '555-0103'),
             (4, 'Rob',  'Brooks',  'rob@example.com',  '555-0104')");
 
+        // Link ids order the crew columns. Link 2 keeps a stale `is_primary = 1`
+        // so a regression that starts reading the flag again reorders Ana's
+        // columns and fails testCrewColumnsAreFilledInLinkOrderWithNobodyPromoted.
         $this->pdo->exec("INSERT INTO athlete_guardians (id, athlete_id, guardian_id, relationship, is_primary) VALUES
             (1, 1, 2, 'Parent', 0),
             (2, 1, 1, 'Parent', 1),
@@ -289,15 +292,27 @@ class RosterExportTest extends TestCase
         $this->assertSame('Crew 3 Phone', $sheet['headers'][18]);
     }
 
-    public function testPrimaryCrewMemberComesFirst(): void
+    /**
+     * Crew columns are filled in LINK order and nobody is promoted into Crew 1.
+     *
+     * There is no primary guardian (2026-09-02). Ana's link 1 is Omar and link 2
+     * is Nia, and link 2 still carries a stale `is_primary = 1` — so Omar
+     * occupying the first column group is what proves the flag is not read. A
+     * download outlives the session it came from; a column silently reordered by
+     * a flag nobody maintains is a worse answer than a stable one.
+     */
+    public function testCrewColumnsAreFilledInLinkOrderWithNobodyPromoted(): void
     {
         $sheet = te_roster_export_sheet($this->pdo, 10, 'crew', '2026-08-25');
         $ana = $sheet['rows'][0];
 
-        $this->assertSame('Nia Alvarez', $ana[7]);
+        $this->assertSame('Omar Alvarez', $ana[7]);
         $this->assertSame('Parent', $ana[8]);
-        $this->assertSame('nia@example.com', $ana[9]);
-        $this->assertSame('555-0101', $ana[10]);
+        $this->assertSame('omar@example.com', $ana[9]);
+        $this->assertSame('555-0102', $ana[10]);
+
+        $this->assertSame('Nia Alvarez', $ana[11]);
+        $this->assertSame('Pia Zamora', $ana[15]);
     }
 
     public function testAthleteWithNoCrewGetsBlankCellsNotMissingColumns(): void
