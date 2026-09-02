@@ -32,6 +32,14 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Crew: connect a stuck account to its family (Heroku v571, then Netlify)
+
+`api/crew-link.php` + `CrewAccountLinkPanel` on the Crew page (club admins only, hidden when
+nothing needs repair). Lists parent-role accounts that resolve to no guardian, suggests crew
+records by name, writes `user_guardians` (source `admin_link`, audited, trigger-attributed) and
+reports how many athletes the family can now see. Backend pushed first — new endpoint.
+(v570 was the changelog alone; a branch-worktree push.)
+
 ### Chat server on the same identity rule (chat v26, Heroku v569)
 
 `chat-server/lib/guardian_identity.js` ports `te_guardian_link_sql()`; team scope, the DM
