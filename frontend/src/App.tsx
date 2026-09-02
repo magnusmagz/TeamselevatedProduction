@@ -172,6 +172,25 @@ const FundraiserAdminWrapper: React.FC<{ children: (props: { clubId: number; clu
   return <>{children({ clubId: currentClubId, clubSlug, userId: user.id })}</>;
 };
 
+/**
+ * Athlete documents route.
+ *
+ * The route element used to read the id with
+ * `window.location.pathname.split('/')[2]`, which is a positional guess at the
+ * URL rather than the route's own parameter: it silently returns the wrong
+ * segment if the path ever gains a prefix, and it is not reactive, so a
+ * client-side navigation between two athletes re-rendered with the OLD id.
+ * `useParams` is the route's own answer.
+ */
+const AthleteDocumentsPage: React.FC = () => {
+  const { athleteId } = useParams<{ athleteId: string }>();
+  return (
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <DocumentManager athleteId={athleteId || ''} />
+    </main>
+  );
+};
+
 // Team Roster Page Component
 const TeamRosterPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -338,6 +357,34 @@ function AppContent() {
 
   const isAmplifiersActive = amplifiersLinks.some((link) => location.pathname.startsWith(link.to));
 
+  const [documentsDropdownOpen, setDocumentsDropdownOpen] = React.useState(false);
+  const documentsDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (documentsDropdownRef.current && !documentsDropdownRef.current.contains(e.target as Node)) {
+        setDocumentsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    setDocumentsDropdownOpen(false);
+  }, [location.pathname]);
+
+  // The expiration dashboard had a route and no way to reach it — nothing in the
+  // app linked to /documents/expiring, so the only arrival was a typed URL.
+  // Documents becomes a dropdown so it sits beside the Document Center under the
+  // same admin menu, and both entries share /club-documents' admin guard.
+  const documentsLinks = [
+    { to: '/club-documents', label: 'Document Center' },
+    { to: '/documents/expiring', label: 'Expiring Soon' },
+  ];
+
+  const isDocumentsActive = documentsLinks.some((link) => location.pathname.startsWith(link.to));
+
   const [commsDropdownOpen, setCommsDropdownOpen] = React.useState(false);
   const commsDropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -385,7 +432,7 @@ function AppContent() {
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
     { to: '/venues', label: 'Facilities' },
-    { to: '/club-documents', label: 'Documents' },
+    { to: '/__documents_dropdown__', label: 'Documents' },
     // Bulk import lives under Club Settings → Imports now (was a top-level
     // nav item). Route /imports still resolves for any saved bookmarks.
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
@@ -460,7 +507,7 @@ function AppContent() {
                     return [
                       <div key="programs-dropdown" className="relative" ref={programsDropdownRef}>
                         <button
-                          onClick={() => { setProgramsDropdownOpen(!programsDropdownOpen); setPeopleDropdownOpen(false); setAmplifiersDropdownOpen(false); setCommsDropdownOpen(false); }}
+                          onClick={() => { setProgramsDropdownOpen(!programsDropdownOpen); setPeopleDropdownOpen(false); setAmplifiersDropdownOpen(false); setCommsDropdownOpen(false); setDocumentsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isProgramsActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -498,7 +545,7 @@ function AppContent() {
                     return [
                       <div key="amplifiers-dropdown" className="relative" ref={amplifiersDropdownRef}>
                         <button
-                          onClick={() => { setAmplifiersDropdownOpen(!amplifiersDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setCommsDropdownOpen(false); }}
+                          onClick={() => { setAmplifiersDropdownOpen(!amplifiersDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setCommsDropdownOpen(false); setDocumentsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isAmplifiersActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -531,12 +578,50 @@ function AppContent() {
                     ];
                   }
 
+                  // Documents dropdown
+                  if (link.to === '/__documents_dropdown__') {
+                    return [
+                      <div key="documents-dropdown" className="relative" ref={documentsDropdownRef}>
+                        <button
+                          onClick={() => { setDocumentsDropdownOpen(!documentsDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); setCommsDropdownOpen(false); }}
+                          className={`uppercase font-medium text-sm flex items-center gap-1 ${
+                            isDocumentsActive
+                              ? 'text-brand-primary border-b-2 border-brand-primary'
+                              : 'text-brand-primary hover:text-brand-primary-hover'
+                          }`}
+                        >
+                          Documents
+                          <svg className={`w-3.5 h-3.5 transition-transform ${documentsDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {documentsDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-brand-secondary rounded-lg shadow-lg py-1 min-w-[180px] z-50">
+                            {documentsLinks.map((dLink) => (
+                              <Link
+                                key={dLink.to}
+                                to={dLink.to}
+                                className={`block px-4 py-2 text-sm font-medium ${
+                                  location.pathname.startsWith(dLink.to)
+                                    ? 'text-brand-primary bg-brand-secondary'
+                                    : 'text-brand-primary hover:bg-brand-secondary'
+                                }`}
+                              >
+                                {dLink.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ];
+                  }
+
                   // Communications dropdown
                   if (link.to === '/__comms_dropdown__') {
                     return [
                       <div key="comms-dropdown" className="relative" ref={commsDropdownRef}>
                         <button
-                          onClick={() => { setCommsDropdownOpen(!commsDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
+                          onClick={() => { setCommsDropdownOpen(!commsDropdownOpen); setPeopleDropdownOpen(false); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); setDocumentsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isCommsActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -595,7 +680,7 @@ function AppContent() {
                     elements.push(
                       <div key="people-dropdown" className="relative" ref={peopleDropdownRef}>
                         <button
-                          onClick={() => { setPeopleDropdownOpen(!peopleDropdownOpen); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); }}
+                          onClick={() => { setPeopleDropdownOpen(!peopleDropdownOpen); setProgramsDropdownOpen(false); setAmplifiersDropdownOpen(false); setDocumentsDropdownOpen(false); }}
                           className={`uppercase font-medium text-sm flex items-center gap-1 ${
                             isPeopleActive
                               ? 'text-brand-primary border-b-2 border-brand-primary'
@@ -673,6 +758,27 @@ function AppContent() {
                               }`}
                             >
                               {aLink.label}
+                            </Link>
+                          ))
+                        ];
+                      }
+
+                      // Documents dropdown → expand flat in mobile
+                      if (link.to === '/__documents_dropdown__') {
+                        return [
+                          <div key="documents-mobile-label" className="px-3 pt-3 pb-1 text-xs text-gray-400 uppercase tracking-wider font-semibold">Documents</div>,
+                          ...documentsLinks.map((dLink) => (
+                            <Link
+                              key={dLink.to}
+                              to={dLink.to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`block px-6 py-3 uppercase font-medium text-sm ${
+                                location.pathname.startsWith(dLink.to)
+                                  ? 'text-brand-primary bg-brand-secondary'
+                                  : 'text-brand-primary hover:bg-brand-secondary'
+                              }`}
+                            >
+                              {dLink.label}
                             </Link>
                           ))
                         ];
@@ -799,15 +905,25 @@ function AppContent() {
           <Route path="/teams/:teamId/player-cards" element={<ProtectedRoute><PlayerCards /></ProtectedRoute>} />
           <Route path="/athlete/:athleteId" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />
+          {/* Both of these rendered with NO guard at all. The backend predicate
+              is the control that matters (`userCanReadAthleteDocs` here,
+              `te_is_club_staff` on `action=expiring`), but an unguarded route
+              renders the page to anyone who types the URL and then fills it with
+              403s. Athlete documents stay on ProtectedRoute — a guardian
+              legitimately reaches their own child's — while the club-wide
+              expiration dashboard is club-wide staff data and takes the admin
+              guard, matching /club-documents. */}
           <Route path="/athlete/:athleteId/documents" element={
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <DocumentManager athleteId={window.location.pathname.split('/')[2]} />
-            </main>
+            <ProtectedRoute>
+              <AthleteDocumentsPage />
+            </ProtectedRoute>
           } />
           <Route path="/documents/expiring" element={
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <ExpirationDashboard />
-            </main>
+            <ProtectedClubAdminRoute>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <ExpirationDashboard />
+              </main>
+            </ProtectedClubAdminRoute>
           } />
           <Route path="/athletes" element={
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -844,10 +960,14 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/club-profile" element={<ClubProfilePage />} />
+          {/* ProtectedRoute is authentication, never authorisation — it checks
+              only that someone is signed in. The Document Center is a club-admin
+              screen (create / edit / delete / assign), so it takes the admin
+              guard the way /crew now does. */}
           <Route path="/club-documents" element={
-            <ProtectedRoute>
+            <ProtectedClubAdminRoute>
               <ClubDocumentCenter />
-            </ProtectedRoute>
+            </ProtectedClubAdminRoute>
           } />
           <Route path="/program-management" element={<ProgramManagement />} />
           {/* LeagueSettings route removed - use /club-profile for club settings */}

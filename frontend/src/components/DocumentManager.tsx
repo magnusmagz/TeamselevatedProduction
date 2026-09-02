@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { deriveDocumentStatus, formatDocumentDate } from '../utils/documentStatus';
 
 interface Document {
   id: number;
@@ -19,15 +20,6 @@ interface Document {
 interface DocumentManagerProps {
   athleteId: string;
   athleteName?: string;
-}
-
-function deriveStatus(expiresAt?: string | null): 'valid' | 'expiring_soon' | 'expired' {
-  if (!expiresAt) return 'valid';
-  const now = Date.now();
-  const exp = new Date(expiresAt).getTime();
-  if (exp < now) return 'expired';
-  if (exp - now < 30 * 24 * 60 * 60 * 1000) return 'expiring_soon';
-  return 'valid';
 }
 
 const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteName }) => {
@@ -89,7 +81,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
       ) : (
         <div className="divide-y divide-brand-secondary">
           {documents.map((doc) => {
-            const status = deriveStatus(doc.expires_at);
+            const status = deriveDocumentStatus(doc.expires_at);
             const href = doc.file_path || doc.link_url || '#';
             return (
               <a
@@ -125,10 +117,10 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({ athleteId, athleteNam
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                      <span>Added {new Date(doc.created_at).toLocaleDateString()}</span>
+                      <span>Added {formatDocumentDate(doc.created_at)}</span>
                       {doc.uploaded_by_name && <span>by {doc.uploaded_by_name}</span>}
                       {doc.expires_at && (
-                        <span>Expires {new Date(doc.expires_at).toLocaleDateString()}</span>
+                        <span>Expires {formatDocumentDate(doc.expires_at)}</span>
                       )}
                     </div>
                     {doc.notes && (

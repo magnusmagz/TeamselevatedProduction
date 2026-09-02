@@ -9,7 +9,7 @@ npm run lint:ci   # the ratchet — exits 1 above the ceiling
 ```
 
 **The ceiling lives in one place: `--max-warnings` in `package.json`'s `lint:ci` script.**
-It is currently **50**.
+It is currently **48**.
 
 ## The rule
 

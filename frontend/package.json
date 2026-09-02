@@ -37,7 +37,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx --ignore-pattern '**/*.test.*' --ignore-pattern '**/__tests__/**' --ignore-pattern 'src/setupTests.ts'",
-    "lint:ci": "eslint src --ext .js,.jsx,.ts,.tsx --ignore-pattern '**/*.test.*' --ignore-pattern '**/__tests__/**' --ignore-pattern 'src/setupTests.ts' --max-warnings 50"
+    "lint:ci": "eslint src --ext .js,.jsx,.ts,.tsx --ignore-pattern '**/*.test.*' --ignore-pattern '**/__tests__/**' --ignore-pattern 'src/setupTests.ts' --max-warnings 48"
   },
   "eslintConfig": {
     "extends": [

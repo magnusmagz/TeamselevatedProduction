@@ -86,6 +86,7 @@ const ClubDocumentCenter: React.FC = () => {
   const [availableTeams, setAvailableTeams] = useState<AssignableTeam[]>([]);
   const [availableAthletes, setAvailableAthletes] = useState<AssignableAthlete[]>([]);
   const [availableCoaches, setAvailableCoaches] = useState<AssignableUser[]>([]);
+  const [coachesError, setCoachesError] = useState<string | null>(null);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
 
   const token = localStorage.getItem('auth_token');
@@ -116,19 +117,33 @@ const ClubDocumentCenter: React.FC = () => {
   // Load teams/athletes/coaches for the assignment picker (lazy on first modal open)
   const loadAssignablePeople = useCallback(async () => {
     if (!clubId) return;
-    try {
-      const [teamsRes, athletesRes, coachesRes] = await Promise.all([
-        fetch(`${API_URL}/api/teams.php?club_profile_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
-        fetch(`${API_URL}/legacy/athletes-gateway.php?club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
-        fetch(`${API_URL}/legacy/coaches-gateway.php?action=list&club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
-      ]);
-      if (teamsRes?.teams) setAvailableTeams(teamsRes.teams);
-      if (athletesRes?.athletes) setAvailableAthletes(athletesRes.athletes);
-      else if (Array.isArray(athletesRes)) setAvailableAthletes(athletesRes);
-      if (coachesRes?.coaches) setAvailableCoaches(coachesRes.coaches);
-      else if (Array.isArray(coachesRes)) setAvailableCoaches(coachesRes);
-    } catch {
-      // Picker can still work with whatever lists are available
+    setCoachesError(null);
+    // ⚠️ The coaches action is `available`, not `list`. `legacy/coaches-gateway.php`
+    // has no `list` case and no `default:`, so that request returned 200 with an
+    // EMPTY BODY, `.json()` threw, the `.catch(() => null)` swallowed it, and the
+    // Coaches / Volunteers section of the picker simply never rendered — no error,
+    // no empty state, just a missing assignment target. `available` returns a bare
+    // array (not `{coaches: [...]}`), which is why the Array.isArray branch is the
+    // one that fires.
+    const [teamsRes, athletesRes, coachesRes] = await Promise.all([
+      fetch(`${API_URL}/api/teams.php?club_profile_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      fetch(`${API_URL}/legacy/athletes-gateway.php?club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      fetch(`${API_URL}/legacy/coaches-gateway.php?action=available&club_id=${clubId}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .catch(() => ({ __failed: true })),
+    ]);
+    if (teamsRes?.teams) setAvailableTeams(teamsRes.teams);
+    if (athletesRes?.athletes) setAvailableAthletes(athletesRes.athletes);
+    else if (Array.isArray(athletesRes)) setAvailableAthletes(athletesRes);
+
+    if (Array.isArray(coachesRes)) setAvailableCoaches(coachesRes);
+    else if (Array.isArray(coachesRes?.coaches)) setAvailableCoaches(coachesRes.coaches);
+    else {
+      // A real error state on the section, not a silent absence. An empty
+      // Coaches list and an unreachable one look identical otherwise, and the
+      // admin's only symptom is that they cannot assign a document to a coach.
+      setAvailableCoaches([]);
+      setCoachesError(coachesRes?.error || 'Could not load coaches and volunteers.');
     }
   }, [clubId, token]);
 
@@ -903,6 +918,12 @@ const ClubDocumentCenter: React.FC = () => {
                           ))}
                         </div>
                       </details>
+                    )}
+
+                    {coachesError && (
+                      <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                        {coachesError} You can still assign this document to the club, teams or athletes.
+                      </div>
                     )}
 
                     {availableCoaches.length > 0 && (
