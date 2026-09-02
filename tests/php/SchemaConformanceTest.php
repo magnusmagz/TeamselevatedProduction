@@ -54,14 +54,9 @@ class SchemaConformanceTest extends TestCase
      * Nothing may be added here for a column that has no migration file.
      */
     private const PENDING_MIGRATION = [
-        // Migration 083 — what a scheduled broadcast has to say, and what happened
-        // when it didn't. Written 2026-09-02, deliberately not applied: the code
-        // ships first and degrades (te_broadcast_scheduled_columns_present) so that
-        // `main` reaching production ahead of the hand-applied migration is safe.
-        'broadcast_campaigns.body'           => '083_broadcast_campaign_body.sql',
-        'broadcast_campaigns.html_body'      => '083_broadcast_campaign_body.sql',
-        'broadcast_campaigns.event_id'       => '083_broadcast_campaign_body.sql',
-        'broadcast_campaigns.failure_reason' => '083_broadcast_campaign_body.sql',
+        // Empty. Add a 'table.column' => 'NNN_file.sql' entry only for a migration that is
+        // written but not yet applied; testPendingMigrationEntriesAreStillPending fails the
+        // moment it lands in the fixture, so an entry cannot outlive its window.
     ];
 
     /** Is this column merely waiting on a migration that is already written? */

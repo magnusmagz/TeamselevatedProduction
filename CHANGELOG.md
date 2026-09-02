@@ -32,6 +32,15 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Scheduled broadcasts dispatch, dark (Heroku v567) — migration 083 applied
+
+`broadcast_campaigns.body / html_body / event_id / failure_reason` applied 14:09 PT via
+`scripts/apply-migration.php`; fixture refreshed (diff = the four columns). Dispatcher tick
+in the queue worker, switch `TE_FEATURE_SCHEDULED_DISPATCH` **off** (v566). While off,
+"schedule for later" still returns the 400 it always did. Flip on after a staged test:
+schedule one campaign to yourself two minutes out and watch the worker log. Also Netlify
+`61f60f5`: checkout page no longer blanks when the plans answer has no array.
+
 ### Phase 2 sends shipped DARK (Heroku v564; switches set OFF in v563)
 
 The demo stubs now send for real, behind config-var kill switches, all three **off** in prod:

@@ -313,7 +313,11 @@
     "skipped_count",
     "failed_count",
     "created_at",
-    "updated_at"
+    "updated_at",
+    "body",
+    "html_body",
+    "event_id",
+    "failure_reason"
   ],
   "calendar_event_attendees": [
     "id",

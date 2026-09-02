@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083 is still free** (reserved by the roadmap plan for `broadcast_campaigns.body`); next free after that is **085**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`) applied 2026-09-02. Next free number is **085**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
