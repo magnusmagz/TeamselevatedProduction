@@ -10,7 +10,12 @@ Shareable version: the "Pending Decisions" page (link in memory).
 
 ## From the 2026-09-02 deploys
 
-### 1. Five athletes have broken primary-crew flags
+### 1. Five athletes have broken primary-crew flags — MOOT 2026-09-02
+**Maggie: there is no "primary parent" in Teams Elevated; guardians are equal.** The concept is
+being removed from the UI and every writer (branch `fix/remove-primary-guardian`); the column
+stays, unread. Nothing needs fixing on these five rows.
+
+_Original item:_
 Before today's fix, two writers marked every crew link primary, so four club-32 athletes
 (Emily Thompson 151, Grace Garcia 164, Gabriel Miller 165, Olivia Thompson 181) have two
 primaries and one club-51 athlete (Bonnie Ziegler 463) has none. The fix stopped new
