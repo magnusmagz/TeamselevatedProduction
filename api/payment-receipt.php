@@ -10,6 +10,10 @@ Cors::handle();
 
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
 
 try {
     $db = Database::getInstance();
@@ -36,6 +40,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT
                     pt.id,
+                    ap.athlete_id,
                     pt.maverick_transaction_id,
                     pt.amount,
                     pt.payment_method,
@@ -70,6 +75,17 @@ try {
                 exit;
             }
 
+            // A receipt names the guardian, the amounts and the payment method. Until
+            // 2026-09-02 any transaction id fetched it with no token; the receipt page
+            // has always sent a bearer, so this changes nothing for it. Same predicate
+            // as action=email below.
+            $auth = AuthMiddleware::requireAuth();
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, (int)$transaction['athlete_id'])) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'You do not have access to this receipt']);
+                exit;
+            }
+
             // Use database ID as transaction_id if maverick_transaction_id is null
             $displayTransactionId = $transaction['maverick_transaction_id'] ?: ('TXN-' . str_pad($transaction['id'], 8, '0', STR_PAD_LEFT));
 
@@ -101,6 +117,22 @@ try {
                 exit;
             }
 
+            // ⚠️ Authentication is on the SEND, not on the whole file.
+            // Until 2026-09-02 this action only logged that it would have sent, so
+            // an open endpoint cost nothing. It now puts real mail in
+            // a guardian's inbox, and an unauthenticated caller who can guess
+            // transaction ids would have an anonymous mail trigger. Scope is the
+            // athlete READ predicate — club admin, the athlete's coach, or their
+            // guardian — because "may I see this athlete's record" is exactly the
+            // question "may I have their receipt re-sent" asks.
+            try {
+                $auth = AuthMiddleware::requireAuth();
+            } catch (Exception $e) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'sent' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+
             $data = json_decode(file_get_contents("php://input"), true);
             $transactionId = $data['transaction_id'] ?? null;
 
@@ -115,19 +147,24 @@ try {
                 $whereClause = "pt.maverick_transaction_id = :transaction_id";
             }
 
-            // Get transaction and guardian email
+            // Get transaction and guardian email.
+            // The club comes off the program / payment item / athlete row — never
+            // off the request body, which the caller controls.
             $stmt = $pdo->prepare("
                 SELECT
                     pt.id,
                     pt.maverick_transaction_id,
                     pt.amount,
                     pt.created_at,
+                    ap.athlete_id,
                     g.email as guardian_email,
                     g.first_name as guardian_first,
                     a.first_name as athlete_first,
                     a.last_name as athlete_last,
                     pi.name as item_name,
-                    p.name as program_name
+                    p.name as program_name,
+                    COALESCE(p.club_id, pi.club_id, a.club_id) as club_id,
+                    cp.name as club_name
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
                 JOIN athletes a ON ap.athlete_id = a.id
@@ -135,6 +172,7 @@ try {
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
                 LEFT JOIN programs p ON ap.program_id = p.id
+                LEFT JOIN club_profile cp ON cp.id = COALESCE(p.club_id, pi.club_id, a.club_id)
                 WHERE $whereClause
             ");
             $stmt->execute(['transaction_id' => $transactionId]);
@@ -144,34 +182,72 @@ try {
                 throw new Exception('Transaction not found');
             }
 
-            $guardianEmail = $transaction['guardian_email'] ?? 'demo@example.com';
+            if (!AthleteScope::userCanAccessAthlete($pdo, $auth, (int)$transaction['athlete_id'])) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'sent' => false, 'error' => 'Not authorized for this athlete']);
+                exit;
+            }
+
+            $guardianEmail = trim((string)($transaction['guardian_email'] ?? ''));
             $displayTransactionId = $transaction['maverick_transaction_id'] ?: ('TXN-' . str_pad($transaction['id'], 8, '0', STR_PAD_LEFT));
 
-            // In demo mode, just log and return success
-            // In production, this would use a mail service
-            $emailContent = "
-                Payment Receipt
+            // No placeholder address. The old code fell back to a made-up example.com
+            // address, harmless while nothing sent and a misdirected receipt now.
+            if ($guardianEmail === '') {
+                echo json_encode([
+                    'success' => false,
+                    'sent' => false,
+                    'error' => 'No email address on file for this athlete\'s primary guardian'
+                ]);
+                break;
+            }
 
-                Transaction ID: {$displayTransactionId}
-                Date: {$transaction['created_at']}
+            $clubId = $transaction['club_id'] !== null ? (int)$transaction['club_id'] : null;
+            $clubName = $transaction['club_name'] ?: 'Teams Elevated';
+            $athleteName = trim($transaction['athlete_first'] . ' ' . $transaction['athlete_last']);
 
-                Athlete: {$transaction['athlete_first']} {$transaction['athlete_last']}
-                Item: {$transaction['item_name']}
-                Program: {$transaction['program_name']}
+            // Kill switch: a bad template or a send storm is a config-var flip, not a
+            // deploy. Off means we say so — never `sent: true` for mail that did not go.
+            if (!te_feature_enabled('TRANSACTIONAL_EMAIL')) {
+                echo json_encode(array_merge(
+                    ['recipient' => $guardianEmail, 'transaction_id' => $displayTransactionId],
+                    te_feature_disabled_response('TRANSACTIONAL_EMAIL')
+                ));
+                break;
+            }
 
-                Amount Paid: $" . number_format($transaction['amount'], 2) . "
+            $sent = (new Email())->forClub($pdo, $clubId)->sendPaymentTransactionReceipt(
+                $guardianEmail,
+                $transaction['guardian_first'] ?: 'there',
+                $athleteName,
+                $transaction['item_name'] ?: 'Registration Fee',
+                $transaction['program_name'] ?: '',
+                $transaction['amount'],
+                $displayTransactionId,
+                $transaction['created_at'],
+                $clubName
+            );
 
-                Thank you for your payment!
-            ";
-
-            // Log the email (in production, would actually send)
-            error_log("DEMO: Would send receipt email to {$guardianEmail}");
-            error_log("Email content: " . $emailContent);
+            if (!$sent) {
+                // The provider refused it. Reporting success here is the bug this
+                // whole slice exists to remove.
+                http_response_code(502);
+                echo json_encode([
+                    'success' => false,
+                    'sent' => false,
+                    'recipient' => $guardianEmail,
+                    'transaction_id' => $displayTransactionId,
+                    'error' => 'Receipt could not be sent. Please try again shortly.'
+                ]);
+                break;
+            }
 
             echo json_encode([
                 'success' => true,
-                'message' => 'Receipt sent to ' . $guardianEmail,
-                'demo_mode' => true
+                'sent' => true,
+                'recipient' => $guardianEmail,
+                'transaction_id' => $displayTransactionId,
+                'message' => 'Receipt sent to ' . $guardianEmail
             ]);
             break;
 

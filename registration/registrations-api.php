@@ -12,6 +12,8 @@ require_once __DIR__ . '/../lib/consent_capture.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
+require_once __DIR__ . '/../lib/email_invoice_and_registration.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -527,12 +529,83 @@ try {
 
                 $connection->commit();
 
-                // Send confirmation email (optional - implement later)
-                // sendConfirmationEmail($formData);
+                // ⚠️ The confirmation is sent AFTER commit(), never inside the
+                // transaction. A throw in here while the transaction was open
+                // would roll back the family's registration — they would lose
+                // their place in the program because SendGrid had a bad minute.
+                // Same reasoning as the consent capture above, which runs in a
+                // SAVEPOINT for exactly this reason.
+                //
+                // Everything below is best-effort: the registration is already
+                // durable, so a failed or switched-off send is reported in the
+                // response and nothing more. `confirmation_sent` is always
+                // present so a false is a fact rather than a missing key.
+                $confirmationSent = false;
+                $confirmationDisabled = null;
+
+                if (te_feature_enabled('REGISTRATION_CONFIRMATION')) {
+                    try {
+                        // registrant_email is only written by the coach/adult
+                        // flow, which returns long before here; the athlete flow
+                        // carries the address in form_data. Read both so this
+                        // keeps working if that ever changes.
+                        $confirmTo = trim((string) ($guardianEmail ?? ''));
+                        if ($confirmTo === '') {
+                            $row = $connection->prepare(
+                                'SELECT registrant_email FROM registrations WHERE id = ?'
+                            );
+                            $row->execute([$registration_id]);
+                            $confirmTo = trim((string) ($row->fetchColumn() ?: ''));
+                        }
+
+                        // Program name and "what to bring" are not in the
+                        // validation SELECT above; read them here, outside the
+                        // transaction, so the write path is untouched.
+                        $progStmt = $connection->prepare(
+                            'SELECT name, what_to_bring, club_id FROM programs WHERE id = ?'
+                        );
+                        $progStmt->execute([$data['program_id']]);
+                        $progRow = $progStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+                        $confirmClubId = $progRow['club_id'] ?? $programClubId ?? null;
+                        $confirmClubId = ($confirmClubId === null || $confirmClubId === '')
+                            ? null : (int) $confirmClubId;
+
+                        if ($confirmTo !== '') {
+                            $mailer = (new Email())->forClub($connection, $confirmClubId);
+                            $confirmationSent = te_send_registration_confirmation($mailer, $confirmTo, [
+                                'club_name'      => te_email_from_name($connection, $confirmClubId),
+                                'guardian_first' => $guardianFirst,
+                                'athlete_name'   => trim(($athleteFirst ?? '') . ' ' . ($athleteLast ?? '')),
+                                'program_name'   => $progRow['name'] ?? '',
+                                'what_to_bring'  => $progRow['what_to_bring'] ?? '',
+                                'portal_url'     => te_parent_portal_url(),
+                            ]);
+
+                            if (!$confirmationSent) {
+                                error_log("registration confirmation refused by the provider "
+                                    . "for registration {$registration_id}");
+                            }
+                        } else {
+                            error_log("registration confirmation skipped for registration "
+                                . "{$registration_id}: no registrant email on the submission");
+                        }
+                    } catch (Throwable $e) {
+                        // Never fails the registration. Throwable, not Exception:
+                        // this sits inside a catch that calls rollBack(), and the
+                        // transaction is already committed by now.
+                        error_log("registration confirmation failed for registration {$registration_id}: "
+                            . $e->getMessage());
+                    }
+                } else {
+                    $confirmationDisabled = 'REGISTRATION_CONFIRMATION';
+                }
 
                 echo json_encode([
                     'success' => true,
                     'id' => $registration_id,
+                    'confirmation_sent' => $confirmationSent,
+                    'confirmation_feature_disabled' => $confirmationDisabled,
                     'athlete_id' => $athlete_id,
                     'guardian_id' => $guardian_id,
                     'athlete_matched' => $matchedExisting,
@@ -779,7 +852,8 @@ try {
 
                             $appUrl = rtrim(Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/');
                             $link = $appUrl . '/set-parent-password?token=' . $inv['token'];
-                            (new Email())->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
+                            // Branded as the club: $clubId is the program's club, resolved above.
+                            (new Email())->forClub($connection, (int)$clubId)->sendParentInvite($inv['email'], $inv['name'], $link, $athleteName);
                         } elseif ($inv['status'] === 'already_active') {
                             error_log('parent invite skipped (already active): ' . ($inv['email'] ?? ''));
                         } else {

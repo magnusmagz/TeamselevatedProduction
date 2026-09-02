@@ -37,6 +37,8 @@
 
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
+require_once __DIR__ . '/../lib/tryout_offer_notify.php';
 
 // ============================================
 // SCOPE HELPERS
@@ -813,15 +815,61 @@ function handlePost($connection, $path, $auth) {
                 }
 
                 $connection->commit();
-
-                echo json_encode([
-                    'success' => true,
-                    'count' => count($data['offers']),
-                    'message' => 'Offers sent successfully'
-                ]);
             } catch (Exception $e) {
                 $connection->rollBack();
                 throw $e;
+            }
+
+            // ── Telling the families ────────────────────────────────────────
+            // Until 2026-09-02 this handler answered "Offers sent successfully"
+            // with no send of any kind in it: rows were written, statuses were
+            // flipped, and nobody was told. Staff believed families had heard.
+            //
+            // The send runs AFTER commit and OUTSIDE the transaction, on purpose.
+            // An email cannot be rolled back, so a transport failure must not
+            // undo an offer staff have already made; and an offer that failed to
+            // write must never produce a mail. Sequential, never nested.
+            $offer_count = count($data['offers'] ?? []);
+
+            if (!te_feature_enabled('TRYOUT_OFFER_EMAIL')) {
+                // Never the word "sent" when nothing was sent. The offers are
+                // real and recorded; the notification is what is switched off,
+                // and the response has to say which.
+                echo json_encode([
+                    'success' => true,
+                    'count' => $offer_count,
+                    'notified' => 0,
+                    'feature_disabled' => 'TRYOUT_OFFER_EMAIL',
+                    'message' => 'Offers recorded; notifications are switched off'
+                ]);
+            } else {
+                // Only OFFERS are emailed. 'not_selected' rows are recorded but the family
+                // is not told by automated email — telling a child they did not make the
+                // team is a conversation the club owns (decisions doc, item 12).
+                $notifiable = array_values(array_filter(
+                    $data['offers'] ?? [],
+                    fn($o) => ($o['offer_type'] ?? '') !== 'not_selected'
+                ));
+                $notify = te_tryout_offer_notify_all(
+                    $connection,
+                    $notifiable,
+                    $auth ? $auth->getUserId() : null
+                );
+                $notifiableCount = count($notifiable);
+
+                echo json_encode([
+                    'success' => true,
+                    'count' => $offer_count,
+                    'notified' => $notify['notified'],
+                    'failed' => $notify['failed'],
+                    'emails_sent' => $notify['emails_sent'],
+                    'sms_queued' => $notify['sms_queued'],
+                    'not_notified_not_selected' => $offer_count - $notifiableCount,
+                    'message' => empty($notify['failed'])
+                        ? "Offers sent to {$notify['notified']} of {$notifiableCount} families"
+                        : ("Offers recorded. Notified {$notify['notified']} of {$notifiableCount} families; "
+                           . count($notify['failed']) . ' could not be reached.')
+                ]);
             }
             break;
 

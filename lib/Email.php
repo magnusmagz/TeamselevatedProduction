@@ -1217,4 +1217,366 @@ HTML;
 </html>
 HTML;
     }
+
+    /**
+     * Receipt for a recorded payment_transactions row (registration / program fees).
+     *
+     * NOTE the name. sendPaymentReceipt() above is the Stripe checkout path and takes
+     * invoice numbers; this one receipts a transaction against an athlete's program
+     * fee, so it names the athlete. A family with three children gets three receipts
+     * and has to be able to tell them apart.
+     *
+     * Called by api/payment-receipt.php?action=email. Until 2026-09-02 that endpoint
+     * only ever wrote "DEMO: Would send receipt email" to the error log and answered
+     * success, so the button in PaymentReceipt.tsx did nothing at all.
+     *
+     * @return bool true only if the provider accepted the message.
+     */
+    public function sendPaymentTransactionReceipt(
+        $to,
+        $guardianName,
+        $athleteName,
+        $itemName,
+        $programName,
+        $amount,
+        $transactionRef,
+        $paidOn,
+        $clubName
+    ) {
+        // No money in the subject: a receipt subject line renders on a lock screen
+        // and in every notification preview, and what a family paid is nobody
+        // else's business.
+        $subject = 'Payment receipt for ' . $athleteName;
+
+        $amountFormatted = '$' . number_format((float) $amount, 2);
+        $date = $paidOn ? date('F j, Y', strtotime($paidOn)) : date('F j, Y');
+
+        $rows = [
+            'Athlete'   => $athleteName,
+            'Item'      => $itemName,
+            'Program'   => $programName,
+            'Amount'    => $amountFormatted,
+            'Date'      => $date,
+            'Reference' => $transactionRef,
+        ];
+
+        $htmlBody = $this->getPaymentReceiptTemplate($guardianName, $rows, $clubName);
+
+        $textBody = "Payment receipt\n\n" .
+                    "Hi $guardianName,\n\n" .
+                    "We received your payment. Keep this receipt for your records.\n\n" .
+                    $this->paymentDetailsText($rows) . "\n" .
+                    "You can see your balance any time in the parent portal under Payments.\n\n" .
+                    "Thank you,\n$clubName\nvia Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * Reminder that a program fee is due, or is already overdue.
+     *
+     * Called by api/payment-reminders.php (single send and batch). The endpoint
+     * writes payment_reminder_log only after this returns true — a log row is a
+     * record that a family was contacted, and writing one for mail that never left
+     * is how "we reminded you three times" becomes untrue.
+     *
+     * @return bool
+     */
+    public function sendPaymentReminder(
+        $to,
+        $guardianName,
+        $athleteName,
+        $itemName,
+        $programName,
+        $amountDue,
+        $dueDate,
+        $isOverdue,
+        $clubName,
+        $paymentLink
+    ) {
+        $subject = $isOverdue
+            ? 'Payment overdue for ' . $athleteName
+            : 'Payment reminder for ' . $athleteName;
+
+        $amountFormatted = '$' . number_format((float) $amountDue, 2);
+        $dueText = $dueDate ? date('F j, Y', strtotime($dueDate)) : 'Not set';
+
+        $rows = [
+            'Athlete'    => $athleteName,
+            'Program'    => $programName,
+            'Item'       => $itemName,
+            'Amount due' => $amountFormatted,
+            'Due date'   => $dueText,
+        ];
+
+        $intro = $isOverdue
+            ? 'This payment is past its due date.'
+            : 'This is a reminder about a payment coming due.';
+
+        $htmlBody = $this->getPaymentReminderTemplate(
+            $guardianName,
+            $intro,
+            $rows,
+            $isOverdue,
+            $clubName,
+            $paymentLink
+        );
+
+        $textBody = ($isOverdue ? "Payment overdue\n\n" : "Payment reminder\n\n") .
+                    "Hi $guardianName,\n\n" .
+                    "$intro\n\n" .
+                    $this->paymentDetailsText($rows) . "\n" .
+                    "To pay, sign in to the parent portal:\n$paymentLink\n\n" .
+                    "If you have already paid, or if something here looks wrong, reply to this\n" .
+                    "email or contact $clubName and we will sort it out.\n\n" .
+                    "Thank you,\n$clubName\nvia Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * Tell a family (or a club admin) that a payment attempt failed.
+     *
+     * $forAdmin switches the copy from "your payment did not go through" to an
+     * internal alert. The admin copy is deliberately the same method: the two
+     * messages describe one event, and a club that gets a differently-shaped alert
+     * from the one the parent received cannot help them.
+     *
+     * @return bool
+     */
+    public function sendPaymentFailureNotice(
+        $to,
+        $recipientName,
+        $athleteName,
+        $itemName,
+        $programName,
+        $amount,
+        $failureReason,
+        $clubName,
+        $paymentLink,
+        $forAdmin = false
+    ) {
+        // The amount stays out of the subject on both copies.
+        $subject = $forAdmin
+            ? 'Payment failure — ' . $athleteName
+            : 'We could not process a payment for ' . $athleteName;
+
+        $amountFormatted = '$' . number_format((float) $amount, 2);
+        $reason = trim((string) $failureReason) !== '' ? $failureReason : 'No reason reported by the card processor';
+
+        $rows = [
+            'Athlete' => $athleteName,
+            'Program' => $programName,
+            'Item'    => $itemName,
+            'Amount'  => $amountFormatted,
+            'Reason'  => $reason,
+        ];
+
+        $htmlBody = $this->getPaymentFailureTemplate(
+            $recipientName,
+            $rows,
+            $forAdmin,
+            $clubName,
+            $paymentLink
+        );
+
+        if ($forAdmin) {
+            $textBody = "Payment failure\n\n" .
+                        "A payment attempt failed and the family has been notified.\n\n" .
+                        $this->paymentDetailsText($rows) . "\n" .
+                        "Follow up from Payments in the club dashboard if it is not resolved.\n\n" .
+                        "$clubName\nvia Teams Elevated";
+        } else {
+            $textBody = "We could not process your payment\n\n" .
+                        "Hi $recipientName,\n\n" .
+                        "Your payment did not go through. Nothing has been charged.\n\n" .
+                        $this->paymentDetailsText($rows) . "\n" .
+                        "To try again with the same or a different card, sign in to the parent portal:\n" .
+                        "$paymentLink\n\n" .
+                        "If you have any questions, contact $clubName.\n\n" .
+                        "Thank you,\n$clubName\nvia Teams Elevated";
+        }
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /** Plain-text rendering of the same detail rows the HTML table shows. */
+    private function paymentDetailsText(array $rows) {
+        $out = "Payment details:\n";
+        foreach ($rows as $label => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $out .= "- $label: $value\n";
+        }
+        return $out;
+    }
+
+    private function getPaymentReceiptTemplate($guardianName, array $rows, $clubName) {
+        return $this->renderPaymentEmail(
+            'Payment Received',
+            'Thank you',
+            $guardianName,
+            'We received your payment. Keep this receipt for your records.',
+            $rows,
+            null,
+            null,
+            'You can see your balance any time in the parent portal under Payments.',
+            $clubName
+        );
+    }
+
+    private function getPaymentReminderTemplate($guardianName, $intro, array $rows, $isOverdue, $clubName, $paymentLink) {
+        return $this->renderPaymentEmail(
+            $isOverdue ? 'Payment Overdue' : 'Payment Reminder',
+            $isOverdue ? 'This payment is past due' : 'A payment is coming due',
+            $guardianName,
+            $intro,
+            $rows,
+            'Make a Payment',
+            $paymentLink,
+            'If you have already paid, or something here looks wrong, contact ' . $clubName . ' and we will sort it out.',
+            $clubName
+        );
+    }
+
+    private function getPaymentFailureTemplate($recipientName, array $rows, $forAdmin, $clubName, $paymentLink) {
+        if ($forAdmin) {
+            return $this->renderPaymentEmail(
+                'Payment Failure',
+                'A payment attempt did not go through',
+                $recipientName,
+                'A payment attempt failed and the family has been notified.',
+                $rows,
+                'Open Payments',
+                $paymentLink,
+                'Follow up from Payments in the club dashboard if it is not resolved.',
+                $clubName
+            );
+        }
+
+        return $this->renderPaymentEmail(
+            'Payment Not Completed',
+            'Nothing has been charged',
+            $recipientName,
+            'Your payment did not go through. Nothing has been charged, so please try again when you can.',
+            $rows,
+            'Try Again',
+            $paymentLink,
+            'If you have any questions, contact ' . $clubName . '.',
+            $clubName
+        );
+    }
+
+    /**
+     * One renderer for all three payment emails.
+     *
+     * The four older templates in this file are near-identical copies and have
+     * drifted before — EmailButtonContrastTest exists because the CTA colour was
+     * fixed in some of them and not others. These three share a renderer so there
+     * is one button, one table and one footer to get right.
+     *
+     * Every interpolated value is escaped: names, item names and the processor's
+     * failure_reason all come from data.
+     */
+    private function renderPaymentEmail(
+        $heading,
+        $subHeading,
+        $greetingName,
+        $intro,
+        array $rows,
+        $ctaLabel,
+        $ctaLink,
+        $note,
+        $clubName
+    ) {
+        $heading    = $this->escapeForEmail($heading);
+        $subHeading = $this->escapeForEmail($subHeading);
+        $intro      = $this->escapeForEmail($intro);
+        $note       = $this->escapeForEmail($note);
+        $clubName   = $this->escapeForEmail($clubName);
+
+        $greeting = trim((string) $greetingName) !== ''
+            ? '<p>Hi ' . $this->escapeForEmail($greetingName) . ',</p>'
+            : '';
+
+        $rowsHtml = '';
+        foreach ($rows as $label => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $rowsHtml .= '<tr>'
+                . '<td style="padding: 10px 0; border-bottom: 1px solid #eee; color: #666;">'
+                . $this->escapeForEmail($label) . '</td>'
+                . '<td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: 500; text-align: right;">'
+                . $this->escapeForEmail($value) . '</td>'
+                . '</tr>';
+        }
+
+        // The button label must carry white inline on the anchor AND on a nested
+        // span. Mail clients override anchor colour with their own link styling,
+        // which turns a dark green button into an unreadable blue-on-green one —
+        // the failure EmailButtonContrastTest was written for.
+        $ctaHtml = '';
+        if ($ctaLabel && $ctaLink) {
+            $safeLink  = $this->escapeForEmail($ctaLink);
+            $safeLabel = $this->escapeForEmail($ctaLabel);
+            $ctaHtml = '<p style="text-align: center;">'
+                . '<a href="' . $safeLink . '" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">'
+                . '<span style="color: #ffffff !important; text-decoration: none;">' . $safeLabel . '</span>'
+                . '</a></p>'
+                . '<p style="color: #999; font-size: 12px; word-break: break-all;">Or copy and paste this link: ' . $safeLink . '</p>';
+        }
+
+        $noteHtml = $note !== ''
+            ? '<p style="color: #666; font-size: 14px;">' . $note . '</p>'
+            : '';
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #12443E; color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .detail-box { background: white; border: 2px solid #12443E; border-radius: 8px; padding: 25px; margin: 20px 0; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0;">{$heading}</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">{$subHeading}</p>
+        </div>
+        <div class="content">
+            {$greeting}
+            <p>{$intro}</p>
+            <div class="detail-box">
+                <table style="width: 100%; border-collapse: collapse;">
+                    {$rowsHtml}
+                </table>
+            </div>
+            {$ctaHtml}
+            {$noteHtml}
+        </div>
+        <div class="footer">
+            <p>{$clubName} &middot; via Teams Elevated</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    }
+
+    /** Names, item names and processor failure_reason strings all come from data. */
+    private function escapeForEmail($value) {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
 }

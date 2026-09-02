@@ -12,6 +12,9 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/financial_scope.php';
+require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -123,7 +126,8 @@ try {
                 throw new Exception('transaction_id is required');
             }
 
-            // Get failure details
+            // Get failure details. The club comes off the program row, never off
+            // the request body.
             $stmt = $pdo->prepare("
                 SELECT
                     pt.*,
@@ -134,6 +138,8 @@ try {
                     g.first_name as guardian_first,
                     pi.name as item_name,
                     p.name as program_name,
+                    p.club_id as club_id,
+                    l.name as club_name,
                     l.email as league_email
                 FROM payment_transactions pt
                 JOIN athlete_payments ap ON pt.athlete_payment_id = ap.id
@@ -152,69 +158,86 @@ try {
                 throw new Exception('Transaction not found');
             }
 
+            // ⚠️ Only `list` was scoped. This action takes a transaction_id from the
+            // body and now sends real mail, so it needs the same admin gate — an
+            // authenticated parent must not be able to mail another family.
+            te_assert_financial_admin($auth, $pdo, ['payment' => $failure['athlete_payment_id']]);
+
+            $clubId = $failure['club_id'] !== null ? (int)$failure['club_id'] : null;
+            $clubName = $failure['club_name'] ?: 'Teams Elevated';
+            $athleteName = trim($failure['athlete_first'] . ' ' . $failure['athlete_last']);
+            $paymentLink = rtrim(Env::get('APP_URL', 'http://localhost:3003'), '/') . '/parent/payments';
+
             $notifications = [];
+
+            // Kill switch: report the skip, never a send that did not happen.
+            if (!te_feature_enabled('TRANSACTIONAL_EMAIL')) {
+                echo json_encode(array_merge(
+                    ['notifications' => $notifications],
+                    te_feature_disabled_response('TRANSACTIONAL_EMAIL')
+                ));
+                break;
+            }
 
             // Notify parent
             if ($notifyParent && $failure['guardian_email']) {
-                $parentMessage = "
-Dear {$failure['guardian_first']},
+                $parentSent = (new Email())->forClub($pdo, $clubId)->sendPaymentFailureNotice(
+                    $failure['guardian_email'],
+                    $failure['guardian_first'] ?: 'there',
+                    $athleteName,
+                    $failure['item_name'] ?: 'Registration Fee',
+                    $failure['program_name'] ?: '',
+                    $failure['amount'],
+                    $failure['failure_reason'],
+                    $clubName,
+                    $paymentLink,
+                    false
+                );
 
-We were unable to process your payment for {$failure['athlete_first']} {$failure['athlete_last']}.
-
-Payment Details:
-- Program: {$failure['program_name']}
-- Item: {$failure['item_name']}
-- Amount: $" . number_format($failure['amount'], 2) . "
-- Reason: {$failure['failure_reason']}
-
-Please update your payment method or try again:
-[Payment Link]
-
-If you have any questions, please contact us.
-
-Thank you,
-Teams Elevated
-                ";
-
-                // Log notification (in production, would send email)
-                error_log("DEMO: Would send failure notification to {$failure['guardian_email']}");
-
-                $notifications[] = [
+                $notifications[] = array_filter([
                     'type' => 'parent',
                     'email' => $failure['guardian_email'],
-                    'sent' => true
-                ];
+                    'sent' => $parentSent,
+                    'error' => $parentSent ? null : 'Provider rejected the message'
+                ], function ($v) { return $v !== null; });
             }
 
             // Notify admin/treasurer
             if ($notifyAdmin && $failure['league_email']) {
-                $adminMessage = "
-Payment Failure Alert
+                $adminSent = (new Email())->forClub($pdo, $clubId)->sendPaymentFailureNotice(
+                    $failure['league_email'],
+                    $clubName,
+                    $athleteName,
+                    $failure['item_name'] ?: 'Registration Fee',
+                    $failure['program_name'] ?: '',
+                    $failure['amount'],
+                    $failure['failure_reason'],
+                    $clubName,
+                    $paymentLink,
+                    true
+                );
 
-A payment has failed:
-- Athlete: {$failure['athlete_first']} {$failure['athlete_last']}
-- Program: {$failure['program_name']}
-- Amount: $" . number_format($failure['amount'], 2) . "
-- Reason: {$failure['failure_reason']}
-- Parent Email: {$failure['guardian_email']}
-
-Please follow up as needed.
-                ";
-
-                error_log("DEMO: Would send admin notification to {$failure['league_email']}");
-
-                $notifications[] = [
+                $notifications[] = array_filter([
                     'type' => 'admin',
                     'email' => $failure['league_email'],
-                    'sent' => true
-                ];
+                    'sent' => $adminSent,
+                    'error' => $adminSent ? null : 'Provider rejected the message'
+                ], function ($v) { return $v !== null; });
             }
 
-            echo json_encode([
-                'success' => true,
+            // `sent` per row is the truth; `success` is false if ANY attempted send
+            // failed, so a caller that only reads the top level is not misled.
+            $failed = array_filter($notifications, function ($n) { return empty($n['sent']); });
+            $response = [
+                'success' => count($failed) === 0,
                 'notifications' => $notifications,
-                'demo_mode' => true
-            ]);
+                'sent_count' => count($notifications) - count($failed)
+            ];
+            if ($failed) {
+                http_response_code(502);
+                $response['error'] = count($failed) . ' of ' . count($notifications) . ' notifications could not be sent';
+            }
+            echo json_encode($response);
             break;
 
         case 'resolve':
@@ -234,14 +257,29 @@ Please follow up as needed.
                 throw new Exception('transaction_id is required');
             }
 
-            // Note: In a real system, we'd add resolved_at, resolved_by, resolution columns
-            // For now, we'll just log it
-            error_log("DEMO: Marking transaction $transactionId as resolved: $resolution");
+            $stmt = $pdo->prepare("SELECT athlete_payment_id FROM payment_transactions WHERE id = :transaction_id");
+            $stmt->execute(['transaction_id' => $transactionId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                throw new Exception('Transaction not found');
+            }
+            te_assert_financial_admin($auth, $pdo, ['payment' => $row['athlete_payment_id']]);
 
+            // ⚠️ There is nowhere to record this. payment_transactions has no
+            // resolved_at / resolution / resolution_notes column in live Neon
+            // (checked against tests/fixtures/production-schema.json), so the old
+            // handler logged a line and answered "Failure marked as resolved" —
+            // a claim about stored state that does not exist. The `list` action
+            // above already filters on pt.resolved_at, which is why
+            // ?action=list&status=pending errors out.
+            //
+            // Saying so is the honest answer until a migration adds the columns.
+            error_log("payment-failures: resolve requested for transaction $transactionId ($resolution) — not recorded, no column exists");
+            http_response_code(501);
             echo json_encode([
-                'success' => true,
-                'message' => 'Failure marked as resolved',
-                'demo_mode' => true
+                'success' => false,
+                'resolved' => false,
+                'error' => 'Resolution cannot be recorded: payment_transactions has no resolved_at column yet.'
             ]);
             break;
 
@@ -274,14 +312,17 @@ Please follow up as needed.
                 throw new Exception('Original transaction not found');
             }
 
-            // In production, would attempt to charge saved payment method again
-            // For demo, just return info about what would happen
+            te_assert_financial_admin($auth, $pdo, ['payment' => $original['athlete_payment_id']]);
+
+            // Nothing is charged here and nothing pretends to be. This hands back
+            // the checkout URL the family has to complete themselves; `retried`
+            // says plainly that no charge was attempted.
             echo json_encode([
                 'success' => true,
-                'message' => 'Retry would be attempted for saved payment method',
+                'retried' => false,
+                'message' => 'No charge was attempted. Send the family to checkout to pay again.',
                 'athlete_payment_id' => $original['athlete_payment_id'],
                 'amount' => $original['amount'],
-                'demo_mode' => true,
                 'redirect_to_checkout' => "/payment/checkout/{$original['athlete_id']}/{$original['athlete_payment_id']}"
             ]);
             break;
