@@ -98,3 +98,19 @@ Any staff member can file a tryout evaluation attributed to another coach. Now b
 to authenticated club staff, still a spoof.
 - **Recommendation:** take it from the token, as `marked_by` now does for attendance.
   Small; I will fold it into the next tryouts slice unless you say otherwise.
+
+### 11. RSVP email replies: three behaviours found by the new tests (2026-09-02)
+Pinned as `_KNOWN_DEFECT` tests in `tests/php/CalendarReplyParserTest.php` and
+`RsvpTokenTest.php`; each test says to delete it when the behaviour changes.
+- **(a) A reply lands on the newest pending invitation, not the event replied to.** The
+  parsed UID is discarded. A family with two open invites who declines the first marks
+  the second. Fix: store the event UID on `calendar_event_attendees` (additive column) and
+  match on it. Recommend: yes, next calendar slice.
+- **(b) An emailed reply can only be given once**; a change of mind gets "No matching
+  attendee found", while the one-click link path allows changes. Recommend: allow updates
+  from email too, consistent with the link.
+- **(c) RSVP links never expire** although the page says they do. Anyone holding a
+  forwarded invite email holds a permanent credential for that family on that event.
+  Adding a TTL invalidates links in emails already sent. Recommend: 60-day TTL, applied
+  to links minted from the change forward, page copy kept.
+- **If left:** all three stay as they are; the tests keep documenting them.
