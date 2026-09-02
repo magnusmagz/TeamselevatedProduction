@@ -185,3 +185,36 @@ export interface TryoutRanking {
   min_score?: number;
   max_score?: number;
 }
+
+/**
+ * A coach's claim on a tryout registrant (CKU R86, slice 8.2).
+ *
+ * `rostered` is COMPUTED by the backend from `tryout_offers` / `team_members`
+ * at read time — there is no such column, and there must not be one: a stored
+ * copy drifts the first time someone is rostered by hand.
+ *
+ * `email_sent_at` is null until an address actually accepted the invitation
+ * email. The row existing is not evidence the family was told.
+ */
+export type CoachInviteStatus = 'invited' | 'registered' | 'declined' | 'withdrawn';
+
+export interface CoachInvite {
+  id: number;
+  registration_id: number;
+  athlete_id?: number | null;
+  athlete_name: string;
+  tryout_number?: string | null;
+  tryout_status?: TryoutStatus | null;
+  team_id?: number | null;
+  team_name?: string | null;
+  invited_by?: number | null;
+  invited_by_name: string;
+  invited_at?: string | null;
+  email_sent_at?: string | null;
+  status: CoachInviteStatus;
+  notes?: string | null;
+  offer_type?: string | null;
+  offer_response?: string | null;
+  assigned_team_name?: string | null;
+  rostered: boolean;
+}

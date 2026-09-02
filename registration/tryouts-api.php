@@ -39,6 +39,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/club_standing.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
 require_once __DIR__ . '/../lib/tryout_offer_notify.php';
+require_once __DIR__ . '/../lib/tryout_coach_invite.php';
 
 // ============================================
 // SCOPE HELPERS
@@ -265,6 +266,22 @@ function tryout_requireTeamInClub($connection, $teamId, int $clubId): void
     }
 }
 
+/**
+ * Refuse the three coach-invite paths while migration 087 is unapplied.
+ *
+ * Migrations are applied to Neon by hand and `main` is shared, so this file can
+ * reach production days before `tryout_coach_invites` exists. On Postgres a
+ * query against a missing table is 42P01 — a 500 that would read as the Tryouts
+ * screen being broken. A 503 with a sentence says which feature is not there
+ * yet, and only this feature is affected.
+ */
+function tryout_requireCoachInvitesTable($connection): void
+{
+    if (!te_tryout_coach_invites_table_present($connection)) {
+        tryout_refuse(503, TE_TRYOUT_COACH_INVITE_UNAVAILABLE);
+    }
+}
+
 // Tests require this file for the scope helpers above. PHP early-binds top-level
 // functions, so returning here still defines handleGet/handlePost/handlePut/
 // handleDelete while skipping CORS, the headers, the request dispatch and the
@@ -487,6 +504,23 @@ function handleGet($connection, $path, $auth) {
             ");
             $stmt->execute([$program_id]);
             echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+            break;
+
+        case 'coach-invites':
+            // The director's view (CKU R86, slice 8.2): every coach's claim on
+            // this program's registrants, and what happened next.
+            //
+            // Staff-gated like every other read here — a coach sees the whole
+            // list, which is deliberate: the point of the table is that two
+            // coaches wanting the same player is visible to everyone running
+            // the tryout, not only to the director.
+            $program_id = $_GET['program_id'] ?? 0;
+            tryout_requireClubStaff($connection, $auth, $program_id);
+            tryout_requireCoachInvitesTable($connection);
+
+            // `rostered` is COMPUTED in this query from tryout_offers and
+            // team_members, never read from a column. See lib/tryout_coach_invite.php.
+            echo json_encode(te_tryout_coach_invite_list($connection, (int) $program_id));
             break;
 
         default:
@@ -971,6 +1005,125 @@ function handlePost($connection, $path, $auth) {
             $stmt->execute([$data['program_id']]);
 
             echo json_encode(['success' => true, 'message' => 'Rankings updated']);
+            break;
+
+        case 'coach-invite':
+            // "Invite to my team" (CKU R86, slice 8.2). A coach claims a
+            // registrant; the family is told with the EXISTING team-invitation
+            // email carrying registration instructions.
+            //
+            // Scope first, then the table probe: the club is resolved from the
+            // registration, which lives in a table that certainly exists.
+            $ci_registration_id = (int) ($data['registration_id'] ?? 0);
+            $ci_club_id = tryout_requireClubStaff(
+                $connection,
+                $auth,
+                tryout_programIdForRegistration($connection, $ci_registration_id)
+            );
+            tryout_requireCoachInvitesTable($connection);
+
+            // team_id comes from the body, so it needs its own check — staff
+            // standing in the program's club says nothing about a team
+            // elsewhere. It is OPTIONAL here: a coach may want a player before
+            // the team they will land on is decided.
+            $ci_team_id = ($data['team_id'] ?? null);
+            $ci_team_id = ($ci_team_id === null || $ci_team_id === '' || (int) $ci_team_id <= 0)
+                ? null
+                : (int) $ci_team_id;
+            if ($ci_team_id !== null) {
+                tryout_requireTeamInClub($connection, $ci_team_id, $ci_club_id);
+            }
+
+            // invited_by is the TOKEN's user, never the body. The whole value of
+            // this table is attributing a selection to a person, so a claim in
+            // the request would make it worthless as a record.
+            $ci_user_id = $auth ? (int) $auth->getUserId() : 0;
+            if ($ci_user_id <= 0) {
+                tryout_refuse(401, 'Sign in again to invite a player');
+            }
+
+            // The row is written and committed BEFORE any send. An email cannot
+            // be rolled back, so a transport failure must not undo a selection
+            // the coach has already made; and a selection that failed to write
+            // must never produce a mail.
+            $ci_invite = te_tryout_coach_invite_record(
+                $connection,
+                $ci_registration_id,
+                $ci_team_id,
+                $ci_user_id
+            );
+
+            $ci_response = [
+                'invited'         => true,
+                'invite_id'       => $ci_invite['id'],
+                'already_invited' => !$ci_invite['created'],
+                'status'          => $ci_invite['status'],
+                'email_sent'      => null,
+                'email_sent_at'   => $ci_invite['email_sent_at'],
+            ];
+
+            if (!te_feature_enabled('TRYOUT_COACH_INVITE_EMAIL')) {
+                // Never the word "sent" when nothing was sent. The claim is real
+                // and recorded; the notification is what is switched off, and
+                // the response has to say which.
+                $ci_response['feature_disabled'] = 'TRYOUT_COACH_INVITE_EMAIL';
+                $ci_response['message'] = 'Player invited; the invitation email is switched off';
+            } elseif ($ci_invite['email_sent_at'] !== null) {
+                // Already mailed on an earlier press. email_sent stays null —
+                // nothing was attempted now, and reporting true would claim a
+                // send this request did not make.
+                $ci_response['message'] = 'Player already invited; the family was emailed earlier';
+            } else {
+                $ci_ctx = te_tryout_coach_invite_context($connection, $ci_registration_id, $ci_team_id);
+                $ci_sent = false;
+                if ($ci_ctx !== null) {
+                    $ci_sent = te_tryout_coach_invite_send(
+                        $connection,
+                        $ci_ctx,
+                        te_tryout_coach_invite_coach_name($connection, $ci_user_id)
+                    );
+                }
+                if ($ci_sent) {
+                    te_tryout_coach_invite_mark_sent($connection, $ci_invite['id']);
+                }
+                $ci_response['email_sent'] = $ci_sent;
+                $ci_response['message'] = $ci_sent
+                    ? 'Player invited and the family has been emailed'
+                    : 'Player invited. The family could not be emailed — check their contact details.';
+            }
+
+            echo json_encode($ci_response);
+            break;
+
+        case 'coach-invite-status':
+            // Close the loop on a claim: declined (the family said no) or
+            // withdrawn (the coach changed their mind).
+            //
+            // The table probe runs FIRST here, because resolving the program
+            // means reading tryout_coach_invites — which is the table that may
+            // not exist yet.
+            tryout_requireCoachInvitesTable($connection);
+            $cis_invite_id = (int) ($data['invite_id'] ?? 0);
+            tryout_requireClubStaff(
+                $connection,
+                $auth,
+                te_tryout_coach_invite_program_id($connection, $cis_invite_id)
+            );
+
+            $cis_status = (string) ($data['status'] ?? '');
+            if ($cis_status === 'registered') {
+                // Refused deliberately, with the reason. Whether the athlete has
+                // been rostered is computed at read time from tryout_offers and
+                // team_members; a stored copy drifts the first time someone is
+                // rostered by hand in psql.
+                tryout_refuse(400, 'Registration is computed from the roster, not set here');
+            }
+            if (!te_tryout_coach_invite_set_status($connection, $cis_invite_id, $cis_status)) {
+                tryout_refuse(400, 'status must be one of: '
+                    . implode(', ', TE_TRYOUT_COACH_INVITE_STATUSES));
+            }
+
+            echo json_encode(['success' => true, 'invite_id' => $cis_invite_id, 'status' => $cis_status]);
             break;
 
         default:

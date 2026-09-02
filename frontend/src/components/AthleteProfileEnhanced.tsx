@@ -12,6 +12,7 @@ import PlayerCard from './PlayerCard';
 import AthletePhotoUpload from './AthletePhotoUpload';
 import DocumentManager from './DocumentManager';
 import { AthletePaymentsDashboard } from '../pages/AthletePaymentsDashboard';
+import AthleteEvaluationsPanel from './evaluations/AthleteEvaluationsPanel';
 
 interface Guardian {
   id: number;
@@ -712,6 +713,7 @@ const AthleteProfileEnhanced: React.FC = () => {
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'teams', label: 'Teams' },
+            { id: 'performance', label: 'Performance' },
             { id: 'medical', label: 'Medical' },
             { id: 'documents', label: 'Documents' },
             { id: 'communications', label: 'Communications' },
@@ -829,6 +831,19 @@ const AthleteProfileEnhanced: React.FC = () => {
                 ))}
               </div>
             )
+          )}
+
+          {/* Performance: mid-year evaluations + IDP (CKU R76/R77). The panel
+              asks the server who may write; nothing here infers it from a role,
+              so the New evaluation button and the endpoint's write gate cannot
+              disagree. */}
+          {activeTab === 'performance' && athlete && (
+            <AthleteEvaluationsPanel
+              athleteId={athlete.id}
+              athleteName={`${athlete.first_name} ${athlete.last_name}`}
+              teams={teams.map((t) => ({ id: t.team_id, name: t.team_name }))}
+              apiUrl={API_URL}
+            />
           )}
 
           {activeTab === 'medical' && medical?.exists && (

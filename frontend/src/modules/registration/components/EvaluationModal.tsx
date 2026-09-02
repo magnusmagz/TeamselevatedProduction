@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationCriterion, TryoutRegistration, TryoutEvaluation } from '../types';
+import {
+  CriterionScoreList,
+  ScoringCriterion,
+  computeWeightedOverall,
+} from '../../../components/evaluations/ScoringForm';
 
 const tryoutAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -72,9 +77,20 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
     }
   };
 
-  const handleScoreChange = (criteriaId: number, score: number) => {
-    setScores({ ...scores, [criteriaId.toString()]: score });
+  const handleScoreChange = (key: string, score: number) => {
+    setScores({ ...scores, [key]: score });
   };
+
+  // The shared scoring form is keyed by an opaque string. Tryout evaluations key
+  // their scores by criterion ID (that is what tryout_evaluations.scores stores),
+  // so the key here is the id — the payload shape is unchanged.
+  const scoringCriteria: ScoringCriterion[] = criteria.map((c) => ({
+    key: c.id!.toString(),
+    name: c.name,
+    description: c.description,
+    max_score: c.max_score,
+    weight: c.weight,
+  }));
 
   const handleSubmit = async () => {
     // Validate all criteria have scores
@@ -113,24 +129,10 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
     }
   };
 
-  const calculatePreviewScore = () => {
-    let weightedSum = 0;
-    let totalWeight = 0;
-
-    criteria.forEach(c => {
-      const score = scores[c.id!.toString()] || 0;
-      if (score > 0) {
-        const normalized = (score / c.max_score) * 100;
-        weightedSum += normalized * c.weight;
-        totalWeight += c.weight;
-      }
-    });
-
-    if (totalWeight > 0) {
-      return (weightedSum / totalWeight).toFixed(1);
-    }
-    return '-';
-  };
+  // Shared with the mid-year athlete evaluation modal so the same sheet cannot
+  // preview two different numbers. Behaviour is byte-for-byte what this function
+  // used to do; see computeWeightedOverall.
+  const calculatePreviewScore = () => computeWeightedOverall(scoringCriteria, scores);
 
   if (loading) {
     return (
@@ -183,47 +185,11 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </div>
 
           {/* Criteria Scoring */}
-          <div className="space-y-6">
-            {criteria.map((criterion) => (
-              <div key={criterion.id} className="border-b border-gray-200 pb-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="font-medium text-brand-primary">{criterion.name}</div>
-                    {criterion.description && (
-                      <div className="text-sm text-gray-500">{criterion.description}</div>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Weight: {criterion.weight}x
-                  </div>
-                </div>
-
-                {/* Score Buttons */}
-                <div className="flex space-x-2 mt-3">
-                  {Array.from({ length: criterion.max_score }, (_, i) => i + 1).map((score) => (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => handleScoreChange(criterion.id!, score)}
-                      className={`w-12 h-12 rounded-md font-semibold text-lg transition-colors ${
-                        scores[criterion.id!.toString()] === score
-                          ? 'bg-brand-primary text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Score Labels */}
-                <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
-                  <span>Poor</span>
-                  <span>Excellent</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CriterionScoreList
+            criteria={scoringCriteria}
+            scores={scores}
+            onScoreChange={handleScoreChange}
+          />
 
           {/* Notes */}
           <div className="mt-6">
