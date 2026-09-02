@@ -53,7 +53,7 @@ class TryoutsApiScopeTest extends TestCase
             'coach-invites' => 'staff',
         ],
         'handlePost' => [
-            'create'          => 'staff',
+            'create'          => 'admin',
             'sessions'        => 'staff',
             'criteria'        => 'staff',
             'check-in'        => 'staff',
@@ -239,7 +239,7 @@ class TryoutsApiScopeTest extends TestCase
     /**
      * `create` is the one path with no program to resolve a club from, so it
      * takes club_id from the body — and standing is checked against THAT club.
-     * Staff (not admin-only) because every coach has the Create Tryout button today.
+     * Club-admin only (Maggie, 2026-09-02): creating a tryout is an admin action.
      */
     public function testCreateIsAdminGatedInTheClubItNames(): void
     {
