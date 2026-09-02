@@ -104,7 +104,7 @@ function processCalendarReply($conn, $replyData) {
         $stmt = $conn->prepare('
             SELECT id, event_id
             FROM calendar_event_attendees
-            WHERE email = :email
+            WHERE LOWER(email) = LOWER(:email)
             AND rsvp_status = \'pending\'
             ORDER BY created_at DESC
             LIMIT 1

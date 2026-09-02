@@ -201,10 +201,10 @@ class CalendarReplyParserTest extends TestCase
      *
      * This is the guardian-email-case class CLAUDE.md documents (2026-08-18, ten
      * query sites fixed with LOWER() on both sides); this site was not in that sweep,
-     * and GuardianEmailCaseTest does not scan it. Fix is `LOWER(email) = LOWER(:email)`.
+     * and GuardianEmailCaseTest does not scan it. Fixed 2026-09-02 with `LOWER()` on both sides.
      */
-    // Mutation: none — this test fails the moment the comparison is fixed, which is the point.
-    public function testAStoredAddressWithACapitalLetterIsNeverMatched_KNOWN_DEFECT(): void
+    // Mutation: revert `LOWER(email) = LOWER(:email)` to `email = :email` in processCalendarReply.
+    public function testAStoredAddressWithACapitalLetterStillMatches(): void
     {
         $this->pdo->exec("DELETE FROM calendar_event_attendees");
         $this->attendee(2, 4021, 'Emilygovier0@gmail.com', 'pending', '2026-09-01 10:00:00');
@@ -212,8 +212,8 @@ class CalendarReplyParserTest extends TestCase
         $reply = parseCalendarReply($this->inboundReply('ACCEPTED', 'emilygovier0@gmail.com'));
         $result = processCalendarReply($this->pdo, $reply);
 
-        $this->assertFalse($result['success'], 'the case comparison was fixed — delete this test and the note above it');
-        $this->assertSame('pending', $this->row(2)['rsvp_status']);
+        $this->assertTrue($result['success'], 'one capital letter in the stored address must not drop the reply');
+        $this->assertSame('accepted', $this->row(2)['rsvp_status']);
     }
 
     /**
