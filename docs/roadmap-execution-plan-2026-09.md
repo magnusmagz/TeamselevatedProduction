@@ -140,7 +140,7 @@ Needs the S3 bucket + IAM key as Heroku config vars before 5.1 ships.
 
 ---
 
-## Phase 6 — One age-group rule (R7b, R14, R73) — DECIDED 2026-09-02: 1 August to 31 July, everywhere
+## Phase 6 — One age-group rule (R7b, R14, R73) — DECIDED 2026-09-02: 1 August to 31 July, everywhere — 6.1, 6.2 (fixture), 6.3 SHIPPED 2026-09-02 (Heroku v582, migration 088)
 
 Maggie: "The age matrix runs from August 1 to July 31, replacing the previous January 1 to
 December 31 calendar birth-year mandate." No per-club setting for now. Then:

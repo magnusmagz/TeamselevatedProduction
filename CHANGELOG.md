@@ -42,6 +42,16 @@ to. Files uploaded through the Club Document Center land on the dyno's local dis
 survive a restart; rows created with the Upload tab hold dead absolute URLs. Decisions 14, 15.
 
 
+### Phase 6 — one age rule, tryout narrowing, field size (Heroku v582, then Netlify) — migration 088 applied
+
+Decision: the age matrix runs 1 August to 31 July. `lib/age_rule.php` + a shared 18-case fixture
+run by both PHP and TypeScript. AgeEligibilityService now rolls the season year on Aug 1 — a
+tournament starting 15 Aug 2026 is season 2027, so a player born 2016 is no longer U10-eligible
+for it (the staff app already said U11). Coaches' tryout lists narrow to their age groups with a
+visible toggle. `fields.field_size` applied via the script; pickers group fields by fit and
+warn, never block. Also v579 tryout-create admin-only, v580 evaluator from token + RSVP link
+60-day expiry + stale venues PUT refused, v581 documents upload folder refused.
+
 ### Documents areas made coherent (Netlify `eb955b0` first, then Heroku v578)
 
 From the audit: `expiring` was readable by any club member; `for-target` by any member for any

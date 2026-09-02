@@ -925,7 +925,8 @@
     "has_lights",
     "status",
     "supports_lighting",
-    "location_notes"
+    "location_notes",
+    "field_size"
   ],
   "financial_reports": [
     "id",

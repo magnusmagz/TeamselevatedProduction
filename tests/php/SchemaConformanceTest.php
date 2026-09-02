@@ -62,7 +62,6 @@ class SchemaConformanceTest extends TestCase
         // written and NOT yet applied to Neon. lib/field_size.php probes for the
         // column and both readers and both writers build their SQL around what is
         // actually there. Delete this line in the same commit as the fixture refresh.
-        'fields.field_size' => '088_field_size.sql',
     ];
 
     /**
