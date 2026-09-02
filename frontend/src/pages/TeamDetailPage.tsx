@@ -312,7 +312,7 @@ export const TeamDetailPage: React.FC = () => {
                 Try Again
               </button>
             )}
-            <Link to="/dashboard" className="text-brand-primary hover:underline px-6 py-2">
+            <Link to="/teams" className="text-brand-primary hover:underline px-6 py-2">
               Back to Teams
             </Link>
           </div>
@@ -329,7 +329,7 @@ export const TeamDetailPage: React.FC = () => {
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Back Link */}
       <Link
-        to="/dashboard"
+        to="/teams"
         className="inline-flex items-center text-brand-primary hover:underline mb-6"
       >
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
