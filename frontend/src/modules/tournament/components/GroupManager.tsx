@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 interface GroupTeam {
@@ -31,7 +31,9 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
   const [hoverTarget, setHoverTarget] = useState<number | 'unassigned' | null>(null);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
@@ -45,7 +47,7 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
     } finally {
       setLoading(false);
     }
-  }, [divisionId]);
+  }, [divisionId, headers]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
 

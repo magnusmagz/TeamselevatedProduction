@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PlayerCard from './PlayerCard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -31,7 +31,9 @@ const RosterCheckIn: React.FC<Props> = ({ matchId, registrationId, teamName }) =
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   const fetchRoster = useCallback(async () => {
     try {
@@ -47,7 +49,7 @@ const RosterCheckIn: React.FC<Props> = ({ matchId, registrationId, teamName }) =
       setMinRosterSize(data.min_roster_size || 0);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [matchId, registrationId]);
+  }, [matchId, registrationId, headers]);
 
   useEffect(() => { fetchRoster(); }, [fetchRoster]);
 

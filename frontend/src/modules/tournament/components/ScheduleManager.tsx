@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch, TournamentDivision, Tournament } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 import MatchCreateModal from './MatchCreateModal';
@@ -26,7 +26,9 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
   const [lastSummary, setLastSummary] = useState<GenerationSummary | null>(null);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   const fetchMatches = useCallback(async () => {
     setLoading(true);
@@ -36,7 +38,7 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
       setMatches(data.matches || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [division.id]);
+  }, [division.id, headers]);
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
 

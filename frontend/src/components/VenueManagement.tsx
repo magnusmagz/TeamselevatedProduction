@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 // VenueManagement component with address search
 
@@ -139,11 +139,7 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     status: 'available'
   });
 
-  useEffect(() => {
-    fetchVenues();
-  }, []);
-
-  const fetchVenues = async () => {
+  const fetchVenues = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/legacy/venues-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
       const data = await response.json();
@@ -153,7 +149,11 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchVenues();
+  }, [fetchVenues]);
 
   const handleAddVenue = () => {
     setSelectedVenue(null);

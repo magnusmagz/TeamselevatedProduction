@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -81,7 +81,9 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
   const [pickerSaving, setPickerSaving] = useState(false);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   // ---------- Events (cards) ----------
 
@@ -91,7 +93,7 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
       const data = await res.json();
       setEvents(data.events || []);
     } catch (e) { /* non-fatal */ }
-  }, [match.id]);
+  }, [match.id, headers]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 

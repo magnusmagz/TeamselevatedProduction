@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
@@ -62,11 +62,7 @@ const ClubProfilePage: React.FC = () => {
     social_linkedin: ''
   });
 
-  useEffect(() => {
-    fetchClubProfile();
-  }, []);
-
-  const fetchClubProfile = async () => {
+  const fetchClubProfile = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
@@ -83,7 +79,11 @@ const ClubProfilePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchClubProfile();
+  }, [fetchClubProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

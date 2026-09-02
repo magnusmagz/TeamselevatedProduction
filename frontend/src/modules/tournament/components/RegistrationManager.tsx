@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentRegistration, TournamentDivision, RegistrationStatus, PaymentStatus } from '../types';
 import RegistrationForm from './RegistrationForm';
 import RegistrationRosterModal from './RegistrationRosterModal';
@@ -51,7 +51,9 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
   const [declineSending, setDeclineSending] = useState(false);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   const fetchRegistrations = useCallback(async () => {
     setLoading(true);
@@ -69,7 +71,7 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
     } finally {
       setLoading(false);
     }
-  }, [tournamentId, statusFilter, divisionFilter]);
+  }, [tournamentId, statusFilter, divisionFilter, headers]);
 
   useEffect(() => { fetchRegistrations(); }, [fetchRegistrations]);
 

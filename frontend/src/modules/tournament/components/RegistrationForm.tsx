@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TournamentDivision } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -37,7 +37,9 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
   const [teamsLoading, setTeamsLoading] = useState(true);
 
   const token = localStorage.getItem('auth_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Stable across renders so the fetch effects/callbacks below can depend on
+  // it without re-firing on every render.
+  const headers: HeadersInit = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
   // Fetch club teams
   useEffect(() => {
@@ -47,7 +49,7 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
       .then((data) => setTeams(Array.isArray(data) ? data : data.teams || []))
       .catch(() => {})
       .finally(() => setTeamsLoading(false));
-  }, [clubId]);
+  }, [clubId, headers]);
 
   const toggleTeam = (id: number) => {
     setTeamIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

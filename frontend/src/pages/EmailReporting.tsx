@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -239,10 +239,12 @@ export const EmailReporting: React.FC = () => {
     return params;
   }, [getActiveDateRange, currentClubId, selectedTeam, channelFilter]);
 
-  const headers = {
+  // Stable across renders so the fetch effects below can depend on it without
+  // re-firing on every render.
+  const headers = useMemo(() => ({
     Accept: 'application/json',
     Authorization: `Bearer ${token}`,
-  };
+  }), [token]);
 
   // Fetch teams for filter
   useEffect(() => {
@@ -257,7 +259,7 @@ export const EmailReporting: React.FC = () => {
       })
       .catch(err => console.error('Error fetching teams:', err))
       .finally(() => setLoadingTeams(false));
-  }, [currentClubId]);
+  }, [currentClubId, headers]);
 
   // Fetch overview stats
   useEffect(() => {
@@ -272,7 +274,7 @@ export const EmailReporting: React.FC = () => {
       })
       .catch(err => console.error('Error fetching overview:', err))
       .finally(() => setLoadingOverview(false));
-  }, [buildParams]);
+  }, [buildParams, headers]);
 
   // Fetch volume + engagement data
   useEffect(() => {
@@ -289,7 +291,7 @@ export const EmailReporting: React.FC = () => {
       })
       .catch(err => console.error('Error fetching volume:', err))
       .finally(() => setLoadingVolume(false));
-  }, [buildParams, getPeriod]);
+  }, [buildParams, getPeriod, headers]);
 
   // Fetch link analytics
   useEffect(() => {
@@ -312,7 +314,7 @@ export const EmailReporting: React.FC = () => {
       })
       .catch(err => console.error('Error fetching links:', err))
       .finally(() => setLoadingLinks(false));
-  }, [buildParams]);
+  }, [buildParams, headers]);
 
   // Fetch recent sends. The gateway returns rows shaped as
   // { id, type, total_recipients, sender, open_rate, click_rate, delivered,
@@ -358,7 +360,7 @@ export const EmailReporting: React.FC = () => {
       })
       .catch(err => console.error('Error fetching sends:', err))
       .finally(() => setLoadingSends(false));
-  }, [buildParams, sendsPage]);
+  }, [buildParams, sendsPage, headers]);
 
   // Fetch per-email report. Broadcast sends and individual sends are reported
   // through the same endpoint but must pass the matching `type` so the backend
