@@ -8,6 +8,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/jersey_size.php';
+require_once __DIR__ . '/../lib/program_ordering.php';
 try {
     $db = Database::getInstance();
     $connection = $db->getConnection();
@@ -49,6 +50,15 @@ try {
                     echo json_encode(['error' => 'Forbidden: no access to this club']);
                     exit();
                 }
+                // Archived programs are hidden unless ?include_archived=1, and the
+                // manual order (migration 084) comes ahead of the created_at
+                // fallback. Both fragments collapse to nothing when the columns
+                // are absent — this file can ship before the migration is applied,
+                // and a 42703 here empties the Programs page for every club.
+                $includeArchived = te_program_include_archived_requested($_GET['include_archived'] ?? null);
+                $archiveFilter = te_program_archive_filter($connection, $includeArchived);
+                $orderBy = te_program_order_by($connection, 'p.created_at DESC');
+
                 $stmt = $connection->prepare("
                     SELECT p.*,
                            v.name as venue_name,
@@ -56,8 +66,8 @@ try {
                            (SELECT COUNT(*) FROM registrations WHERE program_id = p.id AND status = 'pending') as pending_count
                     FROM programs p
                     LEFT JOIN venues v ON p.venue_id = v.id
-                    WHERE p.club_id = ?
-                    ORDER BY p.created_at DESC
+                    WHERE p.club_id = ?$archiveFilter
+                    ORDER BY $orderBy
                 ");
                 $stmt->execute([$club_id]);
                 $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);

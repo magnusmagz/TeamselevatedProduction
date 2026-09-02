@@ -20,10 +20,139 @@ try {
 // frontend caller, but it is directly reachable — require auth so it can't be used
 // for anonymous program CRUD across clubs.
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/club_standing.php';
+require_once __DIR__ . '/../lib/program_ordering.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 $auth = AuthMiddleware::requireAuth();
 $accessibleClubIds = $auth->getAccessibleClubIds(); // null = super admin
 
 $method = $_SERVER['REQUEST_METHOD'];
+
+/**
+ * Resolve a program's club, or null when it does not exist.
+ *
+ * Authorisation for archive/unarchive is `te_is_club_admin` against THIS club —
+ * never against a club_id in the request body. Club membership (`canAccessClub`)
+ * is deliberately not enough: a `parent` row satisfies that, and hiding a club's
+ * programs from every screen is club-wide staff work.
+ */
+function pg_programClubId(PDO $pdo, int $programId): ?int
+{
+    $stmt = $pdo->prepare('SELECT club_id FROM programs WHERE id = ?');
+    $stmt->execute([$programId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return null;
+    }
+    return $row['club_id'] === null ? null : (int)$row['club_id'];
+}
+
+function pg_fail(int $status, string $error, array $extra = []): void
+{
+    http_response_code($status);
+    echo json_encode(array_merge(['success' => false, 'error' => $error], $extra));
+    exit;
+}
+
+/**
+ * The three write actions added for CKU R89/R90. They live in front of the
+ * method switch because that switch dispatches on REQUEST_METHOD alone and every
+ * one of these is a POST.
+ */
+$action = $_GET['action'] ?? '';
+if ($method === 'POST' && in_array($action, ['archive', 'unarchive', 'reorder'], true)) {
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $actorId = (int)($auth->getUserId() ?? 0) ?: null;
+
+    try {
+        if ($action === 'reorder') {
+            $ids = $body['program_ids'] ?? null;
+            if (!is_array($ids) || $ids === []) {
+                pg_fail(400, 'program_ids must be a non-empty array of program ids');
+            }
+
+            // The club comes from the FIRST program, then every other id is
+            // verified against it inside te_program_reorder(). Taking it from
+            // the body would let an admin of club A renumber club B by naming
+            // their own club.
+            $firstId = (int)$ids[0];
+            $clubId = $firstId > 0 ? pg_programClubId($pdo, $firstId) : null;
+            if ($clubId === null) {
+                pg_fail(404, 'Program not found');
+            }
+            if (!te_is_club_admin($auth, $clubId)) {
+                pg_fail(403, 'Forbidden: club admin required');
+            }
+
+            $result = te_program_reorder($pdo, $ids, $clubId);
+            if (!$result['ok']) {
+                if ($result['reason'] === 'schema') {
+                    pg_fail(503, 'Program ordering is not available yet');
+                }
+                if ($result['reason'] === 'foreign_club') {
+                    pg_fail(403, 'Forbidden: one or more programs belong to another club', [
+                        'foreign_program_ids' => $result['foreign'] ?? [],
+                    ]);
+                }
+                pg_fail(400, 'Nothing to reorder');
+            }
+
+            AuditLogger::log($pdo, $actorId, 'programs_reordered', 'programs', null, [
+                'club_id' => $clubId,
+                'program_ids' => array_map('intval', $ids),
+            ]);
+
+            echo json_encode([
+                'success' => true,
+                'updated' => $result['updated'],
+                'club_id' => $clubId,
+            ]);
+            exit;
+        }
+
+        // archive / unarchive
+        $programId = (int)($body['id'] ?? $_GET['id'] ?? 0);
+        if ($programId <= 0) {
+            pg_fail(400, 'Program ID required');
+        }
+        $clubId = pg_programClubId($pdo, $programId);
+        if ($clubId === null) {
+            pg_fail(404, 'Program not found');
+        }
+        if (!te_is_club_admin($auth, $clubId)) {
+            pg_fail(403, 'Forbidden: club admin required');
+        }
+
+        $archiving = ($action === 'archive');
+        $result = te_program_set_archived($pdo, $programId, $archiving, $actorId);
+        if (!$result['ok']) {
+            if ($result['reason'] === 'schema') {
+                pg_fail(503, 'Program archiving is not available yet');
+            }
+            pg_fail(404, 'Program not found');
+        }
+
+        AuditLogger::log(
+            $pdo,
+            $actorId,
+            $archiving ? 'program_archived' : 'program_unarchived',
+            'programs',
+            $programId,
+            ['club_id' => $clubId]
+        );
+
+        echo json_encode([
+            'success' => true,
+            'id' => $programId,
+            'archived' => $archiving,
+        ]);
+        exit;
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
 
 try {
     switch ($method) {
@@ -82,6 +211,31 @@ try {
                     $params[] = $_GET['status'];
                 }
 
+                // Archived programs are hidden by default and returned only on
+                // an explicit ?include_archived=1. The fragment is empty when
+                // migration 084 has not been applied yet, so the list keeps
+                // working rather than 42703-ing on a column that isn't there.
+                $includeArchived = te_program_include_archived_requested($_GET['include_archived'] ?? null);
+                $whereClause .= te_program_archive_filter($pdo, $includeArchived);
+
+                // Manual order first (NULLS LAST — a program nobody has moved
+                // keeps the order it always had), then the existing sort.
+                //
+                // The CASE below is not a style choice: FIELD() is MySQL, Postgres
+                // has no such function, and this ORDER BY threw 42883 and 500'd the
+                // Programs list for EVERY user until 2026-08-04. The same
+                // substitution is in api/athletes-profile.php.
+                $orderBy = te_program_order_by($pdo, "p.season_year DESC,
+                             CASE p.season_type
+                                 WHEN 'Spring' THEN 1
+                                 WHEN 'Summer' THEN 2
+                                 WHEN 'Fall' THEN 3
+                                 WHEN 'Winter' THEN 4
+                                 WHEN 'Year-Round' THEN 5
+                                 ELSE 6
+                             END,
+                             p.name");
+
                 $stmt = $pdo->prepare("
                     SELECT p.*,
                            COUNT(DISTINCT t.id) as team_count,
@@ -91,20 +245,7 @@ try {
                     LEFT JOIN team_members tp ON t.id = tp.team_id
                     $whereClause
                     GROUP BY p.id
-                    ORDER BY p.season_year DESC,
-                             -- FIELD() is MySQL. Postgres has no such function, so this
-                             -- ORDER BY threw 42883 and 500'd the Programs list for
-                             -- EVERY user, not just the club-id case fixed alongside it.
-                             -- Same substitution already made in api/athletes-profile.php.
-                             CASE p.season_type
-                                 WHEN 'Spring' THEN 1
-                                 WHEN 'Summer' THEN 2
-                                 WHEN 'Fall' THEN 3
-                                 WHEN 'Winter' THEN 4
-                                 WHEN 'Year-Round' THEN 5
-                                 ELSE 6
-                             END,
-                             p.name
+                    ORDER BY $orderBy
                 ");
                 $stmt->execute($params);
                 $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
