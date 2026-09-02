@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import CrewAccountLinkPanel from '../components/CrewAccountLinkPanel';
 import {
   PortalStatus,
   PORTAL_STATUS_META,
@@ -37,7 +38,7 @@ const FILTERS = [
 const CrewRoster: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const token = localStorage.getItem('auth_token');
-  const { activeContext } = useOrg();
+  const { activeContext, isClubAdmin } = useOrg();
   const clubProfileId = activeContext?.scope_id;
 
   const [crew, setCrew] = useState<CrewMember[]>([]);
@@ -316,6 +317,15 @@ const CrewRoster: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Accounts that can sign in but reach no family. Admin-only, and it
+          renders nothing at all when there are none. */}
+      <CrewAccountLinkPanel
+        clubProfileId={clubProfileId}
+        isClubAdmin={isClubAdmin}
+        searchPool={crew}
+        onLinked={load}
+      />
 
       {/* Search */}
       <div className="mb-5">
