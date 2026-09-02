@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. Next free number is therefore **082**.
+   pinned messages) are applied. **082** (`canva_assets`) is applied. Next free number is therefore **083**.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -683,6 +683,47 @@ predicate's guardian branch would let one parent remove the other.
 - `GuardianLinkWriteScopeTest` parses the controller and fails if any of the three stops
   authenticating, gates on the read predicate, or skips attribution. It was confirmed to
   fail on the pre-fix code.
+
+### ⚠️ `JWT::decode()` is NOT an auth gate — it never checks the signature (2026-09-02)
+`lib/JWT.php::decode()` splits the token and base64-decodes the payload. That is all.
+`verify()` checks the HMAC and the expiry. Three endpoints authenticated with `decode()`,
+so a hand-built token with any `user_id` passed as that user — confirmed against prod
+2026-08-31: a forged token reached `User not found` on `user-profile.php` and
+`athlete_id is required` on `coach-notes.php`, i.e. it cleared auth and failed on business
+logic. `user-profile.php` PUT writes `WHERE id = :user_id` from that claim and
+`guardian_sync` carries it into what the club sees.
+
+- Authenticate with `AuthMiddleware::requireAuth()` or `JWT::verify()`. Never `decode()`.
+- The nine `decode()` calls in `api/auth-gateway.php` and `api/super-admin-gateway.php`
+  decode a token the server just minted itself, to shape a response. Those are correct,
+  and `auth-gateway` is on the do-not-modify list; they are the only exemptions in
+  `ForgedTokenAuthGateTest`'s scan.
+- `api/invitations-gateway.php` needed **authorization** too: `send` / `create-link` took
+  `clubId` from the body and checked nothing, so any signed-in user could mint a
+  `club_admin` link for any club. Both now gate on `te_is_club_admin()` before the
+  INSERT (`InvitationsAuthorizationTest`).
+
+**`controllers/TeamController.php` had 15 routes and zero auth** (same day). Every method
+now authenticates in the constructor and authorizes against the TEAM's club — staff to
+read, admin to write; `index` filters by `getAccessibleClubIds()` and an empty list yields
+no rows, not every row. `assignVolunteer` (R4) took `background_check_status` from the
+request body; the predicate now lives in `lib/background_check.php`, shared with
+`volunteer-gateway.php`, and the controller looks it up and refuses anything but
+`cleared`. `createTeam` never wrote `club_id`, so any team made here was invisible.
+`TeamControllerScopeTest`.
+
+**`registration/registrations-api.php` had no auth in 700 lines.** GET `?program_id=N`
+returned every family's decoded `form_data` (DOB, guardian email, mobile) to anyone who
+guessed an id. GET now splits: `?athlete_id` through `userCanAccessAthlete` (the parent
+portal reads its own child here — the staff predicate would lock every family out),
+`?program_id` through `te_is_club_staff` of the program's club. PUT/DELETE resolve the
+registration's club the same way; PUT whitelists `status` and takes `reviewed_by` from the
+token. POST stays public — it is the sign-up form. `RegistrationWriteScopeTest`.
+
+`api/payment-reminders.php`'s batch query had `AND (subq) IS NULL OR (subq) < …` — AND
+binds tighter, so the OR branch carried no club/status/amount filter. Latent while
+`payment_reminder_log` was empty; parenthesised, and `PaymentReminderBatchFilterTest`
+executes the extracted query against SQLite to prove precedence.
 
 ### Guardian link changes are audited by TRIGGER — migration 070 (2026-08-17)
 Attaching or detaching an adult from a child decides who may read a minor's record and
@@ -1649,16 +1690,8 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
          `last_login_at IS NULL` so it cannot lock out anyone actually using the account.
       Clearing hashes without (1) just regenerates the problem on the next coach added.
 
-- [ ] **⚠️ `api/invitations-gateway.php` authenticates but does not AUTHORIZE** (found 2026-08-17).
-      `create-link` and `send` require a token (401 without one) and then check nothing
-      else: `clubId` comes from the request body and the caller's standing in that club
-      is never verified. So any signed-in user — parent, player, volunteer — can mint a
-      **`club_admin`** invitation link for **any club** and redeem it. Same shape as the
-      `handleClubParents` finding but worse: there is not even a membership check.
-      Role values are now whitelisted (`TE_INVITABLE_ROLES`), which stops junk reaching
-      the CHECK constraint at accept time but does nothing about who may invite.
-      Fix: gate both handlers on `te_is_club_admin($pdo, $auth, $clubId)`, and treat a
-      `parent`-role invite as club-admin-only too.
+- [x] **`api/invitations-gateway.php` authorization** — FIXED 2026-09-02, see the JWT::decode
+      section above. `send` / `create-link` gate on `te_is_club_admin()`.
 - [ ] **Crew invited by link land on their family only if the email matches** (2026-08-17).
       `parent` is now an invitable role and needs no new linking code, because parent
       standing is derived from `guardians.email = users.email`. The accept response
