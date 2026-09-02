@@ -6,8 +6,8 @@ association scope from 2026 (`/Users/maggiemae_1/TeamsElevated/association-scope
 
 ## The ask, in their terms
 
-Girls on the Run (GOTR) is a national nonprofit: **national → division** (a collection of
-federated councils) **→ council** (city, metro or state, depending on size) **→ site**
+Girls on the Run (GOTR) is a national nonprofit: **national → division** (their word is also
+"region": a collection of federated councils) **→ council** (city, metro or state, depending on size) **→ site**
 (where a team meets). About **270 sites**, and roughly **30,000 coaches and volunteers**
 joining the platform. What they need to run it:
 
@@ -96,7 +96,6 @@ user_org_access (id, user_id, org_unit_id, role CHECK ('org_admin','org_viewer')
 
 ```
 compliance_requirements (id, org_unit_id → org_units NULL for platform-wide,
-    applies_to_role CHECK ('head_coach','junior_coach','team_helper','any'),
     kind CHECK ('background_check','cpr_first_aid','training','document','custom'),
     name, description, validity_days INT NULL, required BOOL, active BOOL, sort_order)
 person_credentials (id, user_id, requirement_id, status CHECK
@@ -106,9 +105,28 @@ person_credentials (id, user_id, requirement_id, status CHECK
     source CHECK ('portal','admin','import','lms','email'), notes,
     UNIQUE (user_id, requirement_id))
 club_staff_roles (user_id, club_profile_id, staff_role CHECK (head_coach, junior_coach,
-    team_helper))   -- the GOTR role vocabulary; today's user_club_access.role stays as is
+    team_helper, volunteer))   -- the GOTR role vocabulary; today's user_club_access.role stays as is
+compliance_requirement_roles (requirement_id, staff_role)   -- a requirement applies to a SET of roles
+compliance_reminder_streams (id, requirement_id, org_unit_id, active,
+    steps JSONB: [{days_before, subject, body_markdown}], created_by)
+compliance_reminder_log (credential_id, stream_id, days_before, sent_at)  -- never twice per step
 ```
 
+- **Admins at any tier define requirements** (Maggie, 2026-09-02): a national, region or
+  council admin creates a check type such as *State background check*, *CPR/First Aid*,
+  *GOTR core training*, and says which staff roles it applies to. Coaches and volunteers
+  have different lists that may overlap, so a requirement carries a set of roles, not one.
+  Each person's record for it holds **status, completed date, expiry date**; everything
+  downstream (alerts, reminders, rollups) works backwards from the expiry date.
+- **No checker is built.** We record that a check was completed and when. Manual turn-in
+  is the primary path: the coach uploads the proof, the council marks it verified. Vendor
+  integrations (Sterling, Checkr) may come later as a `source`; the model does not depend
+  on them.
+- **Reminder streams are data, not code** (later phase, but modelled now): an admin can
+  attach a *communication stream* to a requirement — a sequence of offsets before expiry
+  (90/60/30/7 days) each with its own subject, body and "these are the steps to renew"
+  copy, activated per requirement and per tier. Sends go through the existing queue and
+  the club-branded transactional path; one send per person per step, recorded on the row.
 - Requirements **inherit down the tree**: national defines the baseline, a division or
   council adds its own (California's mandated-reporter course lives on that council's row).
   "What does this person need" = requirements on every ancestor of their council, filtered
@@ -124,6 +142,11 @@ club_staff_roles (user_id, club_profile_id, staff_role CHECK (head_coach, junior
 - **Reminders** are a throttled tick in `workers/queue-worker.php` (the chat-notification
   pattern), emailing at 90/60/30/7 days before `expires_at`, with the switch
   `TE_FEATURE_COMPLIANCE_REMINDERS`. One email per person per threshold, recorded on the row.
+- **The coach's portal is a constrained view, mobile first.** A coach signs in to their
+  own dashboard: an alert per requirement that is missing, expiring or rejected, one tap
+  to upload (camera capture on a phone, file picker on desktop, same PWA), then a clear
+  "received / under review / accepted / rejected because…" state. Nothing else of the
+  staff app is in that view.
 - **Rollups** are one SQL shape: credentials joined to `club_profile` joined to `org_units`,
   grouped by whichever ancestor the viewer picked. Compliance rate, critical gaps, expiring
   in 30 days, trend by month. The existing `action=compliance` payload and dashboard extend
@@ -161,24 +184,25 @@ claimed when written; next free is 085.
 | **G1 Hierarchy, dark** (1 wk) | `org_units`, `club_profile.org_unit_id`, `user_org_access` (migration); `lib/org_scope.php` with the subquery resolver; a super-admin page to build the tree and attach councils. Nothing else reads it. | Resolver on SQLite: descendant prefix, union with direct roles, empty scope is `1=0`; tree CRUD gated on super admin. | Reversible by dropping three objects; no existing club has an `org_unit_id`. |
 | **G2 Scale foundations** (2 wk, parallel with G1) | Indexes; cached role context + token diet (frontend and backend together, frontend first); context switcher UI; pagination on the five list endpoints; `IN`-list rewrite at the scope sites; second worker dyno. | Token size assertion for a 300-role user; cache invalidation on grant/revoke; pagination contract tests; a scan for new `array_fill` over scope lists; existing 1,101 PHP + 164 chat tests green. | Each is its own revert. Cache has a switch (`TE_FEATURE_ROLE_CACHE`). The token change is the one with a deploy-order rule: frontend must read the new shape before the backend mints it. |
 | **G3 Compliance model** (2 wk) | Three tables; requirement inheritance; `person_credentials` write paths (admin entry, import, portal upload); `te_background_check_status()` reads credentials first; migration script from `team_volunteers` rows to person-level records (one per person, latest date wins, `expired` computed). Behind `TE_FEATURE_COMPLIANCE`. | Inheritance and role filtering on SQLite; expiry computation on the boundary days; the volunteer gate still refuses non-cleared on both old and new data; migration dry run reports counts. | Tables are additive; the gate's fallback means the old data keeps working if the new path is switched off. |
-| **G4 Council surfaces** (2 wk) | Council compliance dashboard (extends the existing one), list with filters (compliant / expiring / expired / missing), document review queue with approve/reject and reasons, coach self-view in the portal ("My requirements") with upload, reminder tick 90/60/30/7 behind `TE_FEATURE_COMPLIANCE_REMINDERS`, CSV export. | Jest for each screen; PHP for the review transitions and reminder dedupe; a reminder never sends twice for one threshold. | Switches for reminders; UI reverts alone. Depends on roadmap Phase 5 (durable photo/document storage) for uploads. |
+| **G4 Council + coach surfaces** (2.5 wk) | Requirement builder for tier admins (name, kind, roles it applies to, validity days); council compliance dashboard (extends the existing one), list with filters (compliant / expiring / expired / missing), document review queue with approve/reject and reasons; **coach portal**: constrained dashboard with per-requirement alerts and one-tap mobile upload (camera capture), status after upload; default reminder tick 90/60/30/7 behind `TE_FEATURE_COMPLIANCE_REMINDERS`; CSV export. | Jest for each screen; PHP for the review transitions and reminder dedupe; a reminder never sends twice for one threshold. | Switches for reminders; UI reverts alone. Depends on roadmap Phase 5 (durable photo/document storage) for uploads. |
 | **G5 Division and national** (1.5 wk) | Rollup dashboard by descendant council; drill-down; trend; "highest risk councils"; export by date range / council / requirement; impersonation-style "open this council" for org admins using the existing switcher. | Rollup SQL against a fixture tree; an `org_viewer` cannot write; a division admin cannot see a sibling division. | Read-only surfaces; revert alone. |
 | **G6 Onboarding 30,000** (1.5 wk) | Streamed, batched, multi-council import with `council_code`; per-person invite with a real accepted timestamp; a national funnel report (accounts created, invited, activated, compliant). Rate-limited send through the queue. | Import 50k-row fixture within memory limit; invite tokens single-use; funnel counts match fixtures. | Import behind a switch; invites are a queue you can pause. |
-| **G7 Integrations** (later) | LMS (Cornerstone) completion → `person_credentials` with `source='lms'`; email-in submissions; background-check vendor webhooks. | Per integration. | Each behind its own switch. |
+| **G7 Streams and integrations** (later) | Admin-authored reminder streams per requirement (offsets, copy, renewal steps), activated per tier; LMS (Cornerstone) completion → `person_credentials` with `source='lms'`; email-in submissions; background-check vendor result feeds. | Stream never sends a step twice; per integration. | Each behind its own switch. |
 
 Rough total for G1–G6: **about ten engineering weeks**, with G1/G2 in parallel and G4/G5
 overlapping. G0 gates G3's seed data but nothing else.
 
 ## Decisions this plan needs from GOTR (via Maggie)
 
-1. Do councils run their own background checks with a vendor, and we record the result and
-   date? Or do they want checks initiated from the platform? (Plan assumes record only.)
+1. ~~Record or run checks?~~ **Answered 2026-09-02 (Maggie): record only, manual turn-in first;
+   vendor feeds maybe later.**
 2. The requirement matrix per role, and which councils have extras. (Plan assumes national
    baseline + council additions; a division adding requirements is supported but rare.)
 3. Validity periods: background check (typically 2 years), CPR (2 years), GOTR training
    (per season?). Numbers drive the reminder cadence.
 4. Is a coach's proof reviewed by the council or accepted on upload? (Plan assumes council
-   review; a national "auto-accept for LMS-sourced" rule is G7.)
+   review — Maggie's description has the coach upload and the council confirm; a national
+   "auto-accept for LMS-sourced" rule is G7.)
 5. What do national and division staff need to edit, if anything? (Plan assumes read-only
    rollups plus impersonation-style drill-in.)
 6. Their export today: a coach roster with council codes and emails. That file is G6's
