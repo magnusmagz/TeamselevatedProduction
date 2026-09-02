@@ -106,7 +106,7 @@ Small, independent, mostly frontend. Each is its own PR and revert.
 
 ---
 
-## Phase 4 — Identity: finish `user_guardians` (R6, crew-by-link empty portal) — 4.1, 4.1b, 4.2, 4.3 SHIPPED 2026-09-02 (Heroku v571, chat v26); 4.4 SHIPPED v572 (auth-gateway hook = decision 13); 4.5 waits a week of zero email-only hits
+## Phase 4 — Identity: finish `user_guardians` (R6, crew-by-link empty portal) — 4.1, 4.1b, 4.2, 4.3 SHIPPED 2026-09-02 (Heroku v571, chat v26); 4.4 SHIPPED v573 (auth-gateway hook = decision 13); 4.5 waits a week of zero email-only hits
 
 Follows `docs/user-guardians-identity-plan.md` exactly; phases 0–1 are done. Order matters and is
 the reverse of the first draft: write links at their source **before** retiring the email match.

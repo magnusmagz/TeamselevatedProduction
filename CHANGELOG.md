@@ -32,7 +32,7 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
-### Links written at source (Heroku v572)
+### Links written at source (Heroku v573; v572 carried nothing new)
 
 Registration and shareable-invite accept now write `user_guardians` (exact-one-guardian rule;
 shared household addresses are left for the Crew tool). Parent-invite redemption still does not
