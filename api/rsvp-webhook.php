@@ -164,7 +164,13 @@ try {
         $result = handleRSVPResponse($conn, $token, $response);
         echo json_encode($result);
     } elseif ($method === 'GET' && $action === 'status') {
-        $eventId = $_GET['event_id'] ?? '';
+        // Until 2026-09-02 this returned every attendee's name, EMAIL and RSVP status
+        // for any event id with no authentication at all. `respond` stays public: it
+        // is keyed on a signed token. Nothing in the frontend calls `status`.
+        require_once __DIR__ . '/../lib/AuthMiddleware.php';
+        require_once __DIR__ . '/../lib/event_standing.php';
+        $auth = AuthMiddleware::requireAuth();
+        $eventId = te_require_event_staff($conn, $auth, $_GET['event_id'] ?? 0);
         $result = handleGetRSVPStatus($conn, $eventId);
         echo json_encode($result);
     } else {

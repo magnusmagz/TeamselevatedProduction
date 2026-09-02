@@ -239,15 +239,22 @@ Teams Elevated
                 AND ap.amount_remaining > 0
                 AND ap.due_date IS NOT NULL
                 AND $whereType
+                -- The OR group MUST be parenthesised: AND binds tighter than OR, so
+                -- without the outer parens the second branch carried no club, status,
+                -- amount or due-date filter. Latent while payment_reminder_log was
+                -- empty; it activates the SECOND time anyone sends batch reminders.
                 AND (
-                    SELECT MAX(sent_at)
-                    FROM payment_reminder_log
-                    WHERE athlete_payment_id = ap.id
-                ) IS NULL OR (
-                    SELECT MAX(sent_at)
-                    FROM payment_reminder_log
-                    WHERE athlete_payment_id = ap.id
-                ) < CURRENT_TIMESTAMP - INTERVAL '3 days'
+                    (
+                        SELECT MAX(sent_at)
+                        FROM payment_reminder_log
+                        WHERE athlete_payment_id = ap.id
+                    ) IS NULL
+                    OR (
+                        SELECT MAX(sent_at)
+                        FROM payment_reminder_log
+                        WHERE athlete_payment_id = ap.id
+                    ) < CURRENT_TIMESTAMP - INTERVAL '3 days'
+                )
             ");
             $stmt->execute(['league_id' => $leagueId]);
             $paymentIds = $stmt->fetchAll(PDO::FETCH_COLUMN);

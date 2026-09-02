@@ -32,15 +32,15 @@ if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
 
 $token = $matches[1];
 
-try {
-    $jwt = new JWT();
-    $decoded = $jwt->decode($token);
-    $userId = $decoded->user_id;
-} catch (Exception $e) {
+// Signature-VERIFIED. Until 2026-09-02 this was JWT::decode(), which never checks
+// the signature — a hand-built token with any user_id passed as that user.
+$decoded = JWT::verify($token);
+if (!$decoded || empty($decoded->user_id)) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
     exit();
 }
+$userId = $decoded->user_id;
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';

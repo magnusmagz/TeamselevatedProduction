@@ -121,8 +121,8 @@ class SeasonController {
     public function getCurrentSeason() {
         $sql = "SELECT * FROM seasons
                 WHERE status = 'active'
-                AND start_date <= CURDATE()
-                AND end_date >= CURDATE()
+                AND start_date <= CURRENT_DATE
+                AND end_date >= CURRENT_DATE
                 ORDER BY start_date DESC
                 LIMIT 1";
 

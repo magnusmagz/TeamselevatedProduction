@@ -371,7 +371,7 @@ try {
                           SELECT ag2.athlete_id
                           FROM athlete_guardians ag2
                           JOIN guardians g2 ON ag2.guardian_id = g2.id
-                          JOIN users u2 ON g2.email = u2.email
+                          JOIN users u2 ON LOWER(g2.email) = LOWER(u2.email)
                           WHERE u2.id = ?
                       )
                 ";
