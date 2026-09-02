@@ -71,7 +71,7 @@ No production behaviour changes; nothing to roll back.
 
 ---
 
-## Phase 2 — Stop lying to staff (silent failures: R1, R2, R3, R11, R12, R13)
+## Phase 2 — Stop lying to staff (silent failures: R1, R2, R3, R11, R12, R13) — 2.1, 2.2 SHIPPED DARK 2026-09-02 (Heroku v564, switches off); 2.3–2.6 remain
 
 Every item here is a button that reports success and does nothing. Each slice sits behind a kill
 switch so a bad template or a send storm is a config-var flip, not a deploy.

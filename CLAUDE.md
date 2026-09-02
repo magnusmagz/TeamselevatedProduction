@@ -1924,6 +1924,19 @@ and then getting a club broadcast saw two domains and three names — and never 
   left as `events@rsvp.eyeinteams.com` — RSVP REPLY parsing keys off it, so changing it
   breaks replies.
 
+### Kill switches — `lib/feature_flags.php` (2026-09-02)
+`te_feature_enabled('NAME')` reads `TE_FEATURE_NAME` from config vars. **Unset means ON**
+(a switch exists to turn a shipped feature off, not to keep it dark); `off/0/false/no` is
+OFF. A caller that skips work because a switch is off returns
+`te_feature_disabled_response('NAME')` — `sent:false, feature_disabled` — and never
+reports success for a send that did not happen. `FeatureFlagsTest::GATED` lists every
+gated send path and fails if one stops checking; add new send/dispatch paths there. Live
+switches: `TRANSACTIONAL_EMAIL`, `REGISTRATION_CONFIRMATION`, `TRYOUT_OFFER_EMAIL`.
+Transactional templates that cannot live on `lib/Email.php` (its transport `send()` is
+private) sit in `lib/email_invoice_and_registration.php` and `lib/tryout_offer_notify.php`
+as functions taking a branded `Email`. Tryout `not_selected` rows are recorded and NOT
+emailed (decisions doc item 12).
+
 ### ⚠️ There are THREE email send paths, and they behave differently
 Know which one you are touching before you debug a delivery or rendering problem — they fail in
 different ways, and a test that exercises the wrong one proves nothing.

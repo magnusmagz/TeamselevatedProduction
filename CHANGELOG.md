@@ -32,6 +32,18 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Phase 2 sends shipped DARK (Heroku v564; switches set OFF in v563)
+
+The demo stubs now send for real, behind config-var kill switches, all three **off** in prod:
+`TE_FEATURE_TRANSACTIONAL_EMAIL` (invoice, receipt, reminder, failure notice),
+`TE_FEATURE_REGISTRATION_CONFIRMATION`, `TE_FEATURE_TRYOUT_OFFER_EMAIL`. While off, each
+endpoint answers `sent:false, feature_disabled:<NAME>` instead of the old fake success.
+Flip one with `heroku config:set -a teamselevated-backend TE_FEATURE_<NAME>=on` (no deploy);
+unset also means on. Recommended order: REGISTRATION_CONFIRMATION first (one family, one
+email), then TRANSACTIONAL_EMAIL, then TRYOUT_OFFER_EMAIL before CKU's next offer batch.
+Also closed: payment-receipt `get`/`email` and payment-failures `notify`/`resolve`/`retry` took
+any transaction id with no access check. Smoke 103/103, PHP suite 1029.
+
 ### Three more open reads closed (Heroku v561) + RSVP test coverage
 
 The new smoke-test route walk found, on its first run: `GET /api/athletes` (329 athletes,
