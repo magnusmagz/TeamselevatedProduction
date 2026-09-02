@@ -259,43 +259,113 @@ class AthleteScopeTest extends TestCase
     }
 
     // ---- accessibleAthleteFilter (LIST scoping) ----
+    //
+    // These are FUNCTIONAL: the fragment is executed against the fixture and the
+    // rows it returns are asserted. They used to assert `$filter['athlete_ids']`
+    // instead, which was only ever a proxy — and the proxy is exactly what was
+    // removed. accessibleAthleteFilter() no longer materialises a list (one bind
+    // per athlete; Postgres caps binds at 65,535), so the only honest question
+    // left is "does the same query come back with the same athletes", which is
+    // what the old assertions were standing in for.
+
+    /**
+     * Run the scope fragment the way a real list endpoint does and return the
+     * athlete ids it admits.
+     */
+    private function scopedAthleteIds(AuthMiddleware $auth): array
+    {
+        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth, 'a.id');
+        $stmt = $this->pdo->prepare(
+            "SELECT a.id FROM athletes a WHERE 1=1 {$filter['sql']} ORDER BY a.id"
+        );
+        $stmt->execute($filter['params']);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
 
     public function testAccessibleFilterForCoachOnlyReturnsOwnTeamAthletes(): void
     {
-        $auth = $this->coach(50);
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
-        $this->assertSame([1], $filter['athlete_ids']);
-        $this->assertStringContainsString('a.id IN', $filter['sql']);
+        // Coach 50 is primary_coach_id of team 10 (athlete 1) and nothing else.
+        $this->assertSame([1], $this->scopedAthleteIds($this->coach(50)));
+    }
+
+    public function testAccessibleFilterForAssistantCoachReturnsTheirTeamAthletes(): void
+    {
+        // Coach 51 reaches team 11 through an active assistant_coach row.
+        $this->assertSame([2], $this->scopedAthleteIds($this->coach(51)));
     }
 
     public function testAccessibleFilterForClubAdminReturnsClubAthletes(): void
     {
-        $auth = $this->clubAdmin(100);
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
-        sort($filter['athlete_ids']);
-        $this->assertSame([1, 2], $filter['athlete_ids']);
+        // Club 100 holds teams 10 and 11; athlete 3 is in club 101.
+        $this->assertSame([1, 2], $this->scopedAthleteIds($this->clubAdmin(100)));
     }
 
     public function testAccessibleFilterForGuardianReturnsOwnAthlete(): void
     {
-        $auth = $this->guardian('bob@family-b.com', 81);
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
-        $this->assertSame([2], $filter['athlete_ids']);
+        $this->assertSame([2], $this->scopedAthleteIds($this->guardian('bob@family-b.com', 81)));
+    }
+
+    public function testAccessibleFilterForGuardianByRecordedLinkRatherThanEmail(): void
+    {
+        // The user_guardians half of te_guardian_link_sql(): an account whose
+        // address has drifted from its guardian row still reaches its own child.
+        // If the rewrite had re-inlined the email comparison this would fail and
+        // the email-only cases above would not.
+        $this->pdo->exec("INSERT INTO users (id, email) VALUES (82, 'drifted@elsewhere.test')");
+        $this->pdo->exec("INSERT INTO user_guardians (id, user_id, guardian_id, source, confidence)
+                          VALUES (1, 82, 200, 'admin', 'high')");
+        $this->assertSame([1], $this->scopedAthleteIds($this->guardian('drifted@elsewhere.test', 82)));
+    }
+
+    public function testAccessibleFilterForCoachParentUnionsBothHats(): void
+    {
+        // The dual-role case. Coach 50 coaches team 10 (athlete 1); make the same
+        // account the guardian of athlete 2, on a team they do NOT coach. Both
+        // must come back — capabilities accumulate, they do not replace.
+        $this->pdo->exec("UPDATE users SET email = 'bob@family-b.com' WHERE id = 50");
+        $this->assertSame([1, 2], $this->scopedAthleteIds($this->coach(50)));
     }
 
     public function testAccessibleFilterForUnrelatedUserBlocksEverything(): void
     {
-        $auth = $this->unrelated();
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
-        $this->assertSame([], $filter['athlete_ids']);
-        $this->assertSame('AND 1=0', $filter['sql']);
+        $this->assertSame([], $this->scopedAthleteIds($this->unrelated()));
     }
 
     public function testAccessibleFilterForSuperAdminIsUnrestricted(): void
     {
         $auth = $this->superAdmin();
         $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
-        $this->assertNull($filter['athlete_ids']);
         $this->assertSame('', $filter['sql']);
+        $this->assertSame([], $filter['params']);
+        // Unrestricted means every athlete, including the other club's.
+        $this->assertSame([1, 2, 3], $this->scopedAthleteIds($auth));
+    }
+
+    public function testAccessibleFilterBindsAFixedNumberOfParametersRegardlessOfReach(): void
+    {
+        // The reason the rewrite exists. Adding 50 more athletes to the admin's
+        // club must not add 50 bind parameters.
+        $auth = $this->clubAdmin(100);
+        $before = count(AthleteScope::accessibleAthleteFilter($this->pdo, $auth)['params']);
+
+        for ($i = 100; $i < 150; $i++) {
+            $this->pdo->exec("INSERT INTO athletes (id, first_name, last_name) VALUES ({$i}, 'A{$i}', 'X')");
+            $tm = $i + 1000;
+            $this->pdo->exec("INSERT INTO team_members (id, team_id, user_id, athlete_id, role, status)
+                              VALUES ({$tm}, 10, NULL, {$i}, 'player', 'active')");
+        }
+
+        $after = AthleteScope::accessibleAthleteFilter($this->pdo, $auth);
+        $this->assertSame($before, count($after['params']));
+        $this->assertCount(52, $this->scopedAthleteIds($auth));
+    }
+
+    public function testAthleteIdsKeyIsAlwaysNullNow(): void
+    {
+        // Kept for compatibility, deliberately empty of meaning. A caller that
+        // starts reading it again is re-introducing the materialised list.
+        foreach ([$this->coach(50), $this->clubAdmin(100), $this->unrelated(), $this->superAdmin()] as $auth) {
+            $this->assertNull(AthleteScope::accessibleAthleteFilter($this->pdo, $auth)['athlete_ids']);
+        }
     }
 }

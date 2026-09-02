@@ -18,6 +18,7 @@ require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/impersonation.php';
 require_once __DIR__ . '/../lib/org_scope.php';
 require_once __DIR__ . '/../lib/role_cache.php';
+require_once __DIR__ . '/../lib/pagination.php';
 
 // Require authentication
 $auth = AuthMiddleware::requireAuth();
@@ -427,16 +428,49 @@ function handleGetStats($pdo) {
 function handleGetClubs($pdo) {
     $search = $_GET['search'] ?? '';
 
+    // ─── Four correlated COUNTs collapsed into two grouped joins (GOTR G2) ───
+    //
+    // This ran FOUR correlated subqueries per club row: two over
+    // user_club_access, one over teams, one over athletes. At 270 GOTR councils
+    // that is 1,080 subquery executions to draw one page. The two
+    // user_club_access counts are the same scan twice over, so they become one
+    // grouped derived table with a FILTER per role; teams and athletes each
+    // become one grouped scan instead of one scan per club.
+    //
+    // LEFT JOIN, not JOIN: a club with no admins, no coaches, no teams or no
+    // athletes must still appear — a correlated COUNT returns 0 for those and an
+    // inner join would silently drop exactly the clubs a super admin is most
+    // likely looking for. COALESCE turns the resulting NULL back into 0 so the
+    // response shape does not change.
     $sql = "
         SELECT
             c.id,
             c.name,
             c.created_at,
-            (SELECT COUNT(*) FROM user_club_access WHERE club_profile_id = c.id AND role = 'club_admin' AND active = true) as admin_count,
-            (SELECT COUNT(*) FROM user_club_access WHERE club_profile_id = c.id AND role = 'coach' AND active = true) as coach_count,
-            (SELECT COUNT(*) FROM teams WHERE club_id = c.id) as team_count,
-            (SELECT COUNT(*) FROM athletes WHERE club_id = c.id AND active_status = true) as athlete_count
+            COALESCE(acc.admin_count, 0)  as admin_count,
+            COALESCE(acc.coach_count, 0)  as coach_count,
+            COALESCE(tm.team_count, 0)    as team_count,
+            COALESCE(ath.athlete_count, 0) as athlete_count
         FROM club_profile c
+        LEFT JOIN (
+            SELECT club_profile_id,
+                   COUNT(*) FILTER (WHERE role = 'club_admin') as admin_count,
+                   COUNT(*) FILTER (WHERE role = 'coach')      as coach_count
+              FROM user_club_access
+             WHERE active = true
+             GROUP BY club_profile_id
+        ) acc ON acc.club_profile_id = c.id
+        LEFT JOIN (
+            SELECT club_id, COUNT(*) as team_count
+              FROM teams
+             GROUP BY club_id
+        ) tm ON tm.club_id = c.id
+        LEFT JOIN (
+            SELECT club_id, COUNT(*) as athlete_count
+              FROM athletes
+             WHERE active_status = true
+             GROUP BY club_id
+        ) ath ON ath.club_id = c.id
         WHERE 1=1
     ";
 
@@ -447,13 +481,25 @@ function handleGetClubs($pdo) {
         $params[] = "%$search%";
     }
 
-    $sql .= " ORDER BY c.name ASC";
+    // Keyset on (name, id) — see lib/pagination.php. `c.id` is the tiebreaker
+    // because two clubs may share a name.
+    $sortExprs = [te_page_text_key('c.name'), 'c.id'];
+    $limit = te_page_limit($_GET['limit'] ?? null);
+    $cursor = te_page_decode_cursor($_GET['cursor'] ?? null, count($sortExprs));
+    $keyset = te_page_keyset_clause($sortExprs, $cursor);
+
+    $sql .= $keyset['sql'] . ' ' . te_page_order_by($sortExprs) . ' LIMIT ' . te_page_fetch_limit($limit);
+    $params = array_merge($params, $keyset['params']);
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $page = te_page_finish(
+        $stmt->fetchAll(PDO::FETCH_ASSOC),
+        $limit,
+        fn(array $row) => [te_page_text_value($row['name'] ?? null), (int)$row['id']]
+    );
 
-    echo json_encode(['success' => true, 'clubs' => $clubs]);
+    echo json_encode(['success' => true, 'clubs' => $page['rows'], 'page' => $page['page']]);
 }
 
 /**
@@ -549,13 +595,34 @@ function handleGetUsers($pdo) {
         $params[] = "%$search%";
     }
 
-    $sql .= " ORDER BY u.first_name ASC, u.last_name ASC";
+    // Keyset on (first_name, last_name, id) — the SAME order this list already
+    // used, with the id appended so two people with the same name cannot make
+    // the cursor loop.
+    $sortExprs = [
+        te_page_text_key('u.first_name'),
+        te_page_text_key('u.last_name'),
+        'u.id',
+    ];
+    $limit = te_page_limit($_GET['limit'] ?? null);
+    $cursor = te_page_decode_cursor($_GET['cursor'] ?? null, count($sortExprs));
+    $keyset = te_page_keyset_clause($sortExprs, $cursor);
+
+    $sql .= $keyset['sql'] . ' ' . te_page_order_by($sortExprs) . ' LIMIT ' . te_page_fetch_limit($limit);
+    $params = array_merge($params, $keyset['params']);
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $page = te_page_finish(
+        $stmt->fetchAll(PDO::FETCH_ASSOC),
+        $limit,
+        fn(array $row) => [
+            te_page_text_value($row['first_name'] ?? null),
+            te_page_text_value($row['last_name'] ?? null),
+            (int)$row['id'],
+        ]
+    );
 
-    echo json_encode(['success' => true, 'users' => $users]);
+    echo json_encode(['success' => true, 'users' => $page['rows'], 'page' => $page['page']]);
 }
 
 /**

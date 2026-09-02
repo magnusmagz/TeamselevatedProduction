@@ -18,6 +18,7 @@ require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
 require_once __DIR__ . '/../lib/program_scope.php';
+require_once __DIR__ . '/../lib/scope_sql.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -277,11 +278,14 @@ try {
         // it answers [] when migration 086 has not been applied, so this whole
         // block is inert until then rather than 42P01-ing the calendar.
         if (!$athlete_id) {
-            $programIds = te_program_ids_for_user($conn, (int)$requestingUserId);
-            if (!empty($programIds)) {
-                // array_fill(0, 0, '?') would produce `IN ()`, a syntax error
-                // rather than an empty result — guarded by the emptiness check.
-                $ph = implode(',', array_fill(0, count($programIds), '?'));
+            // The user's programs are a SUBQUERY over program_staff, not a list
+            // fetched and re-bound one placeholder per program (GOTR G2). Null
+            // means they staff none, or migration 086 has not run — the block
+            // stays inert rather than running an aggregate that can return
+            // nothing, and `IN ()` (a syntax error, not an empty result) is now
+            // unreachable by construction.
+            $programScope = te_scope_program_ids_sql($conn, (int)$requestingUserId, 'ce');
+            if ($programScope !== null) {
                 $programStmt = $conn->prepare("
                     SELECT DISTINCT
                         ce.id, ce.name AS title, ce.type, ce.event_date AS date,
@@ -291,12 +295,12 @@ try {
                     FROM calendar_events ce
                     LEFT JOIN calendar_event_teams cet ON ce.id = cet.event_id
                     LEFT JOIN teams t ON cet.team_id = t.id
-                    WHERE ce.program_id IN ($ph)
+                    WHERE ce.program_id IN ({$programScope['sql']})
                       AND ce.event_date >= CURRENT_DATE
                       AND (ce.status IS NULL OR ce.status != 'cancelled')
                     ORDER BY ce.event_date ASC, ce.start_time ASC
                 ");
-                $programStmt->execute($programIds);
+                $programStmt->execute($programScope['params']);
 
                 // The base query emits one row per event/team pair, so the key
                 // has to be both. Keying on the event id alone would drop the

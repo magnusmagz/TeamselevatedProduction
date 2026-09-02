@@ -70,6 +70,10 @@ try {
                 $scopeParams = [];
                 if ($accessibleClubIds !== null) {
                     if (empty($accessibleClubIds)) { echo json_encode([]); break; }
+                    // CLUB ids: a handful of values, already in the token. Kept as a
+                    // materialised IN list on purpose and allowlisted in
+                    // tests/php/NoScopeIdListsTest.php — a subquery here would add a
+                    // user_club_access join to save nothing.
                     $scopeSql = 'WHERE v.club_id IN (' . implode(',', array_fill(0, count($accessibleClubIds), '?')) . ')';
                     $scopeParams = $accessibleClubIds;
                 }

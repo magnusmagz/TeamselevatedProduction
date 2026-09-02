@@ -27,6 +27,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/background_check.php';
 require_once __DIR__ . '/../lib/role_cache.php';
+require_once __DIR__ . '/../lib/pagination.php';
 
 $auth = AuthMiddleware::requireAuth();
 
@@ -502,12 +503,42 @@ try {
                 $params[] = $search;
             }
 
-            $sql .= " ORDER BY u.last_name, u.first_name";
+            // ─── Paginated (GOTR G2) ─────────────────────────────────────
+            // A council's volunteer list is the single largest thing a club
+            // admin loads, and this returned all of it. Keyset on
+            // (last_name, first_name, tv.id): the id tiebreaker is what makes it
+            // safe for two volunteers with the same name, and the COALESCE/LOWER
+            // is what makes it safe for a NULL surname.
+            $sortExprs = [
+                te_page_text_key('u.last_name'),
+                te_page_text_key('u.first_name'),
+                'tv.id',
+            ];
+            $limit = te_page_limit($_GET['limit'] ?? null);
+            $cursor = te_page_decode_cursor($_GET['cursor'] ?? null, count($sortExprs));
+            $keyset = te_page_keyset_clause($sortExprs, $cursor);
+
+            $sql .= $keyset['sql'];
+            $params = array_merge($params, $keyset['params']);
+            $sql .= ' ' . te_page_order_by($sortExprs) . ' LIMIT ' . te_page_fetch_limit($limit);
+
             $stmt = $db->prepare($sql);
             $stmt->execute($params);
-            $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $page = te_page_finish(
+                $stmt->fetchAll(PDO::FETCH_ASSOC),
+                $limit,
+                fn(array $row) => [
+                    te_page_text_value($row['last_name'] ?? null),
+                    te_page_text_value($row['first_name'] ?? null),
+                    (int)$row['id'],
+                ]
+            );
 
-            echo json_encode(['success' => true, 'volunteers' => $volunteers]);
+            echo json_encode([
+                'success' => true,
+                'volunteers' => $page['rows'],
+                'page' => $page['page'],
+            ]);
             break;
 
         case 'compliance':

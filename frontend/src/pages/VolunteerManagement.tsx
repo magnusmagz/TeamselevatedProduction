@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import LoadMore from '../components/LoadMore';
+import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -82,6 +84,8 @@ export const VolunteerManagement: React.FC = () => {
 
   // Data
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [page, setPage] = useState<PageMeta | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [compliance, setCompliance] = useState<ComplianceSummary | null>(null);
   const [teamCompliance, setTeamCompliance] = useState<TeamCompliance[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -135,28 +139,52 @@ export const VolunteerManagement: React.FC = () => {
     'Authorization': `Bearer ${token}`,
   }), [token]);
 
-  const fetchVolunteers = useCallback(async () => {
+  /**
+   * One page of volunteers. A null cursor loads the first page and replaces the
+   * list; a cursor appends.
+   *
+   * ⚠️ `club-volunteers` is PAGINATED (200 a page). A council's volunteer roster
+   * is the largest list this product serves, and the compliance filters below
+   * run on what has been LOADED — so "3 expired" means "3 in the rows you have",
+   * which is why <LoadMore> has to be visible rather than implied.
+   */
+  const fetchVolunteers = useCallback(async (cursor: string | null = null) => {
     if (!currentClubId) return;
-    setLoading(true);
+    if (!cursor) setLoading(true);
     try {
       const action = isClubAdmin ? 'club-volunteers' : 'team-volunteers';
       const idParam = isClubAdmin ? `club_id=${currentClubId}` : `team_id=${currentClubId}`;
       const res = await fetch(
-        `${API_URL}/api/volunteer-gateway.php?action=${action}&${idParam}`,
+        `${API_URL}/api/volunteer-gateway.php?action=${action}&${idParam}${pageQuery(cursor)}`,
         { headers }
       );
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.volunteers || [];
-      setVolunteers(raw.map((v: any) => ({
+      // team-volunteers is not paginated and returns no `page`; readPage answers
+      // null for it, and LoadMore renders nothing. That is correct — one team's
+      // volunteers really is the whole list.
+      setPage(readPage(data));
+      const mapped = raw.map((v: any) => ({
         ...v,
         bg_check_status: v.bg_check_status || v.background_check_status || 'never_checked',
-      })));
+      }));
+      setVolunteers((previous) => (cursor ? [...previous, ...mapped] : mapped));
     } catch (err) {
       console.error('Error fetching volunteers:', err);
     } finally {
       setLoading(false);
     }
   }, [currentClubId, isClubAdmin, headers]);
+
+  const loadMoreVolunteers = useCallback(async () => {
+    if (!page?.nextCursor) return;
+    setLoadingMore(true);
+    try {
+      await fetchVolunteers(page.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page, fetchVolunteers]);
 
   const fetchTeams = useCallback(async () => {
     if (!currentClubId) return;
@@ -633,6 +661,13 @@ export const VolunteerManagement: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            <LoadMore
+              page={page}
+              loading={loadingMore}
+              shown={volunteers.length}
+              label="volunteers"
+              onLoadMore={loadMoreVolunteers}
+            />
           </div>
         )}
       </div>

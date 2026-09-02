@@ -80,18 +80,31 @@ class AthleteScopeClubIdTest extends TestCase
         ]);
     }
 
+    /**
+     * Run the scope fragment the way a real list endpoint does. Asserting the
+     * rows rather than a returned id list, because accessibleAthleteFilter() no
+     * longer builds one — see the note on AthleteScopeTest.
+     */
+    private function scopedAthleteIds(AuthMiddleware $auth): array
+    {
+        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $auth, 'a.id');
+        $stmt = $this->pdo->prepare(
+            "SELECT a.id FROM athletes a WHERE 1=1 {$filter['sql']} ORDER BY a.id"
+        );
+        $stmt->execute($filter['params']);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     public function testClubAdminSeesTeamlessClubAthleteInList(): void
     {
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $this->clubAdmin(100));
-        sort($filter['athlete_ids']);
-        // Both the on-team athlete (1) and the team-less club athlete (2) appear.
-        $this->assertSame([1, 2], $filter['athlete_ids']);
+        // Both the on-team athlete (1) and the team-less club athlete (2)
+        // appear — the athletes.club_id branch of the predicate (CA-18).
+        $this->assertSame([1, 2], $this->scopedAthleteIds($this->clubAdmin(100)));
     }
 
     public function testClubAdminListExcludesOtherClubAthlete(): void
     {
-        $filter = AthleteScope::accessibleAthleteFilter($this->pdo, $this->clubAdmin(100));
-        $this->assertNotContains(3, $filter['athlete_ids']);
+        $this->assertNotContains(3, $this->scopedAthleteIds($this->clubAdmin(100)));
     }
 
     public function testClubAdminCanAccessTeamlessClubAthleteDetail(): void

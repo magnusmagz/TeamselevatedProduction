@@ -8,6 +8,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/role_cache.php';
+require_once __DIR__ . '/../lib/pagination.php';
 
 try {
     $db = Database::getInstance();
@@ -38,7 +39,14 @@ try {
             // OR is the primary_coach of a (non-deleted) team in the club. This
             // mirrors how JWT.php derives club-scoped coach roles.
             if ($hasNoClubScope) {
-                echo json_encode([]);
+                // Shape note: see the response at the end of this branch. An
+                // empty page still carries `page`, so a client never has to
+                // guess whether a short list is the whole list.
+                echo json_encode([
+                    'success' => true,
+                    'coaches' => [],
+                    'page' => ['limit' => te_page_limit($_GET['limit'] ?? null), 'next_cursor' => null, 'truncated' => false],
+                ]);
                 break;
             }
 
@@ -48,6 +56,10 @@ try {
                 $teamClubFilter = '';
                 $ucaClubFilter = '';
             } else {
+                // CLUB ids: the caller's own clubs, a handful of values that came
+                // out of the token. Deliberately NOT a subquery — allowlisted in
+                // tests/php/NoScopeIdListsTest.php with the rest of the club-id
+                // sites. Athlete and team id lists are the ones that do not scale.
                 $ph = implode(',', array_fill(0, count($accessibleClubs), '?'));
                 $teamClubFilter = "AND t.club_id IN ($ph)";
                 $ucaClubFilter  = "AND uca.club_profile_id IN ($ph)";
@@ -81,13 +93,43 @@ try {
                 )
                 GROUP BY u.id, u.first_name, u.last_name, u.email,
                          u.password_hash, u.last_login_at
-                ORDER BY u.last_name, u.first_name
             ";
+
+            // ─── Paginated (GOTR G2) ─────────────────────────────────────────
+            // Keyset on (last_name, first_name, u.id). The keyset predicate goes
+            // in HAVING, not WHERE: this query is grouped, and a WHERE clause
+            // referencing the grouped row would be evaluated before the GROUP BY.
+            // Every column in the key is in the GROUP BY list, so HAVING can see
+            // them.
+            $sortExprs = [
+                te_page_text_key('u.last_name'),
+                te_page_text_key('u.first_name'),
+                'u.id',
+            ];
+            $limit = te_page_limit($_GET['limit'] ?? null);
+            $cursor = te_page_decode_cursor($_GET['cursor'] ?? null, count($sortExprs));
+            $keyset = te_page_keyset_clause($sortExprs, $cursor);
+            if ($keyset['sql'] !== '') {
+                $sql .= ' HAVING ' . substr($keyset['sql'], strlen(' AND '));
+                $params = array_merge($params, $keyset['params']);
+            }
+            $sql .= ' ' . te_page_order_by($sortExprs) . ' LIMIT ' . te_page_fetch_limit($limit);
+
             $stmt = $connection->prepare($sql);
             $stmt->execute($params);
 
+            $rawPage = te_page_finish(
+                $stmt->fetchAll(PDO::FETCH_ASSOC),
+                $limit,
+                fn(array $row) => [
+                    te_page_text_value($row['last_name'] ?? null),
+                    te_page_text_value($row['first_name'] ?? null),
+                    (int)$row['id'],
+                ]
+            );
+
             $coaches = [];
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            foreach ($rawPage['rows'] as $r) {
                 $s = te_portal_status($r, (string)$r['email'], 'coach');
                 $coaches[] = [
                     'id'             => (int)$r['id'],
@@ -102,7 +144,18 @@ try {
                     'shared_reason'  => $s['shared_reason'],
                 ];
             }
-            echo json_encode($coaches);
+            // ⚠️ SHAPE CHANGE: this used to be a bare JSON array. It is now
+            // `{success, coaches, page}`, because a list that can be cut off has
+            // to be able to say so — a truncated array is indistinguishable from
+            // a complete one. All four frontend callers (CoachManagement,
+            // TeamFormWithTabs, ProgramStaffModal, ClubDocumentCenter) read
+            // `Array.isArray(data) ? data : data.coaches`, so they work against
+            // either backend. That is why the FRONTEND ships first.
+            echo json_encode([
+                'success' => true,
+                'coaches' => $coaches,
+                'page' => $rawPage['page'],
+            ]);
             break;
 
         case 'create':
@@ -244,6 +297,7 @@ try {
                     echo json_encode(['error' => 'Access denied']);
                     exit();
                 }
+                // CLUB ids again — see the allowlist note above.
                 $ph = implode(',', array_fill(0, count($accessibleClubs), '?'));
                 $chk = $connection->prepare("
                     SELECT 1

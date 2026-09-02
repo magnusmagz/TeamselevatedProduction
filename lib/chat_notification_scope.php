@@ -83,31 +83,65 @@ const TE_CHAT_NOTIFY_LOOKBACK_MINUTES = 60;
  */
 function te_chat_conversation_audience(PDO $pdo, int $conversationId): array
 {
+    $audience = te_chat_conversation_audience_sql($pdo, $conversationId);
+    if ($audience === null) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare($audience['sql']);
+    $stmt->execute($audience['params']);
+
+    return te_chat_clean_user_ids($stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/**
+ * The same audience, as a SUBQUERY rather than a list of ids.
+ *
+ * The three state lookups below used to take the materialised audience and
+ * rebuild it as `user_id IN (?,?,?,…)` — three times, one bind per person, for
+ * every conversation in every tick. A team of 40 families meant 120 binds per
+ * conversation to ask three questions. They now embed this instead, so the set
+ * is expressed once and the dispatcher's own `foreach` is the only place the
+ * audience is materialised at all (it has to be: the per-user decisions below
+ * are PHP, not SQL).
+ *
+ * ⚠️ There is exactly ONE definition of the audience and it is this function.
+ * It mirrors chat-server/lib/team_scope.js, filters and omissions included —
+ * mailing someone a link to a 403 is the failure mode — and its guardian join
+ * is te_guardian_link_sql() verbatim.
+ *
+ * Returns null when the conversation does not exist, or is a team conversation
+ * with no team: "nobody" is the honest answer there, and it is a different
+ * answer from an empty result the caller might otherwise widen.
+ *
+ * @return array{sql:string, params:array<string,int>}|null
+ */
+function te_chat_conversation_audience_sql(PDO $pdo, int $conversationId): ?array
+{
     $stmt = $pdo->prepare('SELECT id, type, team_id FROM conversations WHERE id = ?');
     $stmt->execute([$conversationId]);
     $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$conversation) {
-        return [];
+        return null;
     }
 
     if (($conversation['type'] ?? '') !== 'team') {
         // DMs and groups take their membership from the participant row, because
         // that is what membership MEANS there. left_at is "I left this group" —
         // six read-side uses treat it that way, so it must exclude here too.
-        $stmt = $pdo->prepare(
-            'SELECT user_id FROM conversation_participants
-              WHERE conversation_id = ? AND user_id IS NOT NULL AND left_at IS NULL'
-        );
-        $stmt->execute([$conversationId]);
-        return te_chat_clean_user_ids($stmt->fetchAll(PDO::FETCH_COLUMN));
+        return [
+            'sql' => 'SELECT user_id FROM conversation_participants
+              WHERE conversation_id = :aud_conv AND user_id IS NOT NULL AND left_at IS NULL',
+            'params' => [':aud_conv' => $conversationId],
+        ];
     }
 
     $teamId = $conversation['team_id'] ?? null;
     if ($teamId === null) {
         // A team conversation with no team cannot resolve an audience. Returning
         // nobody is the honest answer; guessing the club's members is not.
-        return [];
+        return null;
     }
 
     // Mirror of team_scope.js. Written as a UNION of targeted selects rather than
@@ -143,14 +177,14 @@ function te_chat_conversation_audience(PDO $pdo, int $conversationId): array
          WHERE tm.team_id = :team_c
     ";
 
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':team_a' => $teamId,
-        ':team_b' => $teamId,
-        ':team_c' => $teamId,
-    ]);
-
-    return te_chat_clean_user_ids($stmt->fetchAll(PDO::FETCH_COLUMN));
+    return [
+        'sql' => $sql,
+        'params' => [
+            ':team_a' => $teamId,
+            ':team_b' => $teamId,
+            ':team_c' => $teamId,
+        ],
+    ];
 }
 
 /**
@@ -206,14 +240,21 @@ function te_chat_pending_notifications(PDO $pdo, array $opts = []): array
     $pending = [];
 
     foreach ($byConversation as $conversationId => $messages) {
+        // Derived ONCE, as SQL, and handed to all three lookups. The ids are
+        // materialised only for the per-user loop below, which is PHP work
+        // (mute, prefs, watermark) and cannot be expressed as a set operation.
+        $audienceSql = te_chat_conversation_audience_sql($pdo, $conversationId);
+        if ($audienceSql === null) {
+            continue;
+        }
         $audience = te_chat_conversation_audience($pdo, $conversationId);
         if (!$audience) {
             continue;
         }
 
-        $state = te_chat_participant_state($pdo, $conversationId, $audience);
-        $notified = te_chat_notification_state($pdo, $conversationId, $audience);
-        $prefs = te_chat_notification_prefs($pdo, $audience);
+        $state = te_chat_participant_state($pdo, $conversationId, $audienceSql);
+        $notified = te_chat_notification_state($pdo, $conversationId, $audienceSql);
+        $prefs = te_chat_notification_prefs($pdo, $audienceSql);
 
         foreach ($audience as $userId) {
             // Muting is per conversation and lives on the participant row. An
@@ -346,20 +387,24 @@ function te_chat_record_click(
     return $stmt->rowCount() > 0;
 }
 
-/** Read watermark and mute flag, keyed by user id. Absent row is a valid answer. */
-function te_chat_participant_state(PDO $pdo, int $conversationId, array $userIds): array
+/**
+ * Read watermark and mute flag, keyed by user id. Absent row is a valid answer.
+ *
+ * Scoped by the audience SUBQUERY, not by a bound list of its members — see
+ * te_chat_conversation_audience_sql(). $audience is passed in rather than
+ * re-derived so the three lookups and the dispatcher's loop cannot disagree
+ * about who the audience is.
+ *
+ * @param array{sql:string, params:array} $audience
+ */
+function te_chat_participant_state(PDO $pdo, int $conversationId, array $audience): array
 {
-    if (!$userIds) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($userIds), '?'));
     $stmt = $pdo->prepare(
         "SELECT user_id, last_read_message_id, muted
            FROM conversation_participants
-          WHERE conversation_id = ? AND user_id IN ({$placeholders})"
+          WHERE conversation_id = :st_conv AND user_id IN ({$audience['sql']})"
     );
-    $stmt->execute(array_merge([$conversationId], $userIds));
+    $stmt->execute(array_merge([':st_conv' => $conversationId], $audience['params']));
 
     $out = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -371,20 +416,19 @@ function te_chat_participant_state(PDO $pdo, int $conversationId, array $userIds
     return $out;
 }
 
-/** What each user has already been told about in this conversation. */
-function te_chat_notification_state(PDO $pdo, int $conversationId, array $userIds): array
+/**
+ * What each user has already been told about in this conversation.
+ *
+ * @param array{sql:string, params:array} $audience
+ */
+function te_chat_notification_state(PDO $pdo, int $conversationId, array $audience): array
 {
-    if (!$userIds) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($userIds), '?'));
     $stmt = $pdo->prepare(
         "SELECT user_id, last_notified_message_id
            FROM chat_notification_state
-          WHERE conversation_id = ? AND user_id IN ({$placeholders})"
+          WHERE conversation_id = :ns_conv AND user_id IN ({$audience['sql']})"
     );
-    $stmt->execute(array_merge([$conversationId], $userIds));
+    $stmt->execute(array_merge([':ns_conv' => $conversationId], $audience['params']));
 
     $out = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -397,19 +441,14 @@ function te_chat_notification_state(PDO $pdo, int $conversationId, array $userId
  * Per-user channel preferences. An absent row means the defaults — on — so
  * nothing has to write a row for a user before they can be notified.
  */
-function te_chat_notification_prefs(PDO $pdo, array $userIds): array
+function te_chat_notification_prefs(PDO $pdo, array $audience): array
 {
-    if (!$userIds) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($userIds), '?'));
     $stmt = $pdo->prepare(
         "SELECT user_id, email_enabled, push_enabled
            FROM chat_notification_prefs
-          WHERE user_id IN ({$placeholders})"
+          WHERE user_id IN ({$audience['sql']})"
     );
-    $stmt->execute($userIds);
+    $stmt->execute($audience['params']);
 
     $out = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {

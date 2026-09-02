@@ -14,6 +14,7 @@ if (defined('TE_RECIPIENT_SEARCH_LIB_ONLY')) {
     require_once __DIR__ . '/../lib/coach_scope.php';
     require_once __DIR__ . '/../lib/guardian_identity.php';
     require_once __DIR__ . '/../lib/program_scope.php';
+    require_once __DIR__ . '/../lib/scope_sql.php';
     return;
 }
 
@@ -27,6 +28,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/coach_scope.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
 require_once __DIR__ . '/../lib/program_scope.php';
+require_once __DIR__ . '/../lib/scope_sql.php';
 
 try {
     $db = Database::getInstance();
@@ -186,35 +188,39 @@ function te_search_program_athlete_ids($connection, $userId): array {
  * before is removed. Callers with no athlete column in scope (the group list,
  * which selects FROM teams) pass nothing and behave exactly as before.
  *
- * `AND 1=0` when neither holds: array_fill(0, 0, '?') would produce `IN ()`,
- * which is a syntax error rather than an empty result, and an unfiltered query
- * would be a club-wide leak.
+ * ⚠️ **Both halves are SUBQUERIES now, not fetched id lists** (GOTR G2). The
+ * program half was the worse of the two: it walked every program the user
+ * staffs, collected every registrant, and bound one placeholder per ATHLETE.
+ *
+ * The emptiness guard that used to be here is gone because it can no longer
+ * fire: `X IN (<subquery that returns nothing>)` is false, where
+ * `array_fill(0, 0, '?')` was `IN ()` — a syntax error rather than an empty
+ * result. "Reaches nobody" is still a refusal and never an unfiltered query.
  */
 function getTeamFilterClause($connection, $auth, $userId, $clubProfileId, $teamColumn = 'tm.team_id', $athleteColumn = null) {
     if (isClubAdmin($auth, $clubProfileId)) {
         return ['sql' => '', 'params' => []];
     }
 
-    $coachTeamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
-    $programAthleteIds = $athleteColumn === null
-        ? []
-        : te_search_program_athlete_ids($connection, $userId);
-
-    if (empty($coachTeamIds) && empty($programAthleteIds)) {
-        return ['sql' => "AND 1=0", 'params' => []];
-    }
-
     $branches = [];
     $params = [];
 
-    if (!empty($coachTeamIds)) {
-        $branches[] = "{$teamColumn} IN (" . implode(',', array_fill(0, count($coachTeamIds), '?')) . ")";
-        $params = array_merge($params, $coachTeamIds);
-    }
+    // Teams this person coaches, within this club. No deleted_at filter — that
+    // is getCoachTeamIds()'s deliberate pre-existing behaviour and changing it
+    // here would change who can send.
+    $coach = te_scope_coach_team_ids_sql((int)$userId, (int)$clubProfileId, false, 'tf');
+    $branches[] = "{$teamColumn} IN ({$coach['sql']})";
+    $params = array_merge($params, $coach['params']);
 
-    if (!empty($programAthleteIds)) {
-        $branches[] = "{$athleteColumn} IN (" . implode(',', array_fill(0, count($programAthleteIds), '?')) . ")";
-        $params = array_merge($params, $programAthleteIds);
+    if ($athleteColumn !== null) {
+        // Null when the user staffs no programs, or when migration 086 has not
+        // been applied — the branch is then omitted entirely rather than
+        // emitting a subquery that can only be false.
+        $program = te_scope_program_athlete_ids_sql($connection, (int)$userId, 'tf');
+        if ($program !== null) {
+            $branches[] = "{$athleteColumn} IN ({$program['sql']})";
+            $params = array_merge($params, $program['params']);
+        }
     }
 
     return [
@@ -622,13 +628,16 @@ function getProgramGroups($connection, $auth, $userId, $clubProfileId, $channel 
     $programFilter = '';
     $params = [$clubProfileId, $clubProfileId];
     if (!$isAdmin) {
-        $programIds = te_program_ids_for_user($connection, (int)$userId);
-        if (empty($programIds)) {
+        // A subquery over program_staff, not a fetched id list. Null means the
+        // user staffs nothing (or migration 086 has not run) — an early return,
+        // because an empty subquery here would still run the whole registration
+        // aggregate to produce no rows.
+        $program = te_scope_program_ids_sql($connection, (int)$userId, 'pg');
+        if ($program === null) {
             return [];
         }
-        // Guarded above: array_fill(0, 0, '?') is `IN ()`, a syntax error.
-        $programFilter = ' AND p.id IN (' . implode(',', array_fill(0, count($programIds), '?')) . ')';
-        $params = array_merge($params, $programIds);
+        $programFilter = " AND p.id IN ({$program['sql']})";
+        $params = array_merge($params, $program['params']);
     }
 
     $aContact = ($channel === 'sms') ? 'a.phone' : 'a.email';
@@ -1078,12 +1087,17 @@ function handleResolveGroup($connection, $auth, $userId) {
         exit();
     }
 
-    // Validate team access: coaches can only resolve their own teams
+    // Validate team access: coaches can only resolve their own teams.
+    //
+    // The comparison happens in the database. The REQUESTED list comes from the
+    // browser and is small; the caller's own team list is the unbounded one, so
+    // fetching it in order to in_array() against it was the wrong way round.
+    // Refusals stay per-team so the message still names the id that failed.
     $teamFilter = getTeamFilterClause($connection, $auth, $userId, $clubProfileId);
     if (!isClubAdmin($auth, $clubProfileId)) {
-        $coachTeamIds = getCoachTeamIds($connection, $userId, $clubProfileId);
+        $coachTeams = te_scope_coach_team_ids_sql((int)$userId, (int)$clubProfileId, false, 'rg');
         foreach ($teamIds as $tid) {
-            if (!in_array($tid, $coachTeamIds)) {
+            if (!te_scope_all_ids_within($connection, [$tid], $coachTeams)) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Access denied to team ID ' . $tid]);
                 exit();
@@ -1736,16 +1750,33 @@ function handleChatSearch($connection, $auth, $userId) {
     //
     // The conversation list already merges both (chat-server getAccessibleTeamIds).
     // This is the same rule applied to who you can find.
-    $coachTeamIds  = $isAdmin ? [] : getCoachTeamIds($connection, $userId, $clubProfileId);
-    $parentTeamIds = $isAdmin ? [] : te_chat_parent_team_ids($connection, $userId, $clubProfileId);
+    // ⚠️ The TEAM SETS are SQL, the STANDING FLAGS are booleans (GOTR G2).
+    //
+    // This used to fetch both id lists and then bind one placeholder per team
+    // into five separate branches — the same list re-materialised five times in
+    // one request. The sets are now subqueries (lib/scope_sql.php) and only the
+    // two yes/no answers come back to PHP, because the flags decide which
+    // BRANCHES are emitted at all and that decision cannot be made in SQL.
+    //
+    // te_scope_coach_team_ids_sql() is getCoachTeamIds() and
+    // te_scope_guardian_team_ids_sql() is te_chat_parent_team_ids(), both
+    // verbatim — including the guardian chain, which is te_guardian_link_sql()
+    // and must never be re-inlined here.
+    $coachTeams  = te_scope_coach_team_ids_sql((int)$userId, (int)$clubProfileId, false, 'cs');
+    $parentTeams = te_scope_guardian_team_ids_sql((int)$userId, (int)$clubProfileId, 'ps');
+
+    $hasCoachTeams  = $isAdmin ? false : te_scope_subquery_has_rows($connection, $coachTeams);
+    $hasParentTeams = $isAdmin ? false : te_scope_subquery_has_rows($connection, $parentTeams);
 
     // A coach is a coach by ROLE, not by having been given a team yet — see the
     // 2026-08-15 fix. Team assignment decides which FAMILIES they reach.
-    $isCoach  = !$isAdmin && ($auth->hasRole('coach', $clubProfileId, 'club') || !empty($coachTeamIds));
-    $isParent = !$isAdmin && !empty($parentTeamIds);
+    $isCoach  = !$isAdmin && ($auth->hasRole('coach', $clubProfileId, 'club') || $hasCoachTeams);
+    $isParent = !$isAdmin && $hasParentTeams;
 
-    // Every team this person can see, from either hat.
-    $visibleTeamIds = array_values(array_unique(array_merge($coachTeamIds, $parentTeamIds)));
+    // Every team this person can see, from either hat — as a UNION, not a
+    // deduplicated PHP array. UNION (not UNION ALL) does the dedupe.
+    $visibleTeams = te_scope_union_sql($coachTeams, $parentTeams);
+    $hasVisibleTeams = $hasCoachTeams || $hasParentTeams;
 
     $like = '%' . $q . '%';
     $people = [];
@@ -1758,16 +1789,16 @@ function handleChatSearch($connection, $auth, $userId) {
     $branches = [];
     $params = [];
 
-    if (!empty($coachTeamIds)) {
+    if ($hasCoachTeams) {
         // Coach → the crew of the teams they coach.
-        $ph = implode(',', array_fill(0, count($coachTeamIds), '?'));
         $branches[] = "EXISTS (
                 SELECT 1 FROM guardians g2
                 JOIN athlete_guardians ag2 ON ag2.guardian_id = g2.id
-                JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id AND tm2.team_id IN ($ph)
+                JOIN team_members tm2 ON tm2.athlete_id = ag2.athlete_id
+                     AND tm2.team_id IN ({$coachTeams['sql']})
                 WHERE " . te_guardian_link_sql('u', 'g2') . "
             )";
-        $params = array_merge($params, $coachTeamIds);
+        $params = array_merge($params, $coachTeams['params']);
     }
 
     if ($isCoach) {
@@ -1793,24 +1824,27 @@ function handleChatSearch($connection, $auth, $userId) {
     if ($isParent) {
         // Parent → the coaches of their children's teams, and the other families
         // on them. This is the branch a coach-parent was missing.
-        $ph = implode(',', array_fill(0, count($parentTeamIds), '?'));
+        //
+        // The parent-team subquery appears TWICE, so its parameters are merged
+        // twice. Aliases inside it are tagged, so two copies in one statement do
+        // not collide.
         $branches[] = "EXISTS (
                 SELECT 1 FROM teams t4
                 LEFT JOIN team_members tm4 ON tm4.team_id = t4.id
                      AND tm4.role IN ('assistant_coach','team_manager') AND tm4.status = 'active'
-                WHERE t4.id IN ($ph) AND u.id = COALESCE(tm4.user_id, t4.primary_coach_id)
+                WHERE t4.id IN ({$parentTeams['sql']}) AND u.id = COALESCE(tm4.user_id, t4.primary_coach_id)
             )";
-        $params = array_merge($params, $parentTeamIds);
+        $params = array_merge($params, $parentTeams['params']);
 
-        $ph2 = implode(',', array_fill(0, count($parentTeamIds), '?'));
+        $parentTeamsB = te_scope_guardian_team_ids_sql((int)$userId, (int)$clubProfileId, 'psb');
         $branches[] = "EXISTS (
                 SELECT 1 FROM guardians g5
                 JOIN athlete_guardians ag5 ON ag5.guardian_id = g5.id
                 JOIN team_members tm5 ON tm5.athlete_id = ag5.athlete_id
-                     AND tm5.team_id IN ($ph2) AND tm5.status = 'active'
+                     AND tm5.team_id IN ({$parentTeamsB['sql']}) AND tm5.status = 'active'
                 WHERE " . te_guardian_link_sql('u', 'g5') . "
             )";
-        $params = array_merge($params, $parentTeamIds);
+        $params = array_merge($params, $parentTeamsB['params']);
     }
 
     // A non-admin with no standing at all reaches nobody. `AND 1=0` rather than
@@ -1823,15 +1857,21 @@ function handleChatSearch($connection, $auth, $userId) {
     // by the SQLite the tests run against, and this SELECT is exercised there.
     $teamNamesSelect = "CAST(NULL AS text) AS team_names";
     $teamNameParams = [];
-    if (!empty($visibleTeamIds)) {
-        $ph = implode(',', array_fill(0, count($visibleTeamIds), '?'));
+    // A second, differently-tagged copy of the same union: this one sits in the
+    // SELECT list of the same statement as the access branches above, so its
+    // aliases must not collide with theirs.
+    $visibleTeamsNames = te_scope_union_sql(
+        te_scope_coach_team_ids_sql((int)$userId, (int)$clubProfileId, false, 'cn'),
+        te_scope_guardian_team_ids_sql((int)$userId, (int)$clubProfileId, 'pn')
+    );
+    if ($hasVisibleTeams) {
         $teamNamesSelect = "(
             -- No DISTINCT: this selects FROM teams, so each team is already one
             -- row. DISTINCT would also make it unportable — SQLite rejects a
             -- DISTINCT aggregate with a separator, and the tests run on SQLite.
             SELECT STRING_AGG(t6.name, ', ')
             FROM teams t6
-            WHERE t6.id IN ($ph)
+            WHERE t6.id IN ({$visibleTeamsNames['sql']})
               AND (
                 t6.primary_coach_id = u.id
                 OR EXISTS (SELECT 1 FROM team_members tm6 WHERE tm6.team_id = t6.id AND tm6.user_id = u.id
@@ -1842,7 +1882,7 @@ function handleChatSearch($connection, $auth, $userId) {
                            WHERE " . te_guardian_link_sql('u', 'g6') . ")
               )
         ) AS team_names";
-        $teamNameParams = $visibleTeamIds;
+        $teamNameParams = $visibleTeamsNames['params'];
     }
 
     $sql = "
@@ -1888,15 +1928,14 @@ function handleChatSearch($connection, $auth, $userId) {
         ");
         $stmt->execute([$clubProfileId]);
         $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } elseif (!empty($visibleTeamIds)) {
-        $ph = implode(',', array_fill(0, count($visibleTeamIds), '?'));
+    } elseif ($hasVisibleTeams) {
         $stmt = $connection->prepare("
             SELECT t.id, t.name, t.age_group
             FROM teams t
-            WHERE t.id IN ($ph) AND t.deleted_at IS NULL
+            WHERE t.id IN ({$visibleTeams['sql']}) AND t.deleted_at IS NULL
             ORDER BY t.age_group, t.name
         ");
-        $stmt->execute($visibleTeamIds);
+        $stmt->execute($visibleTeams['params']);
         $teamGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -1973,17 +2012,17 @@ function handleChatResolveTeams($connection, $auth, $userId) {
         // when the coach list was empty, so a coach whose child plays on a team
         // they do not coach was refused that team — the group-select half of the
         // same bug as the search.
-        $allowedIds = array_values(array_unique(array_merge(
-            array_map('intval', getCoachTeamIds($connection, $userId, $clubProfileId)),
-            te_chat_parent_team_ids($connection, $userId, $clubProfileId)
-        )));
-        $allowedSet = array_flip(array_map('intval', $allowedIds));
-        foreach ($teamIds as $tid) {
-            if (!isset($allowedSet[(int)$tid])) {
-                http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'Access denied to one or more teams']);
-                exit();
-            }
+        // Both hats, unioned in SQL. The requested ids are the small list and
+        // the caller's reach is the large one, so the containment test runs in
+        // the database rather than fetching every team the coach-parent can see.
+        $allowed = te_scope_union_sql(
+            te_scope_coach_team_ids_sql((int)$userId, (int)$clubProfileId, false, 'rt'),
+            te_scope_guardian_team_ids_sql((int)$userId, (int)$clubProfileId, 'rp')
+        );
+        if (!te_scope_all_ids_within($connection, $teamIds, $allowed)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied to one or more teams']);
+            exit();
         }
     }
 
