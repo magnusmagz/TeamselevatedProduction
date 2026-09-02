@@ -7,6 +7,10 @@ RewriteEngine On
 # DO NOT intercept OPTIONS at Apache level
 
 # Route for athlete full profile
+# Decision 14 (2026-09-02): document uploads are not durable (dyno disk) and were served with
+# no login. Refuse the folder until durable, authorised storage ships (roadmap Phase 5).
+RewriteRule ^uploads/club-documents/ - [F,L]
+
 RewriteRule ^api/athletes/([0-9]+)/full-profile$ api/athletes-profile.php/$1 [L]
 
 # Email/SMS API routes
