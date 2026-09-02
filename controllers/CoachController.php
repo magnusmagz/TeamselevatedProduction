@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../models/Coach.php';
 
 class CoachController {
@@ -173,6 +174,11 @@ class CoachController {
     }
 
     public function searchPlayers() {
+        // The one method in this controller without authorizeCoachAccess(): it took a
+        // search string and returned 20 athletes with DOB to anyone (found 2026-09-02).
+        // A roster search is staff work, so the WRITE-side athlete set applies — a
+        // parent gets nothing here, not their own child.
+        $auth = AuthMiddleware::requireAuth();
         $search = $_GET['search'] ?? '';
         $excludeTeamId = $_GET['exclude_team'] ?? null;
 
@@ -181,7 +187,13 @@ class CoachController {
             return;
         }
 
-        $players = $this->coachModel->searchAvailablePlayers($search, $excludeTeamId);
+        $allowed = $auth->isSuperAdmin() ? null : \AthleteScope::staffManageableAthleteIds($this->db, $auth);
+        if ($allowed !== null && empty($allowed)) {
+            echo json_encode([]);
+            return;
+        }
+
+        $players = $this->coachModel->searchAvailablePlayers($search, $excludeTeamId, $allowed);
         echo json_encode($players);
     }
 

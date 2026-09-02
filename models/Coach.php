@@ -455,13 +455,24 @@ class Coach {
         }
     }
 
-    public function searchAvailablePlayers($search, $excludeTeamId = null) {
+    public function searchAvailablePlayers($search, $excludeTeamId = null, ?array $allowedAthleteIds = null) {
         // Rosters are athlete-based: search the athletes table (Postgres ILIKE),
-        // returning athletes not already on $excludeTeamId.
+        // returning athletes not already on $excludeTeamId. $allowedAthleteIds is the
+        // caller's staff scope (null = unrestricted, [] = nothing — the controller
+        // short-circuits that case so IN () is never built).
         $sql = "SELECT a.id, a.first_name, a.last_name, a.date_of_birth
                 FROM athletes a
                 WHERE a.active_status = true
                 AND (a.first_name ILIKE :search OR a.last_name ILIKE :search2)";
+        $scopeParams = [];
+        if ($allowedAthleteIds !== null) {
+            $marks = [];
+            foreach (array_values($allowedAthleteIds) as $i => $id) {
+                $marks[] = ":allow_$i";
+                $scopeParams[":allow_$i"] = (int)$id;
+            }
+            $sql .= " AND a.id IN (" . implode(',', $marks) . ")";
+        }
 
         if ($excludeTeamId) {
             $sql .= " AND NOT EXISTS (SELECT 1 FROM team_members tm2
@@ -473,10 +484,10 @@ class Coach {
         $sql .= " ORDER BY a.last_name, a.first_name LIMIT 20";
 
         $stmt = $this->db->prepare($sql);
-        $params = [
+        $params = array_merge([
             ':search' => '%' . $search . '%',
             ':search2' => '%' . $search . '%'
-        ];
+        ], $scopeParams);
         if ($excludeTeamId) {
             $params[':exclude_team'] = $excludeTeamId;
         }

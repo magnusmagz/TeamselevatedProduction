@@ -249,6 +249,15 @@ class AthleteController {
     }
 
     public function getAthletes() {
+        // Reached as GET /api/athletes — Apache serves api/athletes/index.php for that
+        // path (it is a directory), so this is the live entry point. Until 2026-09-02 it
+        // had no auth and returned every athlete in every club with the primary
+        // guardian's email and mobile: 329 rows, anonymously. Same scope as the legacy
+        // athletes gateway: club admin of their club, coach of their teams, guardian of
+        // their own child.
+        $auth = $this->resolveAuth();
+        $scope = \AthleteScope::accessibleAthleteFilter($this->db, $auth, 'a.id');
+
         $sql = "SELECT
                     a.*,
                     CONCAT(g.first_name, ' ', g.last_name) as primary_guardian_name,
@@ -258,10 +267,11 @@ class AthleteController {
                 LEFT JOIN athlete_guardians ag ON a.id = ag.athlete_id AND ag.is_primary = true
                 LEFT JOIN guardians g ON ag.guardian_id = g.id
                 WHERE a.active_status = true
+                {$scope['sql']}
                 ORDER BY a.last_name, a.first_name";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($scope['params']);
         $athletes = $stmt->fetchAll();
 
         echo json_encode($athletes);
