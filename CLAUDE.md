@@ -720,6 +720,20 @@ portal reads its own child here — the staff predicate would lock every family 
 registration's club the same way; PUT whitelists `status` and takes `reviewed_by` from the
 token. POST stays public — it is the sign-up form. `RegistrationWriteScopeTest`.
 
+**Attendance and RSVP rows are staff data — `lib/event_standing.php`** (R81, same day).
+CKU's "parents see other families' RSVPs" was not `calendar-events-gateway` (already
+scoped). It was `api/event-attendance.php`, whose `requireAuth()` was followed by nothing
+— `$auth` was never read — so a parent who reached the staff calendar (`ProtectedRoute`
+is authentication only) could open **Take Attendance** on any event, see every family's
+status, and `save` over it. And `api/rsvp-webhook.php?action=status` had no auth at all:
+every attendee's name, email and RSVP for any event id. `te_event_staff_standing()`
+answers super admin / club_admin of the event's club / coach of a team ON the event
+(not merely in the club — access is not a subscription); null for a missing event, which
+callers 404. `athlete-history` uses `userCanAccessAthlete` (a parent may read their own
+child's). `EventStandingTest`. The chat-poll voter list is a different, documented
+choice (`docs/chat-polls-scope.md`) — if a coach runs RSVPs as a poll, that is the other
+place a family sees names.
+
 `api/payment-reminders.php`'s batch query had `AND (subq) IS NULL OR (subq) < …` — AND
 binds tighter, so the OR branch carried no club/status/amount filter. Latent while
 `payment_reminder_log` was empty; parenthesised, and `PaymentReminderBatchFilterTest`
