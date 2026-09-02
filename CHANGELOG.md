@@ -32,6 +32,15 @@ Newest first. Times are Pacific.
 
 ## 2026-09-02
 
+### Three more open reads closed (Heroku v561) + RSVP test coverage
+
+The new smoke-test route walk found, on its first run: `GET /api/athletes` (329 athletes,
+every club, with primary guardian email + mobile), `/api/coach/players/search` (20 athletes
+with DOB per query) and `/api/seasons` answering 200 with no token. Reached by directory
+shadowing, not the route table — lesson in CLAUDE.md. Gated and scoped, verified 401 after
+deploy. Also: 25 RSVP phpunit tests (three defects pinned as KNOWN_DEFECT, on the
+decisions doc as item 11) and the reply parser's email match is now LOWER() both sides.
+
 ### Home overview + evaluations sort shipped (Netlify `2ce4368`, frontend only, Heroku stays v560)
 
 - **R88** `/dashboard` is now a four-tile overview (Teams / Athletes / Programs / Revenue;

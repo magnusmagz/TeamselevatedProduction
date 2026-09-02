@@ -429,7 +429,11 @@ foreach ([51 => 'Central Kansas', 32 => 'Teams Elevated'] as $club => $clubName)
 
     // Core CRM — untouched by us, but shipped alongside our commits.
     check('crew: club-parents',        postRead($base, '/api/auth-gateway.php?action=club-parents', $tok, ['club_id' => $club]), 200, envelope('parents'));
-    check('athletes',                  get($base, "/api/athletes", $tok), 200);
+    // Trailing slash on purpose: /api/athletes is a DIRECTORY, so Apache 301s it to
+    // /api/athletes/ — with a Location of http://, not https://. libcurl drops the
+    // Authorization header on that downgrade, so following the redirect arrives with no
+    // token and, now that the endpoint is gated, gets a 401 that reads as a regression.
+    check('athletes',                  get($base, "/api/athletes/", $tok), 200);
     check('teams',                     get($base, "/api/teams", $tok), 200);
     check('club profile',              get($base, "/legacy/club-profile-gateway.php?club_id={$club}", $tok), [200, 404]);
     check('calendar events',           get($base, "/legacy/events-gateway.php?club_id={$club}", $tok), [200, 400]);
