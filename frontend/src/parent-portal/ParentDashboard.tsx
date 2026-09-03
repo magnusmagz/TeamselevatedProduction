@@ -5,6 +5,7 @@ import { useParentAthletes } from './hooks/useParentAthletes';
 import { ParentHeader } from './components/ParentHeader';
 import { AthleteSelector } from './components/AthleteSelector';
 import { NoAthletesLinked } from './components/NoAthletesLinked';
+import ComplianceAlertCard from '../compliance/ComplianceAlertCard';
 import {
   DashboardCard,
   QuickAction,
@@ -201,6 +202,13 @@ export const ParentDashboard: React.FC = () => {
             }
           />
         )}
+
+        {/* GOTR G4. A coach-parent living in the portal owes the same paperwork
+            as one living in the staff app; the card hides itself for a parent
+            with no staff role, so an ordinary family never sees it. It reads the
+            signed-in ADULT's own requirements and has nothing to do with which
+            children they can see. */}
+        <ComplianceAlertCard />
 
         {/* Loading State */}
         {loading && (

@@ -194,6 +194,32 @@ export const MoreMenuPage: React.FC = () => {
           })}
         </div>
 
+        {/* GOTR G4 — the coach's own compliance list, the same page the staff
+            profile menu links to. A coach-parent may be living in either app, so
+            it has a door in both; a parent with no staff role sees neither the
+            link nor anything on the page. */}
+        {hasStaffAccess && (
+          <div className="px-4 pt-6">
+            <Link
+              to="/compliance/mine"
+              className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-gray-400">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">My requirements</p>
+                <p className="text-sm text-gray-500">Background checks, training and expiry dates</p>
+              </div>
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        )}
+
         {hasStaffAccess && (
           <div className="px-4 pt-6">
             <Link

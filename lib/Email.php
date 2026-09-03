@@ -1469,6 +1469,96 @@ HTML;
     }
 
     /**
+     * Tell somebody their compliance requirements need attention (GOTR G4).
+     *
+     * ⚠️ **This email deliberately carries NO detail beyond requirement NAMES and
+     * dates.** No rejection reasons, no notes, no document names, nothing about
+     * anybody else. A compliance record is health-and-safety paperwork about one
+     * person; mail forwards, sits in shared family inboxes and cannot be recalled,
+     * and the person can see the full state on the page this links to. Same rule,
+     * and the same reasoning, as sendChatDigest carrying no message text.
+     *
+     * The copy is built by te_compliance_reminder_copy() in
+     * lib/compliance_reminders.php so the wording lives with the sweep that
+     * decides who gets it — one place to read when somebody asks what we said.
+     *
+     * Called through (new Email())->forClub($pdo, $clubId), so the From name is
+     * the coach's own council and they recognise it. Never EmailSendService:
+     * that would log a communication_log row per reminder and apply the club's
+     * MARKETING suppression list, silently cutting off anyone who unsubscribed
+     * from broadcasts.
+     *
+     * @param string $to            Recipient email
+     * @param string $recipientName Their first name
+     * @param array  $copy          From te_compliance_reminder_copy():
+     *                              subject, heading, intro, lines[], cta
+     * @param string $link          Where to see the requirements. Defaults to the
+     *                              coach page under APP_URL.
+     * @return bool Success status
+     */
+    public function sendComplianceReminder($to, $recipientName, array $copy, $link = null) {
+        $subject = (string) ($copy['subject'] ?? 'Your requirements need attention');
+        $heading = (string) ($copy['heading'] ?? 'Requirements');
+        $intro   = (string) ($copy['intro'] ?? '');
+        $cta     = (string) ($copy['cta'] ?? 'Sign in to see your requirements');
+        $lines   = array_values(array_filter((array) ($copy['lines'] ?? [])));
+
+        if ($link === null || $link === '') {
+            $link = rtrim(Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/')
+                . '/compliance/mine';
+        }
+
+        // The club, not the platform — forClub() has already put the council's
+        // name here, and "Teams Elevated" is the honest answer when it has not.
+        $clubName = $this->fromName;
+
+        // renderPaymentEmail is the file's ONE shared renderer: header, detail
+        // table, CTA button and footer. Its name is historical (it was written
+        // for the three payment emails) but nothing in it is payment-specific,
+        // and copying it would reintroduce exactly the drift
+        // EmailButtonContrastTest exists to catch — the CTA's white label has to
+        // be inline on the anchor AND on a nested span or mail clients render it
+        // blue on dark green.
+        $rows = [];
+        foreach ((array) ($copy['rows'] ?? []) as $name => $detail) {
+            // A council and its division may both define a rule called
+            // "Background check". Two identical array keys would silently
+            // collapse into one row, so a duplicate gets a zero-width space —
+            // unique as a key, invisible on screen.
+            $key = (string) $name;
+            while (array_key_exists($key, $rows)) {
+                $key .= "\u{200B}";
+            }
+            // Never blank: renderPaymentEmail skips a row whose value is '' or
+            // null, so a requirement with no expiry date would disappear from
+            // the list it is the whole subject of.
+            $rows[$key] = trim((string) $detail) === '' ? '—' : (string) $detail;
+        }
+
+        $htmlBody = $this->renderPaymentEmail(
+            $heading,
+            $clubName,
+            $recipientName,
+            $intro,
+            $rows,
+            $cta,
+            $link,
+            'You are getting this because you hold a staff or volunteer role with ' . $clubName . '.',
+            $clubName
+        );
+
+        $textBody = "{$heading}\n\n"
+            . "Hi {$recipientName},\n\n"
+            . "{$intro}\n\n"
+            . implode("\n", array_map(static fn ($l): string => '- ' . $l, $lines)) . "\n\n"
+            . "{$cta}:\n{$link}\n\n"
+            . "You are getting this because you hold a staff or volunteer role with {$clubName}.\n\n"
+            . "{$clubName}\nvia Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * One renderer for all three payment emails.
      *
      * The four older templates in this file are near-identical copies and have

@@ -101,6 +101,11 @@ import ChatModeration from './pages/ChatModeration';
 import VolunteerManagement from './pages/VolunteerManagement';
 import VolunteerSignupRequests from './pages/VolunteerSignupRequests';
 import ComplianceDashboard from './pages/ComplianceDashboard';
+// GOTR G4 — person-level compliance. All three are inert unless
+// TE_FEATURE_COMPLIANCE is on: the gateway answers 503 and every page says so.
+import ClubCompliance from './pages/ClubCompliance';
+import ComplianceRequirements from './pages/ComplianceRequirements';
+import MyRequirements from './pages/MyRequirements';
 import ClubDocumentCenter from './pages/ClubDocumentCenter';
 // Help Portal
 import HelpPortal from './pages/HelpPortal';
@@ -303,6 +308,7 @@ function AppContent() {
         { to: '/crew', label: 'Crew' },
         { to: '/coaches', label: 'Coaches' },
         { to: '/volunteers', label: 'Volunteers' },
+        { to: '/compliance', label: 'Compliance' },
       ]
     : [
         { to: '/athletes', label: 'Athletes' },
@@ -1020,6 +1026,29 @@ function AppContent() {
               <VolunteerSignupRequests />
             </ProtectedRoute>
           } />
+          {/* GOTR G4. `/compliance` and `/compliance/requirements` are club-wide
+              staff data about other people's background checks, so they take the
+              ADMIN guard, not ProtectedRoute — which is authentication only.
+              `/compliance/mine` is about the signed-in person and needs nothing
+              beyond being signed in; it is linked from BOTH the staff profile
+              menu and the parent portal's More menu, because a coach-parent may
+              be in either app. */}
+          <Route path="/compliance" element={
+            <ProtectedClubAdminRoute>
+              <ClubCompliance />
+            </ProtectedClubAdminRoute>
+          } />
+          <Route path="/compliance/requirements" element={
+            <ProtectedClubAdminRoute>
+              <ComplianceRequirements />
+            </ProtectedClubAdminRoute>
+          } />
+          <Route path="/compliance/mine" element={
+            <ProtectedRoute>
+              <MyRequirements />
+            </ProtectedRoute>
+          } />
+
           <Route path="/volunteers/compliance" element={
             <ProtectedRoute>
               <ComplianceDashboard />

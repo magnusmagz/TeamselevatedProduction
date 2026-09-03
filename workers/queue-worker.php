@@ -39,6 +39,10 @@ require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
 require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
 require_once __DIR__ . '/../lib/worker_queue_assignment.php';
 require_once __DIR__ . '/../lib/worker_tick_lock.php';
+require_once __DIR__ . '/../lib/compliance.php';
+require_once __DIR__ . '/../lib/compliance_reminders.php';
+require_once __DIR__ . '/../lib/feature_flags.php';
+
 
 /**
  * Thrown to skip a tick another process is already running.
@@ -142,6 +146,21 @@ $lastModAlertSweep = 0;
 // process because scheduled jobs do not yet justify a dyno.
 $lastBroadcastSweep = 0;
 
+// Throttle for the compliance expiry sweep + reminder tick (GOTR G4). Same
+// reasoning as the three above: a tick in the worker we already pay for, not a
+// scheduler dyno.
+$lastComplianceSweep = 0;
+
+/**
+ * The Redis handle the tick locks are taken on.
+ *
+ * Read once at boot rather than per tick: RedisQueue is a singleton and the
+ * client survives a Neon reconnect (they are different servers). A null here
+ * means no Redis, which te_worker_tick_lock() treats as single-process
+ * semantics — it runs the tick rather than refusing it.
+ */
+$tickLockClient = method_exists($queue, 'getClient') ? $queue->getClient() : null;
+
 /**
  * How often we look for chat messages to notify about.
  *
@@ -177,6 +196,20 @@ const TE_CHAT_MOD_TICK_SECONDS = 60;
  * worker being down for hours.
  */
 const TE_BROADCAST_TICK_SECONDS = 30;
+
+/**
+ * How often the compliance expiry sweep and reminder pass run. Six hours.
+ *
+ * Everything this tick does is measured in DAYS — a certificate expires on a
+ * calendar day, and the reminder thresholds are 90/60/30/7 days out — so a
+ * tighter cadence buys nothing and a looser one risks a dyno that cycles daily
+ * never completing a pass. Four passes a day also means a person capped out of
+ * one pass (TE_COMPLIANCE_REMINDER_MAX_PEOPLE_PER_TICK) is reached the same day.
+ *
+ * It is NOT a guarantee of exactly one send: the dedupe is the unique index on
+ * compliance_reminder_log, not this number. Changing it cannot cause a duplicate.
+ */
+const TE_COMPLIANCE_TICK_SECONDS = 21600;
 
 if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
     pcntl_async_signals(true);
@@ -362,6 +395,83 @@ while ($running) {
             }
         }
 
+        // Compliance: expire what has lapsed, then remind people before it does.
+        //
+        // ⚠️ TWO switches, both required. TE_FEATURE_COMPLIANCE is the whole
+        // feature (it also gates the gateway and the export);
+        // TE_FEATURE_COMPLIANCE_REMINDERS is this tick alone, so the screens can
+        // be live for a council while nothing is being mailed to 30,000 people.
+        // Both are unset-means-ON per lib/feature_flags.php, so shipping this
+        // dark means SETTING them off before the Heroku push, not merely not
+        // setting them.
+        //
+        // ⚠️ Its own catch, like every other tick. An uncaught throw here stops
+        // email, SMS, imports and calendar sync — the dispatcher already guards
+        // each individual send, so anything reaching this handler is a failure of
+        // the whole sweep and must still leave the queues running.
+        //
+        // No service is registered in $buildServices(): this tick holds nothing
+        // across iterations. It reads $db AFTER $ensureDb(), which is what
+        // rebuilds that handle when Neon has dropped it overnight, and the
+        // reminder mailer constructs its Email per send from the same $db. A
+        // long-lived object built at boot would be the thing that keeps using a
+        // dead connection after the other four queues have recovered.
+        if (time() - $lastComplianceSweep > TE_COMPLIANCE_TICK_SECONDS) {
+            // Stamped whether or not the switches are on, so a dark feature does
+            // not re-read two config vars every two seconds forever.
+            $lastComplianceSweep = time();
+
+            if (te_feature_enabled('COMPLIANCE') && te_feature_enabled('COMPLIANCE_REMINDERS')) {
+                // See the note at the top of this file: the lock ships with the
+                // G2 worker slice, and its absence means one process, which is
+                // what we have today.
+                $complianceLock = function_exists('te_worker_tick_lock')
+                    ? te_worker_tick_lock($tickLockClient, 'compliance_reminders')
+                    : 'unheld';
+
+                if ($complianceLock !== null) {
+                    try {
+                        $ensureDb();
+
+                        // Sweep FIRST. It moves lapsed credentials to 'expired',
+                        // and the reminder pass only considers 'verified' rows —
+                        // so running it after would let a certificate that
+                        // expired overnight be mailed about as though it were
+                        // days from expiry.
+                        $swept = te_compliance_expire_sweep($db);
+                        if (($swept['expired'] ?? 0) > 0) {
+                            echo sprintf("[Worker] compliance: %d credential(s) expired\n", $swept['expired']);
+                        }
+
+                        $reminders = te_compliance_dispatch_reminders($db);
+                        if ($reminders['sent'] || $reminders['failed'] || $reminders['skipped']) {
+                            echo sprintf(
+                                "[Worker] compliance reminders: %d sent to %d people, %d skipped, %d failed%s\n",
+                                $reminders['sent'],
+                                $reminders['people'],
+                                $reminders['skipped'],
+                                $reminders['failed'],
+                                // The cap is reported, never silent — a pass that
+                                // stopped at the ceiling must not read as a quiet day.
+                                $reminders['capped'] ? ' (per-tick cap reached; the rest go next pass)' : ''
+                            );
+                        }
+                        foreach ($reminders['errors'] as $complianceError) {
+                            error_log('[Worker] compliance reminder error: ' . $complianceError);
+                        }
+                    } catch (Throwable $e) {
+                        error_log('[Worker] compliance sweep error: ' . $e->getMessage());
+                    } finally {
+                        if (function_exists('te_worker_tick_unlock')) {
+                            te_worker_tick_unlock($tickLockClient, 'compliance_reminders', $complianceLock);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Block-pop from both queues (2 second timeout so we can check $running)
+        $job = $queue->pop($queues, 2);
         // Pace the send queues, if a limit is configured.
         //
         // ⚠️ This never drops a job. An exhausted queue is simply left out of the

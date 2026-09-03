@@ -80,6 +80,19 @@ const ProfileMenu: React.FC = () => {
             >
               My Profile
             </Link>
+            {/* GOTR G4 — a coach's own compliance list. Shown to anyone signed
+                in rather than gated on a staff role: standing comes from ROLE and
+                the page itself says "your club has not asked you for anything
+                yet" when there is nothing, which is an honest answer. Gating it
+                on a role guess is how the chat typeahead went empty for nine
+                coaches who had no team. */}
+            <Link
+              to="/compliance/mine"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-3 text-sm text-brand-primary hover:bg-brand-secondary uppercase font-medium"
+            >
+              My Requirements
+            </Link>
             {hasParentAccess && (
               <Link
                 to="/parent"
