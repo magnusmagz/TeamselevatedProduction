@@ -49,6 +49,13 @@ const routeFetch = (url: string) => {
   if (url.includes('revenue-summary')) {
     return Promise.resolve(json({ success: true, summary: { collected: '9301.00' } }));
   }
+  if (url.includes('compliance-gateway')) {
+    // The compliance alert card (GOTR G4) asks what this person owes. Routed
+    // explicitly rather than left to the reject below, so the four-anchor
+    // assertion is proving the card hides itself with nothing owed — not that
+    // it happened to fail.
+    return Promise.resolve(json({ success: true, available: true, clubs: [] }));
+  }
   return Promise.reject(new Error(`unexpected fetch: ${url}`));
 };
 

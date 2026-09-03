@@ -49,7 +49,25 @@ require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/club_standing.php';
 require_once __DIR__ . '/../lib/org_scope.php';
 require_once __DIR__ . '/../lib/compliance.php';
+require_once __DIR__ . '/../lib/compliance_origin.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
+
+/**
+ * The vocabulary the requirement builder renders its selects from.
+ *
+ * Served rather than hardcoded in the frontend: these three lists are CHECK
+ * constraints in migration 091, and a form offering a value the database refuses
+ * fails at save time with a 500 that says nothing useful. Sent with every
+ * `requirements` read so the two cannot drift.
+ */
+function te_comp_vocabulary(): array
+{
+    return [
+        'kinds'  => TE_COMPLIANCE_KINDS,
+        'proofs' => TE_COMPLIANCE_PROOFS,
+        'roles'  => TE_COMPLIANCE_STAFF_ROLES,
+    ];
+}
 
 /** Emit a JSON error and stop. */
 function te_comp_fail(int $status, string $message, array $extra = []): void
@@ -122,7 +140,10 @@ if ($action === 'requirements') {
             te_comp_fail(403, 'Only an administrator of this org unit can manage its requirements');
         }
         if (!$available) {
-            echo json_encode(['success' => true, 'available' => false, 'requirements' => []]);
+            echo json_encode([
+                'success' => true, 'available' => false, 'requirements' => [],
+                'vocabulary' => te_comp_vocabulary(),
+            ]);
             exit;
         }
         try {
@@ -131,11 +152,28 @@ if ($action === 'requirements') {
             );
             $stmt->execute([$orgUnitId]);
             $rows = te_compliance_decorate_requirements($pdo, $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+            // These are the unit's OWN rows and the caller is an org_admin of it,
+            // so every one is theirs to edit — but the shape still carries an
+            // `origin`, because the builder renders one list either way and a
+            // missing key would silently render as "not editable".
+            $unit = te_compliance_org_units($pdo, [$orgUnitId])[$orgUnitId] ?? null;
+            foreach ($rows as &$row) {
+                $row['origin'] = [
+                    'scope'    => $unit ? strtolower((string) $unit['type']) : 'inherited',
+                    'name'     => $unit['name'] ?? null,
+                    'label'    => 'This ' . ($unit ? strtolower((string) $unit['type']) : 'tier'),
+                    'editable' => true,
+                ];
+            }
+            unset($row);
         } catch (Throwable $e) {
             error_log('compliance-gateway requirements(org): ' . $e->getMessage());
             te_comp_fail(500, 'Could not read requirements');
         }
-        echo json_encode(['success' => true, 'available' => true, 'requirements' => $rows]);
+        echo json_encode([
+            'success' => true, 'available' => true, 'requirements' => $rows,
+            'vocabulary' => te_comp_vocabulary(),
+        ]);
         exit;
     }
 
@@ -144,10 +182,17 @@ if ($action === 'requirements') {
     }
     // The INHERITED set, not just the club's own rows: an admin has to see what
     // national and their division already demand before adding a fourth copy of it.
+    //
+    // Each row carries `origin` so the builder can show WHERE a rule comes from
+    // and render the inherited ones read-only. ⚠️ `origin.editable` is a label,
+    // not a permission — the gate is the owner check in requirement-save below.
     echo json_encode([
         'success'      => true,
         'available'    => $available,
-        'requirements' => $available ? te_compliance_requirements_for_club($pdo, $clubId) : [],
+        'requirements' => $available
+            ? te_compliance_decorate_origins($pdo, te_compliance_requirements_for_club($pdo, $clubId), $clubId)
+            : [],
+        'vocabulary'   => te_comp_vocabulary(),
     ]);
     exit;
 }

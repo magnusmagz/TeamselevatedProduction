@@ -44,6 +44,16 @@ class FeatureFlagsTest extends TestCase
         // accumulating for a dispatcher that is not running.
         'lib/broadcast_dispatcher.php' => 'SCHEDULED_DISPATCH',
         'api/communications-gateway.php' => 'SCHEDULED_DISPATCH',
+        // GOTR G4 — compliance. Two switches, and both are load-bearing:
+        // COMPLIANCE is the whole feature (gateway, export, screens), while
+        // COMPLIANCE_REMINDERS is the mailing sweep alone, so a council can have
+        // the screens live with nothing being sent to 30,000 coaches. The
+        // dispatcher checks them itself as well as the worker tick, because a
+        // switch is per feature and not per caller.
+        'lib/compliance_reminders.php' => ['COMPLIANCE', 'COMPLIANCE_REMINDERS'],
+        'workers/queue-worker.php' => ['COMPLIANCE', 'COMPLIANCE_REMINDERS'],
+        'api/compliance-gateway.php' => 'COMPLIANCE',
+        'api/compliance-export.php' => 'COMPLIANCE',
     ];
 
     protected function setUp(): void
