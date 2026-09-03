@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TournamentDivision } from '../types';
 import DivisionForm from './DivisionForm';
 
@@ -8,6 +8,12 @@ interface Props {
   tournamentId: number;
   sport: string;
   isAdmin: boolean;
+  // Called with the current list every time it is (re)loaded, so the parent's
+  // copy of tournament.divisions cannot go stale. Without it, divisions added
+  // here stay invisible to the Registrations / Groups / Schedule tabs until a
+  // full page reload — which is what made the Register Team division dropdown
+  // come up empty right after divisions were created.
+  onDivisionsChange?: (divisions: TournamentDivision[]) => void;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -17,12 +23,17 @@ const FORMAT_LABELS: Record<string, string> = {
   double_elimination: 'Double Elimination',
 };
 
-const DivisionManager: React.FC<Props> = ({ tournamentId, sport, isAdmin }) => {
+const DivisionManager: React.FC<Props> = ({ tournamentId, sport, isAdmin, onDivisionsChange }) => {
   const [divisions, setDivisions] = useState<TournamentDivision[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingDivision, setEditingDivision] = useState<TournamentDivision | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+
+  // Held in a ref so fetchDivisions does not have to depend on the callback
+  // identity — an unmemoized parent callback would otherwise refetch forever.
+  const onDivisionsChangeRef = useRef(onDivisionsChange);
+  useEffect(() => { onDivisionsChangeRef.current = onDivisionsChange; }, [onDivisionsChange]);
 
   const token = localStorage.getItem('auth_token');
   // Stable across renders so the fetch effects/callbacks below can depend on
@@ -40,7 +51,9 @@ const DivisionManager: React.FC<Props> = ({ tournamentId, sport, isAdmin }) => {
         { headers }
       );
       const data = await res.json();
-      setDivisions(data.divisions || []);
+      const list: TournamentDivision[] = data.divisions || [];
+      setDivisions(list);
+      onDivisionsChangeRef.current?.(list);
     } catch (err) {
       console.error('Failed to fetch divisions:', err);
     } finally {

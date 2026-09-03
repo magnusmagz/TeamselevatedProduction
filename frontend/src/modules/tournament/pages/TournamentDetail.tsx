@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrg } from '../../../contexts/OrgContext';
-import { Tournament, TournamentStatus, TOURNAMENT_STATUS_CONFIG, VALID_STATUS_TRANSITIONS } from '../types';
+import { Tournament, TournamentDivision, TournamentStatus, TOURNAMENT_STATUS_CONFIG, VALID_STATUS_TRANSITIONS } from '../types';
 import { getTournament, updateTournamentStatus, deleteTournament } from '../api/tournamentApi';
 import DivisionManager from '../components/DivisionManager';
 import RegistrationManager from '../components/RegistrationManager';
@@ -84,6 +84,13 @@ const TournamentDetail: React.FC = () => {
       .catch((err) => console.error('Failed to load tournament:', err))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // DivisionManager loads its own list; mirror it back onto the tournament so
+  // every other tab (Registrations, Groups, Schedule, Standings) sees divisions
+  // added or removed without a page reload.
+  const handleDivisionsChange = useCallback((divisions: TournamentDivision[]) => {
+    setTournament((prev) => (prev ? { ...prev, divisions } : prev));
+  }, []);
 
   const handleStatusChange = async (newStatus: TournamentStatus) => {
     if (!tournament || !id) return;
@@ -424,6 +431,7 @@ const TournamentDetail: React.FC = () => {
           tournamentId={tournament.id}
           sport={tournament.sport || 'soccer'}
           isAdmin={isAdmin}
+          onDivisionsChange={handleDivisionsChange}
         />
       )}
 
@@ -433,6 +441,7 @@ const TournamentDetail: React.FC = () => {
           divisions={tournament.divisions || []}
           isAdmin={isAdmin}
           clubId={tournament.club_id}
+          status={tournament.status}
           registrationOpenDate={tournament.registration_open_date || null}
         />
       )}

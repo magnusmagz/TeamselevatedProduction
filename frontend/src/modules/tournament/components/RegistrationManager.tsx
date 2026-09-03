@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { TournamentRegistration, TournamentDivision, RegistrationStatus, PaymentStatus } from '../types';
+import { TournamentRegistration, TournamentDivision, RegistrationStatus, PaymentStatus, TournamentStatus } from '../types';
 import RegistrationForm from './RegistrationForm';
 import RegistrationRosterModal from './RegistrationRosterModal';
 
@@ -10,6 +10,7 @@ interface Props {
   divisions: TournamentDivision[];
   isAdmin: boolean;
   clubId: number;
+  status?: TournamentStatus;
   registrationOpenDate?: string | null;
 }
 
@@ -28,7 +29,21 @@ const PAYMENT_COLORS: Record<string, string> = {
   waived: 'bg-blue-50 text-blue-600',
 };
 
-const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin, clubId, registrationOpenDate }) => {
+
+// Why teams may not be able to sign up yet. Registration being closed does not
+// stop an admin adding a team here — the backend has no status gate — so these
+// say what state the tournament is in rather than blocking anything.
+const REGISTRATION_NOT_OPEN_COPY: Partial<Record<TournamentStatus, string>> = {
+  draft: 'This tournament is still a draft, so teams cannot sign up themselves and it is not listed publicly. Set the status to Registration Open on the Overview tab when you are ready.',
+  registration_closed: 'Registration is closed, so teams can no longer sign up themselves.',
+  scheduling: 'Registration is closed while the schedule is being built, so teams can no longer sign up themselves.',
+  in_progress: 'The tournament is underway and registration is closed.',
+  weather_delay: 'The tournament is in a weather delay and registration is closed.',
+  completed: 'This tournament is complete and registration is closed.',
+  cancelled: 'This tournament is cancelled.',
+};
+
+const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin, clubId, status, registrationOpenDate }) => {
   const [registrations, setRegistrations] = useState<TournamentRegistration[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -200,6 +215,10 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
 
   const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
+  const hasDivisions = divisions.length > 0;
+  const isPreOpen = !!(registrationOpenDate && new Date(registrationOpenDate).getTime() > Date.now());
+  const notOpenCopy = status ? REGISTRATION_NOT_OPEN_COPY[status] : undefined;
+
   if (showForm) {
     return (
       <RegistrationForm
@@ -222,11 +241,38 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
         </h3>
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover"
+          disabled={!hasDivisions}
+          title={hasDivisions ? undefined : 'Add a division first'}
+          className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Register Team
         </button>
       </div>
+
+      {/* Why a team may not be registerable yet. A division is required — the
+          division dropdown on the form has nothing to offer without one. */}
+      {!hasDivisions && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+          <strong>No divisions yet.</strong> Every registration goes into a division, so add at
+          least one on the <strong>Divisions</strong> tab before registering teams.
+        </div>
+      )}
+
+      {hasDivisions && isPreOpen && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+          Registration opens{' '}
+          <strong>
+            {new Date(registrationOpenDate as string).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}
+          </strong>
+          . Teams added before then join the waitlist and are promoted automatically when it opens.
+        </div>
+      )}
+
+      {hasDivisions && !isPreOpen && notOpenCopy && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3 text-blue-800 text-sm">
+          {notOpenCopy} You can still add teams here yourself.
+        </div>
+      )}
 
       {/* Status counts */}
       <div className="flex space-x-3 mb-4">

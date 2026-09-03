@@ -36,7 +36,7 @@ if ($accessibleClubs !== null && !in_array((int)$clubProfileId, $accessibleClubs
 try {
     // Strict club filtering — only show teams in the requested club
     // This matches the correct behavior: admins see their club's teams only
-    $sql = "SELECT t.id, t.name, t.age_group, t.division, t.status,
+    $sql = "SELECT t.id, t.name, t.age_group, t.gender, t.division, t.status,
                    t.club_id, t.logo_url, t.max_players,
                    s.name AS season_name
             FROM teams t

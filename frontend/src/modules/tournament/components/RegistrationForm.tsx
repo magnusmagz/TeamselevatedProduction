@@ -17,6 +17,17 @@ interface ClubTeam {
   id: number;
   name: string;
   age_group: string;
+  gender?: string | null;
+}
+
+// "U10" -> 10 so age groups sort 5,6,...,19 instead of U10, U11, U5.
+function ageGroupOrder(ageGroup: string): number {
+  const n = parseInt(ageGroup.replace(/[^0-9]/g, ''), 10);
+  return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, isAdmin, registrationOpenDate, onSave, onCancel }) => {
@@ -33,6 +44,8 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
+  const [ageFilter, setAgeFilter] = useState('');
   const [teams, setTeams] = useState<ClubTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
 
@@ -55,10 +68,32 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
     setTeamIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  // Options come from the teams actually returned, so a club whose teams carry
+  // no gender gets a filter with nothing misleading in it rather than a fixed
+  // Boys/Girls list that would match no rows.
+  const genderOptions = useMemo(
+    () => Array.from(new Set(teams.map((t) => (t.gender || '').trim()).filter(Boolean))).sort(),
+    [teams]
+  );
+  const ageOptions = useMemo(
+    () =>
+      Array.from(new Set(teams.map((t) => (t.age_group || '').trim()).filter(Boolean)))
+        .sort((a, b) => ageGroupOrder(a) - ageGroupOrder(b) || a.localeCompare(b)),
+    [teams]
+  );
+
+  const filtersActive = !!(teamFilter.trim() || genderFilter || ageFilter);
+
   const filteredTeams = teams.filter((t) => {
+    if (genderFilter && (t.gender || '').trim().toLowerCase() !== genderFilter.toLowerCase()) return false;
+    if (ageFilter && (t.age_group || '').trim() !== ageFilter) return false;
     if (!teamFilter.trim()) return true;
     const q = teamFilter.toLowerCase();
-    return t.name.toLowerCase().includes(q) || (t.age_group || '').toLowerCase().includes(q);
+    return (
+      t.name.toLowerCase().includes(q) ||
+      (t.age_group || '').toLowerCase().includes(q) ||
+      (t.gender || '').toLowerCase().includes(q)
+    );
   });
 
   const allFilteredSelected = filteredTeams.length > 0 && filteredTeams.every((t) => teamIds.includes(t.id));
@@ -179,16 +214,23 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
         {/* Division */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Division *</label>
-          <select
-            value={divisionId}
-            onChange={(e) => setDivisionId(e.target.value ? Number(e.target.value) : '')}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          >
-            <option value="">Select division...</option>
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>{d.name} ({d.age_group} {d.gender})</option>
-            ))}
-          </select>
+          {divisions.length === 0 ? (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
+              No divisions have been added to this tournament yet, so there is nothing to register
+              into. Add one on the <strong>Divisions</strong> tab first.
+            </p>
+          ) : (
+            <select
+              value={divisionId}
+              onChange={(e) => setDivisionId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">Select division...</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name} ({d.age_group} {d.gender})</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Guest team toggle */}
@@ -247,27 +289,65 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
               <p className="text-sm text-gray-500 border border-gray-200 rounded-md p-3 bg-gray-50">No teams in this club yet.</p>
             ) : (
               <div className="border border-gray-300 rounded-md overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50">
-                  <input
-                    type="text"
-                    value={teamFilter}
-                    onChange={(e) => setTeamFilter(e.target.value)}
-                    placeholder="Filter teams..."
-                    className="flex-1 text-sm bg-white border border-gray-300 rounded px-2 py-1"
-                  />
-                  {filteredTeams.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={toggleAllFiltered}
-                      className="text-xs text-brand-primary hover:underline whitespace-nowrap"
+                <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={teamFilter}
+                      onChange={(e) => setTeamFilter(e.target.value)}
+                      placeholder="Filter teams..."
+                      className="flex-1 text-sm bg-white border border-gray-300 rounded px-2 py-1"
+                    />
+                    {filteredTeams.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={toggleAllFiltered}
+                        className="text-xs text-brand-primary hover:underline whitespace-nowrap"
+                      >
+                        {allFilteredSelected ? 'Clear shown' : 'Select all shown'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={genderFilter}
+                      onChange={(e) => setGenderFilter(e.target.value)}
+                      aria-label="Filter by gender"
+                      className="text-sm bg-white border border-gray-300 rounded px-2 py-1"
                     >
-                      {allFilteredSelected ? 'Clear shown' : 'Select all shown'}
-                    </button>
-                  )}
+                      <option value="">All genders</option>
+                      {genderOptions.map((g) => (
+                        <option key={g} value={g}>{titleCase(g)}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={ageFilter}
+                      onChange={(e) => setAgeFilter(e.target.value)}
+                      aria-label="Filter by age group"
+                      className="text-sm bg-white border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="">All age groups</option>
+                      {ageOptions.map((a) => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-gray-500">
+                      {filteredTeams.length} of {teams.length}
+                    </span>
+                    {filtersActive && (
+                      <button
+                        type="button"
+                        onClick={() => { setTeamFilter(''); setGenderFilter(''); setAgeFilter(''); }}
+                        className="text-xs text-brand-primary hover:underline whitespace-nowrap ml-auto"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="max-h-60 overflow-y-auto">
                   {filteredTeams.length === 0 ? (
-                    <p className="text-sm text-gray-500 px-3 py-3">No teams match "{teamFilter}".</p>
+                    <p className="text-sm text-gray-500 px-3 py-3">No teams match these filters.</p>
                   ) : (
                     filteredTeams.map((t) => {
                       const selected = teamIds.includes(t.id);
@@ -285,9 +365,16 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
                             className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                           />
                           <span className="text-sm text-gray-900">{t.name}</span>
-                          {t.age_group && (
-                            <span className="text-xs text-gray-500 ml-auto">{t.age_group}</span>
-                          )}
+                          <span className="ml-auto flex items-center gap-1.5">
+                            {t.gender && (
+                              <span className="text-xs text-gray-600 bg-gray-100 rounded px-1.5 py-0.5">
+                                {titleCase(t.gender)}
+                              </span>
+                            )}
+                            {t.age_group && (
+                              <span className="text-xs text-gray-500">{t.age_group}</span>
+                            )}
+                          </span>
                         </label>
                       );
                     })
