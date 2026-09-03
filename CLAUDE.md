@@ -1872,7 +1872,9 @@ interface, the mock, and `overviewAggregate()` together or that test fails.
   — **one approved exception (Maggie, 2026-09-02): the GOTR plan's G2 "token diet + cached role
   context"** may change `lib/JWT.php` and `lib/AuthMiddleware.php` on branch
   `feature/g2-token-diet`, behind `TE_FEATURE_SLIM_TOKEN` / `TE_FEATURE_ROLE_CACHE`, frontend
-  first. `api/auth-gateway.php` stays off-limits except the decision-13 one-liner if approved.
+  first. `api/auth-gateway.php` stays off-limits; the decision-13 one-liner (guardian link on
+  parent-invite redemption in `handleSetParentPassword`, approved 2026-09-03, pinned by
+  `ParentInviteRedemptionLinkTest`) is the only edit made to it.
 - Do not alter existing table structures — add new tables/columns only.
   **One approved exception exists**: migration 063 dropped `NOT NULL` from
   `consent_records.guardian_id`, because that column is an FK to `users(id)` and a parent

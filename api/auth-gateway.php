@@ -909,6 +909,21 @@ function handleSetParentPassword($db, $input) {
         return;
     }
 
+    // Record that this account belongs to this guardian (user_guardians, migration
+    // 072) — the same call the registration and shareable-invite accept paths make.
+    // Decision 13, approved by Maggie 2026-09-03 as the one exception to this
+    // file's do-not-modify rule: a call-out, not a change to authentication. It
+    // runs AFTER the commit and can never fail the sign-in; a household with two
+    // guardian rows is refused rather than guessed and a club admin resolves it in
+    // api/crew-link.php. Until this ran, invited families relied on the email-match
+    // fallback, which phase 4.5 retires.
+    try {
+        require_once __DIR__ . '/../lib/guardian_link_writer.php';
+        te_link_guardian_on_accept($db, (int) $user['id'], null, $email);
+    } catch (Throwable $e) {
+        error_log('set-parent-password: guardian link failed: ' . $e->getMessage());
+    }
+
     $userName = trim($user['first_name'] . ' ' . $user['last_name']);
     $jwt = JWT::generateEnhanced($db, $user['id'], $user['email'], $userName);
     $payload = JWT::decode($jwt);

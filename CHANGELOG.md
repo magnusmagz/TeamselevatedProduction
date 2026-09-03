@@ -32,6 +32,11 @@ Newest first. Times are Pacific.
 
 ## 2026-09-03
 
+### Parent-invite redemption writes the user_guardians link (Heroku) — decision 13
+- Approved by Maggie. One guarded call to `te_link_guardian_on_accept` after the commit in
+  `handleSetParentPassword`; the only edit to `api/auth-gateway.php` outside the G2 exception.
+  Invited families now get a recorded link instead of relying on the email match.
+
 ### Treasurer finished as a money-only role (Heroku, then Netlify)
 - Decision: keep the role rather than fold it into club admin (least privilege for a
   volunteer parent). `te_is_financial_admin()` admits club_admin OR treasurer for all nine
