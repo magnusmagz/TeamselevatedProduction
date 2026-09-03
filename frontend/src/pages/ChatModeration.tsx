@@ -161,10 +161,10 @@ export default function ChatModeration() {
   const oldestDays = daysSince(oldestOpenAt);
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-primary">Reported Messages</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Reported Messages</h1>
+        <p className="text-sm text-brand-primary mt-1 max-w-3xl">
           Messages reported by members or flagged automatically. Open the conversation in
           chat to remove a message — removing it leaves a visible note in the thread and is
           recorded in the audit log.
@@ -172,28 +172,38 @@ export default function ChatModeration() {
       </div>
 
       {/* Queue health. The age of the oldest open item is the number that matters. */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg min-w-[9rem]">
-          <div className="text-2xl font-semibold text-brand-primary">{openCount}</div>
-          <div className="text-xs text-gray-500">Awaiting review</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg border border-brand-secondary p-5">
+          <p className="text-sm font-medium text-brand-primary">Awaiting review</p>
+          <p className="text-3xl font-bold text-brand-primary mt-1">{openCount}</p>
         </div>
         {oldestDays !== null && (
           <div
-            className={`px-4 py-3 rounded-lg border min-w-[9rem] ${
+            className={`bg-white rounded-lg border p-5 ${
               oldestDays >= 7
-                ? 'bg-red-50 border-red-200'
+                ? 'border-red-200'
                 : oldestDays >= 3
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-white border-gray-200'
+                ? 'border-amber-200'
+                : 'border-brand-secondary'
             }`}
           >
-            <div className="text-2xl font-semibold text-brand-primary">
+            <p
+              className={`text-sm font-medium ${
+                oldestDays >= 7 ? 'text-red-600' : oldestDays >= 3 ? 'text-amber-600' : 'text-brand-primary'
+              }`}
+            >
+              Oldest unreviewed
+            </p>
+            <p
+              className={`text-3xl font-bold mt-1 ${
+                oldestDays >= 7 ? 'text-red-700' : oldestDays >= 3 ? 'text-amber-700' : 'text-brand-primary'
+              }`}
+            >
               {oldestDays}
               <span className="text-sm font-normal text-gray-500 ml-1">
                 {oldestDays === 1 ? 'day' : 'days'}
               </span>
-            </div>
-            <div className="text-xs text-gray-500">Oldest unreviewed</div>
+            </p>
           </div>
         )}
       </div>
@@ -201,9 +211,9 @@ export default function ChatModeration() {
       {/* Compliance summary — the artifact a club hands to a board or an insurer.
           Counts actions, never content, so it can be shared without carrying the
           thing that was reported. */}
-      <details className="mb-6 border border-gray-200 rounded-lg bg-white">
+      <details className="mb-6 border border-brand-secondary rounded-lg bg-white">
         <summary
-          className="px-4 py-3 cursor-pointer text-sm font-medium text-brand-primary select-none"
+          className="px-4 py-3 cursor-pointer text-sm font-semibold text-brand-primary uppercase tracking-wide select-none"
           onClick={() => { if (!summary) loadSummary(); }}
         >
           Oversight summary (last 90 days)
@@ -237,46 +247,50 @@ export default function ChatModeration() {
         </div>
       </details>
 
-      <div className="flex gap-2 mb-4">
-        {(['open', 'all'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={`px-3 py-1.5 text-sm rounded-md border ${
-              status === s
-                ? 'bg-brand-primary text-white border-brand-primary'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {s === 'open' ? 'Awaiting review' : 'All'}
-          </button>
-        ))}
-      </div>
-
       {error && (
         <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
           {error}
         </div>
       )}
 
-      {loading ? (
+      <div className="bg-white rounded-lg border border-brand-secondary overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="text-sm font-semibold text-brand-primary uppercase tracking-wide">
+            {status === 'open' ? 'Awaiting review' : 'All reports'}
+          </h2>
+          <div className="flex gap-2">
+            {(['open', 'all'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setStatus(s)}
+                className={`px-3 py-1.5 text-sm rounded-md border ${
+                  status === s
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {s === 'open' ? 'Awaiting review' : 'All'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
         </div>
       ) : reports.length === 0 ? (
-        <div className="text-center py-12 border border-gray-200 rounded-lg bg-white">
+        <div className="text-center py-12">
           <p className="text-gray-600">
             {status === 'open' ? 'Nothing awaiting review.' : 'No reports yet.'}
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="divide-y divide-gray-200">
           {reports.map(r => (
             <div
               key={r.id}
-              className={`border rounded-lg bg-white p-4 ${
-                r.status === 'open' ? 'border-gray-200' : 'border-gray-100 opacity-70'
-              }`}
+              className={`p-4 ${r.status === 'open' ? '' : 'opacity-70'}`}
             >
               <div className="flex items-start justify-between gap-4 mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -360,6 +374,7 @@ export default function ChatModeration() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
