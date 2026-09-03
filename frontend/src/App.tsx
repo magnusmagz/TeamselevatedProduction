@@ -414,7 +414,6 @@ function AppContent() {
   // it, so a prefix match would light up "All" on all of them.
   const commsLinks = [
     { to: '/communications', label: 'All', exact: true },
-    { to: '/communications/broadcast', label: 'Broadcast' },
     { to: '/communications/inbox', label: 'Inbox' },
     { to: '/email-templates', label: 'Email Templates' },
     { to: '/sms-templates', label: 'SMS Templates' },
@@ -1126,6 +1125,13 @@ function AppContent() {
               <ChatModeration />
             </ProtectedRoute>
           } />
+          {/* Not in the Communications menu since 2026-09-03. SMS Templates →
+              Send opens the compose modal, which already covers club-wide,
+              all-crew, all-coaches, team and program audiences with the same
+              suppression and segment handling. broadcast_campaigns had zero
+              rows, so nothing had ever been sent from here. The route and
+              api/communications?action=send-broadcast stay: the scheduled-SMS
+              workstream is built on that endpoint. */}
           <Route path="/communications/broadcast" element={
             <ProtectedRoute>
               <BroadcastCompose />
