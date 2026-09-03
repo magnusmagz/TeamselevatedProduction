@@ -641,6 +641,13 @@
     "logo_h",
     "org_unit_id"
   ],
+  "club_staff_roles": [
+    "user_id",
+    "club_profile_id",
+    "staff_role",
+    "assigned_by",
+    "assigned_at"
+  ],
   "coach_notes": [
     "id",
     "athlete_id",
@@ -692,6 +699,46 @@
     "direction",
     "conversation_id",
     "read_at"
+  ],
+  "compliance_reminder_log": [
+    "id",
+    "credential_id",
+    "stream_id",
+    "days_before",
+    "sent_at"
+  ],
+  "compliance_reminder_streams": [
+    "id",
+    "requirement_id",
+    "org_unit_id",
+    "club_profile_id",
+    "active",
+    "steps",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "compliance_requirement_roles": [
+    "id",
+    "requirement_id",
+    "staff_role"
+  ],
+  "compliance_requirements": [
+    "id",
+    "org_unit_id",
+    "club_profile_id",
+    "kind",
+    "name",
+    "description",
+    "proof",
+    "proof_url",
+    "validity_days",
+    "required",
+    "active",
+    "sort_order",
+    "created_by",
+    "created_at",
+    "updated_at"
   ],
   "consent_records": [
     "id",
@@ -1337,6 +1384,23 @@
     "processor_customer_id",
     "processor_payment_method_id",
     "processor_session_id"
+  ],
+  "person_credentials": [
+    "id",
+    "user_id",
+    "requirement_id",
+    "status",
+    "completed_at",
+    "expires_at",
+    "document_id",
+    "submitted_at",
+    "verified_by",
+    "verified_at",
+    "rejection_reason",
+    "source",
+    "notes",
+    "created_at",
+    "updated_at"
   ],
   "practice_patterns": [
     "id",
@@ -1996,7 +2060,8 @@
     "last_contacted",
     "email_signature",
     "tos_accepted_at",
-    "tos_version"
+    "tos_version",
+    "email_signature_format"
   ],
   "venues": [
     "id",

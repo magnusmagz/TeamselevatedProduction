@@ -30,6 +30,21 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-03
+
+### Queued work shipped (Heroku v592, then Netlify) — migrations 089, 091, 092, 093 applied
+- v591: `TE_FEATURE_COMPLIANCE=off`, `TE_FEATURE_COMPLIANCE_REMINDERS=off` set BEFORE the
+  push (unset means on). Compliance ships dark.
+- v592: G2 worker lane (`worker_sends` at 0 dynos, tick locks, rate limiter), G2 lists
+  (keyset pagination, set-based scope subqueries), G3 compliance model + G4 compliance UI
+  backend, 2.5 rich email signatures with the plain-text branch now escaped (was a live
+  injection — any markup typed into a profile signature shipped as HTML to families).
+- Migrations 089 `scale_indexes`, 091 `compliance`, 092 `user_email_signature_format`,
+  093 `compliance_default_reminder_stream` applied via `scripts/apply-migration.php`
+  (`migration_applied` audit rows). Fixture refreshed: +66 lines, the four compliance
+  tables and `users.email_signature_format`. Both PENDING blocks emptied.
+- Then `git push origin main` → Netlify ships the signature editor and compliance UI.
+
 ## 2026-09-02
 
 ### Documents audit — prod state discovered

@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. Written, on `main`, NOT yet applied (Heroku session expired mid-deploy): **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format`, **093** `compliance_default_reminder_stream`. Next free number is **094**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). Nothing written-but-unapplied as of that date. Next free number is **094**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -1887,16 +1887,9 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       Maggie, in this order): (1) parent portal empty state telling them to ask their
       club admin to connect them to their athlete, (2) a club-admin tool to make that
       connection. Until then a mismatched address means a silently empty portal.
-- [ ] **Migration 092 (`users.email_signature_format`) is written and NOT applied to Neon.**
-      Rich email signatures (roadmap 2.5, R13) ship ahead of it: `lib/signature_html.php`
-      probes `information_schema` for the column, `api/user-profile.php` builds both its
-      SELECT list and its UPDATE around what is actually there, and
-      `services/EmailSendService.php` picks its SELECT the same way. Until it is applied
-      every signature reads as `'text'` and is therefore **escaped**, so a staff member who
-      saves a rich signature sees their own tags in the email rather than formatting —
-      visibly wrong, never an injection. Apply it, then refresh
-      `tests/fixtures/production-schema.json` and delete the `users.email_signature_format`
-      entry from `SchemaConformanceTest::PENDING_MIGRATION` in the same commit.
+- [x] **Migration 092 (`users.email_signature_format`) applied 2026-09-03.** Rich email
+      signatures (roadmap 2.5, R13) are live. `lib/signature_html.php` still probes
+      `information_schema` for the column so the code tolerates a rollback of the migration.
       ⚠️ **The plain-text signature path was an injection until 2026-09-02.**
       `EmailSendService` did a bare `nl2br($senderInfo['email_signature'])`, so whatever a
       staff member typed into the profile textarea was emitted as raw HTML to every family

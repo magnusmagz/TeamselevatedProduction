@@ -72,29 +72,10 @@ class QueriedTablesExistTest extends TestCase
      * refresh.
      */
     private const PENDING_MIGRATION_TABLES = [
-        // Migration 086 (mid-year athlete evaluations + IDP, CKU R76/R77) is
-        // written and NOT yet applied to Neon. lib/athlete_evaluations.php probes
-        // for both tables and degrades rather than 500ing until it is. Delete
-        // these two lines in the same commit as the fixture refresh.
-        // Migration 087 (coach invited player, CKU R86) is written and NOT yet
-        // applied to Neon. lib/tryout_coach_invite.php probes for the table and
-        // the three tryouts-api paths answer 503 with a sentence until it is.
-        // Delete this line in the same commit as the fixture refresh.
-        // Migration 090 (org_units, the tier above the club, GOTR G1) is written
-        // and NOT yet applied to Neon. lib/org_scope.php probes for both tables
-        // and every function degrades to today's club-only scope until it is.
-        // Delete these two lines in the same commit as the fixture refresh.
-        // Migration 091 (person-level compliance, GOTR G3) is written and NOT yet
-        // applied to Neon. lib/compliance.php probes for all six tables and every
-        // function degrades to an empty answer; lib/background_check.php falls back
-        // to today's team_volunteers logic. Delete these lines in the same commit as
-        // the fixture refresh.
-        'compliance_requirements' => '091_compliance.sql',
-        'compliance_requirement_roles' => '091_compliance.sql',
-        'club_staff_roles' => '091_compliance.sql',
-        'person_credentials' => '091_compliance.sql',
-        'compliance_reminder_streams' => '091_compliance.sql',
-        'compliance_reminder_log' => '091_compliance.sql',
+        // Add an entry only for a migration that is written but not yet applied;
+        // the self-check fails the moment it lands in the fixture, so an entry
+        // cannot outlive its window. Delete it in the same commit as the fixture refresh.
+        // Nothing pending as of 2026-09-03 (089/091/092/093 applied).
     ];
 
     /**
