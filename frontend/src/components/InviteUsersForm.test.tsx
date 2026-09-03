@@ -66,4 +66,12 @@ describe('InviteUsersForm — shareable link', () => {
     const crew = screen.getByRole('option', { name: 'Crew' }) as HTMLOptionElement;
     expect(crew.value).toBe('parent');
   });
+
+  test('offers Treasurer as a role on both paths (money only, granted by invite since 2026-09-03)', () => {
+    render(<InviteUsersForm clubId={51} />);
+    expect(screen.getByRole('option', { name: 'Treasurer' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Shareable Link'));
+    const t = screen.getByRole('option', { name: 'Treasurer' }) as HTMLOptionElement;
+    expect(t.value).toBe('treasurer');
+  });
 });

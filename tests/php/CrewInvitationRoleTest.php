@@ -50,7 +50,7 @@ class CrewInvitationRoleTest extends TestCase
         preg_match('/const\s+TE_INVITABLE_ROLES\s*=\s*\[([^\]]*)\]/', $this->gateway(), $m);
         $this->assertNotEmpty($m, 'TE_INVITABLE_ROLES not found');
 
-        foreach (['player', 'volunteer', 'treasurer'] as $role) {
+        foreach (['player', 'volunteer'] as $role) {
             $this->assertStringNotContainsString(
                 "'{$role}'",
                 $m[1],

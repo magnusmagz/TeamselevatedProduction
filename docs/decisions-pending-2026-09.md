@@ -28,7 +28,7 @@ cases; existing rows were left alone on purpose.
 - **If left:** the athlete list shows the oldest link as primary, deterministically, which
   may be the wrong parent.
 
-### 2. Treasurer sees Revenue as "Unavailable" on the new home page
+### 2. Treasurer sees Revenue as "Unavailable" on the new home page — DECIDED 2026-09-03: keep the role, finish it
 `financial-permissions` grants treasurers `can_view_revenue`, so the tile renders, but
 `api/revenue-summary.php` gates on `te_assert_financial_admin` (club_admin only) and 403s.
 Pre-existing mismatch, surfaced by the tile.
@@ -36,6 +36,14 @@ Pre-existing mismatch, surfaced by the tile.
   tile for treasurers.
 - **Recommendation:** (a). The treasurer role exists to see money. Payments worktree.
 - **If left:** one live treasurer account (club 51) sees a tile that never loads.
+- **Decision (Maggie, 2026-09-03):** asked whether to retire treasurer and fold it into club
+  admin. Kept, for least privilege: a treasurer is usually a volunteer parent, and a club
+  admin sees every child's medical record and every family's contact details. Done the
+  same day: `te_is_financial_admin()` (club_admin OR treasurer) now gates all nine
+  financial endpoints through `te_assert_financial_admin`, `payment-reports.php` uses the
+  same predicate, treasurer is invitable from the Invite form, and `TreasurerScopeTest`
+  scans the athlete-facing predicates so the role can never be widened into minors' data
+  by a one-line "let staff see it".
 
 ### 3. Coaches can create tryouts — DECIDED 2026-09-02: admin-only
 **Maggie:** creating a tryout should be a permission that is enabled; admin-only for now, revisit

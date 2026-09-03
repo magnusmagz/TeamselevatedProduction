@@ -203,6 +203,8 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                 {/* Value is `parent` (the user_club_access CHECK value); the LABEL is
                     Crew, which is what this product calls guardians everywhere. */}
                 <option value="parent">Crew</option>
+                {/* Money only: payments, reports, revenue. Not athlete or crew data. */}
+                <option value="treasurer">Treasurer</option>
               </select>
             </div>
 
@@ -237,6 +239,8 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                 {/* Value is `parent` (the user_club_access CHECK value); the LABEL is
                     Crew, which is what this product calls guardians everywhere. */}
                 <option value="parent">Crew</option>
+                {/* Money only: payments, reports, revenue. Not athlete or crew data. */}
+                <option value="treasurer">Treasurer</option>
               </select>
             </div>
 

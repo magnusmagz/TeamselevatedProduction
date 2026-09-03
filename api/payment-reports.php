@@ -20,6 +20,7 @@ Cors::handle();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 require_once __DIR__ . '/../services/PaymentReportService.php';
 
 $auth = AuthMiddleware::requireAuth();
@@ -34,16 +35,10 @@ try {
         exit;
     }
 
-    $allowed = $auth->can('manage_club', $clubId, 'club');
-    if (!$allowed) {
-        $roleStmt = $pdo->prepare("
-            SELECT 1 FROM user_club_access
-            WHERE user_id = ? AND club_profile_id = ? AND role = 'treasurer' AND active = TRUE
-        ");
-        $roleStmt->execute([$auth->getUserId(), $clubId]);
-        $allowed = (bool) $roleStmt->fetchColumn();
-    }
-    if (!$allowed) {
+    // club_admin OR treasurer — one predicate, shared with every other financial
+    // endpoint through lib/financial_scope.php. The roles on $auth are re-derived
+    // from user_club_access on every request, so no separate DB lookup is needed.
+    if (!te_is_financial_admin($auth, $clubId)) {
         http_response_code(403);
         echo json_encode(['error' => 'You do not have permission to view financial reports for this club']);
         exit;

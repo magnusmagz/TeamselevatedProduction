@@ -1115,6 +1115,17 @@ changes access for one user, correctly.
 ⚠️ **Already-issued tokens keep the revoked role until they expire.** The filter applies at
 mint time only.
 
+### Treasurer is the MONEY-ONLY role — `lib/financial_scope.php` (2026-09-03)
+Maggie asked whether to retire `treasurer` and make it a club admin. Kept, deliberately:
+a treasurer is usually a volunteer parent, and club admin also means every child's
+medical record and every family's contact details. `te_is_financial_admin($auth, $clubId)`
+= super admin / `club_admin` / `treasurer` of that club. `te_assert_financial_admin` and
+`api/payment-reports.php` both use it; nothing else may. It is NOT in `te_is_club_staff`,
+`AthleteScope`, roster/document/event standing, or `TE_COMPLIANCE_STAFF_ROLES`, and
+`TreasurerScopeTest` scans those files for the word. Invitable from the Invite form
+since the same day (`TE_INVITABLE_ROLES`). The treasurer Revenue tile (decision 2) is
+what this closed.
+
 ### Club MEMBERSHIP is not club STAFF — `lib/club_standing.php`
 Fixed 2026-08-04. `AuthMiddleware::canAccessClub()` returns true for ANY role scoped to
 the club, `parent` included. `handleClubParents` gated on it, so a parent POSTing their

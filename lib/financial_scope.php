@@ -76,12 +76,31 @@ function te_assert_financial_scope(AuthMiddleware $auth, PDO $pdo, array $ids): 
 }
 
 /**
- * Stronger than te_assert_financial_scope: requires an ADMIN-level role
- * (club_admin) for every scoping club — not merely access. Coaches, parents,
- * and volunteers have club access but must NOT reach admin financial tools
- * (revenue, transaction reports, outstanding balances, payment management).
- * Super admins pass. Exits 403 otherwise; a non-super-admin with no scoping id
- * is denied (an unscoped financial report can't be authorized).
+ * Who may read and manage a club's money: club_admin OR treasurer.
+ *
+ * `treasurer` is the money-only role (decided 2026-09-03). A club treasurer is
+ * usually a volunteer parent, and making them a club admin would also hand them
+ * every child's medical record and every family's contact details. So the role
+ * is admitted HERE and in api/payment-reports.php, and deliberately nowhere else:
+ * it is NOT in te_is_club_staff / te_is_club_admin (lib/club_standing.php), not
+ * in AthleteScope, and not a compliance staff role. TreasurerScopeTest scans for
+ * both halves — that this predicate admits it, and that the athlete-facing
+ * predicates do not.
+ */
+function te_is_financial_admin(AuthMiddleware $auth, int $clubId): bool {
+    if ($auth->isSuperAdmin()) return true;
+    return $auth->hasRole('club_admin', $clubId, 'club')
+        || $auth->hasRole('treasurer', $clubId, 'club');
+}
+
+/**
+ * Stronger than te_assert_financial_scope: requires a FINANCIAL-admin role
+ * (club_admin or treasurer, te_is_financial_admin) for every scoping club — not
+ * merely access. Coaches, parents, and volunteers have club access but must NOT
+ * reach admin financial tools (revenue, transaction reports, outstanding
+ * balances, payment management). Super admins pass. Exits 403 otherwise; a
+ * non-super-admin with no scoping id is denied (an unscoped financial report
+ * can't be authorized).
  */
 function te_assert_financial_admin(AuthMiddleware $auth, PDO $pdo, array $ids): void {
     if ($auth->isSuperAdmin()) return;
@@ -91,7 +110,7 @@ function te_assert_financial_admin(AuthMiddleware $auth, PDO $pdo, array $ids): 
         if ($id === null || $id === '' || $id === false) continue;
         $checked++;
         $clubId = te_club_for($pdo, $type, $id);
-        if ($clubId === null || !$auth->hasRole('club_admin', $clubId, 'club')) {
+        if ($clubId === null || !te_is_financial_admin($auth, $clubId)) {
             http_response_code(403);
             echo json_encode(['error' => 'Admin access required for financial data']);
             exit;

@@ -30,11 +30,13 @@ $method = $_SERVER['REQUEST_METHOD'];
  * table's CHECK constraint and failed at ACCEPT time — after the invitation had been
  * sent — so the club learned about it from a family who could not get in.
  *
- * `parent` is here because Crew are invited through this form too (2026-08-17). The
- * other user_club_access values (player, volunteer, treasurer) are deliberately absent:
- * nothing invites into them today, and a whitelist that lists everything is not one.
+ * `parent` is here because Crew are invited through this form too (2026-08-17).
+ * `treasurer` was added 2026-09-03: it is the money-only role (see
+ * lib/financial_scope.php) and until then could only be granted by hand in the
+ * database. `player` and `volunteer` are deliberately absent: nothing invites into
+ * them today, and a whitelist that lists everything is not one.
  */
-const TE_INVITABLE_ROLES = ['coach', 'club_admin', 'parent'];
+const TE_INVITABLE_ROLES = ['coach', 'club_admin', 'parent', 'treasurer'];
 
 /**
  * How many athletes will this person actually see when they accept?

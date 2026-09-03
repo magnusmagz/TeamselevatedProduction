@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-03
 
+### Treasurer finished as a money-only role (Heroku, then Netlify)
+- Decision: keep the role rather than fold it into club admin (least privilege for a
+  volunteer parent). `te_is_financial_admin()` admits club_admin OR treasurer for all nine
+  `te_assert_financial_admin` endpoints; `payment-reports.php` shares it. Treasurer added
+  to `TE_INVITABLE_ROLES` and the Invite form. `TreasurerScopeTest` pins both halves.
+  Closes decision 2 (Revenue tile "Unavailable").
+
 ### Queued work shipped (Heroku v592, then Netlify) — migrations 089, 091, 092, 093 applied
 - v591: `TE_FEATURE_COMPLIANCE=off`, `TE_FEATURE_COMPLIANCE_REMINDERS=off` set BEFORE the
   push (unset means on). Compliance ships dark.
