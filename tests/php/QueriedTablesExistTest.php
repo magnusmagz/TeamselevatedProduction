@@ -84,6 +84,17 @@ class QueriedTablesExistTest extends TestCase
         // and NOT yet applied to Neon. lib/org_scope.php probes for both tables
         // and every function degrades to today's club-only scope until it is.
         // Delete these two lines in the same commit as the fixture refresh.
+        // Migration 091 (person-level compliance, GOTR G3) is written and NOT yet
+        // applied to Neon. lib/compliance.php probes for all six tables and every
+        // function degrades to an empty answer; lib/background_check.php falls back
+        // to today's team_volunteers logic. Delete these lines in the same commit as
+        // the fixture refresh.
+        'compliance_requirements' => '091_compliance.sql',
+        'compliance_requirement_roles' => '091_compliance.sql',
+        'club_staff_roles' => '091_compliance.sql',
+        'person_credentials' => '091_compliance.sql',
+        'compliance_reminder_streams' => '091_compliance.sql',
+        'compliance_reminder_log' => '091_compliance.sql',
     ];
 
     /**
