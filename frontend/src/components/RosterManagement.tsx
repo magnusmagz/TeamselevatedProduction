@@ -715,7 +715,11 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
               {sortAthletesByU(roster, team.age_group).map((athlete) => (
                 <div
                   key={athlete.id}
-                  className="bg-brand-secondary border border-brand-secondary p-3"
+                  // Matches the Available Athletes card, with the club's
+                  // secondary colour as a left accent rather than a full fill —
+                  // as a background it flattened the name, the DOB line and the
+                  // Remove control into one low-contrast block.
+                  className="bg-gray-50 border border-gray-300 border-l-4 border-l-brand-secondary p-3 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -728,7 +732,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                       {athlete.date_of_birth && (
                         <div className="text-xs text-gray-600">
                           Age {calcAge(athlete.date_of_birth)}
-                          <span className="ml-1 text-xs font-semibold bg-white text-brand-primary px-1.5 py-0.5 rounded-full">
+                          <span className="ml-1 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
                             {getAgeQuarter(athlete.date_of_birth)}
                           </span>
                           <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
@@ -743,7 +747,7 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                           {athlete.jersey_number && <span className="ml-1">· #{athlete.jersey_number}</span>}
                         </div>
                       )}
-                      <div className="text-sm text-brand-primary">{athlete.email}</div>
+                      <div className="text-sm text-gray-600">{athlete.email}</div>
                     </div>
                     <button
                       onClick={() => handleRemoveAthlete(athlete.id)}
