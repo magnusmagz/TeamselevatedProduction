@@ -7,6 +7,7 @@ Cors::handle();
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/team_gender.php';
 
 try {
     $db = Database::getInstance();
@@ -297,7 +298,7 @@ try {
                 $primaryColor,
                 $logoUrl,
                 $data['skill_level'] ?? 'Beginner',
-                $data['gender'] ?? 'Mixed',
+                te_normalize_team_gender($data['gender'] ?? null) ?? 'Mixed',
                 $data['status'] ?? 'forming',
                 $clubId,
                 $primaryColor,
@@ -363,6 +364,17 @@ try {
             $secondaryColor = $data['secondary_color'] ?? null;
             $accentColor    = $data['accent_color']    ?? null;
 
+            // Same preserve-on-silence rule as the logo above: this is a full-row
+            // UPDATE, so defaulting an unsubmitted gender to 'Mixed' would quietly
+            // relabel a girls team every time another tab saved the form.
+            $gender = te_normalize_team_gender($data['gender'] ?? null);
+            if ($gender === null) {
+                $existingGender = $connection->prepare("SELECT gender FROM teams WHERE id = ?");
+                $existingGender->execute([$team_id]);
+                $existingGenderRow = $existingGender->fetch(PDO::FETCH_ASSOC);
+                $gender = ($existingGenderRow && $existingGenderRow['gender']) ? $existingGenderRow['gender'] : 'Mixed';
+            }
+
             $stmt = $connection->prepare("
                 UPDATE teams
                 SET name = ?, age_group = ?, division = ?, season_id = ?, primary_coach_id = ?,
@@ -384,7 +396,7 @@ try {
                 $primaryColor,
                 $logoUrl,
                 $data['skill_level'] ?? 'Beginner',
-                $data['gender'] ?? 'Mixed',
+                $gender,
                 $data['status'] ?? 'forming',
                 isset($data['home_field_id']) && $data['home_field_id'] ? $data['home_field_id'] : null,
                 $primaryColor,

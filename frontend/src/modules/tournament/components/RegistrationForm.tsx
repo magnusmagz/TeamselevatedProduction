@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TournamentDivision } from '../types';
+import { teamGenderLabel } from '../../../utils/teamGender';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -26,9 +27,7 @@ function ageGroupOrder(ageGroup: string): number {
   return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
 }
 
-function titleCase(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
+
 
 const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, isAdmin, registrationOpenDate, onSave, onCancel }) => {
   const isPreOpen = !!(registrationOpenDate && new Date(registrationOpenDate).getTime() > Date.now());
@@ -317,7 +316,7 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
                     >
                       <option value="">All genders</option>
                       {genderOptions.map((g) => (
-                        <option key={g} value={g}>{titleCase(g)}</option>
+                        <option key={g} value={g}>{teamGenderLabel(g)}</option>
                       ))}
                     </select>
                     <select
@@ -368,7 +367,7 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
                           <span className="ml-auto flex items-center gap-1.5">
                             {t.gender && (
                               <span className="text-xs text-gray-600 bg-gray-100 rounded px-1.5 py-0.5">
-                                {titleCase(t.gender)}
+                                {teamGenderLabel(t.gender)}
                               </span>
                             )}
                             {t.age_group && (

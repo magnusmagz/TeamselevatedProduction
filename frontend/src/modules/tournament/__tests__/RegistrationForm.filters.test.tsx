@@ -12,10 +12,12 @@ const division = {
   tournament_id: 7,
 } as unknown as TournamentDivision;
 
+// teams.gender is stored as Male/Female/Mixed (its CHECK constraint) and shown
+// in the division vocabulary — Boys/Girls/Coed.
 const teams = [
-  { id: 1, name: 'Lightning', age_group: 'U12', gender: 'girls' },
-  { id: 2, name: 'Thunder', age_group: 'U12', gender: 'boys' },
-  { id: 3, name: 'Comets', age_group: 'U10', gender: 'girls' },
+  { id: 1, name: 'Lightning', age_group: 'U12', gender: 'Female' },
+  { id: 2, name: 'Thunder', age_group: 'U12', gender: 'Male' },
+  { id: 3, name: 'Comets', age_group: 'U10', gender: 'Female' },
 ];
 
 function renderForm(divisions: TournamentDivision[] = [division]) {
@@ -50,7 +52,7 @@ describe('RegistrationForm team picker', () => {
     renderForm();
     await waitFor(() => expect(screen.getByText('Lightning')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('Filter by gender'), { target: { value: 'girls' } });
+    fireEvent.change(screen.getByLabelText('Filter by gender'), { target: { value: 'Female' } });
     expect(screen.queryByText('Thunder')).not.toBeInTheDocument();
     expect(screen.getByText('Comets')).toBeInTheDocument();
 
@@ -65,10 +67,10 @@ describe('RegistrationForm team picker', () => {
   test('gender options come from the teams returned, not a fixed list', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ teams: [{ id: 9, name: 'Mixed FC', age_group: 'U10', gender: 'Mixed' }] }),
+      json: async () => ({ teams: [{ id: 9, name: 'Coed FC', age_group: 'U10', gender: 'Mixed' }] }),
     });
     renderForm();
-    await waitFor(() => expect(screen.getByText('Mixed FC')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Coed FC')).toBeInTheDocument());
 
     const genderSelect = screen.getByLabelText('Filter by gender') as HTMLSelectElement;
     expect(Array.from(genderSelect.options).map((o) => o.value)).toEqual(['', 'Mixed']);

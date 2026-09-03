@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
+import { teamGenderLabel } from '../utils/teamGender';
 import SmartScheduler from './SmartScheduler';
 
 interface Team {
   id: number;
   name: string;
   age_group: string;
+  gender?: string | null;
   division: string;
   season_name: string;
   coach_name: string;
@@ -93,6 +95,11 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete, canDelete 
                 <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
                   {team.age_group}
                 </span>
+                {team.gender && (
+                  <span className="ml-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md">
+                    {teamGenderLabel(team.gender)}
+                  </span>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
                 <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">

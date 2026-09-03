@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogoColorExtractor } from './LogoColorExtractor';
 import { pageQuery, rowsFrom } from '../utils/pagination';
+import { TEAM_GENDER_OPTIONS } from '../utils/teamGender';
 
 interface TeamFormProps {
   team: any | null;
@@ -14,6 +15,7 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
   const [formData, setFormData] = useState({
     name: '',
     age_group: 'U10',
+    gender: 'Mixed',
     division: 'Recreational',
     season_id: '',
     primary_coach_id: '',
@@ -143,6 +145,8 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
       setFormData({
         name: team.name,
         age_group: team.age_group,
+        // Existing teams predate this field and all carry the column default.
+        gender: team.gender || 'Mixed',
         division: team.division,
         season_id: team.season_id,
         primary_coach_id: team.primary_coach_id || '',
@@ -412,6 +416,24 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   <option value="Adult">Adult</option>
                 </select>
                 {errors.age_group && <p className="text-red-500 text-sm mt-1">{errors.age_group}</p>}
+              </div>
+
+              {/* Gender — stored as Male/Female/Mixed to satisfy the column's
+                  CHECK constraint; labelled in youth-sport wording. */}
+              <div>
+                <label htmlFor="team-gender" className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                  Gender *
+                </label>
+                <select
+                  id="team-gender"
+                  className="w-full bg-white text-brand-primary border rounded-md border-brand-secondary px-4 py-2 focus:outline-none focus:border-brand-accent"
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                >
+                  {TEAM_GENDER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Division */}

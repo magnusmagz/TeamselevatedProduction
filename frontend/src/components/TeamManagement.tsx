@@ -10,6 +10,7 @@ interface Team {
   id: number;
   name: string;
   age_group: string;
+  gender?: string | null;
   division: string;
   season_name: string;
   coach_name: string;
