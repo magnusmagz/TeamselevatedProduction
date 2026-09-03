@@ -1,0 +1,55 @@
+-- 092_user_email_signature_format.sql
+--
+-- Rich email signatures (roadmap 2.5, R13 second half). Staff could only type a
+-- plain-text signature; they can now write a formatted one. This column records
+-- WHICH of the two a stored signature is.
+--
+-- 091 belongs to another slice running in a parallel worktree. Claim the next
+-- number by listing database/migrations/ in EVERY checkout — the main one and
+-- each worktree — before creating one.
+--
+-- ADDITIVE ONLY. One column on `users`; nothing existing is altered or dropped,
+-- and in particular users.email_signature is UNCHANGED and keeps holding the
+-- signature itself. The rich value goes in that same column, already sanitised
+-- by te_sanitize_signature_html(). A second column holding a parallel HTML copy
+-- was the obvious alternative and is the wrong shape for the same reason
+-- migration 054 put jersey size on `athletes` rather than per-membership: two
+-- copies of one fact need syncing, and the pair drifts the first time anything
+-- writes one and not the other.
+--
+--   email_signature_format  'text' — the value in email_signature is plain text
+--                                    and MUST be escaped before it is emitted
+--                                    into an email. This is what every existing
+--                                    row is, and the DEFAULT, so the ~live rows
+--                                    need no backfill and keep behaving exactly
+--                                    as they do today.
+--                           'html' — the value is sanitised markup and is
+--                                    emitted as-is.
+--
+--   NULL is allowed and means 'text'. Not an oversight: this code ships before
+--   this SQL runs (`main` is shared, deploys are by push, migrations are applied
+--   by hand), and lib/signature_html.php probes information_schema for the
+--   column, so a NULL and a missing column have to answer the same question the
+--   same way. te_render_signature_html() reaches the escaping branch for NULL,
+--   for a missing column, and for any value it does not recognise — the default
+--   falls toward escaping, never toward trusting.
+--
+--   The CHECK is narrow on purpose. A third format (markdown, say) means a new
+--   migration AND a new arm in te_render_signature_html(); do both, or the
+--   format becomes storable-but-unrenderable and every signature written in it
+--   silently escapes to visible tags.
+--
+-- ⚠️ A migration file on disk is not proof it ran. This one is NOT YET APPLIED
+-- to Neon. tests/php/SchemaConformanceTest.php carries the matching
+-- PENDING_MIGRATION entry, which fails the moment the column lands in the schema
+-- fixture — delete that entry in the same commit as the fixture refresh.
+--
+-- REVERSE:
+--   ALTER TABLE users DROP COLUMN email_signature_format;
+--   (Safe at any time. Dropping it returns every signature to being read as
+--   text, which is a rich signature rendering as visible tags — not a data loss
+--   and not an injection, because the escaping branch is the one that runs.)
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_signature_format TEXT
+    DEFAULT 'text'
+    CHECK (email_signature_format IS NULL OR email_signature_format IN ('text', 'html'));

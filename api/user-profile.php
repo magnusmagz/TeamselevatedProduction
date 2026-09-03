@@ -8,9 +8,21 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/guardian_sync.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/signature_html.php';
 
 // Get database connection
 $pdo = Database::getInstance()->getConnection();
+
+// users.email_signature_format (migration 092) may not be applied yet — `main`
+// is shared, deploys are by push, and migrations are run by hand, so this file
+// reaches production before the SQL does. Naming a missing column on Postgres is
+// 42703, which would 500 the whole profile page. Probe once, then build both the
+// SELECT list and the UPDATE around what is actually there. Absent, every
+// signature reads as 'text', which is exactly today's behaviour.
+$signatureFormatLive = te_signature_format_column_present($pdo);
+$signatureFormatSelect = $signatureFormatLive
+    ? 'email_signature_format'
+    : "'text' AS email_signature_format";
 
 // Get the authorization header
 $headers = getallheaders();
@@ -40,7 +52,8 @@ if ($method === 'GET') {
     // Fetch user's profile
     try {
         $stmt = $pdo->prepare("
-            SELECT id, email, first_name, last_name, phone, email_signature, created_at
+            SELECT id, email, first_name, last_name, phone, email_signature,
+                   $signatureFormatSelect, created_at
             FROM users
             WHERE id = :user_id
         ");
@@ -120,9 +133,40 @@ if ($method === 'GET') {
             $params['last_name'] = trim($data['last_name']);
         }
 
-        if (isset($data['email_signature'])) {
+        // The signature, in whichever of its two shapes the client sent.
+        //
+        // `email_signature_html` is the rich editor and is SANITISED HERE, before
+        // the value reaches the database — this endpoint is the choke point, so
+        // the column only ever holds markup that has been through the allowlist
+        // and services/EmailSendService.php can emit it without a second parse.
+        // Any future writer of users.email_signature has to call the sanitiser
+        // too; SignatureHtmlTest parses this file and fails if this call goes.
+        //
+        // `email_signature` is the plain textarea and is stored verbatim, which
+        // is safe only because te_render_signature_html() escapes it at send
+        // time. It was NOT escaped before 2026-09-02.
+        //
+        // The rich key wins when both are present. A client that sends both is
+        // confused, and resolving it toward the sanitised value is the answer
+        // that cannot lose data — the raw one is recoverable from it, not the
+        // other way round.
+        if (isset($data['email_signature_html'])) {
+            $updateFields[] = "email_signature = :email_signature";
+            $params['email_signature'] = te_sanitize_signature_html((string) $data['email_signature_html']);
+            if ($signatureFormatLive) {
+                $updateFields[] = "email_signature_format = :email_signature_format";
+                $params['email_signature_format'] = 'html';
+            }
+        } elseif (isset($data['email_signature'])) {
             $updateFields[] = "email_signature = :email_signature";
             $params['email_signature'] = $data['email_signature'];
+            // Stamped back to 'text' explicitly. A staff member who moves from
+            // the rich editor back to the plain textarea must not leave the row
+            // claiming to be HTML, or their next signature ships unescaped.
+            if ($signatureFormatLive) {
+                $updateFields[] = "email_signature_format = :email_signature_format";
+                $params['email_signature_format'] = 'text';
+            }
         }
 
         if (isset($data['phone'])) {
@@ -197,7 +241,8 @@ if ($method === 'GET') {
 
         // Fetch updated user data
         $stmt = $pdo->prepare("
-            SELECT id, email, first_name, last_name, phone, email_signature, created_at
+            SELECT id, email, first_name, last_name, phone, email_signature,
+                   $signatureFormatSelect, created_at
             FROM users
             WHERE id = :user_id
         ");
