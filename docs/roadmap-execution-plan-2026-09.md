@@ -45,7 +45,9 @@ Plus two mechanisms that make rollback cheaper than a deploy:
 | 6 Age rule | 6.1–6.3 | v582, migration 088 |
 | 8 Coaches | 8.1, 8.2, 8.3 (already built), 8.4 | v574, v577 |
 | GOTR G1 | org_units, user_org_access, set-based resolver, super-admin Organizations page (dark) | v586, migration 090 |
-| GOTR G2 | worker queue assignment + tick locks + rate limiter (v584); cached role context + token diet + context switcher, switches OFF (v588–v590) | v584, v590 |
+| GOTR G2 | cached role context + token diet + context switcher, switches OFF (v588–v590). Worker lane, lists lane (089 indexes, subquery scopes, pagination): merged, AWAITING the Heroku push | v590 + pending |
+| GOTR G3, G4 | compliance model (091) + surfaces (093), dark behind TE_FEATURE_COMPLIANCE / _REMINDERS: merged, AWAITING the Heroku push | pending |
+| 2 Silent sends | 2.5 rich signature editor (092) + escaped text signatures (a live injection): merged, AWAITING the Heroku push | pending |
 | Decisions | 3, 10, 11c | v579, v580 |
 
 Open: 5.1–5.5 (needs S3), 4.5 (time), 2.5, 8.5, 8.6, Phase 10, GOTR G0–G7, decisions 2 and 13.
