@@ -72,7 +72,7 @@ describe('SmsTemplates Send button', () => {
 
     await waitFor(() => expect(screen.getByText('Practice Cancelled')).toBeInTheDocument());
 
-    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
+    expect(screen.getByTitle('Send this template to recipients')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Edit$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Delete$/i })).not.toBeInTheDocument();
   });
@@ -83,7 +83,7 @@ describe('SmsTemplates Send button', () => {
 
     await waitFor(() => expect(screen.getByText('Practice Cancelled')).toBeInTheDocument());
 
-    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
+    expect(screen.getByTitle('Send this template to recipients')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Edit$/i })).toBeInTheDocument();
   });
 
@@ -94,7 +94,7 @@ describe('SmsTemplates Send button', () => {
     await waitFor(() => expect(screen.getByText('Practice Cancelled')).toBeInTheDocument());
     expect(screen.queryByTestId('sms-compose')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    fireEvent.click(screen.getByTitle('Send this template to recipients'));
 
     await waitFor(() => expect(screen.getByTestId('sms-compose')).toBeInTheDocument());
     expect(screen.getByTestId('sms-compose')).toHaveAttribute(

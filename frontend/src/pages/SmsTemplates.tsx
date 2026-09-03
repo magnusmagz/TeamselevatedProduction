@@ -109,6 +109,10 @@ const SmsTemplates: React.FC = () => {
   // Send-from-library: open SmsCompose preloaded with this template, matching
   // the email template editor's Send button.
   const [composeTemplate, setComposeTemplate] = useState<{ id: number; name: string; body_text: string } | null>(null);
+  // The same modal with nothing preloaded — free-form SMS. This is the door the
+  // Broadcast page used to be; it lives here so the library is the one place
+  // you go to text people, with or without a template.
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -205,6 +209,7 @@ const SmsTemplates: React.FC = () => {
       return;
     }
     setComposeTemplate({ id: t.id, name: t.name, body_text: t.body_text });
+    setComposeOpen(true);
   };
 
   const handleSave = async () => {
@@ -366,6 +371,21 @@ const SmsTemplates: React.FC = () => {
           <button onClick={() => setError('')} className="ml-2 text-red-500 hover:text-red-700 font-medium">Dismiss</button>
         </div>
       )}
+
+      {/* Free-form send. Not every text is a template, and the compose modal is
+          the same one the Send button opens — recipients, suppression handling
+          and segment counting included. */}
+      <button
+        type="button"
+        onClick={() => { setComposeTemplate(null); setComposeOpen(true); }}
+        className="w-full mb-6 flex items-center justify-between gap-3 bg-white border border-brand-secondary rounded-lg px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+      >
+        <span className="text-sm font-semibold text-brand-primary">
+          Send a message without a template
+          <span className="ml-2 text-xs font-normal text-gray-500">Free-form SMS to teams, crew or coaches</span>
+        </span>
+        <span className="text-sm font-semibold text-brand-primary uppercase flex-shrink-0" aria-hidden="true">Compose &rarr;</span>
+      </button>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
@@ -856,14 +876,15 @@ const SmsTemplates: React.FC = () => {
         </div>
       )}
 
-      {/* Send: SMS compose modal preloaded with this template (lazy-loaded) */}
-      {composeTemplate && clubProfileId && (
+      {/* Send: the SMS compose modal, preloaded with a template when one was
+          picked and empty when it was not (lazy-loaded). */}
+      {composeOpen && clubProfileId && (
         <React.Suspense fallback={null}>
           <SmsCompose
-            isOpen={!!composeTemplate}
-            onClose={() => setComposeTemplate(null)}
+            isOpen={composeOpen}
+            onClose={() => { setComposeOpen(false); setComposeTemplate(null); }}
             clubProfileId={clubProfileId}
-            preselectedTemplate={composeTemplate}
+            preselectedTemplate={composeTemplate ?? undefined}
           />
         </React.Suspense>
       )}
