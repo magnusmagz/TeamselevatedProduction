@@ -198,6 +198,20 @@ sync"). Emails and SMS actually send in production.
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
 
+### A tab that owns a list must report it back — tournament divisions (2026-09-03)
+`TournamentDetail` loads `tournament.divisions` once on mount; `DivisionManager` fetches and
+owns the live list. Divisions created on the Divisions tab were therefore invisible to the
+Registrations, Groups, Schedule and Standings tabs until a full page reload, which presented as
+"the division dropdown is empty despite divisions being specified" on a tournament with eight of
+them. `DivisionManager` now takes `onDivisionsChange` and the page mirrors the list back onto
+`tournament`. Hold the callback in a **ref** inside the child so the fetch callback does not
+depend on its identity — an unmemoized parent callback would otherwise refetch forever.
+
+An empty control must also say why it is empty. The Registrations tab now distinguishes the two
+causes: no divisions exist (Register Team disabled — the form has nothing to offer) and the
+tournament is not in Registration Open. The status notice is **informational, not a block**:
+`registration-create` has no status gate and an admin adding a team by hand is legitimate.
+
 ### ⚠️ A date-only value must be read and written in the SAME timezone (2026-08-20)
 Reported by CKU: a coach used **Schedule Practices**, picked Tuesdays, and the practices
 landed on Wednesdays. Scheduling the same sessions through the calendar worked.
@@ -390,6 +404,18 @@ into shipped code — see "How the phantom columns got there" at the end of this
   - `teams` — (id, name, program_id, season_id, primary_coach_id, division, age_group, club_id,
     home_field_id, status, deleted_at, primary_color, etc.). The name column is **`name`**; there
     is no `team_name` and no `sport`. No `updated_by` / `last_modified_at` — only `updated_at`.
+    - ⚠️ **`gender` is CHECK-constrained to `Male` / `Female` / `Mixed`, and tournament divisions
+      use a DIFFERENT vocabulary for the same idea** (`boys` / `girls` / `coed`). Copying a
+      division gender onto a team raises 23514 and rolls back the entire team save, same shape as
+      `jersey_size`. Translate through `te_normalize_team_gender()` in `lib/team_gender.php`
+      (labels in `frontend/src/utils/teamGender.ts`, pinned together by
+      `TeamGenderConsistencyTest`); it answers null for anything unreadable rather than guessing
+      `Mixed`, so a create falls back to the column default and an update keeps the stored value.
+      Settable on the team form since 2026-09-03 — before that nothing in the UI ever sent it and
+      **all 70 live teams carried the `Mixed` default**, so any filter or matching built on team
+      gender sees one value for older rows. `legacy/teams-gateway.php`'s UPDATE is a full-row SET:
+      an absent field must preserve what is stored, never re-default it (the logo had the same
+      bug).
   - `team_members` — roster (id, team_id, user_id, athlete_id, role, jersey_number, positions,
     primary_position, team_priority, status, **`join_date`**, leave_date, created_at)
     - `role` CHECK: `player` / `assistant_coach` / `team_manager` (only `player` occurs in prod data)
