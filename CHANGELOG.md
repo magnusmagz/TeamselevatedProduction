@@ -45,11 +45,9 @@ survive a restart; rows created with the Upload tab hold dead absolute URLs. Dec
 ### G1 organisation tiers, dark (Heroku v586, then Netlify) — migration 090 applied; v584 worker lanes
 
 `org_units`, `club_profile.org_unit_id`, `user_org_access` applied via the script; fixture
-refreshed. Nothing reads them yet except the new super-admin Organizations page. v584 (same
-afternoon): the queue worker takes a queue assignment and tick locks; `worker_sends` process type
-added at zero dynos — scaling it is a paid dyno and Maggie's call. Chat-notification and
-moderation ticks could double-send when two processes overlapped; locked. (v585 was a
-branch-worktree push carrying docs only.)
+refreshed. Nothing reads them yet except the new super-admin Organizations page. (v584 and v585
+were branch-worktree pushes carrying docs only — the queue-worker lane was NOT in them; see the
+next backend deploy.)
 
 ### No primary guardian (Heroku v583, then Netlify)
 
