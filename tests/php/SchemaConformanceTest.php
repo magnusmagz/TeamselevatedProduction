@@ -65,6 +65,16 @@ class SchemaConformanceTest extends TestCase
         // Migration 090 adds club_profile.org_unit_id (nullable; every existing
         // club leaves it NULL). Written and NOT yet applied to Neon. Delete this
         // line in the same commit as the fixture refresh.
+
+        // Migration 092 adds users.email_signature_format ('text'|'html',
+        // DEFAULT 'text', NULL allowed and meaning text) for rich email
+        // signatures. Written and NOT yet applied to Neon.
+        // lib/signature_html.php probes for the column; api/user-profile.php
+        // builds both its SELECT list and its UPDATE around what is actually
+        // there, and services/EmailSendService.php picks its SELECT the same
+        // way. Absent, every signature reads as text and is escaped — today's
+        // behaviour. Delete this line in the same commit as the fixture refresh.
+        'users.email_signature_format' => '092_user_email_signature_format.sql',
     ];
 
     /**

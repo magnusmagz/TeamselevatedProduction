@@ -4,6 +4,7 @@ require_once __DIR__ . '/../lib/RedisQueue.php';
 require_once __DIR__ . '/../lib/suppression.php';
 require_once __DIR__ . '/../lib/EmailBranding.php';
 require_once __DIR__ . '/../lib/email_sender.php';
+require_once __DIR__ . '/../lib/signature_html.php';
 
 /**
  * Email Send Service
@@ -164,8 +165,20 @@ class EmailSendService {
         $stmt = $this->pdo->prepare('UPDATE communication_log SET status = ? WHERE id = ?');
         $stmt->execute(['sending', $logId]);
 
-        // Fetch sender info (incl. their saved email signature).
-        $stmt = $this->pdo->prepare('SELECT first_name, last_name, email, email_signature FROM users WHERE id = ?');
+        // Fetch sender info (incl. their saved email signature and its format).
+        //
+        // users.email_signature_format is migration 092 and may not be applied
+        // yet — this code ships by push days before the SQL is run by hand, and
+        // naming a missing column on Postgres is 42703, which here would fail
+        // EVERY outbound email rather than degrade one signature. Absent, the
+        // format reads as 'text' and the signature is escaped, which is exactly
+        // the behaviour of the row today.
+        $signatureFormatLive = te_signature_format_column_present($this->pdo);
+        $stmt = $this->pdo->prepare(
+            $signatureFormatLive
+                ? 'SELECT first_name, last_name, email, email_signature, email_signature_format FROM users WHERE id = ?'
+                : 'SELECT first_name, last_name, email, email_signature FROM users WHERE id = ?'
+        );
         $stmt->execute([$logRecord['user_id']]);
         $senderInfo = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -174,13 +187,20 @@ class EmailSendService {
             throw new \Exception("Sender user ID {$logRecord['user_id']} not found");
         }
 
-        // Append the sender's signature — the profile page promises it is "appended
-        // to all outbound emails". nl2br keeps plain-text signatures readable and
-        // leaves HTML signatures intact.
-        if (!empty($senderInfo['email_signature'])) {
-            $processedHtml .= '<div class="email-signature" style="margin-top:16px">'
-                . nl2br($senderInfo['email_signature']) . '</div>';
-        }
+        // Append the sender's signature — the profile page promises it is
+        // "appended to all outbound emails".
+        //
+        // ⚠️ Until 2026-09-02 this line was a bare nl2br() with NO escaping, so
+        // whatever a staff member typed into the plain-text signature textarea
+        // was emitted as raw HTML to every family they mailed. Nothing upstream
+        // covered it: the unresolved-{{tag}} guard checks the body, and
+        // EmailBranding::wrap() appends around this. te_render_signature_html()
+        // escapes the text path and emits the rich path as-is — rich signatures
+        // are sanitised on the way IN, by api/user-profile.php.
+        $processedHtml .= te_render_signature_html(
+            $senderInfo['email_signature'] ?? null,
+            $senderInfo['email_signature_format'] ?? null
+        );
 
         try {
             $this->sendViaSendGrid($logRecord, $senderInfo, $processedHtml);

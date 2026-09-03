@@ -17,6 +17,7 @@ require_once __DIR__ . '/../../lib/magic_link.php';
 require_once __DIR__ . '/../../lib/email_sender.php';
 require_once __DIR__ . '/../../lib/club_standing.php';
 require_once __DIR__ . '/../../lib/guardian_sync.php';
+require_once __DIR__ . '/../../lib/signature_html.php';
 require_once __DIR__ . '/../../services/MergeFieldService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
 require_once __DIR__ . '/../../services/AttendanceService.php';

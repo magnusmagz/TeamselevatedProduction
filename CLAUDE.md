@@ -1887,6 +1887,24 @@ all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE a
       Maggie, in this order): (1) parent portal empty state telling them to ask their
       club admin to connect them to their athlete, (2) a club-admin tool to make that
       connection. Until then a mismatched address means a silently empty portal.
+- [ ] **Migration 092 (`users.email_signature_format`) is written and NOT applied to Neon.**
+      Rich email signatures (roadmap 2.5, R13) ship ahead of it: `lib/signature_html.php`
+      probes `information_schema` for the column, `api/user-profile.php` builds both its
+      SELECT list and its UPDATE around what is actually there, and
+      `services/EmailSendService.php` picks its SELECT the same way. Until it is applied
+      every signature reads as `'text'` and is therefore **escaped**, so a staff member who
+      saves a rich signature sees their own tags in the email rather than formatting —
+      visibly wrong, never an injection. Apply it, then refresh
+      `tests/fixtures/production-schema.json` and delete the `users.email_signature_format`
+      entry from `SchemaConformanceTest::PENDING_MIGRATION` in the same commit.
+      ⚠️ **The plain-text signature path was an injection until 2026-09-02.**
+      `EmailSendService` did a bare `nl2br($senderInfo['email_signature'])`, so whatever a
+      staff member typed into the profile textarea was emitted as raw HTML to every family
+      they mailed — nothing upstream covered it (the unresolved-`{{tag}}` guard checks the
+      body; `EmailBranding::wrap()` appends around it). `te_render_signature_html()` is now
+      the only place a stored signature becomes HTML, and the text branch escapes. It is
+      worth checking whether any live `users.email_signature` value contains markup that has
+      been shipping.
 - [ ] **Shared-email remaining case** — `users.email ≠ guardians.email` loses the parent role; needs Phase 2 `user_guardians` link table (the read-side fixes in the 3 legacy files are DONE, verified 2026-07-06)
 - [ ] **Portal status is still inferred from a shared email** — same missing `user_guardians` table
       as above, failing in the opposite direction: any account sharing a guardian's email answers

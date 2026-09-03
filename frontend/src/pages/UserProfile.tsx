@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import PushNotificationToggle from '../components/PushNotificationToggle';
+import SignatureEditor from '../components/SignatureEditor';
+import {
+  signatureTextToHtml,
+  signatureHtmlToText,
+  isSignatureHtmlEmpty,
+} from '../utils/signatureHtml';
 
 interface UserProfileData {
   id: number;
@@ -9,8 +15,15 @@ interface UserProfileData {
   last_name: string;
   phone: string;
   email_signature: string;
+  // 'text' | 'html'. Widened to string because a backend that predates migration
+  // 092 answers with the literal 'text' and a backend that predates THIS deploy
+  // omits the key entirely — a narrow union here would assert something the wire
+  // does not guarantee, which is the mistake that hid the senderId type bug.
+  email_signature_format?: string;
   created_at: string;
 }
+
+type SignatureMode = 'text' | 'html';
 
 const UserProfile: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -27,6 +40,15 @@ const UserProfile: React.FC = () => {
     phone: '',
     email_signature: ''
   });
+
+  // The rich signature, kept apart from the textarea's value so switching
+  // between the two surfaces cannot let one overwrite the other silently.
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>('text');
+  const [signatureHtml, setSignatureHtml] = useState('');
+  // Remounts the editor when a fetch replaces its content. tiptap owns its own
+  // document after mount, so feeding a new `value` into the live instance would
+  // be ignored; a key is the honest way to say "this is a different document".
+  const [editorKey, setEditorKey] = useState(0);
 
   const [passwordData, setPasswordData] = useState({
     current_password: '',
@@ -51,12 +73,24 @@ const UserProfile: React.FC = () => {
 
       if (data.success && data.user) {
         setProfileData(data.user);
+
+        // ?? not ||. An ABSENT format means a backend older than this deploy and
+        // must fall back to 'text', which is the escaping path and therefore the
+        // safe one. Only the string 'html' opts into rich rendering.
+        const storedFormat = data.user.email_signature_format ?? 'text';
+        const storedSignature: string = data.user.email_signature || '';
+        const isHtml = storedFormat === 'html' && storedSignature !== '';
+
+        setSignatureMode(isHtml ? 'html' : 'text');
+        setSignatureHtml(isHtml ? storedSignature : '');
+        setEditorKey((k) => k + 1);
+
         setFormData({
           first_name: data.user.first_name || '',
           last_name: data.user.last_name || '',
           email: data.user.email || '',
           phone: data.user.phone || '',
-          email_signature: data.user.email_signature || ''
+          email_signature: isHtml ? '' : storedSignature
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to load profile' });
@@ -68,6 +102,57 @@ const UserProfile: React.FC = () => {
       setLoading(false);
     }
   };
+
+  /**
+   * Move an existing plain-text signature into the rich editor.
+   *
+   * The stored text is escaped on the way across (signatureTextToHtml), because
+   * it is exactly the untrusted value the send path escapes — a staff member who
+   * literally typed "<b>" must not have it promoted to markup by opening an
+   * editor.
+   */
+  const switchToRichSignature = () => {
+    setSignatureHtml(signatureTextToHtml(formData.email_signature));
+    setEditorKey((k) => k + 1);
+    setSignatureMode('html');
+  };
+
+  /**
+   * Move back to the plain textarea. Formatting is genuinely lost, so this says
+   * so before it happens rather than after — the alternative is a staff member
+   * discovering it in an email they already sent.
+   */
+  const switchToPlainSignature = () => {
+    const asText = signatureHtmlToText(signatureHtml);
+
+    if (
+      !isSignatureHtmlEmpty(signatureHtml) &&
+      !window.confirm('Switching to plain text removes the formatting from your signature. Continue?')
+    ) {
+      return;
+    }
+
+    setFormData((current) => ({ ...current, email_signature: asText }));
+    setSignatureHtml('');
+    setSignatureMode('text');
+  };
+
+  // What the last SAVE produced, which is what actually ships. A text signature
+  // is previewed escaped, matching te_render_signature_html() — the preview has
+  // to show the escape, or the plain path silently looks like it renders markup.
+  const savedSignature = profileData?.email_signature || '';
+  const savedFormat = profileData?.email_signature_format ?? 'text';
+  const savedSignaturePreview =
+    savedSignature === ''
+      ? ''
+      : savedFormat === 'html'
+        ? savedSignature
+        : signatureTextToHtml(savedSignature);
+
+  const signatureIsUnsaved =
+    signatureMode === 'html'
+      ? signatureHtml !== savedSignature
+      : formData.email_signature !== savedSignature;
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +167,20 @@ const UserProfile: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        // Exactly ONE of the two signature keys is sent, and which one is what
+        // stamps users.email_signature_format server-side. Sending both would
+        // leave the endpoint choosing, and a staff member who moved back to the
+        // plain textarea would keep a row claiming to be HTML — which is the row
+        // whose contents ship unescaped.
+        body: JSON.stringify(
+          signatureMode === 'html'
+            ? {
+                ...formData,
+                email_signature: undefined,
+                email_signature_html: isSignatureHtmlEmpty(signatureHtml) ? '' : signatureHtml,
+              }
+            : formData
+        )
       });
 
       const data = await response.json();
@@ -90,6 +188,14 @@ const UserProfile: React.FC = () => {
       if (data.success) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
         setProfileData(data.user);
+
+        // The round trip. The preview below renders what the SERVER stored, not
+        // what the editor produced, so a tag the sanitiser removed is visibly
+        // gone rather than quietly different from what actually ships.
+        if (signatureMode === 'html') {
+          setSignatureHtml(data.user?.email_signature || '');
+          setEditorKey((k) => k + 1);
+        }
 
         // Update auth context if user object exists
         if (updateUser && data.user) {
@@ -244,17 +350,69 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
-                Email Signature
-              </label>
-              <textarea
-                className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
-                rows={4}
-                value={formData.email_signature}
-                onChange={(e) => setFormData({ ...formData, email_signature: e.target.value })}
-                placeholder="e.g. Coach Smith&#10;Riverside Soccer Club&#10;(555) 123-4567"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-brand-primary text-sm font-medium uppercase">
+                  Email Signature
+                </label>
+                {signatureMode === 'text' ? (
+                  <button
+                    type="button"
+                    onClick={switchToRichSignature}
+                    className="text-xs text-brand-primary underline"
+                  >
+                    Use formatting
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={switchToPlainSignature}
+                    className="text-xs text-brand-primary underline"
+                  >
+                    Switch to plain text
+                  </button>
+                )}
+              </div>
+
+              {signatureMode === 'text' ? (
+                <textarea
+                  className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary w-full"
+                  rows={4}
+                  aria-label="Email signature"
+                  value={formData.email_signature}
+                  onChange={(e) => setFormData({ ...formData, email_signature: e.target.value })}
+                  placeholder="e.g. Coach Smith&#10;Riverside Soccer Club&#10;(555) 123-4567"
+                />
+              ) : (
+                <SignatureEditor
+                  key={editorKey}
+                  value={signatureHtml}
+                  onChange={setSignatureHtml}
+                />
+              )}
+
               <p className="text-gray-500 text-xs mt-1">This will be appended to all outbound emails you send.</p>
+
+              {savedSignaturePreview && (
+                <div className="mt-3" data-testid="signature-preview">
+                  <p className="text-gray-500 text-xs mb-1 uppercase tracking-wide">
+                    Preview — as saved
+                  </p>
+                  {/* Rendered from the SERVER's stored value, which has been
+                      through te_sanitize_signature_html(). Previewing the
+                      editor's live output instead would show formatting the
+                      sanitiser removes, so what a staff member approved would
+                      not be what families receive. */}
+                  <div
+                    className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary bg-gray-50"
+                    dangerouslySetInnerHTML={{ __html: savedSignaturePreview }}
+                  />
+                  {signatureIsUnsaved && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      You have unsaved changes — save to update the preview.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
