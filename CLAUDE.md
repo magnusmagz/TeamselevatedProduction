@@ -58,7 +58,10 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). Nothing written-but-unapplied as of that date. Next free number is **094**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **094** (`import_jobs_org_unit`, GOTR G6) is **written on
+   `feature/g6-onboarding` and NOT applied** — `api/imports-gateway.php` probes for the column and
+   answers 503 to a multi-council upload until it is; `SchemaConformanceTest::PENDING_MIGRATION`
+   carries the entry. Next free number is **095**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -1898,24 +1901,19 @@ there (and `git log`) before concluding something is unbuilt. The whole communic
 the data importer, household combining, recurring events, payments, and the event merge tags are
 all **built and in production**; the "do NOT rebuild" list is in CURRENT STATE above.
 
-- [ ] **⚠️ Coach accounts are created with a shared literal password** (found 2026-08-03).
-      `legacy/coaches-gateway.php:144` does
-      `password_hash($data['password'] ?? 'password123', …)` and
-      `CoachManagement.tsx` hardcodes `password: 'password123'` in the form default and
-      shows the admin "Default password: password123". So every coach made through that
-      screen gets the same credential — and the 2026-07-31 Central Kansas kickoff blast
-      **emailed it in plaintext** to 11 people ("Temporary password: password123").
-      This is the same class migration 056 fixed for athletes, but 056 scoped itself
-      `WHERE role = 'player'`, so coaches were never covered. ~13 coach accounts have
-      never been signed into and would still carry it.
-      Fix is three parts and the third is what stops it recurring:
-      1. remove the literal from the gateway and the form (no password at creation);
-      2. give coaches a real invite — reuse `parentInvite_ensureUserAndToken` with a
-         `:coach_invite` suffix, so there is no shared secret and the funnel gets a real
-         `used_at` instead of an inferred email open;
-      3. a 056-style migration clearing existing hashes, guarded on
-         `last_login_at IS NULL` so it cannot lock out anyone actually using the account.
-      Clearing hashes without (1) just regenerates the problem on the next coach added.
+- [ ] **⚠️ Coach accounts were created with a shared literal password** (found 2026-08-03).
+      **Parts 1 and 2 are BUILT on `feature/g6-onboarding` (GOTR G6, 2026-09-06):** the
+      literal is gone from `legacy/coaches-gateway.php` and `CoachManagement.tsx`, and every
+      coach made on the Coaches page or by import gets NO password and a single-use, 7-day
+      `<email>:coach_invite` token (`lib/coach_invite.php`, redeemed at
+      `api/coach-invite.php` → `/accept-coach-invite`). `used_at` is the accepted fact the
+      funnel counts. Imports enqueue the mail on `email_queue` (`CoachInviteService`, rate
+      limited, `TE_FEATURE_COACH_INVITE_EMAIL`); the page sends inline. `CoachInviteTest`
+      scans for the literal. **Part 3 is still a decision for Maggie**: a 056-style
+      migration clearing the ~13 existing never-signed-in coach hashes, guarded on
+      `last_login_at IS NULL`, plus an invite send to each. Until then those accounts still
+      carry the shared credential; the Coaches page Status column (now reading
+      `:coach_invite`) shows them as `account_never_used`.
 
 - [x] **`api/invitations-gateway.php` authorization** — FIXED 2026-09-02, see the JWT::decode
       section above. `send` / `create-link` gate on `te_is_club_admin()`.

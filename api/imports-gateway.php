@@ -102,6 +102,29 @@ function resolveStrategy(ImportJobProcessor $processor, ?string $entity): Import
     return $strategy;
 }
 
+/**
+ * Is migration 094 (import_jobs.org_unit_id) applied? Probed, memoised, and a
+ * failed probe answers false — `main` is shared and deploys are by push, so this
+ * code can be live before the column is. SQLite (tests) has no
+ * information_schema and answers false too, which the tests do not exercise.
+ */
+function importsGw_hasOrgUnitColumn(PDO $pdo): bool {
+    static $has = null;
+    if ($has !== null) {
+        return $has;
+    }
+    try {
+        $stmt = $pdo->query(
+            "SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'import_jobs' AND column_name = 'org_unit_id' LIMIT 1"
+        );
+        $has = (bool) $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        $has = false;
+    }
+    return $has;
+}
+
 function parseCsvHeadersAndRows(string $content, int $previewLimit = 5): array {
     $lines = preg_split("/\r\n|\n|\r/", trim($content));
     if (count($lines) < 1) return ['headers' => [], 'rows' => [], 'total' => 0];
@@ -216,13 +239,56 @@ function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $proces
         return;
     }
 
+    // GOTR G6 — a multi-council import is scoped to an ORG UNIT, not a club.
+    // Authorization is org_admin standing at that unit (inherits down, never
+    // up); the club id on the job is an anchor the schema requires, chosen here
+    // as the lowest club under the unit, and nothing about the import reads it.
+    $orgUnitId = 0;
+    $isNational = $strategy->getEntityType() === 'national_coaches';
+    if ($isNational) {
+        require_once __DIR__ . '/../lib/feature_flags.php';
+        require_once __DIR__ . '/../lib/org_scope.php';
+
+        if (!te_feature_enabled('NATIONAL_IMPORT')) {
+            http_response_code(503);
+            echo json_encode(te_feature_disabled_response('NATIONAL_IMPORT'));
+            return;
+        }
+        $orgUnitId = isset($_POST['org_unit_id']) ? (int) $_POST['org_unit_id'] : 0;
+        if ($orgUnitId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'org_unit_id is required for a multi-council import']);
+            return;
+        }
+        if (te_user_org_standing($pdo, $auth, $orgUnitId) !== 'org_admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Only an administrator of this organization can import its coaches']);
+            return;
+        }
+        if (!importsGw_hasOrgUnitColumn($pdo)) {
+            http_response_code(503);
+            echo json_encode(['error' => 'Multi-council import is not available until migration 094 is applied']);
+            return;
+        }
+        $scope = te_org_descendant_club_ids_sql([$orgUnitId]);
+        $anchor = $pdo->prepare("SELECT MIN(d.id) FROM ({$scope['sql']}) d");
+        $anchor->execute($scope['params']);
+        $clubProfileId = (int) $anchor->fetchColumn();
+        if ($clubProfileId <= 0) {
+            http_response_code(422);
+            echo json_encode(['error' => 'No councils are attached under this organization yet']);
+            return;
+        }
+        $teamId = null;
+    }
+
     if ($clubProfileId <= 0) {
         http_response_code(400);
         echo json_encode(['error' => 'club_profile_id is required']);
         return;
     }
 
-    if (!$auth->canAccessClub($clubProfileId) && !$auth->isSuperAdmin()) {
+    if (!$isNational && !$auth->canAccessClub($clubProfileId) && !$auth->isSuperAdmin()) {
         http_response_code(403);
         echo json_encode(['error' => 'You do not have access to this club']);
         return;
@@ -239,8 +305,8 @@ function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $proces
         }
     }
 
-    $isClubAdmin = $auth->hasRole('club_admin', $clubProfileId, 'club') || $auth->isSuperAdmin();
-    $isCoach     = $auth->hasRole('coach', $clubProfileId, 'club');
+    $isClubAdmin = $isNational || $auth->hasRole('club_admin', $clubProfileId, 'club') || $auth->isSuperAdmin();
+    $isCoach     = !$isNational && $auth->hasRole('coach', $clubProfileId, 'club');
 
     if (!$isClubAdmin && !$isCoach) {
         http_response_code(403);
@@ -262,14 +328,7 @@ function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $proces
         return;
     }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO import_jobs
-            (user_id, club_profile_id, team_id, entity_type, status, original_filename, csv_content, column_mapping, total_rows)
-        VALUES
-            (:user_id, :club_profile_id, :team_id, :entity, 'queued', :filename, :csv, :mapping, :total)
-        RETURNING id
-    ");
-    $stmt->execute([
+    $jobParams = [
         'user_id'         => $auth->getUserId(),
         'club_profile_id' => $clubProfileId,
         'team_id'         => $teamId,
@@ -278,7 +337,28 @@ function handleUpload(AuthMiddleware $auth, PDO $pdo, ImportJobProcessor $proces
         'csv'             => $content,
         'mapping'         => json_encode($mapping),
         'total'           => $parsed['total'],
-    ]);
+    ];
+    if ($isNational) {
+        // Two literal statements rather than one with a spliced column list, so
+        // SchemaConformanceTest can read both against the fixture.
+        $stmt = $pdo->prepare("
+            INSERT INTO import_jobs
+                (user_id, club_profile_id, team_id, entity_type, status, original_filename, csv_content, column_mapping, total_rows, org_unit_id)
+            VALUES
+                (:user_id, :club_profile_id, :team_id, :entity, 'queued', :filename, :csv, :mapping, :total, :org_unit_id)
+            RETURNING id
+        ");
+        $jobParams['org_unit_id'] = $orgUnitId;
+    } else {
+        $stmt = $pdo->prepare("
+            INSERT INTO import_jobs
+                (user_id, club_profile_id, team_id, entity_type, status, original_filename, csv_content, column_mapping, total_rows)
+            VALUES
+                (:user_id, :club_profile_id, :team_id, :entity, 'queued', :filename, :csv, :mapping, :total)
+            RETURNING id
+        ");
+    }
+    $stmt->execute($jobParams);
     $jobId = (int) $stmt->fetchColumn();
 
     try {
@@ -313,14 +393,15 @@ function handleStatus(AuthMiddleware $auth, PDO $pdo): void {
         return;
     }
 
-    $stmt = $pdo->prepare('
+    $orgUnitCol = importsGw_hasOrgUnitColumn($pdo) ? ', org_unit_id' : '';
+    $stmt = $pdo->prepare("
         SELECT id, user_id, club_profile_id, team_id, entity_type, status,
                original_filename, total_rows, processed_rows,
                created_count, updated_count, skipped_count, error_count,
-               created_at, started_at, finished_at
+               created_at, started_at, finished_at{$orgUnitCol}
         FROM import_jobs
         WHERE id = :id
-    ');
+    ");
     $stmt->execute(['id' => $jobId]);
     $job = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -330,7 +411,18 @@ function handleStatus(AuthMiddleware $auth, PDO $pdo): void {
         return;
     }
 
-    if (!$auth->canAccessClub((int) $job['club_profile_id']) && !$auth->isSuperAdmin()) {
+    // A national job is read through standing at ITS org unit — the anchor club
+    // on the row is a schema requirement, not the scope (GOTR G6).
+    $jobOrgUnit = (int) ($job['org_unit_id'] ?? 0);
+    if ($jobOrgUnit > 0) {
+        require_once __DIR__ . '/../lib/org_scope.php';
+        $standing = te_user_org_standing($pdo, $auth, $jobOrgUnit);
+        if ($standing !== 'org_admin' && $standing !== 'org_viewer') {
+            http_response_code(403);
+            echo json_encode(['error' => 'No access to this job']);
+            return;
+        }
+    } elseif (!$auth->canAccessClub((int) $job['club_profile_id']) && !$auth->isSuperAdmin()) {
         http_response_code(403);
         echo json_encode(['error' => 'No access to this job']);
         return;

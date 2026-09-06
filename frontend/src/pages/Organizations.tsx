@@ -294,6 +294,7 @@ const Organizations: React.FC = () => {
                   )}
                 </div>
                 <div className="flex gap-2 text-sm">
+                  <Link to={`/organizations/${unit.id}/onboarding`} className="underline">Onboarding</Link>
                   <button type="button" className="underline" onClick={() => handleRename(unit)}>Rename</button>
                   <button type="button" className="underline" onClick={() => handleMove(unit)}>Move</button>
                   <button type="button" className="underline text-red-700" onClick={() => handleDelete(unit)}>Delete</button>

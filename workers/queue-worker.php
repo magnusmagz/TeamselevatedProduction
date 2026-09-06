@@ -34,6 +34,7 @@ require_once __DIR__ . '/../services/EmailSendService.php';
 require_once __DIR__ . '/../services/SmsSendService.php';
 require_once __DIR__ . '/../services/ImportJobProcessor.php';
 require_once __DIR__ . '/../services/CalendarSyncService.php';
+require_once __DIR__ . '/../services/CoachInviteService.php';
 require_once __DIR__ . '/../lib/chat_notification_dispatcher.php';
 require_once __DIR__ . '/../lib/chat_moderation_alerts.php';
 require_once __DIR__ . '/../lib/broadcast_dispatcher.php';
@@ -87,12 +88,22 @@ $db = $database->getConnection();
  * Reconnecting is therefore only half the fix: a new PDO object does nothing
  * for services still pointing at the old one. They must be rebuilt together.
  */
-$buildServices = function (PDO $db) {
+$buildServices = function (PDO $db) use ($queue) {
     return [
         'email'    => new EmailSendService($db),
         'sms'      => new SmsSendService($db),
-        'import'   => ImportJobProcessor::buildDefault($db),
+        // A coach import hands each row's invite to the email queue rather than
+        // sending from inside the import loop (GOTR G6) — that queue is the one
+        // the rate limiter paces, and the one you pause to pause invites.
+        'import'   => ImportJobProcessor::buildDefault($db)->setInviteEnqueuer(
+            static function (array $job) use ($queue): void {
+                $queue->push(CoachInviteService::QUEUE, $job);
+            }
+        ),
         'calendar' => new CalendarSyncService($db),
+        // Built HERE, not at boot: a service holding the pre-reconnect handle
+        // keeps failing after every other queue has recovered.
+        'coach_invite' => new CoachInviteService($db),
     ];
 };
 
@@ -470,9 +481,9 @@ while ($running) {
             }
         }
 
-        // Block-pop from both queues (2 second timeout so we can check $running)
-        $job = $queue->pop($queues, 2);
-        // Pace the send queues, if a limit is configured.
+        // Pace the send queues, if a limit is configured. (A second, unpaced
+        // pop used to sit above this line — the job it took was overwritten by
+        // the paced pop below and lost. CoachInviteQueueTest pins ONE pop.)
         //
         // ⚠️ This never drops a job. An exhausted queue is simply left out of the
         // next BRPOP, so its jobs stay in Redis until the window rolls over — the
@@ -511,7 +522,15 @@ while ($running) {
 
         // Dispatch to the appropriate service
         if ($fromQueue === 'email_queue') {
-            $services['email']->processJob($payload);
+            // Coach invites ride the email queue for its rate limit but are NOT
+            // EmailSendService jobs: that path logs a communication_log row and
+            // applies marketing suppressions, neither of which belongs on a
+            // sign-in link.
+            if (($payload['type'] ?? '') === CoachInviteService::TYPE) {
+                $services['coach_invite']->processJob($payload);
+            } else {
+                $services['email']->processJob($payload);
+            }
         } elseif ($fromQueue === 'sms_queue') {
             $services['sms']->processJob($payload);
         } elseif ($fromQueue === 'import_queue') {

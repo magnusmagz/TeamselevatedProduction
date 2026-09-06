@@ -24,6 +24,7 @@ import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import SetParentPassword from './pages/SetParentPassword';
+import AcceptCoachInvite from './pages/AcceptCoachInvite';
 import VerifyMagicLink from './pages/VerifyMagicLink';
 import GetStarted from './pages/GetStarted';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -95,6 +96,7 @@ import TemplateEditor from './pages/TemplateEditor';
 import EmailReporting from './pages/EmailReporting';
 import DataImport from './pages/DataImport';
 import ImportsIndex from './pages/ImportsIndex';
+import OnboardingFunnel from './pages/OnboardingFunnel';
 import SmsTemplates from './pages/SmsTemplates';
 import ChatModeration from './pages/ChatModeration';
 // Volunteer Management
@@ -867,6 +869,8 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/set-parent-password" element={<SetParentPassword />} />
+          {/* GOTR G6 — a coach's single-use invite link. Public: the token is the credential. */}
+          <Route path="/accept-coach-invite" element={<AcceptCoachInvite />} />
           <Route path="/verify-magic-link" element={<VerifyMagicLink />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
@@ -1115,6 +1119,14 @@ function AppContent() {
               <DataImport entity="teams" />
             </ProtectedRoute>
           } />
+          {/* GOTR G6 — multi-council coach import, ?org_unit_id=N. The route
+              guard is authentication only; api/imports-gateway.php gates the
+              upload on org_admin standing at that unit. */}
+          <Route path="/imports/national-coaches" element={
+            <ProtectedRoute>
+              <DataImport entity="national_coaches" />
+            </ProtectedRoute>
+          } />
           <Route path="/sms-templates" element={
             <ProtectedRoute>
               <SmsTemplates />
@@ -1299,6 +1311,15 @@ function AppContent() {
             <ProtectedSuperAdminRoute>
               <Organizations />
             </ProtectedSuperAdminRoute>
+          } />
+          {/* GOTR G6 — the onboarding funnel for one org unit. Authentication
+              only here: standing at the unit (org_admin / org_viewer, inherited
+              down the tree) is decided by api/onboarding-funnel.php, and a
+              division admin is not a super admin. */}
+          <Route path="/organizations/:id/onboarding" element={
+            <ProtectedRoute>
+              <OnboardingFunnel />
+            </ProtectedRoute>
           } />
 
           {/* Parent Portal routes */}

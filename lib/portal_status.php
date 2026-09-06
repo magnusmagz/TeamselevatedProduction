@@ -39,10 +39,16 @@
  * SQL columns for the status of whoever `$emailExpr` identifies.
  * `$userAlias` must be a users row already LEFT JOINed by the caller.
  */
-function te_portal_status_columns(string $emailExpr, string $userAlias = 'u'): string
+function te_portal_status_columns(string $emailExpr, string $userAlias = 'u', string $inviteSuffix = 'parent_invite'): string
 {
     $e = "lower(btrim({$emailExpr}))";
     $u = $userAlias;
+    // Crew are invited with ':parent_invite'; coaches (GOTR G6) with ':coach_invite'.
+    // Same token store, same ladder — the suffix is the only difference, so the
+    // Coaches page passes 'coach_invite' and everything else stays shared.
+    if (!preg_match('/^[a-z_]+$/', $inviteSuffix)) {
+        throw new InvalidArgumentException('invite suffix must be a plain identifier');
+    }
 
     return "
         -- First login. COALESCE order matters: the audit row is the precise one,
@@ -57,11 +63,11 @@ function te_portal_status_columns(string $emailExpr, string $userAlias = 'u'): s
         {$u}.last_login_at AS last_login_at,
 
         (SELECT min(t.created_at) FROM magic_link_tokens t
-          WHERE t.email = {$e} || ':parent_invite')                      AS invited_at,
+          WHERE t.email = {$e} || ':{$inviteSuffix}')                      AS invited_at,
         (SELECT min(t.used_at) FROM magic_link_tokens t
-          WHERE t.email = {$e} || ':parent_invite')                      AS invite_used_at,
+          WHERE t.email = {$e} || ':{$inviteSuffix}')                      AS invite_used_at,
         (SELECT max(t.expires_at) FROM magic_link_tokens t
-          WHERE t.email = {$e} || ':parent_invite' AND t.used_at IS NULL) AS invite_expires_at,
+          WHERE t.email = {$e} || ':{$inviteSuffix}' AND t.used_at IS NULL) AS invite_expires_at,
 
         ({$u}.password_hash IS NOT NULL AND {$u}.password_hash <> '')     AS has_password,
 

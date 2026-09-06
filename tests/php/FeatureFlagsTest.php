@@ -54,6 +54,13 @@ class FeatureFlagsTest extends TestCase
         'workers/queue-worker.php' => ['COMPLIANCE', 'COMPLIANCE_REMINDERS'],
         'api/compliance-gateway.php' => 'COMPLIANCE',
         'api/compliance-export.php' => 'COMPLIANCE',
+        // GOTR G6 — onboarding. COACH_INVITE_EMAIL is the mail behind every coach
+        // invite (Coaches page inline, import via the queue); the account and
+        // token still exist with it off, so an admin can stage a roster dark.
+        // NATIONAL_IMPORT gates the multi-council upload itself — the endpoint
+        // refuses, it does not accept-and-not-send.
+        'lib/coach_invite.php' => 'COACH_INVITE_EMAIL',
+        'api/imports-gateway.php' => 'NATIONAL_IMPORT',
     ];
 
     protected function setUp(): void

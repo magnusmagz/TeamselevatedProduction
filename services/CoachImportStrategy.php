@@ -1,19 +1,27 @@
 <?php
 require_once __DIR__ . '/ImportStrategy.php';
-require_once __DIR__ . '/../lib/role_cache.php';
+require_once __DIR__ . '/CoachInviteService.php';
+require_once __DIR__ . '/../lib/coach_invite.php';
 
 /**
  * CoachImportStrategy — imports coaches as users with a club-level coach role.
  *
  * A "coach" in this system is a user with a `coach` role on a club via
- * the user_club_access table. This importer creates the user (if they
- * don't exist) and the access row in one shot. Team assignment is NOT
- * handled here — coaches can be assigned to specific teams afterwards
- * via the existing team management UI.
+ * user_club_access. This importer creates the user (if they don't exist), the
+ * access row, and — since GOTR G6 — a single-use invite that reaches them
+ * through the queue. Team assignment is NOT handled here.
  *
- * Users created here have password_hash=NULL (login disabled until
- * they claim the account via the existing signup or password reset
- * flow). No invite email is sent — that's a future enhancement.
+ * Every identity decision is lib/coach_invite.php's, shared with the Coaches
+ * page, so an import and a hand-typed coach cannot drift:
+ *   - users.email is UNIQUE → an existing account is ATTACHED, never duplicated;
+ *   - an account with a password is `already_active` and gets no invite;
+ *   - a revoked access is not re-granted by a re-import;
+ *   - no password is ever written here.
+ *
+ * The invite EMAIL is not sent from inside the import loop. The row enqueues
+ * one job (CoachInviteService::jobPayload) through `$context['enqueue_invite']`
+ * — a callable the worker wires to the rate-limited email queue. Without one
+ * (a preview, a test) the account and token still exist; only the mail waits.
  */
 
 class CoachImportStrategy extends ImportStrategy {
@@ -59,79 +67,39 @@ class CoachImportStrategy extends ImportStrategy {
         $clubId    = (int) $context['club_id'];
         $grantedBy = (int) $context['user_id'];
 
-        $firstName = $this->field($row, $mapping, 'first_name');
-        $lastName  = $this->field($row, $mapping, 'last_name');
-        $email     = strtolower($this->field($row, $mapping, 'email'));
-        $phone     = $this->field($row, $mapping, 'phone');
+        $person = [
+            'first_name' => $this->field($row, $mapping, 'first_name'),
+            'last_name'  => $this->field($row, $mapping, 'last_name'),
+            'email'      => strtolower($this->field($row, $mapping, 'email')),
+            'phone'      => $this->field($row, $mapping, 'phone'),
+        ];
 
-        if ($firstName === '' || $lastName === '' || $email === '') {
+        if ($person['first_name'] === '' || $person['last_name'] === '' || $person['email'] === '') {
             throw new RuntimeException('Missing required field: first_name, last_name, and email are all required');
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException("Invalid email '{$email}'");
+        $result = te_coach_invite_ensure_user_and_token($pdo, $person, $clubId, $grantedBy ?: null, 'import');
+
+        switch ($result['status']) {
+            case 'error':
+                throw new RuntimeException($result['message']);
+
+            case 'access_revoked':
+                // The council removed this person. A roster re-upload is not a decision to restore them.
+                return 'skipped';
+
+            case 'already_active':
+                return $result['access'] === 'granted' ? 'updated' : 'skipped';
+
+            case 'invited':
+                $enqueue = $context['enqueue_invite'] ?? null;
+                if (is_callable($enqueue)) {
+                    // After the commit inside ensure(): a job for a row that rolled back would mail a dead link.
+                    $enqueue(CoachInviteService::jobPayload((int) $result['user_id'], $clubId, $grantedBy ?: null));
+                }
+                return !empty($result['created']) ? 'created' : 'updated';
         }
 
-        $pdo->beginTransaction();
-        try {
-            $userId = $this->findOrCreateUser($pdo, $firstName, $lastName, $email, $phone);
-            $outcome = $this->findOrCreateClubAccess($pdo, $userId, $clubId, $grantedBy);
-            $pdo->commit();
-            return $outcome;
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-
-    private function findOrCreateUser(PDO $pdo, string $firstName, string $lastName, string $email, string $phone): int {
-        // Email is unique on users. Existing users are reused as-is — we do
-        // NOT overwrite their first/last name or phone, since they may have
-        // updated their own profile since whatever the CSV says.
-        $stmt = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1');
-        $stmt->execute(['email' => $email]);
-        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($existing) return (int) $existing['id'];
-
-        // password_hash stays NULL — login disabled until the account is claimed.
-        $insert = $pdo->prepare('
-            INSERT INTO users (first_name, last_name, email, phone)
-            VALUES (:first, :last, :email, :phone)
-            RETURNING id
-        ');
-        $insert->execute([
-            'first' => $firstName,
-            'last'  => $lastName,
-            'email' => $email,
-            'phone' => $phone !== '' ? $phone : null,
-        ]);
-        return (int) $insert->fetchColumn();
-    }
-
-    private function findOrCreateClubAccess(PDO $pdo, int $userId, int $clubId, int $grantedBy): string {
-        // UNIQUE constraint is (user_id, club_profile_id, role). If a row already
-        // exists for this user with role='coach' on this club, skip — even if
-        // it's currently inactive (revoked). Re-importing should not silently
-        // re-grant a revoked access.
-        $stmt = $pdo->prepare("
-            SELECT id FROM user_club_access
-            WHERE user_id = :user AND club_profile_id = :club AND role = 'coach'
-            LIMIT 1
-        ");
-        $stmt->execute(['user' => $userId, 'club' => $clubId]);
-        if ($stmt->fetch()) return 'skipped';
-
-        $pdo->prepare("
-            INSERT INTO user_club_access (user_id, club_profile_id, role, granted_by, active)
-            VALUES (:user, :club, 'coach', :granted_by, true)
-        ")->execute([
-            'user'        => $userId,
-            'club'        => $clubId,
-            'granted_by'  => $grantedBy,
-        ]);
-        te_role_cache_invalidate($userId);
-        return 'created';
+        throw new RuntimeException('Unexpected invite outcome: ' . json_encode($result));
     }
 }
