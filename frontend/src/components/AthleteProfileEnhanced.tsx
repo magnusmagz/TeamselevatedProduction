@@ -10,6 +10,7 @@ import SmsCompose from './communications/SmsCompose';
 import AthleteForm from './AthleteForm';
 import PlayerCard from './PlayerCard';
 import AthletePhotoUpload from './AthletePhotoUpload';
+import PageHeader from './ui/PageHeader';
 import DocumentManager from './DocumentManager';
 import { AthletePaymentsDashboard } from '../pages/AthletePaymentsDashboard';
 import AthleteEvaluationsPanel from './evaluations/AthleteEvaluationsPanel';
@@ -303,41 +304,37 @@ const AthleteProfileEnhanced: React.FC = () => {
     <>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="border-b border-brand-secondary pb-6 mb-6">
-        <div className="mb-4">
-          <button onClick={() => window.history.back()} className="text-sm text-brand-primary hover:underline">
-            ← Back to Athletes
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <AthletePhotoUpload
-              athleteId={athlete.id}
-              currentPhotoUrl={athlete.photo_url}
-              firstName={athlete.first_name}
-              lastName={athlete.last_name}
-              onPhotoUpdated={(newUrl) => setAthlete(prev => prev ? { ...prev, photo_url: newUrl } : prev)}
-              size="large"
-            />
-            <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
-              {athlete.preferred_name || athlete.first_name} {athlete.last_name}
-            </h1>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowPlayerCard(true)}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-            >
-              Player Card
-            </button>
-            <button
-              onClick={() => setShowEditForm(true)}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-            >
-              Edit Profile
-            </button>
-          </div>
-        </div>
+      <div className="flex items-start gap-5 border-b border-brand-secondary pb-6 mb-6">
+        <AthletePhotoUpload
+          athleteId={athlete.id}
+          currentPhotoUrl={athlete.photo_url}
+          firstName={athlete.first_name}
+          lastName={athlete.last_name}
+          onPhotoUpdated={(newUrl) => setAthlete(prev => prev ? { ...prev, photo_url: newUrl } : prev)}
+          size="large"
+        />
+        <PageHeader
+          className="flex-1 mb-0"
+          backTo="/athletes"
+          backLabel="Back to Athletes"
+          title={`${athlete.preferred_name || athlete.first_name} ${athlete.last_name}`}
+          actions={
+            <>
+              <button
+                onClick={() => setShowEditForm(true)}
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+              >
+                Edit Profile
+              </button>
+              <button
+                onClick={() => setShowPlayerCard(true)}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
+              >
+                Player Card
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Team Selector */}

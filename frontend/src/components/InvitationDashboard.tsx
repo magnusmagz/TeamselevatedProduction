@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface Invitation {
   id: string;
@@ -154,6 +155,70 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
     return <div className="text-red-600 text-center py-8">{error}</div>;
   }
 
+  const invitationColumns: DataTableColumn<Invitation>[] = [
+    {
+      key: 'email',
+      header: 'Email',
+      className: 'whitespace-nowrap',
+      render: (invitation) => (
+        <div className="flex items-center text-sm text-brand-primary">
+          <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          {invitation.email}
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      className: 'whitespace-nowrap text-brand-primary',
+      render: (invitation) => formatRole(invitation.role),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (invitation) => getStatusBadge(invitation.status),
+    },
+    {
+      key: 'inviter_name',
+      header: 'Invited By',
+      className: 'whitespace-nowrap text-gray-700',
+      render: (invitation) => invitation.inviter_name,
+    },
+    {
+      key: 'created_at',
+      header: 'Date',
+      className: 'whitespace-nowrap text-gray-600',
+      render: (invitation) => new Date(invitation.created_at).toLocaleDateString(),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'whitespace-nowrap',
+      render: (invitation) =>
+        invitation.status === 'pending' ? (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleResend(invitation.id)}
+              disabled={resendingId === invitation.id || cancelingId === invitation.id}
+              className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {resendingId === invitation.id ? 'Resending...' : 'Resend'}
+            </button>
+            <button
+              onClick={() => handleCancel(invitation.id)}
+              disabled={cancelingId === invitation.id || resendingId === invitation.id}
+              className="text-red-600 hover:text-red-700 font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {cancelingId === invitation.id ? 'Canceling...' : 'Cancel'}
+            </button>
+          </div>
+        ) : null,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Filter Tabs */}
@@ -220,86 +285,12 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
       )}
 
       {/* Invitations List */}
-      <div className="bg-white rounded-md border border-brand-secondary overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-brand-secondary">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Invited By
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-brand-secondary">
-              {invitations.map((invitation) => (
-                <tr key={invitation.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-brand-primary">
-                      <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      {invitation.email}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary">
-                    {formatRole(invitation.role)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(invitation.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {invitation.inviter_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {new Date(invitation.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {invitation.status === 'pending' && (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleResend(invitation.id)}
-                          disabled={resendingId === invitation.id || cancelingId === invitation.id}
-                          className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {resendingId === invitation.id ? 'Resending...' : 'Resend'}
-                        </button>
-                        <button
-                          onClick={() => handleCancel(invitation.id)}
-                          disabled={cancelingId === invitation.id || resendingId === invitation.id}
-                          className="text-red-600 hover:text-red-700 font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {cancelingId === invitation.id ? 'Canceling...' : 'Cancel'}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {invitations.length === 0 && (
-          <div className="text-center py-8 text-gray-600">
-            No invitations found
-          </div>
-        )}
-      </div>
+      <DataTable<Invitation>
+        columns={invitationColumns}
+        rows={invitations}
+        rowKey={(invitation) => invitation.id}
+        emptyState="No invitations found"
+      />
     </div>
   );
 }

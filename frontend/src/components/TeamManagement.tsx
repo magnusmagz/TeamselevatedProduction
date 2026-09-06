@@ -5,6 +5,7 @@ import TeamFormWithTabs from './TeamFormWithTabs';
 import AthleteManagement from './AthleteManagement';
 import SeasonManagement from './SeasonManagement';
 import VenueManagement from './VenueManagement';
+import PageHeader from './ui/PageHeader';
 
 interface Team {
   id: number;
@@ -167,10 +168,7 @@ const TeamManagement: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Team Management</h2>
-        <p className="text-gray-600">Manage your club's teams, coaches, and athletes</p>
-      </div>
+      <PageHeader title="Team Management" subtitle="Manage your club's teams, coaches, and athletes" />
 
       <div className="border border-brand-secondary rounded-md p-4 sm:p-6 mb-6 bg-white">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">

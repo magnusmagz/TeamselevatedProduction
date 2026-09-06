@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { daysUntilExpiry, formatDocumentDate } from '../utils/documentStatus';
+import PageHeader from './ui/PageHeader';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface ExpiringDocument {
   id: number;
@@ -12,6 +14,8 @@ interface ExpiringDocument {
   is_required: boolean;
   uploaded_by_name?: string;
 }
+
+type ExpiringDocumentWithDays = ExpiringDocument & { days: number };
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -64,14 +68,86 @@ const ExpirationDashboard: React.FC = () => {
   const thisMonth = withDays.filter((d) => d.days > 14 && d.days <= 30);
   const upcoming = withDays.filter((d) => d.days >= 0).sort((a, b) => a.days - b.days);
 
+  const expiredColumns: DataTableColumn<ExpiringDocumentWithDays>[] = [
+    { key: 'title', header: 'Document', className: 'font-medium', render: (doc) => doc.title },
+    {
+      key: 'slot',
+      header: 'Category',
+      className: 'capitalize',
+      render: (doc) => (doc.slot ? doc.slot.replace(/_/g, ' ') : '—'),
+    },
+    {
+      key: 'expired',
+      header: 'Expired',
+      className: 'text-red-600 font-bold',
+      render: (doc) => `${Math.abs(doc.days)} days ago`,
+    },
+  ];
+
+  const upcomingColumns: DataTableColumn<ExpiringDocumentWithDays>[] = [
+    {
+      key: 'days',
+      header: 'Days',
+      render: (doc) => (
+        <span className={`px-3 py-1 border rounded-md text-sm font-bold uppercase ${
+          doc.days <= 7
+            ? 'border-red-200 bg-red-50 text-red-600'
+            : doc.days <= 14
+            ? 'border-orange-200 bg-orange-50 text-orange-600'
+            : doc.days <= 30
+            ? 'border-yellow-200 bg-yellow-50 text-yellow-600'
+            : 'border-brand-secondary bg-gray-50 text-brand-primary'
+        }`}>
+          {doc.days}d
+        </span>
+      ),
+    },
+    { key: 'title', header: 'Document', className: 'font-medium text-brand-primary', render: (doc) => doc.title },
+    {
+      key: 'slot',
+      header: 'Category',
+      className: 'text-brand-primary capitalize',
+      render: (doc) => (doc.slot ? doc.slot.replace(/_/g, ' ') : '—'),
+    },
+    {
+      key: 'expires_at',
+      header: 'Expires',
+      className: 'text-brand-primary',
+      render: (doc) => formatDocumentDate(doc.expires_at),
+    },
+    {
+      key: 'required',
+      header: 'Required?',
+      render: (doc) =>
+        doc.is_required ? (
+          <span className="px-2 py-0.5 text-xs font-semibold uppercase rounded bg-amber-100 text-amber-700">
+            Required
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Optional</span>
+        ),
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      align: 'left',
+      render: () => (
+        <button
+          onClick={() => (window.location.href = '/club-documents')}
+          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-3 py-1 text-sm uppercase hover:bg-brand-primary"
+        >
+          Manage →
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">
-          Document Expiration Dashboard
-        </h2>
-        <p className="text-gray-600">Monitor and manage expiring club documents</p>
-      </div>
+      <PageHeader
+        title="Document Expiration Dashboard"
+        subtitle="Monitor and manage expiring club documents"
+      />
 
       {/* Filter */}
       <div className="mb-6 flex gap-2">
@@ -126,26 +202,13 @@ const ExpirationDashboard: React.FC = () => {
           <h3 className="font-bold text-red-800 mb-4 text-lg uppercase tracking-wide">
             ⚠️ EXPIRED DOCUMENTS — Immediate Action Required
           </h3>
-          <div className="bg-white border border-red-200 rounded-md overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-red-100 border-b border-red-200">
-                  <th className="text-left py-3 px-4 font-bold text-red-800 uppercase text-sm tracking-wide">Document</th>
-                  <th className="text-left py-3 px-4 font-bold text-red-800 uppercase text-sm tracking-wide">Category</th>
-                  <th className="text-left py-3 px-4 font-bold text-red-800 uppercase text-sm tracking-wide">Expired</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expired.map((doc) => (
-                  <tr key={doc.id} className="border-b border-red-200 hover:bg-red-50">
-                    <td className="py-3 px-4 font-medium">{doc.title}</td>
-                    <td className="py-3 px-4 capitalize">{doc.slot ? doc.slot.replace(/_/g, ' ') : '—'}</td>
-                    <td className="py-3 px-4 text-red-600 font-bold">{Math.abs(doc.days)} days ago</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<ExpiringDocumentWithDays>
+            className="border-red-200"
+            columns={expiredColumns}
+            rows={expired}
+            rowKey={(doc) => doc.id}
+            rowClassName={() => 'hover:bg-red-50'}
+          />
         </div>
       )}
 
@@ -155,59 +218,12 @@ const ExpirationDashboard: React.FC = () => {
           <div className="bg-brand-primary p-4 border-b border-brand-secondary">
             <h3 className="font-bold text-white uppercase tracking-wide">Expiring Documents</h3>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-brand-secondary">
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Days</th>
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Document</th>
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Category</th>
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Expires</th>
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Required?</th>
-                  <th className="text-left p-4 font-bold text-brand-primary uppercase text-sm tracking-wide">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcoming.map((doc) => (
-                  <tr key={doc.id} className="border-b border-gray-300 hover:bg-gray-50">
-                    <td className="p-4">
-                      <span className={`px-3 py-1 border rounded-md text-sm font-bold uppercase ${
-                        doc.days <= 7
-                          ? 'border-red-200 bg-red-50 text-red-600'
-                          : doc.days <= 14
-                          ? 'border-orange-200 bg-orange-50 text-orange-600'
-                          : doc.days <= 30
-                          ? 'border-yellow-200 bg-yellow-50 text-yellow-600'
-                          : 'border-brand-secondary bg-gray-50 text-brand-primary'
-                      }`}>
-                        {doc.days}d
-                      </span>
-                    </td>
-                    <td className="p-4 font-medium text-brand-primary">{doc.title}</td>
-                    <td className="p-4 text-brand-primary capitalize">{doc.slot ? doc.slot.replace(/_/g, ' ') : '—'}</td>
-                    <td className="p-4 text-brand-primary">{formatDocumentDate(doc.expires_at)}</td>
-                    <td className="p-4">
-                      {doc.is_required ? (
-                        <span className="px-2 py-0.5 text-xs font-semibold uppercase rounded bg-amber-100 text-amber-700">
-                          Required
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Optional</span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <button
-                        onClick={() => (window.location.href = '/club-documents')}
-                        className="bg-brand-primary text-white border border-brand-secondary rounded-md px-3 py-1 text-sm uppercase hover:bg-brand-primary"
-                      >
-                        Manage →
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<ExpiringDocumentWithDays>
+            className="rounded-t-none border-0"
+            columns={upcomingColumns}
+            rows={upcoming}
+            rowKey={(doc) => doc.id}
+          />
         </div>
       )}
 

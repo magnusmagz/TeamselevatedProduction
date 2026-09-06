@@ -7,6 +7,7 @@ import CanvaGraphicActions from './canva/CanvaGraphicActions';
 import { useAuth } from '../contexts/AuthContext';
 import RefereeFeedbackModal from './referee/RefereeFeedbackModal';
 import { toDateOnlyString } from '../utils/dateFormat';
+import PageHeader from './ui/PageHeader';
 
 interface Event {
   id?: number;
@@ -870,40 +871,38 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-brand-primary uppercase tracking-wide">{title}</h1>
-          <p className="text-gray-600 mt-2">
-            {teamId && teamName ? `View ${teamName} practices and events` : 'View all club practices and events'}
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          {!readOnly && (
-            <button
-              onClick={() => setShowSubscriptionManager(true)}
-              className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
-            >
-              Subscriptions
-            </button>
-          )}
-          {showAddEvent && !readOnly && (
-            <button
-              onClick={handleSchedulePractices}
-              className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
-            >
-              Schedule Practices
-            </button>
-          )}
-          {showAddEvent && !readOnly && (
-            <button
-              onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-            >
-              + Add Event
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title={title}
+        subtitle={teamId && teamName ? `View ${teamName} practices and events` : 'View all club practices and events'}
+        actions={
+          !readOnly ? (
+            <>
+              {showAddEvent && (
+                <button
+                  onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+                >
+                  + Add Event
+                </button>
+              )}
+              {showAddEvent && (
+                <button
+                  onClick={handleSchedulePractices}
+                  className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
+                >
+                  Schedule Practices
+                </button>
+              )}
+              <button
+                onClick={() => setShowSubscriptionManager(true)}
+                className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
+              >
+                Subscriptions
+              </button>
+            </>
+          ) : undefined
+        }
+      />
 
       {/* Controls */}
       <div className="bg-white border border-brand-secondary rounded-md p-4 sm:p-6 mb-6">

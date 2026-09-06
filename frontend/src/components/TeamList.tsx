@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import { teamGenderLabel } from '../utils/teamGender';
 import SmartScheduler from './SmartScheduler';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface Team {
   id: number;
@@ -40,127 +41,127 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete, canDelete 
     setSelectedTeamForSchedule(team);
     setShowSmartScheduler(true);
   };
-  if (teams.length === 0) {
-    return (
-      <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
-        <p className="text-gray-600 text-lg">No teams found. Create your first team to get started.</p>
-      </div>
-    );
-  }
+  const columns: DataTableColumn<Team>[] = [
+    {
+      key: 'name',
+      header: 'Team Name',
+      className: 'whitespace-nowrap',
+      render: (team) => (
+        <Link
+          to={`/team/${team.id}`}
+          className="text-sm font-medium text-brand-primary hover:underline text-left"
+        >
+          {team.name}
+        </Link>
+      ),
+    },
+    {
+      key: 'age_group',
+      header: 'Age Group',
+      className: 'whitespace-nowrap',
+      render: (team) => (
+        <>
+          <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
+            {team.age_group}
+          </span>
+          {team.gender && (
+            <span className="ml-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md">
+              {teamGenderLabel(team.gender)}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Division',
+      className: 'whitespace-nowrap',
+      render: (team) => (
+        <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
+          {team.division}
+        </span>
+      ),
+    },
+    {
+      key: 'coach',
+      header: 'Head Coach',
+      className: 'whitespace-nowrap text-brand-primary',
+      render: (team) => (
+        <div>
+          {team.primary_coach_id ? (
+            <Link
+              to={`/coach/${team.primary_coach_id}`}
+              className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
+            >
+              {team.coach_name}
+            </Link>
+          ) : (
+            <span className="text-gray-500">Unassigned</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'player_count',
+      header: 'Players',
+      className: 'whitespace-nowrap text-brand-primary',
+      render: (team) => team.player_count,
+    },
+    {
+      key: 'home_field_name',
+      header: 'Home Field',
+      className: 'whitespace-nowrap text-brand-primary',
+      render: (team) => team.home_field_name || 'Not set',
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      align: 'left',
+      className: 'font-medium',
+      render: (team) => (
+        <>
+          <button
+            onClick={() => onEdit(team)}
+            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+            Edit
+          </button>
+          <button
+            onClick={() => window.location.href = `/teams/${team.id}/roster`}
+            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+            Roster
+          </button>
+          <button
+            onClick={() => handleSchedulePractice(team)}
+            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+            Schedule
+          </button>
+          <button
+            onClick={() => handleSmartSchedule(team)}
+            className="text-blue-600 hover:underline mr-3 uppercase text-xs font-bold">
+            Smart
+          </button>
+          {canDelete && (
+            <button
+              onClick={() => onDelete(team.id)}
+              className="text-brand-primary hover:underline uppercase text-xs"
+            >
+              Archive
+            </button>
+          )}
+        </>
+      ),
+    },
+  ];
 
   return (
-    <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
-      <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse">
-        <thead>
-          <tr className="border-b border-brand-secondary bg-white">
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Team Name
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Age Group
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Division
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Head Coach
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Players
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-              Home Field
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {teams.map((team, index) => (
-            <tr
-              key={team.id}
-              className="border-b border-gray-300 hover:bg-gray-50"
-            >
-              <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <Link
-                  to={`/team/${team.id}`}
-                  className="text-sm font-medium text-brand-primary hover:underline text-left"
-                >
-                  {team.name}
-                </Link>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
-                  {team.age_group}
-                </span>
-                {team.gender && (
-                  <span className="ml-1 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-md">
-                    {teamGenderLabel(team.gender)}
-                  </span>
-                )}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                <span className="px-2 py-1 text-xs text-brand-primary border border-brand-secondary rounded-md">
-                  {team.division}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
-                <div>
-                  {team.primary_coach_id ? (
-                    <Link
-                      to={`/coach/${team.primary_coach_id}`}
-                      className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
-                    >
-                      {team.coach_name}
-                    </Link>
-                  ) : (
-                    <span className="text-gray-500">Unassigned</span>
-                  )}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
-                {team.player_count}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
-                {team.home_field_name || 'Not set'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <button
-                  onClick={() => onEdit(team)}
-                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
-                  Edit
-                </button>
-                <button
-                  onClick={() => window.location.href = `/teams/${team.id}/roster`}
-                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
-                  Roster
-                </button>
-                <button
-                  onClick={() => handleSchedulePractice(team)}
-                  className="text-brand-primary hover:underline mr-3 uppercase text-xs">
-                  Schedule
-                </button>
-                <button
-                  onClick={() => handleSmartSchedule(team)}
-                  className="text-blue-600 hover:underline mr-3 uppercase text-xs font-bold">
-                  Smart
-                </button>
-                {canDelete && (
-                  <button
-                    onClick={() => onDelete(team.id)}
-                    className="text-brand-primary hover:underline uppercase text-xs"
-                  >
-                    Archive
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+    <div>
+      <DataTable<Team>
+        columns={columns}
+        rows={teams}
+        rowKey={(team) => team.id}
+        emptyState="No teams found. Create your first team to get started."
+      />
 
       {showScheduler && selectedTeamForSchedule && (
         <PracticeScheduler

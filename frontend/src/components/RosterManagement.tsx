@@ -5,6 +5,7 @@ import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
 import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
 import RosterDownloadButton from './RosterDownloadButton';
+import PageHeader from './ui/PageHeader';
 import { pageQuery } from '../utils/pagination';
 
 interface Team {
@@ -578,26 +579,28 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
         />
       )}
 
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
+      <PageHeader
+        title={
+          <>
             <Link to={`/team/${team.id}`} className="hover:text-brand-secondary transition-colors">
               {team.name}
             </Link>
             {' '}Roster{team.age_group ? ` ${team.age_group}` : ''}
-          </h2>
-          <p className="text-gray-600 mt-2">{roster.length} players total</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <RosterDownloadButton teamId={team.id} />
-          <Link
-            to={`/teams/${team.id}/player-cards`}
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
-          >
-            Player Cards
-          </Link>
-        </div>
-      </div>
+          </>
+        }
+        subtitle={`${roster.length} players total`}
+        actions={
+          <>
+            <Link
+              to={`/teams/${team.id}/player-cards`}
+              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm"
+            >
+              Player Cards
+            </Link>
+            <RosterDownloadButton teamId={team.id} />
+          </>
+        }
+      />
 
       {loading ? (
         <div className="text-center text-brand-primary py-12">Loading roster...</div>

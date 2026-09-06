@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 import { FIELD_SIZES } from '../utils/fieldSize';
+import PageHeader from './ui/PageHeader';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 // VenueManagement component with address search
 
 interface Field {
@@ -469,162 +471,169 @@ const VenueListContent: React.FC<{
   handleEditVenue: (venue: Venue) => void;
   handleDeleteVenue: (venueId: number) => void;
 }> = ({ venues, loading, handleAddVenue, handleEditVenue, handleDeleteVenue }) => {
+  const venueColumns: DataTableColumn<Venue>[] = [
+    {
+      key: 'name',
+      header: 'Facility Name',
+      className: 'whitespace-nowrap',
+      render: (venue) => <div className="text-brand-primary font-medium">{venue.name}</div>,
+    },
+    {
+      key: 'address',
+      header: 'Address',
+      className: 'whitespace-nowrap',
+      render: (venue) => (
+        <>
+          <div className="text-brand-primary">{venue.address}</div>
+          {venue.zip && (
+            <div className="text-gray-500 text-sm">{venue.zip}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'city_state',
+      header: 'City, State',
+      className: 'whitespace-nowrap',
+      render: (venue) => (
+        <div className="text-brand-primary">
+          {venue.city}{venue.city && venue.state && ', '}{venue.state}
+        </div>
+      ),
+    },
+    {
+      key: 'details',
+      header: 'Details',
+      render: (venue) => (
+        <div className="flex flex-wrap gap-1">
+          {venue.venue_type && (
+            <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.venue_type}</span>
+          )}
+          {venue.has_lights && (
+            <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded">Lights</span>
+          )}
+          {venue.parking_type && (
+            <span className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded">Parking: {venue.parking_type}</span>
+          )}
+          {venue.is_accessible && (
+            <span className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded">ADA</span>
+          )}
+          {venue.has_bathrooms && (
+            <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-0.5 rounded">Bathrooms</span>
+          )}
+          {venue.has_concessions && (
+            <span className="inline-block bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5 rounded">Concessions</span>
+          )}
+          {venue.entry_cost && venue.entry_cost !== 'Free' && (
+            <span className="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.entry_cost}{venue.entry_cost_amount ? `: $${venue.entry_cost_amount}` : ''}</span>
+          )}
+          {(!venue.venue_type && !venue.has_lights && !venue.parking_type && !venue.is_accessible && !venue.has_bathrooms && !venue.has_concessions) && (
+            <span className="text-gray-400 text-xs">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'fields',
+      header: 'Fields',
+      className: 'whitespace-nowrap',
+      render: (venue) => (
+        <div className="text-brand-primary">
+          {venue.field_count || 0} field{venue.field_count !== 1 ? 's' : ''}
+        </div>
+      ),
+    },
+    {
+      key: 'links',
+      header: 'Links',
+      className: 'whitespace-nowrap',
+      render: (venue) => (
+        <div className="flex space-x-3">
+          {venue.map_url && (
+            <a
+              href={venue.map_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+            >
+              Map
+            </a>
+          )}
+          {venue.website && (
+            <a
+              href={venue.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+            >
+              Website
+            </a>
+          )}
+          {!venue.map_url && !venue.website && (
+            <span className="text-gray-400 text-xs">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'contacts',
+      header: 'Contacts',
+      render: (venue) => <VenueContactsSummary venue={venue} />,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'whitespace-nowrap',
+      render: (venue) => (
+        <div className="flex space-x-3">
+          <button
+            onClick={() => handleEditVenue(venue)}
+            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => venue.id && handleDeleteVenue(venue.id)}
+            className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">Facilities</h2>
-          <p className="text-gray-600 mt-2">{venues.length} facilities total</p>
-        </div>
-        <button
-          onClick={handleAddVenue}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase"
-        >
-          + Add Facility
-        </button>
-      </div>
+      <PageHeader
+        title="Facilities"
+        subtitle={`${venues.length} facilities total`}
+        actions={
+          <button
+            onClick={handleAddVenue}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase"
+          >
+            + Add Facility
+          </button>
+        }
+      />
 
       {loading ? (
         <div className="text-center text-brand-primary py-12">Loading facilities...</div>
-      ) : venues.length === 0 ? (
-        <div className="border border-brand-secondary rounded-md p-12 text-center bg-white">
-          <p className="text-gray-600 text-lg">No facilities yet.</p>
-          <p className="text-gray-500 mt-2">Click "Add Facility" to create your first facility.</p>
-        </div>
       ) : (
-        <div className="border border-brand-secondary rounded-md">
-          <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr className="border-b border-brand-secondary">
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Facility Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Address
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  City, State
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Fields
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Links
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">
-                  Contacts
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {venues.map((venue) => (
-                <tr key={venue.id} className="border-b border-gray-300 hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-brand-primary font-medium">{venue.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-brand-primary">{venue.address}</div>
-                    {venue.zip && (
-                      <div className="text-gray-500 text-sm">{venue.zip}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-brand-primary">
-                      {venue.city}{venue.city && venue.state && ', '}{venue.state}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-300">
-                    <div className="flex flex-wrap gap-1">
-                      {venue.venue_type && (
-                        <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.venue_type}</span>
-                      )}
-                      {venue.has_lights && (
-                        <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded">Lights</span>
-                      )}
-                      {venue.parking_type && (
-                        <span className="inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded">Parking: {venue.parking_type}</span>
-                      )}
-                      {venue.is_accessible && (
-                        <span className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded">ADA</span>
-                      )}
-                      {venue.has_bathrooms && (
-                        <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-0.5 rounded">Bathrooms</span>
-                      )}
-                      {venue.has_concessions && (
-                        <span className="inline-block bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5 rounded">Concessions</span>
-                      )}
-                      {venue.entry_cost && venue.entry_cost !== 'Free' && (
-                        <span className="inline-block bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded">{venue.entry_cost}{venue.entry_cost_amount ? `: $${venue.entry_cost_amount}` : ''}</span>
-                      )}
-                      {(!venue.venue_type && !venue.has_lights && !venue.parking_type && !venue.is_accessible && !venue.has_bathrooms && !venue.has_concessions) && (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-brand-primary">
-                      {venue.field_count || 0} field{venue.field_count !== 1 ? 's' : ''}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="flex space-x-3">
-                      {venue.map_url && (
-                        <a
-                          href={venue.map_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                        >
-                          Map
-                        </a>
-                      )}
-                      {venue.website && (
-                        <a
-                          href={venue.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                        >
-                          Website
-                        </a>
-                      )}
-                      {!venue.map_url && !venue.website && (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-300">
-                    <VenueContactsSummary venue={venue} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => handleEditVenue(venue)}
-                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => venue.id && handleDeleteVenue(venue.id)}
-                        className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
+        <DataTable<Venue>
+          columns={venueColumns}
+          rows={venues}
+          rowKey={(venue, index) => venue.id ?? index}
+          emptyState={{
+            text: (
+              <>
+                <p className="text-gray-600 text-lg">No facilities yet.</p>
+                <p className="text-gray-500 mt-2">Click "Add Facility" to create your first facility.</p>
+              </>
+            ),
+          }}
+        />
       )}
     </>
   );
@@ -1026,6 +1035,42 @@ const VenueForm: React.FC<{
   handleSubmit,
   onClose,
 }) => {
+  const fieldColumns: DataTableColumn<Field>[] = [
+    { key: 'name', header: 'Name', className: 'text-brand-primary', render: (field) => field.name },
+    { key: 'field_type', header: 'Type', className: 'text-brand-primary', render: (field) => field.field_type },
+    { key: 'surface_type', header: 'Surface', className: 'text-brand-primary', render: (field) => field.surface_type },
+    { key: 'dimensions', header: 'Size', className: 'text-brand-primary', render: (field) => field.dimensions || '-' },
+    { key: 'field_size', header: 'Field Size', className: 'text-brand-primary', render: (field) => field.field_size || '-' },
+    { key: 'has_lights', header: 'Lights', className: 'text-brand-primary', render: (field) => (field.has_lights ? 'Yes' : 'No') },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (field) => (
+        <span className={`px-2 py-1 text-xs font-semibold uppercase ${
+          field.status === 'available' ? 'bg-green-100 text-green-800' :
+          field.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+          'bg-red-100 text-red-800'
+        }`}>
+          {field.status || 'available'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'whitespace-nowrap',
+      render: (_field, index) => (
+        <button
+          type="button"
+          onClick={() => handleRemoveField(index)}
+          className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
+        >
+          Remove
+        </button>
+      ),
+    },
+  ];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1273,54 +1318,11 @@ const VenueForm: React.FC<{
 
               {/* Fields List */}
               {formData.fields && formData.fields.length > 0 && (
-                <div className="border border-brand-secondary rounded-md">
-                  <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white">
-                    <thead>
-                      <tr className="border-b border-brand-primary">
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Type</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Surface</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Size</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Field Size</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Lights</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Status</th>
-                        <th className="px-4 py-2 text-left text-xs font-bold text-brand-primary uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.fields.map((field, index) => (
-                        <tr key={index} className="border-b border-gray-300">
-                          <td className="px-4 py-2 text-brand-primary">{field.name}</td>
-                          <td className="px-4 py-2 text-brand-primary">{field.field_type}</td>
-                          <td className="px-4 py-2 text-brand-primary">{field.surface_type}</td>
-                          <td className="px-4 py-2 text-brand-primary">{field.dimensions || '-'}</td>
-                          <td className="px-4 py-2 text-brand-primary">{field.field_size || '-'}</td>
-                          <td className="px-4 py-2 text-brand-primary">{field.has_lights ? 'Yes' : 'No'}</td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-1 text-xs font-semibold uppercase ${
-                              field.status === 'available' ? 'bg-green-100 text-green-800' :
-                              field.status === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {field.status || 'available'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveField(index)}
-                              className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                </div>
+                <DataTable<Field>
+                  columns={fieldColumns}
+                  rows={formData.fields}
+                  rowKey={(_field, index) => index}
+                />
               )}
 
               {(!formData.fields || formData.fields.length === 0) && (

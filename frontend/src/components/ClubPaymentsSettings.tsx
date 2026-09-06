@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface PaymentAccount {
   stripe_account_id: string;
@@ -166,6 +167,38 @@ const ClubPaymentsSettings: React.FC = () => {
 
   const status = account ? STATUS_COPY[account.onboarding_status] : null;
 
+  const transactionColumns: DataTableColumn<ReportTransaction>[] = [
+    { key: 'payer_name', header: 'Payer', render: (t) => t.payer_name },
+    {
+      key: 'invoices',
+      header: 'Invoices',
+      className: 'text-gray-500 font-mono text-xs',
+      render: (t) => t.invoice_numbers.join(', '),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      className: 'tabular-nums',
+      render: (t) => (
+        <>
+          <span className={t.refund_amount > 0 ? 'text-gray-400' : 'text-gray-900'}>
+            ${t.amount.toFixed(2)}
+          </span>
+          {t.refund_amount > 0 && (
+            <span className="block text-xs text-amber-700">-${t.refund_amount.toFixed(2)} refunded</span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      className: 'text-gray-500',
+      render: (t) => new Date(t.date).toLocaleDateString(),
+    },
+  ];
+
   return (
     <div className="max-w-2xl">
       <h2 className="text-lg font-semibold text-brand-primary mb-2">Online Payments</h2>
@@ -285,39 +318,12 @@ const ClubPaymentsSettings: React.FC = () => {
             <p className="text-sm font-medium text-gray-900 mb-2">
               Recent payments{summary.transaction_count > 0 ? ` (${summary.transaction_count})` : ''}
             </p>
-            {transactions.length === 0 ? (
-              <p className="text-sm text-gray-500">No online payments yet.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-md border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
-                      <th className="px-4 py-2 font-normal">Payer</th>
-                      <th className="px-4 py-2 font-normal">Invoices</th>
-                      <th className="px-4 py-2 font-normal text-right">Amount</th>
-                      <th className="px-4 py-2 font-normal">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {transactions.map((t) => (
-                      <tr key={t.id}>
-                        <td className="px-4 py-2 text-gray-900">{t.payer_name}</td>
-                        <td className="px-4 py-2 text-gray-500 font-mono text-xs">{t.invoice_numbers.join(', ')}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">
-                          <span className={t.refund_amount > 0 ? 'text-gray-400' : 'text-gray-900'}>
-                            ${t.amount.toFixed(2)}
-                          </span>
-                          {t.refund_amount > 0 && (
-                            <span className="block text-xs text-amber-700">-${t.refund_amount.toFixed(2)} refunded</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-gray-500">{new Date(t.date).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<ReportTransaction>
+              columns={transactionColumns}
+              rows={transactions}
+              rowKey={(t) => t.id}
+              emptyState="No online payments yet."
+            />
           </div>
         </div>
       )}

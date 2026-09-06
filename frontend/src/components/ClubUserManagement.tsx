@@ -5,6 +5,7 @@ import InvitationDashboard from './InvitationDashboard';
 import CoachAccessControl from './CoachAccessControl';
 import CoachSetPasswordModal from './CoachSetPasswordModal';
 import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface ClubUser {
   id: number;
@@ -130,6 +131,132 @@ const ClubUserManagement: React.FC = () => {
     return role.replace('_', ' ').toUpperCase();
   };
 
+  const userColumns: DataTableColumn<ClubUser>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      className: 'whitespace-nowrap',
+      render: (user) => <span className="text-brand-primary">{user.first_name} {user.last_name}</span>,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      className: 'whitespace-nowrap text-gray-600',
+      render: (user) => user.email,
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      className: 'whitespace-nowrap',
+      render: (user) =>
+        editingUserId === user.user_id ? (
+          <select
+            value={editingRole}
+            onChange={(e) => setEditingRole(e.target.value)}
+            className="border border-brand-secondary rounded px-2 py-1 text-sm"
+          >
+            <option value="club_admin">Club Admin</option>
+            <option value="coach">Coach</option>
+          </select>
+        ) : (
+          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-md bg-brand-secondary text-brand-primary uppercase">
+            {formatRole(user.role)}
+          </span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (user) => {
+        const meta = portalStatusMeta(user.status);
+        const detail = portalStatusDetail(user);
+        return (
+          <>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
+              title={meta.help}
+            >
+              {meta.label}
+            </span>
+            {detail && (
+              <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
+            )}
+            {user.shared_account && (
+              <div className="text-[11px] text-amber-700 mt-0.5" title={user.shared_reason || ''}>
+                &#9888; may be another account
+              </div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'whitespace-nowrap',
+      render: (user) =>
+        editingUserId === user.user_id ? (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleUpdateRole(user.user_id, editingRole)}
+              className="text-green-600 hover:text-green-700 font-semibold uppercase"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditingUserId(null)}
+              className="text-gray-600 hover:text-gray-700 font-semibold uppercase"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setEditingUserId(user.user_id);
+                setEditingRole(user.role);
+              }}
+              className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleRemoveUser(user.user_id)}
+              className="text-red-600 hover:text-red-700 font-semibold uppercase"
+            >
+              Remove
+            </button>
+          </div>
+        ),
+    },
+    {
+      key: 'access',
+      header: 'Access',
+      className: 'whitespace-nowrap',
+      render: (user) =>
+        STAFF_ROLES.includes(user.role) ? (
+          <CoachAccessControl
+            coach={{
+              id: user.user_id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              email: user.email,
+              status: user.status,
+            }}
+            clubId={clubId ?? null}
+            onChanged={fetchUsers}
+            onSetPassword={() => setPasswordUser(user)}
+          />
+        ) : (
+          <span className="text-xs text-gray-500" title="Crew are invited from the Crew page.">
+            Managed on Crew
+          </span>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Sub-tabs */}
@@ -167,156 +294,23 @@ const ClubUserManagement: React.FC = () => {
       </div>
 
       {activeTab === 'users' && (
-        <div className="bg-white rounded-md border border-brand-secondary overflow-hidden">
-          {loading ? (
-            <div className="text-center py-8 text-brand-primary">Loading users...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-brand-secondary">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Actions
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
-                      Access
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-brand-secondary">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary">
-                        {user.first_name} {user.last_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {user.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingUserId === user.user_id ? (
-                          <select
-                            value={editingRole}
-                            onChange={(e) => setEditingRole(e.target.value)}
-                            className="border border-brand-secondary rounded px-2 py-1 text-sm"
-                          >
-                            <option value="club_admin">Club Admin</option>
-                            <option value="coach">Coach</option>
-                          </select>
-                        ) : (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-md bg-brand-secondary text-brand-primary uppercase">
-                            {formatRole(user.role)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {(() => {
-                          const meta = portalStatusMeta(user.status);
-                          const detail = portalStatusDetail(user);
-                          return (
-                            <>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
-                                title={meta.help}
-                              >
-                                {meta.label}
-                              </span>
-                              {detail && (
-                                <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
-                              )}
-                              {user.shared_account && (
-                                <div className="text-[11px] text-amber-700 mt-0.5" title={user.shared_reason || ''}>
-                                  &#9888; may be another account
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {editingUserId === user.user_id ? (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleUpdateRole(user.user_id, editingRole)}
-                              className="text-green-600 hover:text-green-700 font-semibold uppercase"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingUserId(null)}
-                              className="text-gray-600 hover:text-gray-700 font-semibold uppercase"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingUserId(user.user_id);
-                                setEditingRole(user.role);
-                              }}
-                              className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleRemoveUser(user.user_id)}
-                              className="text-red-600 hover:text-red-700 font-semibold uppercase"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {STAFF_ROLES.includes(user.role) ? (
-                          <CoachAccessControl
-                            coach={{
-                              id: user.user_id,
-                              first_name: user.first_name,
-                              last_name: user.last_name,
-                              email: user.email,
-                              status: user.status,
-                            }}
-                            clubId={clubId ?? null}
-                            onChanged={fetchUsers}
-                            onSetPassword={() => setPasswordUser(user)}
-                          />
-                        ) : (
-                          <span className="text-xs text-gray-500" title="Crew are invited from the Crew page.">
-                            Managed on Crew
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {loadError && (
-                <div className="text-center py-8 text-red-700" role="alert">
-                  {loadError}
-                </div>
-              )}
-              {!loadError && users.length === 0 && (
-                <div className="text-center py-8 text-gray-600">
-                  No users found
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        loading ? (
+          <div className="bg-white rounded-md border border-brand-secondary text-center py-8 text-brand-primary">Loading users...</div>
+        ) : (
+          <>
+            <DataTable<ClubUser>
+              columns={userColumns}
+              rows={users}
+              rowKey={(user) => user.id}
+              emptyState={loadError ? '' : 'No users found'}
+            />
+            {loadError && (
+              <div className="text-center py-8 text-red-700" role="alert">
+                {loadError}
+              </div>
+            )}
+          </>
+        )
       )}
 
       {passwordUser && (

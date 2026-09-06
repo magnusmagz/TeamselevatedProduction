@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import CanvaGraphicActions from './canva/CanvaGraphicActions';
+import PageHeader from './ui/PageHeader';
 
 interface Sponsor {
   id?: number;
@@ -199,31 +200,31 @@ const SponsorsManagement: React.FC = () => {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">SPONSOR MANAGEMENT</h1>
-        <p className="text-gray-600 mt-2">Manage your club's sponsors and promotional links</p>
-      </div>
+      <PageHeader
+        title="SPONSOR MANAGEMENT"
+        subtitle="Manage your club's sponsors and promotional links"
+        meta={<span className="text-gray-600">{sponsors.length} sponsor{sponsors.length !== 1 ? 's' : ''} total</span>}
+        actions={
+          <button
+            onClick={handleAddSponsor}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
+          >
+            + Add Sponsor
+          </button>
+        }
+      />
 
-      {/* Actions Bar */}
-      <div className="mb-6 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-600">{sponsors.length} sponsor{sponsors.length !== 1 ? 's' : ''} total</span>
-          <label className="flex items-center space-x-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="border border-brand-secondary rounded"
-            />
-            <span className="text-gray-600">Show inactive</span>
-          </label>
-        </div>
-        <button
-          onClick={handleAddSponsor}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
-        >
-          + Add Sponsor
-        </button>
+      {/* Filter */}
+      <div className="mb-6 flex items-center space-x-4">
+        <label className="flex items-center space-x-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            className="border border-brand-secondary rounded"
+          />
+          <span className="text-gray-600">Show inactive</span>
+        </label>
       </div>
 
       {loading ? (

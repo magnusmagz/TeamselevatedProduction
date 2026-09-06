@@ -15,6 +15,8 @@ import SmsCompose from './communications/SmsCompose';
 import { useOrg } from '../contexts/OrgContext';
 import LoadMore from './LoadMore';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
+import PageHeader from './ui/PageHeader';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 interface Athlete {
   id: number;
@@ -338,10 +340,7 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
   // Full page view
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Athlete Management</h2>
-        <p className="text-gray-600">Manage all athletes in your club</p>
-      </div>
+      <PageHeader title="Athlete Management" subtitle="Manage all athletes in your club" />
 
       <AthleteListContent
         athletes={filteredAthletes}
@@ -575,6 +574,264 @@ export const AthleteListContent: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [athletes, colFilters, sortKey, sortDir, athleteTeams]);
 
+  // Page-managed sort and per-column filters: each header carries the existing
+  // sort button and filter control, and the rows are handed over already
+  // sorted and filtered, so the behaviour is unchanged.
+  const columnHeader = (col: (typeof COLUMNS)[number]) => (
+    <>
+      <button
+        type="button"
+        onClick={() => toggleSort(col.key)}
+        className="flex w-full items-center gap-1 uppercase font-bold text-left text-brand-primary hover:text-brand-primary-hover cursor-pointer"
+        title="Click to sort"
+      >
+        {col.label}
+        <span className="text-[10px] text-gray-400">{sortArrow(col.key)}</span>
+      </button>
+      {col.options ? (
+        <select
+          value={colFilters[col.key] || ''}
+          onChange={(e) => setColFilter(col.key, e.target.value)}
+          className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
+        >
+          <option value="">All</option>
+          {col.options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type="text"
+          value={colFilters[col.key] || ''}
+          onChange={(e) => setColFilter(col.key, e.target.value)}
+          placeholder="Filter…"
+          className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
+        />
+      )}
+    </>
+  );
+
+  const cellRenderers: Record<ColKey, (athlete: Athlete) => React.ReactNode> = {
+    name: (athlete) => (
+      <div>
+        <Link
+          to={`/athlete/${athlete.id}/enhanced`}
+          className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
+        >
+          {athlete.first_name} {athlete.middle_initial ? `${athlete.middle_initial}. ` : ''}{athlete.last_name}
+        </Link>
+        {athlete.preferred_name && (
+          <div className="text-xs text-gray-500">
+            Prefers: {athlete.preferred_name}
+          </div>
+        )}
+      </div>
+    ),
+    age: (athlete) => (
+      <>
+        <div className="text-sm text-brand-primary">
+          {athlete.date_of_birth ? (() => {
+            const age = calculateAge(athlete.date_of_birth);
+            if (age === null) return 'Invalid date';
+            const quarter = ageQuarter(athlete.date_of_birth) ?? '';
+            const uGroup = ageGroup(athlete.date_of_birth) ?? '';
+            return (
+              <>
+                {age} years
+                <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
+                  {quarter}
+                </span>
+                {uGroup && (
+                  <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
+                    {uGroup}
+                  </span>
+                )}
+              </>
+            );
+          })() : 'Not set'}
+        </div>
+        <div className="text-xs text-gray-500">
+          {athlete.date_of_birth ? (
+            isNaN(new Date(athlete.date_of_birth).getTime()) ? (
+              'Invalid date'
+            ) : (
+              new Date(athlete.date_of_birth).toLocaleDateString()
+            )
+          ) : (
+            'No date of birth'
+          )}
+        </div>
+      </>
+    ),
+    grade: (athlete) => (
+      <div className="text-sm text-brand-primary">
+        {athlete.grade_level != null ? formatGrade(athlete.grade_level) : 'Not set'}
+      </div>
+    ),
+    gender: (athlete) => <div className="text-sm text-brand-primary">{athlete.gender || 'Not set'}</div>,
+    team: (athlete) => (
+      <div className="flex items-center space-x-2">
+        <div className="text-sm text-brand-primary flex flex-wrap gap-1">
+          {athleteTeams[athlete.id] && athleteTeams[athlete.id].length > 0 ? (
+            athleteTeams[athlete.id].map((team, idx) => (
+              <span key={idx} className="bg-brand-secondary border border-brand-primary px-2 py-1 text-xs">
+                {team}
+              </span>
+            ))
+          ) : (
+            <span className="text-gray-400 text-xs">No teams</span>
+          )}
+        </div>
+
+        <button
+          onClick={() => setShowTeamSelector(athlete.id)}
+          className="text-brand-primary hover:text-brand-primary-hover font-bold text-lg flex-shrink-0"
+          title="Add to team"
+        >
+          +
+        </button>
+      </div>
+    ),
+    // The whole family, stacked. Two names fit the row; beyond that the count
+    // is shown rather than a chosen pair, because picking two of four would put
+    // this screen straight back in the business of ranking crew members.
+    // Sorting and filtering still read every name.
+    guardian: (athlete) =>
+      crewOf(athlete).length === 0 ? (
+        <div className="text-sm text-gray-500">-</div>
+      ) : (
+        <div className="text-sm text-brand-primary space-y-0.5">
+          {crewOf(athlete).slice(0, 2).map((g) => (
+            <div key={g.guardian_id} className="whitespace-nowrap">
+              {g.name || `${g.first_name || ''} ${g.last_name || ''}`.trim()}
+            </div>
+          ))}
+          {crewOf(athlete).length > 2 && (
+            <div className="text-xs text-gray-500">
+              +{crewOf(athlete).length - 2} more
+            </div>
+          )}
+        </div>
+      ),
+    contact: (athlete) => (
+      <div className="space-y-1">
+        {crewOf(athlete).slice(0, 2).map((g) => (
+          <div key={g.guardian_id}>
+            {g.email && (
+              <div className="text-xs">
+                <button
+                  onClick={() => {
+                    setComposeRecipient({
+                      id: g.guardian_id,
+                      type: 'guardian' as const,
+                      first_name: g.first_name || '',
+                      last_name: g.last_name || '',
+                      email: g.email || undefined,
+                      phone: g.mobile_phone || undefined,
+                      suppressed: false
+                    });
+                    setShowEmailCompose(true);
+                  }}
+                  className="text-brand-primary hover:underline cursor-pointer"
+                >
+                  {g.email}
+                </button>
+              </div>
+            )}
+            {g.mobile_phone && (
+              <div className="text-xs">
+                <button
+                  onClick={() => {
+                    setComposeRecipient({
+                      id: g.guardian_id,
+                      type: 'guardian' as const,
+                      first_name: g.first_name || '',
+                      last_name: g.last_name || '',
+                      email: g.email || undefined,
+                      phone: g.mobile_phone || undefined,
+                      suppressed: false
+                    });
+                    setShowSmsCompose(true);
+                  }}
+                  className="text-brand-primary hover:underline cursor-pointer"
+                >
+                  {g.mobile_phone}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {crewOf(athlete).length > 2 && (
+          <div className="text-xs text-gray-500">
+            +{crewOf(athlete).length - 2} more
+          </div>
+        )}
+        {athlete.email && (
+          <div className="text-xs text-gray-600">
+            {athlete.email}
+          </div>
+        )}
+        {crewOf(athlete).length === 0 && athlete.email && (
+          <div className="text-xs text-gray-500">Contact via email</div>
+        )}
+        {crewOf(athlete).length === 0 && !athlete.email && (
+          <div className="text-xs text-gray-500">No contact info</div>
+        )}
+      </div>
+    ),
+    consent: (athlete) => {
+      const meta = consentStatusMeta(consentByAthlete[athlete.id]);
+      return (
+        <span
+          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${meta.cls}`}
+          title={meta.detail}
+        >
+          {meta.label}
+        </span>
+      );
+    },
+  };
+
+  // Columns that wrap (crew, contact) keep their natural width; the rest stay
+  // on one line as before.
+  const NOWRAP: ColKey[] = ['name', 'age', 'grade', 'gender', 'team', 'consent'];
+  const tableColumns: DataTableColumn<Athlete>[] = [
+    ...COLUMNS.map((col) => ({
+      key: col.key,
+      header: columnHeader(col),
+      className: `align-top ${NOWRAP.includes(col.key) ? 'whitespace-nowrap' : ''}`.trim(),
+      render: cellRenderers[col.key],
+    })),
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: '8rem',
+      className: 'align-top whitespace-nowrap',
+      render: (athlete) => (
+        <div className="flex flex-col space-y-1">
+          <button
+            onClick={() => handleManageGuardians(athlete)}
+            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
+          >
+            Guardians
+          </button>
+          <button
+            onClick={() => handleEditAthlete(athlete)}
+            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleArchiveAthlete(athlete)}
+            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
+          >
+            Archive
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
@@ -594,274 +851,13 @@ export const AthleteListContent: React.FC<{
       {loading ? (
         <div className="text-center text-brand-primary py-12">Loading athletes...</div>
       ) : (
-        <div className="border border-brand-secondary rounded-md overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr className="border-b border-brand-secondary">
-                {COLUMNS.map((col) => (
-                  <th
-                    key={col.key}
-                    className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300 align-top"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(col.key)}
-                      className="flex w-full items-center gap-1 uppercase font-bold text-left text-brand-primary hover:text-brand-primary-hover cursor-pointer"
-                      title="Click to sort"
-                    >
-                      {col.label}
-                      <span className="text-[10px] text-gray-400">{sortArrow(col.key)}</span>
-                    </button>
-                    {col.options ? (
-                      <select
-                        value={colFilters[col.key] || ''}
-                        onChange={(e) => setColFilter(col.key, e.target.value)}
-                        className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
-                      >
-                        <option value="">All</option>
-                        {col.options.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={colFilters[col.key] || ''}
-                        onChange={(e) => setColFilter(col.key, e.target.value)}
-                        placeholder="Filter…"
-                        className="mt-1 w-full font-normal normal-case text-xs border border-brand-secondary rounded px-1 py-0.5 focus:outline-none focus:border-brand-accent"
-                      />
-                    )}
-                  </th>
-                ))}
-                <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase w-32 align-top">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedAthletes.map((athlete, index) => (
-                <tr
-                  key={athlete.id}
-                  className="border-b border-gray-300 hover:bg-gray-50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div>
-                      <Link
-                        to={`/athlete/${athlete.id}/enhanced`}
-                        className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
-                      >
-                        {athlete.first_name} {athlete.middle_initial ? `${athlete.middle_initial}. ` : ''}{athlete.last_name}
-                      </Link>
-                      {athlete.preferred_name && (
-                        <div className="text-xs text-gray-500">
-                          Prefers: {athlete.preferred_name}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-brand-primary">
-                      {athlete.date_of_birth ? (() => {
-                        const age = calculateAge(athlete.date_of_birth);
-                        if (age === null) return 'Invalid date';
-                        const quarter = ageQuarter(athlete.date_of_birth) ?? '';
-                        const uGroup = ageGroup(athlete.date_of_birth) ?? '';
-                        return (
-                          <>
-                            {age} years
-                            <span className="ml-2 text-xs font-semibold bg-brand-secondary text-brand-primary px-1.5 py-0.5 rounded-full">
-                              {quarter}
-                            </span>
-                            {uGroup && (
-                              <span className="ml-1 text-xs font-semibold bg-brand-primary text-white px-1.5 py-0.5 rounded-full">
-                                {uGroup}
-                              </span>
-                            )}
-                          </>
-                        );
-                      })() : 'Not set'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {athlete.date_of_birth ? (
-                        isNaN(new Date(athlete.date_of_birth).getTime()) ? (
-                          'Invalid date'
-                        ) : (
-                          new Date(athlete.date_of_birth).toLocaleDateString()
-                        )
-                      ) : (
-                        'No date of birth'
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-brand-primary">
-                      {athlete.grade_level != null ? formatGrade(athlete.grade_level) : 'Not set'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="text-sm text-brand-primary">{athlete.gender || 'Not set'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    <div className="flex items-center space-x-2">
-                      <div className="text-sm text-brand-primary flex flex-wrap gap-1">
-                        {athleteTeams[athlete.id] && athleteTeams[athlete.id].length > 0 ? (
-                          athleteTeams[athlete.id].map((team, idx) => (
-                            <span key={idx} className="bg-brand-secondary border border-brand-primary px-2 py-1 text-xs">
-                              {team}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs">No teams</span>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => setShowTeamSelector(athlete.id)}
-                        className="text-brand-primary hover:text-brand-primary-hover font-bold text-lg flex-shrink-0"
-                        title="Add to team"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-300">
-                    {/* The whole family, stacked. Two names fit the row; beyond
-                        that the count is shown rather than a chosen pair, because
-                        picking two of four would put this screen straight back in
-                        the business of ranking crew members. Sorting and
-                        filtering still read every name. */}
-                    {crewOf(athlete).length === 0 ? (
-                      <div className="text-sm text-gray-500">-</div>
-                    ) : (
-                      <div className="text-sm text-brand-primary space-y-0.5">
-                        {crewOf(athlete).slice(0, 2).map((g) => (
-                          <div key={g.guardian_id} className="whitespace-nowrap">
-                            {g.name || `${g.first_name || ''} ${g.last_name || ''}`.trim()}
-                          </div>
-                        ))}
-                        {crewOf(athlete).length > 2 && (
-                          <div className="text-xs text-gray-500">
-                            +{crewOf(athlete).length - 2} more
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-300">
-                    <div className="space-y-1">
-                      {crewOf(athlete).slice(0, 2).map((g) => (
-                        <div key={g.guardian_id}>
-                          {g.email && (
-                            <div className="text-xs">
-                              <button
-                                onClick={() => {
-                                  setComposeRecipient({
-                                    id: g.guardian_id,
-                                    type: 'guardian' as const,
-                                    first_name: g.first_name || '',
-                                    last_name: g.last_name || '',
-                                    email: g.email || undefined,
-                                    phone: g.mobile_phone || undefined,
-                                    suppressed: false
-                                  });
-                                  setShowEmailCompose(true);
-                                }}
-                                className="text-brand-primary hover:underline cursor-pointer"
-                              >
-                                {g.email}
-                              </button>
-                            </div>
-                          )}
-                          {g.mobile_phone && (
-                            <div className="text-xs">
-                              <button
-                                onClick={() => {
-                                  setComposeRecipient({
-                                    id: g.guardian_id,
-                                    type: 'guardian' as const,
-                                    first_name: g.first_name || '',
-                                    last_name: g.last_name || '',
-                                    email: g.email || undefined,
-                                    phone: g.mobile_phone || undefined,
-                                    suppressed: false
-                                  });
-                                  setShowSmsCompose(true);
-                                }}
-                                className="text-brand-primary hover:underline cursor-pointer"
-                              >
-                                {g.mobile_phone}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {crewOf(athlete).length > 2 && (
-                        <div className="text-xs text-gray-500">
-                          +{crewOf(athlete).length - 2} more
-                        </div>
-                      )}
-                      {athlete.email && (
-                        <div className="text-xs text-gray-600">
-                          {athlete.email}
-                        </div>
-                      )}
-                      {crewOf(athlete).length === 0 && athlete.email && (
-                        <div className="text-xs text-gray-500">Contact via email</div>
-                      )}
-                      {crewOf(athlete).length === 0 && !athlete.email && (
-                        <div className="text-xs text-gray-500">No contact info</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                    {(() => {
-                      const meta = consentStatusMeta(consentByAthlete[athlete.id]);
-                      return (
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${meta.cls}`}
-                          title={meta.detail}
-                        >
-                          {meta.label}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm w-32">
-                    <div className="flex flex-col space-y-1">
-                      <button
-                        onClick={() => handleManageGuardians(athlete)}
-                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-                      >
-                        Guardians
-                      </button>
-                      <button
-                        onClick={() => handleEditAthlete(athlete)}
-                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleArchiveAthlete(athlete)}
-                        className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-                      >
-                        Archive
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {displayedAthletes.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
-                    No athletes match the current filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          </div>
+        <>
+          <DataTable<Athlete>
+            columns={tableColumns}
+            rows={displayedAthletes}
+            rowKey={(athlete) => athlete.id}
+            emptyState="No athletes match the current filters."
+          />
           <LoadMore
             page={page}
             loading={loadingMore}
@@ -869,7 +865,7 @@ export const AthleteListContent: React.FC<{
             label="athletes"
             onLoadMore={() => onLoadMore?.()}
           />
-        </div>
+        </>
       )}
 
       {/* Team Selection Modal */}
