@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
+import PublishedLineup from '../components/PublishedLineup';
 
 interface EventDetails {
   id: number;
@@ -274,6 +275,11 @@ export const ScheduleRSVPPage: React.FC = () => {
               <h2 className="font-semibold text-brand-primary mb-2">Notes</h2>
               <p className="text-gray-700 whitespace-pre-wrap">{event.notes}</p>
             </div>
+          )}
+
+          {/* Lineup — only once the coach has published it (decision 1). */}
+          {event.type === 'game' && event.team_id && (
+            <PublishedLineup apiUrl={API_URL} teamId={event.team_id} eventId={event.id} />
           )}
 
           {/* RSVP Section */}

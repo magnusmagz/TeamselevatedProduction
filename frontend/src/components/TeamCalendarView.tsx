@@ -1711,6 +1711,20 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         about until the event has been saved. Renders one button
                         per event template the club has configured, and nothing
                         at all when it has none. */}
+                    {/* Lineup builder (slice 8.5) — a saved GAME, staff only.
+                        A plain link on purpose: this component renders outside
+                        a Router in its test. The team is the calendar's own
+                        when there is one, else the first team on the event. */}
+                    {selectedEvent?.id && selectedEvent.type === 'game'
+                      && (user?.system_role === 'super_admin' || user?.activeRole?.role === 'coach' || user?.activeRole?.role === 'club_admin')
+                      && (teamId ?? selectedEvent.teams?.[0]?.id ?? eventFormData.team_ids?.[0]) && (
+                      <a
+                        href={`/teams/${teamId ?? selectedEvent.teams?.[0]?.id ?? eventFormData.team_ids?.[0]}/lineup?event=${selectedEvent.id}`}
+                        className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                      >
+                        Lineup
+                      </a>
+                    )}
                     {/* Referee feedback — a saved GAME whose date is today or
                         earlier. The date is compared as a YYYY-MM-DD string
                         against the local calendar day (toDateOnlyString), never
