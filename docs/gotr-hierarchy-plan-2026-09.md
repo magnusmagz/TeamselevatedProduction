@@ -201,6 +201,25 @@ claimed when written; next free is 085.
 | **G6 Onboarding 30,000** (1.5 wk) | Streamed, batched, multi-council import with `council_code`; per-person invite with a real accepted timestamp; a national funnel report (accounts created, invited, activated, compliant). Rate-limited send through the queue. | Import 50k-row fixture within memory limit; invite tokens single-use; funnel counts match fixtures. | Import behind a switch; invites are a queue you can pause. |
 | **G7 Streams and integrations** (later) | Admin-authored reminder streams per requirement (offsets, copy, renewal steps), activated per tier; LMS (Cornerstone) completion → `person_credentials` with `source='lms'`; email-in submissions; background-check vendor result feeds. | Stream never sends a step twice; per integration. | Each behind its own switch. |
 
+**G7 status (2026-09-06, branch `feature/g7-streams`).** Shipped: authored reminder streams
+(`lib/compliance_streams.php`, `api/compliance-streams.php`, the "Reminder stream" panel on
+each requirement in `ComplianceRequirements.tsx`) — a club's own stream, else the nearest
+ancestor unit's, else the default 90/60/30/7; steps never merged across tiers; deactivating
+falls back a tier, never to silence; negative offsets are post-expiry steps and send once;
+dispatch rides the existing compliance tick behind `TE_FEATURE_COMPLIANCE_REMINDERS` and
+logs with the stream's id (default stays `stream_id NULL`); an unresolved merge tag blocks
+that one send and is reported. A renewal (a changed `expires_at`) now clears the credential's
+reminder log so the next cycle is reminded at all. Also shipped: the LMS intake feed
+(`api/compliance-intake.php?action=lms`, per-org-unit bearer keys stored hashed, migration
+**098**, `TE_FEATURE_COMPLIANCE_INTAKE`, 600/min per key) with an unmatched-arrivals queue and
+a match-by-hand tool on the org compliance page. **Not shipped:** email-in submissions and
+background-check vendor result feeds — no vendor has been chosen (decision 1 above stands:
+record only), and an email-in path needs a parsing contract with whoever sends the mail.
+Org-tier stream authoring is served by the API (`org_unit_id`) but has no page yet: the
+requirement builder is club-scoped and there is no org-unit requirement builder to hang it
+on. LMS completions land as `verified` (open question 4) — one word to change if national
+wants them reviewed.
+
 Rough total for G1–G6: **about ten engineering weeks**, with G1/G2 in parallel and G4/G5
 overlapping. G0 gates G3's seed data but nothing else.
 

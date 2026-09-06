@@ -79,7 +79,12 @@ describe('ComplianceRequirements', () => {
     const inherited = screen.getByTestId('inherited-10');
     expect(inherited).toHaveTextContent('SafeSport');
     expect(inherited).toHaveTextContent('National — Girls on the Run');
-    expect(inherited.querySelector('button')).toBeNull();
+    // No Edit / Remove for a rule this club does not own. (The "Reminder
+    // stream" toggle IS there — the cadence for this club's people is this
+    // club's to write even when the rule is national's.)
+    expect(inherited).not.toHaveTextContent('Edit');
+    expect(inherited).not.toHaveTextContent('Remove');
+    expect(inherited).toHaveTextContent('Reminder stream');
 
     // Their own is editable.
     const own = screen.getByTestId('own-13');

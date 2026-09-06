@@ -2127,6 +2127,42 @@ and then getting a club broadcast saw two domains and three names — and never 
   left as `events@rsvp.eyeinteams.com` — RSVP REPLY parsing keys off it, so changing it
   breaks replies.
 
+### Compliance reminder streams and LMS intake — G7 (2026-09-06, `feature/g7-streams`)
+`lib/compliance_streams.php` is the authoring and the resolution; dispatch stays in
+`lib/compliance_reminders.php` on the same tick and the same switches.
+
+- **Exactly one stream applies to a credential**: the club's own active stream, else the
+  nearest ancestor org unit's, else the default 90/60/30/7 (`stream_id NULL`). Steps are
+  never merged across tiers, and deactivating a stream falls back a tier — never to silence.
+  `te_compliance_stream_resolve()` is the one place that answers it.
+- **A step never sends twice.** Log rows carry the stream's id and 091's UNIQUE dedupes them;
+  an edit to a stream does not resend what is logged; a negative `days_before` is a
+  post-expiry step and goes at most once. `te_compliance_stream_step_due()`: smallest eligible
+  offset wins, and a pre-expiry step is never sent after expiry ("expires in 14 days" would
+  be false).
+- ⚠️ **A renewal now clears the credential's reminder log** (`te_credential_upsert`, on a
+  changed `expires_at`). `person_credentials` is one row per person per requirement forever,
+  so without this the 60-day step sent before the 2024 certificate lapsed counted as sent for
+  the 2026 one — the default cadence had this gap too. An unchanged expiry keeps the history.
+- **Merge tags are a closed list** (`TE_COMPLIANCE_STREAM_TAGS`); an unknown tag is a 422 at
+  save with the tag named, and a tag that resolves to nothing at send time blocks that send,
+  releases the claim and is reported — a coach is never mailed `{{first_name}}`.
+- The stream's copy is sent by `Email::sendComplianceStreamStep()` — plain text from a
+  textarea, escaped, never emitted as HTML. Still `->forClub()`, still never `EmailSendService`.
+- **Intake**: `api/compliance-intake.php?action=lms` authenticates by a per-org-unit bearer key
+  (`compliance_intake_keys`, sha256-hashed, shown once), behind `TE_FEATURE_COMPLIANCE_INTAKE`
+  as well as `COMPLIANCE`. It writes `source='lms'`, status `verified`, ONLY for a person with
+  a staff role in a club under the key's unit; anyone else is a 202 and a
+  `compliance_intake_unmatched` row for the org admin to match by hand. **It never creates a
+  user.** Rate limit 600/min per key: Redis INCR, else a count of the key's own
+  `compliance_intake_received` audit rows — the audit row is the counter when Redis is out.
+- **Migration 098** (`compliance_intake`) is written and NOT applied; both tables sit in
+  `PENDING_MIGRATION_TABLES` in `SchemaConformanceTest` and `QueriedTablesExistTest`. Delete
+  those entries in the same commit as the fixture refresh. The gateway answers 503 with a
+  sentence until it is applied. Deploy order: backend, apply 098, then frontend.
+- `ComplianceStreamsTest`, `ComplianceIntakeTest`, `ReminderStreamPanel.test.tsx`,
+  `IntakeKeysPanel.test.tsx`.
+
 ### Kill switches — `lib/feature_flags.php` (2026-09-02)
 `te_feature_enabled('NAME')` reads `TE_FEATURE_NAME` from config vars. **Unset means ON**
 (a switch exists to turn a shipped feature off, not to keep it dark); `off/0/false/no` is
