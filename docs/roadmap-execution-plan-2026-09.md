@@ -46,9 +46,12 @@ Plus two mechanisms that make rollback cheaper than a deploy:
 | 8 Coaches | 8.1, 8.2, 8.3 (already built), 8.4 | v574, v577 |
 | GOTR G1 | org_units, user_org_access, set-based resolver, super-admin Organizations page (dark) | v586, migration 090 |
 | GOTR G2 | cached role context + token diet + context switcher, switches OFF (v588–v590). Worker lane, lists lane (089 indexes, subquery scopes, pagination): shipped 2026-09-03 (v592, 089 applied) | v590, v592 |
-| GOTR G3, G4 | compliance model (091) + surfaces (093), dark behind TE_FEATURE_COMPLIANCE / _REMINDERS: merged, AWAITING the Heroku push | pending |
-| 2 Silent sends | 2.5 rich signature editor (092) + escaped text signatures (a live injection): merged, AWAITING the Heroku push | pending |
-| Decisions | 3, 10, 11c | v579, v580 |
+| GOTR G3, G4 | compliance model (091) + surfaces (093), dark behind TE_FEATURE_COMPLIANCE / _REMINDERS | v592 (2026-09-03) |
+| GOTR G5 | division/national rollups, drill-down, trend, cross-council CSV (dark) | v604 (2026-09-06) |
+| GOTR G6 | multi-council coach import (094), per-person coach invites replacing `password123`, queued sends, national funnel (dark: COACH_INVITE_EMAIL / NATIONAL_IMPORT off) | v606 (2026-09-06) |
+| 8 Coaches | 8.6 referee feedback (095) | v603 (2026-09-06) |
+| 2 Silent sends | 2.5 rich signature editor (092) + escaped text signatures (a live injection) | v592 (2026-09-03) |
+| Decisions | 3, 10, 11c, 2 (treasurer), 13 (auth-gateway link) | v579, v580, v600, v601 |
 
 Open: 5.1–5.5 (needs S3), 4.5 (time), 2.5, 8.5, 8.6, Phase 10, GOTR G0–G7, decisions 2 and 13.
 Punted/skipped: Phase 7, Phase 9, Spanish, team branding, the larger bets. The phase tables
@@ -200,8 +203,8 @@ In the `te-stripe-payments` worktree only. Small first.
 | 8.2 | R86 | ✅ SHIPPED 2026-09-02 (Heroku v577, migration 087) — email dark behind `TE_FEATURE_TRYOUT_COACH_INVITE_EMAIL` |
 | 8.3 | R80 | ✅ ALREADY BUILT — `users.coaching_background` rendered on the portal athlete page's Coaches card via `api/team-coaches.php`. Sheet was wrong; closed 2026-09-02. |
 | 8.4 | R76/R77 | ✅ SHIPPED 2026-09-02 (Heroku v577, migration 086) — Performance tab, IDP goals, season trend; parent read-only |
-| 8.5 | R67 | Lineup builder (new feature, spec first) |
-| 8.6 | R68 | Referee feedback from the coaches portal |
+| 8.5 | R67 | Lineup builder — SPEC WRITTEN 2026-09-06 (`docs/lineup-builder-spec-2026-09.md`, decisions 16–19); migration 096 claimed |
+| 8.6 | R68 | ✅ SHIPPED 2026-09-06 (Heroku v603, migration 095) — `lib/referee_feedback.php`, `/referee-feedback` |
 
 Each is additive: a new table or a new page, revertable alone.
 
