@@ -56,6 +56,8 @@ export interface DataTableProps<Row> {
   defaultSort?: { key: string; dir: 'asc' | 'desc' };
   /** Extra classes on a body row (e.g. to highlight a status). */
   rowClassName?: (row: Row, index: number) => string;
+  /** data-testid for a body row, so a test can select rows without a class hook. */
+  rowTestId?: (row: Row, index: number) => string | undefined;
   /** Rendered after the table body rows, inside <tbody>. Use for totals. */
   footer?: React.ReactNode;
   /**
@@ -111,6 +113,7 @@ function DataTable<Row>({
   onRowClick,
   defaultSort,
   rowClassName,
+  rowTestId,
   footer,
   renderExpandedRow,
   caption,
@@ -214,6 +217,7 @@ function DataTable<Row>({
               return (
                 <React.Fragment key={key}>
                 <tr
+                  data-testid={rowTestId ? rowTestId(row, index) : undefined}
                   onClick={clickable ? () => onRowClick!(row) : undefined}
                   className={`${DATA_TABLE_CLASSES.tr} ${clickable ? DATA_TABLE_CLASSES.trClickable : ''} ${extra}`.trim()}
                 >

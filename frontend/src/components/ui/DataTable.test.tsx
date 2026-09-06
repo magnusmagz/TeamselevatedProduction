@@ -150,4 +150,9 @@ describe('DataTable', () => {
     expect(within(trs[3]).getByText('Detail for alpha')).toBeInTheDocument();
     expect(within(trs[3]).getByRole('cell')).toHaveAttribute('colspan', '3');
   });
+
+  it('stamps rowTestId on body rows', () => {
+    render(<DataTable columns={columns} rows={rows} rowKey={(r) => r.id} rowTestId={(r) => `row-${r.id}`} />);
+    expect(screen.getByTestId('row-2')).toHaveTextContent('alpha');
+  });
 });
