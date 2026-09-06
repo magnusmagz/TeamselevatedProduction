@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### GOTR G5 — division/national compliance rollups (Heroku, then Netlify), dark
+- `api/compliance-rollup.php` (`?view=units|summary|trend|club`), `lib/compliance_rollup.php`
+  (one CTE over `te_org_descendant_club_ids_sql`), `compliance-export.php?org_unit_id=`
+  (Council column first). Gated on `te_user_org_standing()`; sibling division → 403; no
+  writes. Frontend `/organizations/:id/compliance`. Behind `TE_FEATURE_COMPLIANCE` (off).
+  No migration.
+
 ### Referee feedback (8.6 / R68) — Heroku v602, migration 095 applied, then Netlify
 - Coaches rate the referee(s) of a past game from the event modal (name, 1–5, categories,
   comments, incident flag); club admins review, filter and export at `/referee-feedback`.
