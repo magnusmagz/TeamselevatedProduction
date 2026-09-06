@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### One page header, one table (Netlify only)
+- `components/ui/PageHeader.tsx` + `components/ui/DataTable.tsx`; 54 files on the header, 56
+  tables in 38 files on the table; Programs and Tournaments now identical (Tournaments' card
+  grid became a sortable table). `uiConsistency.test.ts` scans pages for a raw `<h1` or `<table`
+  outside the two components (allowlist: HelpArticlePage's markdown override). Inventory and
+  the choice rationale in `docs/ui-consistency-inventory-2026-09.md`.
+
 ### Assign a coach to a team from the Coaches page (Heroku, then Netlify)
 - `lib/coach_teams.php`, `api/coach-teams.php`: list / assign / unassign; head coach =
   `teams.primary_coach_id` (previous head reported + audited), assistant/manager = one
