@@ -104,6 +104,7 @@ import ComplianceDashboard from './pages/ComplianceDashboard';
 // GOTR G4 — person-level compliance. All three are inert unless
 // TE_FEATURE_COMPLIANCE is on: the gateway answers 503 and every page says so.
 import ClubCompliance from './pages/ClubCompliance';
+import RefereeFeedback from './pages/RefereeFeedback';
 import ComplianceRequirements from './pages/ComplianceRequirements';
 import MyRequirements from './pages/MyRequirements';
 import ClubDocumentCenter from './pages/ClubDocumentCenter';
@@ -337,6 +338,10 @@ function AppContent() {
   const programsLinks = [
     { to: '/program-management', label: 'Programs' },
     { to: '/tournaments', label: 'Tournaments' },
+    // Club-admin review of what coaches recorded about referees (CKU R68).
+    // The route is behind ProtectedClubAdminRoute and the endpoint gates on
+    // te_is_club_admin(); the nav entry is a convenience.
+    ...(isAdmin ? [{ to: '/referee-feedback', label: 'Referee Feedback' }] : []),
   ];
 
   const isProgramsActive = programsLinks.some((link) => location.pathname.startsWith(link.to));
@@ -1035,6 +1040,11 @@ function AppContent() {
           <Route path="/compliance" element={
             <ProtectedClubAdminRoute>
               <ClubCompliance />
+            </ProtectedClubAdminRoute>
+          } />
+          <Route path="/referee-feedback" element={
+            <ProtectedClubAdminRoute>
+              <RefereeFeedback />
             </ProtectedClubAdminRoute>
           } />
           <Route path="/compliance/requirements" element={

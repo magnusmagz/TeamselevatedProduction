@@ -5,6 +5,8 @@ import CalendarSubscriptionManager from './CalendarSubscriptionManager';
 import PracticeScheduler from './PracticeScheduler';
 import CanvaGraphicActions from './canva/CanvaGraphicActions';
 import { useAuth } from '../contexts/AuthContext';
+import RefereeFeedbackModal from './referee/RefereeFeedbackModal';
+import { toDateOnlyString } from '../utils/dateFormat';
 
 interface Event {
   id?: number;
@@ -73,6 +75,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
   const { user } = useAuth();
+  // Referee feedback (CKU R68): opened from the event modal for a game that
+  // has been played. The server re-checks standing and the date.
+  const [refereeFeedbackEventId, setRefereeFeedbackEventId] = React.useState<number | null>(null);
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
@@ -1706,6 +1711,20 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         about until the event has been saved. Renders one button
                         per event template the club has configured, and nothing
                         at all when it has none. */}
+                    {/* Referee feedback — a saved GAME whose date is today or
+                        earlier. The date is compared as a YYYY-MM-DD string
+                        against the local calendar day (toDateOnlyString), never
+                        via new Date(event_date). */}
+                    {selectedEvent?.id && selectedEvent.type === 'game'
+                      && selectedEvent.event_date.slice(0, 10) <= toDateOnlyString(new Date()) && (
+                      <button
+                        type="button"
+                        onClick={() => setRefereeFeedbackEventId(selectedEvent.id!)}
+                        className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
+                      >
+                        Referee feedback
+                      </button>
+                    )}
                     {selectedEvent?.id && user?.activeRole?.scope_id && (
                       <CanvaGraphicActions
                         clubId={user.activeRole.scope_id}
@@ -1868,6 +1887,15 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
             // Refresh so newly created recurring practices appear immediately.
             fetchEvents();
           }}
+        />
+      )}
+
+      {refereeFeedbackEventId !== null && (
+        <RefereeFeedbackModal
+          eventId={refereeFeedbackEventId}
+          apiUrl={API_URL}
+          onClose={() => setRefereeFeedbackEventId(null)}
+          onSaved={() => { /* the row lives on the server; nothing on the calendar changes */ }}
         />
       )}
     </div>
