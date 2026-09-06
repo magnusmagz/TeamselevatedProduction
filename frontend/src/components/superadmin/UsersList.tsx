@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DataTable, { DataTableColumn } from '../ui/DataTable';
 
 interface User {
   id: number;
@@ -54,6 +55,99 @@ const UsersList: React.FC<UsersListProps> = ({
       setCreating(false);
     }
   };
+
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (user) => (
+        <span className="font-medium text-brand-primary">
+          {user.first_name} {user.last_name}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      render: (user) => <span className="text-gray-600">{user.email}</span>,
+    },
+    {
+      key: 'system_role',
+      header: 'System Role',
+      align: 'center',
+      render: (user) =>
+        user.system_role === 'super_admin' ? (
+          <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm">
+            Super Admin
+          </span>
+        ) : (
+          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm">
+            User
+          </span>
+        ),
+    },
+    { key: 'club_count', header: 'Clubs', align: 'center' },
+    {
+      key: 'last_login',
+      header: 'Last Login',
+      render: (user) => (
+        <span className="text-gray-600">
+          {user.last_login_at
+            ? new Date(user.last_login_at).toLocaleDateString()
+            : 'Never'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (user) => (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => onViewDetails(user.id)}
+            className="text-brand-primary hover:underline text-sm"
+          >
+            Details
+          </button>
+          {/* Super admins are deliberately not impersonable — the
+              server refuses it, so offering the button would only
+              produce an error. */}
+          {onImpersonate && user.system_role !== 'super_admin' && (
+            <button
+              onClick={() => onImpersonate(user)}
+              className="text-amber-700 hover:underline text-sm"
+            >
+              View As
+            </button>
+          )}
+          {user.system_role === 'super_admin' ? (
+            <button
+              onClick={() => {
+                if (window.confirm(`Remove super admin access from ${user.first_name} ${user.last_name}?`)) {
+                  onToggleSuperAdmin(user.id, false);
+                }
+              }}
+              className="text-red-600 hover:underline text-sm"
+            >
+              Revoke Admin
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (window.confirm(`Grant super admin access to ${user.first_name} ${user.last_name}?`)) {
+                  onToggleSuperAdmin(user.id, true);
+                }
+              }}
+              className="text-green-600 hover:underline text-sm"
+            >
+              Make Admin
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div>
@@ -164,105 +258,12 @@ const UsersList: React.FC<UsersListProps> = ({
       </form>
 
       {/* Table */}
-      <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-brand-secondary">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Name</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Email</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">System Role</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Clubs</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Last Login</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                  Loading users...
-                </td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user.id} className="border-t border-brand-secondary hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-brand-primary">
-                    {user.first_name} {user.last_name}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{user.email}</td>
-                  <td className="px-4 py-3 text-center">
-                    {user.system_role === 'super_admin' ? (
-                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm">
-                        Super Admin
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm">
-                        User
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">{user.club_count}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {user.last_login_at
-                      ? new Date(user.last_login_at).toLocaleDateString()
-                      : 'Never'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => onViewDetails(user.id)}
-                        className="text-brand-primary hover:underline text-sm"
-                      >
-                        Details
-                      </button>
-                      {/* Super admins are deliberately not impersonable — the
-                          server refuses it, so offering the button would only
-                          produce an error. */}
-                      {onImpersonate && user.system_role !== 'super_admin' && (
-                        <button
-                          onClick={() => onImpersonate(user)}
-                          className="text-amber-700 hover:underline text-sm"
-                        >
-                          View As
-                        </button>
-                      )}
-                      {user.system_role === 'super_admin' ? (
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Remove super admin access from ${user.first_name} ${user.last_name}?`)) {
-                              onToggleSuperAdmin(user.id, false);
-                            }
-                          }}
-                          className="text-red-600 hover:underline text-sm"
-                        >
-                          Revoke Admin
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Grant super admin access to ${user.first_name} ${user.last_name}?`)) {
-                              onToggleSuperAdmin(user.id, true);
-                            }
-                          }}
-                          className="text-green-600 hover:underline text-sm"
-                        >
-                          Make Admin
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<User>
+        columns={columns}
+        rows={loading ? [] : users}
+        rowKey={(user) => user.id}
+        emptyState={loading ? 'Loading users...' : 'No users found'}
+      />
     </div>
   );
 };

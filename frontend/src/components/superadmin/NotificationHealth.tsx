@@ -1,4 +1,5 @@
 import React from 'react';
+import DataTable from '../ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -164,24 +165,17 @@ export const NotificationHealth: React.FC = () => {
       <div className="grid md:grid-cols-2 gap-6">
         <section>
           <h3 className="text-sm font-semibold text-brand-primary mb-2">By channel</h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase text-gray-500 border-b border-brand-secondary">
-                <th className="py-2">Channel</th><th>Sent</th><th>Clicked</th><th>Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {health.by_channel.map((c) => (
-                <tr key={c.channel} className="border-b border-brand-secondary/40">
-                  <td className="py-2 font-medium">{c.channel}</td>
-                  <td>{c.sent}</td><td>{c.clicked}</td><td>{rate(c.clicked, c.sent)}</td>
-                </tr>
-              ))}
-              {health.by_channel.length === 0 && (
-                <tr><td colSpan={4} className="py-3 text-gray-500">Nothing sent in this window.</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable<ChannelRow>
+            columns={[
+              { key: 'channel', header: 'Channel', render: (c) => <span className="font-medium">{c.channel}</span> },
+              { key: 'sent', header: 'Sent' },
+              { key: 'clicked', header: 'Clicked' },
+              { key: 'rate', header: 'Rate', render: (c) => rate(c.clicked, c.sent) },
+            ]}
+            rows={health.by_channel}
+            rowKey={(c) => c.channel}
+            emptyState="Nothing sent in this window."
+          />
         </section>
 
         <section>
@@ -209,24 +203,18 @@ export const NotificationHealth: React.FC = () => {
 
       <section>
         <h3 className="text-sm font-semibold text-brand-primary mb-2">By club</h3>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase text-gray-500 border-b border-brand-secondary">
-              <th className="py-2">Club</th><th>People</th><th>Sent</th><th>Clicked</th><th>Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {health.by_club.map((c) => (
-              <tr key={c.club} className="border-b border-brand-secondary/40">
-                <td className="py-2 font-medium">{c.club}</td>
-                <td>{c.people}</td><td>{c.sent}</td><td>{c.clicked}</td><td>{rate(c.clicked, c.sent)}</td>
-              </tr>
-            ))}
-            {health.by_club.length === 0 && (
-              <tr><td colSpan={5} className="py-3 text-gray-500">Nothing sent in this window.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <DataTable<ClubRow>
+          columns={[
+            { key: 'club', header: 'Club', render: (c) => <span className="font-medium">{c.club}</span> },
+            { key: 'people', header: 'People' },
+            { key: 'sent', header: 'Sent' },
+            { key: 'clicked', header: 'Clicked' },
+            { key: 'rate', header: 'Rate', render: (c) => rate(c.clicked, c.sent) },
+          ]}
+          rows={health.by_club}
+          rowKey={(c) => c.club}
+          emptyState="Nothing sent in this window."
+        />
       </section>
 
       <section>

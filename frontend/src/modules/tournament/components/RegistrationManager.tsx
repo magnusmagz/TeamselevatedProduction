@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentRegistration, TournamentDivision, RegistrationStatus, PaymentStatus, TournamentStatus } from '../types';
 import RegistrationForm from './RegistrationForm';
 import RegistrationRosterModal from './RegistrationRosterModal';
+import DataTable, { DataTableColumn } from '../../../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -219,6 +220,151 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
   const isPreOpen = !!(registrationOpenDate && new Date(registrationOpenDate).getTime() > Date.now());
   const notOpenCopy = status ? REGISTRATION_NOT_OPEN_COPY[status] : undefined;
 
+  const columns: DataTableColumn<TournamentRegistration>[] = [
+    {
+      key: 'team',
+      header: 'Team',
+      render: (reg) => (
+        <>
+          <div className="font-medium text-gray-900">{reg.display_name}</div>
+          {reg.club_name_override && (
+            <div className="text-xs text-gray-500">{reg.club_name_override}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Division',
+      render: (reg) => <span className="text-gray-600">{reg.division_name}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (reg) => (
+        <>
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reg.status]}`}>
+            {reg.status}
+            {reg.status === 'waitlisted' && reg.waitlist_position != null && (
+              <span className="ml-1 text-orange-700/70 font-normal">#{reg.waitlist_position}</span>
+            )}
+          </span>
+          {/* Waitlist-offer state pill: shown only on waitlisted rows
+              with an active or terminal offer state. Helps the
+              director see "this team has an offer out, don't
+              re-promote yet" at a glance. */}
+          {reg.status === 'waitlisted' && reg.waitlist_offer_state && reg.waitlist_offer_state !== 'none' && (
+            <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${
+              reg.waitlist_offer_state === 'offered'  ? 'bg-purple-100 text-purple-700'
+              : reg.waitlist_offer_state === 'declined' ? 'bg-gray-100 text-gray-600'
+              : 'bg-amber-100 text-amber-700'
+            }`}>
+              {reg.waitlist_offer_state === 'offered' && reg.waitlist_offer_expires_at
+                ? `offered, expires ${new Date(reg.waitlist_offer_expires_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                : reg.waitlist_offer_state}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'payment',
+      header: 'Payment',
+      render: (reg) => (
+        <>
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_COLORS[reg.payment_status]}`}>
+            {reg.payment_status}
+          </span>
+          {reg.payment_amount_cents ? (
+            <span className="ml-1 text-xs text-gray-500">${(reg.payment_amount_cents / 100).toFixed(2)}</span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: 'registered_by',
+      header: 'Registered By',
+      render: (reg) => <span className="text-gray-500">{reg.registered_by_name}</span>,
+    },
+    ...(isAdmin
+      ? [
+          {
+            key: 'actions',
+            header: 'Actions',
+            actions: true,
+            className: 'space-x-1',
+            render: (reg: TournamentRegistration) => (
+              <>
+                {reg.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleStatusUpdate(reg.id, 'accepted')}
+                      disabled={updatingId === reg.id}
+                      className="text-xs text-green-600 hover:underline disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => openDeclineModal(reg)}
+                      disabled={updatingId === reg.id}
+                      className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+                {reg.status === 'waitlisted' && (
+                  <>
+                    <button
+                      onClick={() => handleStatusUpdate(reg.id, 'accepted')}
+                      disabled={updatingId === reg.id}
+                      className="text-xs text-green-600 hover:underline disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    {/* Promote = email this team an offer with a 48h
+                        acceptance window. Useful when re-offering a
+                        previously declined/expired row, or when the
+                        director wants to skip ahead in the FIFO queue. */}
+                    <button
+                      onClick={() => handlePromoteWaitlist(reg.id)}
+                      disabled={updatingId === reg.id || reg.waitlist_offer_state === 'offered'}
+                      className="text-xs text-purple-600 hover:underline disabled:opacity-50"
+                      title={reg.waitlist_offer_state === 'offered'
+                        ? 'Offer already sent — waiting for response'
+                        : 'Email this team an offer with a 48-hour acceptance window'}
+                    >
+                      Promote
+                    </button>
+                  </>
+                )}
+                {reg.payment_status === 'unpaid' && (
+                  <button
+                    onClick={() => {
+                      const ref = prompt('Payment reference (check #, etc):');
+                      if (ref !== null) handlePaymentUpdate(reg.id, 'paid', ref);
+                    }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Mark Paid
+                  </button>
+                )}
+                {(reg.status === 'accepted' || reg.status === 'waitlisted') && (
+                  <button
+                    onClick={() => setRosterRegistration(reg)}
+                    className="text-xs text-gray-700 hover:underline"
+                    title="Manage tournament roster for this team"
+                  >
+                    Roster
+                  </button>
+                )}
+              </>
+            ),
+          } as DataTableColumn<TournamentRegistration>,
+        ]
+      : []),
+  ];
+
   if (showForm) {
     return (
       <RegistrationForm
@@ -308,137 +454,13 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
       {/* Table */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">Loading registrations...</div>
-      ) : registrations.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-gray-500">No registrations yet.</p>
-        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Division</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registered By</th>
-                {isAdmin && <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {registrations.map((reg) => (
-                <tr key={reg.id}>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="font-medium text-gray-900">{reg.display_name}</div>
-                    {reg.club_name_override && (
-                      <div className="text-xs text-gray-500">{reg.club_name_override}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{reg.division_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[reg.status]}`}>
-                      {reg.status}
-                      {reg.status === 'waitlisted' && reg.waitlist_position != null && (
-                        <span className="ml-1 text-orange-700/70 font-normal">#{reg.waitlist_position}</span>
-                      )}
-                    </span>
-                    {/* Waitlist-offer state pill: shown only on waitlisted rows
-                        with an active or terminal offer state. Helps the
-                        director see "this team has an offer out, don't
-                        re-promote yet" at a glance. */}
-                    {reg.status === 'waitlisted' && reg.waitlist_offer_state && reg.waitlist_offer_state !== 'none' && (
-                      <span className={`ml-1 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        reg.waitlist_offer_state === 'offered'  ? 'bg-purple-100 text-purple-700'
-                        : reg.waitlist_offer_state === 'declined' ? 'bg-gray-100 text-gray-600'
-                        : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {reg.waitlist_offer_state === 'offered' && reg.waitlist_offer_expires_at
-                          ? `offered, expires ${new Date(reg.waitlist_offer_expires_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-                          : reg.waitlist_offer_state}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_COLORS[reg.payment_status]}`}>
-                      {reg.payment_status}
-                    </span>
-                    {reg.payment_amount_cents ? (
-                      <span className="ml-1 text-xs text-gray-500">${(reg.payment_amount_cents / 100).toFixed(2)}</span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{reg.registered_by_name}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right space-x-1">
-                      {reg.status === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => handleStatusUpdate(reg.id, 'accepted')}
-                            disabled={updatingId === reg.id}
-                            className="text-xs text-green-600 hover:underline disabled:opacity-50"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => openDeclineModal(reg)}
-                            disabled={updatingId === reg.id}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {reg.status === 'waitlisted' && (
-                        <>
-                          <button
-                            onClick={() => handleStatusUpdate(reg.id, 'accepted')}
-                            disabled={updatingId === reg.id}
-                            className="text-xs text-green-600 hover:underline disabled:opacity-50"
-                          >
-                            Accept
-                          </button>
-                          {/* Promote = email this team an offer with a 48h
-                              acceptance window. Useful when re-offering a
-                              previously declined/expired row, or when the
-                              director wants to skip ahead in the FIFO queue. */}
-                          <button
-                            onClick={() => handlePromoteWaitlist(reg.id)}
-                            disabled={updatingId === reg.id || reg.waitlist_offer_state === 'offered'}
-                            className="text-xs text-purple-600 hover:underline disabled:opacity-50"
-                            title={reg.waitlist_offer_state === 'offered'
-                              ? 'Offer already sent — waiting for response'
-                              : 'Email this team an offer with a 48-hour acceptance window'}
-                          >
-                            Promote
-                          </button>
-                        </>
-                      )}
-                      {reg.payment_status === 'unpaid' && (
-                        <button
-                          onClick={() => {
-                            const ref = prompt('Payment reference (check #, etc):');
-                            if (ref !== null) handlePaymentUpdate(reg.id, 'paid', ref);
-                          }}
-                          className="text-xs text-blue-600 hover:underline"
-                        >
-                          Mark Paid
-                        </button>
-                      )}
-                      {(reg.status === 'accepted' || reg.status === 'waitlisted') && (
-                        <button
-                          onClick={() => setRosterRegistration(reg)}
-                          className="text-xs text-gray-700 hover:underline"
-                          title="Manage tournament roster for this team"
-                        >
-                          Roster
-                        </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<TournamentRegistration>
+          columns={columns}
+          rows={registrations}
+          rowKey={(reg) => reg.id}
+          emptyState="No registrations yet."
+        />
       )}
 
       {rosterRegistration && (

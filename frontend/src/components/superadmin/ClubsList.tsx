@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DataTable, { DataTableColumn } from '../ui/DataTable';
 
 interface Club {
   id: number;
@@ -43,6 +44,36 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
       setCreating(false);
     }
   };
+
+  const columns: DataTableColumn<Club>[] = [
+    {
+      key: 'name',
+      header: 'Club Name',
+      render: (club) => <span className="font-medium text-brand-primary">{club.name}</span>,
+    },
+    {
+      key: 'created',
+      header: 'Created',
+      render: (club) => <span className="text-gray-600">{new Date(club.created_at).toLocaleDateString()}</span>,
+    },
+    { key: 'admin_count', header: 'Admins', align: 'center' },
+    { key: 'coach_count', header: 'Coaches', align: 'center' },
+    { key: 'team_count', header: 'Teams', align: 'center' },
+    { key: 'athlete_count', header: 'Athletes', align: 'center' },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'center',
+      render: (club) => (
+        <button
+          onClick={() => onViewDetails(club.id)}
+          className="text-brand-primary hover:underline text-sm"
+        >
+          View Details
+        </button>
+      ),
+    },
+  ];
 
   return (
     <div>
@@ -157,57 +188,12 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
       </form>
 
       {/* Table */}
-      <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-brand-secondary">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Club Name</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Created</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Admins</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Coaches</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Teams</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Athletes</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  Loading clubs...
-                </td>
-              </tr>
-            ) : clubs.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  No clubs found
-                </td>
-              </tr>
-            ) : (
-              clubs.map((club) => (
-                <tr key={club.id} className="border-t border-brand-secondary hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-brand-primary">{club.name}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {new Date(club.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-center">{club.admin_count}</td>
-                  <td className="px-4 py-3 text-center">{club.coach_count}</td>
-                  <td className="px-4 py-3 text-center">{club.team_count}</td>
-                  <td className="px-4 py-3 text-center">{club.athlete_count}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => onViewDetails(club.id)}
-                      className="text-brand-primary hover:underline text-sm"
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Club>
+        columns={columns}
+        rows={loading ? [] : clubs}
+        rowKey={(club) => club.id}
+        emptyState={loading ? 'Loading clubs...' : 'No clubs found'}
+      />
     </div>
   );
 };

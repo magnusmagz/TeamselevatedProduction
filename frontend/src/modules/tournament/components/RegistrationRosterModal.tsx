@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentRegistration } from '../types';
+import DataTable from '../../../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -216,61 +217,74 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
 
             {loading ? (
               <p className="text-sm text-gray-500">Loading…</p>
-            ) : roster.length === 0 ? (
-              <div className="border border-dashed border-gray-300 rounded-md p-4 text-center">
-                <p className="text-sm text-gray-500 mb-2">No players on the tournament roster yet.</p>
-                <button
-                  onClick={handleImportFromTeam}
-                  disabled={busy}
-                  className="px-3 py-1.5 border border-brand-primary text-brand-primary rounded-md text-sm hover:bg-brand-primary/5 disabled:opacity-50"
-                >
-                  Import from team
-                </button>
-              </div>
             ) : (
-              <div className="border border-gray-200 rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left">#</th>
-                      <th className="px-3 py-2 text-left">Player</th>
-                      <th className="px-3 py-2 text-left">Position</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {roster.map((p) => {
+              <DataTable<RosterPlayer>
+                columns={[
+                  {
+                    key: 'jersey',
+                    header: '#',
+                    render: (p) => (
+                      <span className="text-gray-700 tabular-nums">
+                        {p.jersey_number !== null ? `#${p.jersey_number}` : <span className="text-gray-300">—</span>}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'player',
+                    header: 'Player',
+                    render: (p) => {
                       const name = p.athlete_id
                         ? `${p.first_name || ''} ${p.last_name || ''}`.trim()
                         : (p.player_name || '—');
                       return (
-                        <tr key={p.id}>
-                          <td className="px-3 py-2 text-gray-700 tabular-nums">
-                            {p.jersey_number !== null ? `#${p.jersey_number}` : <span className="text-gray-300">—</span>}
-                          </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {name}
-                            {p.is_guest && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Guest</span>}
-                          </td>
-                          <td className="px-3 py-2 text-gray-500 text-xs">{p.position || ''}</td>
-                          <td className="px-3 py-2 text-right space-x-2">
-                            <button
-                              onClick={() => handleEditJersey(p.id, p.jersey_number)}
-                              disabled={busy}
-                              className="text-xs text-blue-600 hover:underline disabled:opacity-50"
-                            >Jersey</button>
-                            <button
-                              onClick={() => handleRemove(p.id)}
-                              disabled={busy}
-                              className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                            >Remove</button>
-                          </td>
-                        </tr>
+                        <span className="text-gray-900">
+                          {name}
+                          {p.is_guest && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Guest</span>}
+                        </span>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    },
+                  },
+                  {
+                    key: 'position',
+                    header: 'Position',
+                    render: (p) => <span className="text-gray-500 text-xs">{p.position || ''}</span>,
+                  },
+                  {
+                    key: 'actions',
+                    header: 'Actions',
+                    actions: true,
+                    className: 'space-x-2',
+                    render: (p) => (
+                      <>
+                        <button
+                          onClick={() => handleEditJersey(p.id, p.jersey_number)}
+                          disabled={busy}
+                          className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                        >Jersey</button>
+                        <button
+                          onClick={() => handleRemove(p.id)}
+                          disabled={busy}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                        >Remove</button>
+                      </>
+                    ),
+                  },
+                ]}
+                rows={roster}
+                rowKey={(p) => p.id}
+                emptyState={{
+                  text: 'No players on the tournament roster yet.',
+                  action: (
+                    <button
+                      onClick={handleImportFromTeam}
+                      disabled={busy}
+                      className="px-3 py-1.5 border border-brand-primary text-brand-primary rounded-md text-sm hover:bg-brand-primary/5 disabled:opacity-50"
+                    >
+                      Import from team
+                    </button>
+                  ),
+                }}
+              />
             )}
           </section>
 

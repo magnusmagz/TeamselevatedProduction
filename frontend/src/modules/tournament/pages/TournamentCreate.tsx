@@ -6,6 +6,7 @@ import { TournamentFormData, GOVERNING_BODY_LABELS, GoverningBody } from '../typ
 import { createTournament, getTournament, updateTournament } from '../api/tournamentApi';
 import VenuePicker from '../components/VenuePicker';
 import MarkdownEditor from '../components/MarkdownEditor';
+import PageHeader from '../../../components/ui/PageHeader';
 
 function generateSlug(name: string): string {
   return name
@@ -176,11 +177,11 @@ const TournamentCreate: React.FC = () => {
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {isEdit ? 'Edit Tournament' : 'Create Tournament'}
-        </h1>
-      </div>
+      <PageHeader
+        title={isEdit ? 'Edit Tournament' : 'Create Tournament'}
+        backTo="/tournaments"
+        backLabel="Back to Tournaments"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {errors.submit && (

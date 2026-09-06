@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DataTable, { DataTableColumn } from '../ui/DataTable';
 
 interface ClubRole {
   access_id: number;
@@ -298,55 +299,57 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 <h3 className="text-lg font-semibold text-brand-primary uppercase mb-4">
                   Club Memberships ({clubRoles.length})
                 </h3>
-                {clubRoles.length === 0 ? (
-                  <p className="text-gray-500">User is not a member of any clubs</p>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-brand-secondary">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-sm font-semibold text-brand-primary">Club</th>
-                          <th className="px-4 py-2 text-left text-sm font-semibold text-brand-primary">Role</th>
-                          <th className="px-4 py-2 text-left text-sm font-semibold text-brand-primary">Since</th>
-                          <th className="px-4 py-2 text-center text-sm font-semibold text-brand-primary">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clubRoles.map((cr) => (
-                          <tr key={cr.access_id} className="border-t border-gray-200">
-                            <td className="px-4 py-2 font-medium">{cr.club_name}</td>
-                            <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded text-sm ${
-                                cr.role === 'club_admin'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : cr.role === 'coach'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {cr.role}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-gray-600">
-                              {new Date(cr.granted_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Remove user from ${cr.club_name}?`)) {
-                                    onRemoveFromClub(user.id, cr.club_id);
-                                  }
-                                }}
-                                className="text-red-600 hover:underline text-sm"
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <DataTable<ClubRole>
+                  columns={[
+                    {
+                      key: 'club_name',
+                      header: 'Club',
+                      render: (cr) => <span className="font-medium">{cr.club_name}</span>,
+                    },
+                    {
+                      key: 'role',
+                      header: 'Role',
+                      render: (cr) => (
+                        <span className={`px-2 py-1 rounded text-sm ${
+                          cr.role === 'club_admin'
+                            ? 'bg-blue-100 text-blue-700'
+                            : cr.role === 'coach'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {cr.role}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: 'since',
+                      header: 'Since',
+                      render: (cr) => (
+                        <span className="text-gray-600">{new Date(cr.granted_at).toLocaleDateString()}</span>
+                      ),
+                    },
+                    {
+                      key: 'actions',
+                      header: 'Actions',
+                      align: 'center',
+                      render: (cr) => (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove user from ${cr.club_name}?`)) {
+                              onRemoveFromClub(user.id, cr.club_id);
+                            }
+                          }}
+                          className="text-red-600 hover:underline text-sm"
+                        >
+                          Remove
+                        </button>
+                      ),
+                    },
+                  ] as DataTableColumn<ClubRole>[]}
+                  rows={clubRoles}
+                  rowKey={(cr) => cr.access_id}
+                  emptyState="User is not a member of any clubs"
+                />
               </div>
             </>
           )}

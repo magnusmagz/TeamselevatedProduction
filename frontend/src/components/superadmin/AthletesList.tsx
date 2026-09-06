@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DataTable, { DataTableColumn } from '../ui/DataTable';
 
 interface Athlete {
   id: number;
@@ -40,6 +41,68 @@ const AthletesList: React.FC<AthletesListProps> = ({ athletes, loading, onSearch
     return age.toString();
   };
 
+  const columns: DataTableColumn<Athlete>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (athlete) => (
+        <span className="font-medium text-brand-primary">
+          {athlete.first_name} {athlete.last_name}
+        </span>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      render: (athlete) => <span className="text-gray-600">{athlete.email || '-'}</span>,
+    },
+    {
+      key: 'age',
+      header: 'Age',
+      align: 'center',
+      render: (athlete) => <span className="text-gray-600">{calculateAge(athlete.date_of_birth)}</span>,
+    },
+    {
+      key: 'gender',
+      header: 'Gender',
+      align: 'center',
+      render: (athlete) => <span className="text-gray-600">{athlete.gender || '-'}</span>,
+    },
+    {
+      key: 'club',
+      header: 'Club',
+      render: (athlete) => (
+        <span className="text-gray-600">
+          {athlete.club_name || <span className="text-gray-400 italic">No club</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'teams',
+      header: 'Teams',
+      render: (athlete) => (
+        <span className="text-gray-600">
+          {athlete.team_names || <span className="text-gray-400 italic">No teams</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (athlete) =>
+        athlete.active_status ? (
+          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
+            Active
+          </span>
+        ) : (
+          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm">
+            Inactive
+          </span>
+        ),
+    },
+  ];
+
   return (
     <div>
       {/* Search */}
@@ -62,70 +125,12 @@ const AthletesList: React.FC<AthletesListProps> = ({ athletes, loading, onSearch
       </form>
 
       {/* Table */}
-      <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-brand-secondary">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Name</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Email</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Age</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Gender</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Club</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-brand-primary uppercase">Teams</th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-brand-primary uppercase">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  Loading athletes...
-                </td>
-              </tr>
-            ) : athletes.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  No athletes found
-                </td>
-              </tr>
-            ) : (
-              athletes.map((athlete) => (
-                <tr key={athlete.id} className="border-t border-brand-secondary hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-brand-primary">
-                    {athlete.first_name} {athlete.last_name}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {athlete.email || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-600">
-                    {calculateAge(athlete.date_of_birth)}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-600">
-                    {athlete.gender || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {athlete.club_name || <span className="text-gray-400 italic">No club</span>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {athlete.team_names || <span className="text-gray-400 italic">No teams</span>}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {athlete.active_status ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Athlete>
+        columns={columns}
+        rows={loading ? [] : athletes}
+        rowKey={(athlete) => athlete.id}
+        emptyState={loading ? 'Loading athletes...' : 'No athletes found'}
+      />
 
       {/* Count */}
       {!loading && athletes.length > 0 && (

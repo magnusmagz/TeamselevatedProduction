@@ -12,6 +12,7 @@ import StandingsTable from '../components/StandingsTable';
 import BracketView from '../components/BracketView';
 import DisciplinaryView from '../components/DisciplinaryView';
 import GameDayBoard from '../components/GameDayBoard';
+import PageHeader from '../../../components/ui/PageHeader';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -163,27 +164,24 @@ const TournamentDetail: React.FC = () => {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="mb-6">
-        <Link to="/tournaments" className="text-sm text-brand-primary hover:underline mb-2 inline-block">
-          &larr; Back to Tournaments
-        </Link>
-
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{tournament.name}</h1>
-            <div className="flex items-center space-x-3 mt-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                {statusConfig.label}
-              </span>
-              <span className="text-sm text-gray-500 capitalize">{tournament.sport}</span>
-              <span className="text-sm text-gray-500">
-                {formatDate(tournament.start_date)} – {formatDate(tournament.end_date)}
-              </span>
-            </div>
-          </div>
-
-          {isAdmin && (
-            <div className="flex items-center space-x-2">
+      <PageHeader
+        title={tournament.name}
+        backTo="/tournaments"
+        backLabel="Back to Tournaments"
+        meta={
+          <>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
+              {statusConfig.label}
+            </span>
+            <span className="text-sm text-gray-500 capitalize">{tournament.sport}</span>
+            <span className="text-sm text-gray-500">
+              {formatDate(tournament.start_date)} – {formatDate(tournament.end_date)}
+            </span>
+          </>
+        }
+        actions={
+          isAdmin ? (
+            <>
               {/* Status transitions */}
               {validTransitions.length > 0 && (
                 <div className="relative">
@@ -218,10 +216,10 @@ const TournamentDetail: React.FC = () => {
                   Cancel
                 </button>
               )}
-            </div>
-          )}
-        </div>
-      </div>
+            </>
+          ) : undefined
+        }
+      />
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">

@@ -12,6 +12,7 @@ import {
 import EvaluationModal from './EvaluationModal';
 import { useOrg } from '../../../contexts/OrgContext';
 import { ageGroup } from '../../../utils/ageGroup';
+import DataTable, { DataTableColumn } from '../../../components/ui/DataTable';
 
 const tryoutAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -648,77 +649,87 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
     setTryoutNumbers(prev => ({ ...prev, [id]: value }));
   };
 
-  if (registrations.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No registrations found.
-      </div>
-    );
-  }
+  const columns: DataTableColumn<TryoutRegistration>[] = [
+    {
+      key: 'tryout_number',
+      header: 'Tryout #',
+      render: (reg) =>
+        reg.tryout_status === 'checked_in' || (reg.tryout_status && reg.tryout_status !== 'registered') ? (
+          <span className="font-bold text-lg text-brand-primary">{reg.tryout_number || '-'}</span>
+        ) : (
+          <input
+            type="text"
+            placeholder="#"
+            value={tryoutNumbers[reg.id] || ''}
+            onChange={(e) => handleTryoutNumberChange(reg.id, e.target.value)}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-center font-bold"
+          />
+        ),
+    },
+    {
+      key: 'athlete',
+      header: 'Athlete',
+      render: (reg) => (
+        <span className="font-medium">
+          {reg.first_name} {reg.last_name}
+        </span>
+      ),
+    },
+    {
+      key: 'dob',
+      header: 'DOB',
+      render: (reg) => (
+        <span className="text-gray-600">
+          {reg.date_of_birth ? new Date(reg.date_of_birth).toLocaleDateString() : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (reg) => getStatusBadge(reg.tryout_status),
+    },
+    {
+      key: 'registered',
+      header: 'Registered',
+      render: (reg) => (
+        <span className="text-gray-600">
+          {reg.submitted_at ? new Date(reg.submitted_at).toLocaleDateString() : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (reg) => (
+        <div className="flex items-center gap-3">
+          {(!reg.tryout_status || reg.tryout_status === 'registered') && (
+            <button
+              onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
+              className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+            >
+              Check In
+            </button>
+          )}
+          <CoachInviteButton
+            registrationId={reg.id}
+            coachInvites={coachInvites}
+            unavailable={invitesUnavailable}
+            busy={invitingId === reg.id}
+            onCoachInvite={onCoachInvite}
+          />
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-brand-secondary">
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Tryout #</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">DOB</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Registered</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {registrations.map(reg => (
-          <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
-            <td className="py-3 px-4">
-              {reg.tryout_status === 'checked_in' || (reg.tryout_status && reg.tryout_status !== 'registered') ? (
-                <span className="font-bold text-lg text-brand-primary">{reg.tryout_number || '-'}</span>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="#"
-                  value={tryoutNumbers[reg.id] || ''}
-                  onChange={(e) => handleTryoutNumberChange(reg.id, e.target.value)}
-                  className="w-16 px-2 py-1 border border-gray-300 rounded text-center font-bold"
-                />
-              )}
-            </td>
-            <td className="py-3 px-4 font-medium">
-              {reg.first_name} {reg.last_name}
-            </td>
-            <td className="py-3 px-4 text-gray-600">
-              {reg.date_of_birth ? new Date(reg.date_of_birth).toLocaleDateString() : '-'}
-            </td>
-            <td className="py-3 px-4">
-              {getStatusBadge(reg.tryout_status)}
-            </td>
-            <td className="py-3 px-4 text-gray-600">
-              {reg.submitted_at ? new Date(reg.submitted_at).toLocaleDateString() : '-'}
-            </td>
-            <td className="py-3 px-4">
-              <div className="flex items-center gap-3">
-                {(!reg.tryout_status || reg.tryout_status === 'registered') && (
-                  <button
-                    onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
-                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                  >
-                    Check In
-                  </button>
-                )}
-                <CoachInviteButton
-                  registrationId={reg.id}
-                  coachInvites={coachInvites}
-                  unavailable={invitesUnavailable}
-                  busy={invitingId === reg.id}
-                  onCoachInvite={onCoachInvite}
-                />
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <DataTable<TryoutRegistration>
+      columns={columns}
+      rows={registrations}
+      rowKey={(reg) => reg.id}
+      emptyState="No registrations found."
+    />
   );
 };
 
@@ -968,64 +979,72 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
         </span>
       </div>
 
-      {visibleRegistrations.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          No athletes match these filters.
-        </div>
-      ) : (
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-brand-secondary">
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Avg Score</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRegistrations.map(reg => (
-              <tr key={reg.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4 font-bold text-lg text-brand-primary">
-                  {reg.tryout_number || '-'}
-                </td>
-                <td className="py-3 px-4 font-medium">
-                  {reg.first_name} {reg.last_name}
-                </td>
-                <td className="py-3 px-4">
-                  {getStatusBadge(reg.tryout_status)}
-                </td>
-                <td className="py-3 px-4 text-gray-600">
-                  {evaluationCountOf(reg)} evaluation{evaluationCountOf(reg) !== 1 ? 's' : ''}
-                </td>
-                <td className="py-3 px-4">
-                  {reg.overall_score != null ? (
-                    <span className="font-medium text-brand-primary">{Number(reg.overall_score).toFixed(1)}</span>
-                  ) : '-'}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => onEvaluate(reg)}
-                      className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                    >
-                      {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
-                    </button>
-                    <CoachInviteButton
-                      registrationId={reg.id}
-                      coachInvites={coachInvites}
-                      unavailable={invitesUnavailable}
-                      busy={invitingId === reg.id}
-                      onCoachInvite={onCoachInvite}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <DataTable<TryoutRegistration>
+        columns={[
+          {
+            key: 'tryout_number',
+            header: '#',
+            render: (reg) => (
+              <span className="font-bold text-lg text-brand-primary">{reg.tryout_number || '-'}</span>
+            ),
+          },
+          {
+            key: 'athlete',
+            header: 'Athlete',
+            render: (reg) => (
+              <span className="font-medium">
+                {reg.first_name} {reg.last_name}
+              </span>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (reg) => getStatusBadge(reg.tryout_status),
+          },
+          {
+            key: 'evaluations',
+            header: 'Evaluations',
+            render: (reg) => (
+              <span className="text-gray-600">
+                {evaluationCountOf(reg)} evaluation{evaluationCountOf(reg) !== 1 ? 's' : ''}
+              </span>
+            ),
+          },
+          {
+            key: 'avg_score',
+            header: 'Avg Score',
+            render: (reg) =>
+              reg.overall_score != null ? (
+                <span className="font-medium text-brand-primary">{Number(reg.overall_score).toFixed(1)}</span>
+              ) : '-',
+          },
+          {
+            key: 'actions',
+            header: 'Actions',
+            render: (reg) => (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onEvaluate(reg)}
+                  className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                >
+                  {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
+                </button>
+                <CoachInviteButton
+                  registrationId={reg.id}
+                  coachInvites={coachInvites}
+                  unavailable={invitesUnavailable}
+                  busy={invitingId === reg.id}
+                  onCoachInvite={onCoachInvite}
+                />
+              </div>
+            ),
+          },
+        ]}
+        rows={visibleRegistrations}
+        rowKey={(reg) => reg.id}
+        emptyState="No athletes match these filters."
+      />
     </div>
   );
 };
@@ -1191,74 +1210,95 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
         </div>
       )}
 
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-brand-secondary">
-            <th className="text-left py-3 px-4">
+      <DataTable<TryoutRanking>
+        columns={[
+          {
+            key: 'select',
+            header: (
               <input
                 type="checkbox"
                 checked={selectedIds.length === rankings.length}
                 onChange={toggleAll}
                 className="rounded"
               />
-            </th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Rank</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">#</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Age</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Next Yr</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Evaluations</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Score</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Range</th>
-            <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rankings.map((ranking, index) => (
-            <tr key={ranking.id} className="border-b border-gray-100 hover:bg-gray-50">
-              <td className="py-3 px-4">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(ranking.id)}
-                  onChange={() => toggleSelection(ranking.id)}
-                  className="rounded"
-                />
-              </td>
-              <td className="py-3 px-4 font-bold text-brand-primary">
-                #{index + 1}
-              </td>
-              <td className="py-3 px-4 font-bold text-lg">
-                {ranking.tryout_number || '-'}
-              </td>
-              <td className="py-3 px-4 font-medium">
+            ),
+            render: (ranking) => (
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(ranking.id)}
+                onChange={() => toggleSelection(ranking.id)}
+                className="rounded"
+              />
+            ),
+          },
+          {
+            key: 'rank',
+            header: 'Rank',
+            render: (_ranking, index) => <span className="font-bold text-brand-primary">#{index + 1}</span>,
+          },
+          {
+            key: 'tryout_number',
+            header: '#',
+            render: (ranking) => <span className="font-bold text-lg">{ranking.tryout_number || '-'}</span>,
+          },
+          {
+            key: 'athlete',
+            header: 'Athlete',
+            render: (ranking) => (
+              <span className="font-medium">
                 {ranking.first_name} {ranking.last_name}
-              </td>
-              <td className="py-3 px-4 text-gray-600">
-                {calculateAge(ranking.date_of_birth) ?? '-'}
-              </td>
-              <td className="py-3 px-4 text-gray-600">
+              </span>
+            ),
+          },
+          {
+            key: 'age',
+            header: 'Age',
+            render: (ranking) => <span className="text-gray-600">{calculateAge(ranking.date_of_birth) ?? '-'}</span>,
+          },
+          {
+            key: 'next_year',
+            header: 'Next Yr',
+            render: (ranking) => (
+              <span className="text-gray-600">
                 {calculateAge(ranking.date_of_birth) != null ? calculateAge(ranking.date_of_birth)! + 1 : '-'}
-              </td>
-              <td className="py-3 px-4 text-gray-600">
-                {ranking.evaluation_count}
-              </td>
-              <td className="py-3 px-4">
-                <span className="font-bold text-lg text-brand-primary">
-                  {ranking.avg_score != null ? Number(ranking.avg_score).toFixed(1) : '-'}
-                </span>
-              </td>
-              <td className="py-3 px-4 text-gray-600 text-sm">
+              </span>
+            ),
+          },
+          {
+            key: 'evaluation_count',
+            header: 'Evaluations',
+            render: (ranking) => <span className="text-gray-600">{ranking.evaluation_count}</span>,
+          },
+          {
+            key: 'score',
+            header: 'Score',
+            render: (ranking) => (
+              <span className="font-bold text-lg text-brand-primary">
+                {ranking.avg_score != null ? Number(ranking.avg_score).toFixed(1) : '-'}
+              </span>
+            ),
+          },
+          {
+            key: 'range',
+            header: 'Range',
+            render: (ranking) => (
+              <span className="text-gray-600 text-sm">
                 {ranking.min_score != null && ranking.max_score != null
                   ? `${Number(ranking.min_score).toFixed(1)} - ${Number(ranking.max_score).toFixed(1)}`
                   : '-'}
-              </td>
-              <td className="py-3 px-4">
-                {getStatusBadge(ranking.tryout_status)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </span>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (ranking) => getStatusBadge(ranking.tryout_status),
+          },
+        ]}
+        rows={rankings}
+        rowKey={(ranking) => ranking.id}
+        emptyState="No rankings yet."
+      />
     </div>
   );
 };
@@ -1300,47 +1340,50 @@ const OffersTable: React.FC<OffersTableProps> = ({
     );
   };
 
-  if (offers.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No offers sent yet. Use the Rankings tab to send offers.
-      </div>
-    );
-  }
-
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-brand-secondary">
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Offer Type</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Team</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Response</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Sent</th>
-          <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {offers.map(offer => (
-          <tr key={offer.id} className="border-b border-gray-100 hover:bg-gray-50">
-            <td className="py-3 px-4 font-medium">
+    <DataTable<TryoutOffer>
+      columns={[
+        {
+          key: 'athlete',
+          header: 'Athlete',
+          render: (offer) => (
+            <span className="font-medium">
               {offer.first_name} {offer.last_name}
-            </td>
-            <td className="py-3 px-4">
-              {getOfferTypeBadge(offer.offer_type)}
-            </td>
-            <td className="py-3 px-4 text-gray-600">
-              {offer.team_name || '-'}
-            </td>
-            <td className="py-3 px-4">
-              {getResponseBadge(offer.response) || (
-                <span className="text-gray-400 text-sm">Pending</span>
-              )}
-            </td>
-            <td className="py-3 px-4 text-gray-600">
+            </span>
+          ),
+        },
+        {
+          key: 'offer_type',
+          header: 'Offer Type',
+          render: (offer) => getOfferTypeBadge(offer.offer_type),
+        },
+        {
+          key: 'team',
+          header: 'Team',
+          render: (offer) => <span className="text-gray-600">{offer.team_name || '-'}</span>,
+        },
+        {
+          key: 'response',
+          header: 'Response',
+          render: (offer) =>
+            getResponseBadge(offer.response) || (
+              <span className="text-gray-400 text-sm">Pending</span>
+            ),
+        },
+        {
+          key: 'sent',
+          header: 'Sent',
+          render: (offer) => (
+            <span className="text-gray-600">
               {offer.sent_at ? new Date(offer.sent_at).toLocaleDateString() : '-'}
-            </td>
-            <td className="py-3 px-4">
+            </span>
+          ),
+        },
+        {
+          key: 'actions',
+          header: 'Actions',
+          render: (offer) => (
+            <>
               {offer.offer_type === 'roster' && !offer.response && (
                 <div className="flex space-x-2">
                   <button
@@ -1365,11 +1408,14 @@ const OffersTable: React.FC<OffersTableProps> = ({
                   Add to Roster
                 </button>
               )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </>
+          ),
+        },
+      ]}
+      rows={offers}
+      rowKey={(offer, index) => offer.id ?? index}
+      emptyState="No offers sent yet. Use the Rankings tab to send offers."
+    />
   );
 };
 
@@ -1453,76 +1499,77 @@ const CoachInvitesTable: React.FC<CoachInvitesTableProps> = ({
         </span>
       </div>
 
-      {invites.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          No coach has invited a player yet.
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          No coach invites match this filter.
-        </div>
-      ) : (
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-brand-secondary">
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Athlete</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Coach</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Team</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Status</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Emailed</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Rostered</th>
-              <th className="text-left py-3 px-4 text-brand-primary text-sm font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(invite => (
-              <tr key={invite.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4 font-medium">{invite.athlete_name}</td>
-                <td className="py-3 px-4">{invite.invited_by_name}</td>
-                <td className="py-3 px-4 text-gray-600">{invite.team_name || 'No team yet'}</td>
-                <td className="py-3 px-4">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      COACH_INVITE_STATUS_COLORS[invite.status] || 'bg-gray-100 text-gray-600'
-                    }`}
+      <DataTable<CoachInvite>
+        columns={[
+          {
+            key: 'athlete',
+            header: 'Athlete',
+            render: (invite) => <span className="font-medium">{invite.athlete_name}</span>,
+          },
+          { key: 'invited_by_name', header: 'Coach' },
+          {
+            key: 'team',
+            header: 'Team',
+            render: (invite) => <span className="text-gray-600">{invite.team_name || 'No team yet'}</span>,
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (invite) => (
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  COACH_INVITE_STATUS_COLORS[invite.status] || 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {COACH_INVITE_STATUS_LABELS[invite.status] || 'Unknown'}
+              </span>
+            ),
+          },
+          {
+            key: 'emailed',
+            header: 'Emailed',
+            // "Not sent" is a real answer and must not read as blank — the
+            // family not having been told is the thing a director needs to see.
+            render: (invite) => <span className="text-gray-600">{invite.email_sent_at ? 'Sent' : 'Not sent'}</span>,
+          },
+          {
+            key: 'rostered',
+            header: 'Rostered',
+            render: (invite) => <span className="text-gray-600">{invite.rostered ? 'Yes' : 'No'}</span>,
+          },
+          {
+            key: 'actions',
+            header: 'Actions',
+            render: (invite) => (
+              <div className="flex items-center gap-3">
+                {invite.status !== 'declined' && (
+                  <button
+                    onClick={() => onSetStatus(invite.id, 'declined')}
+                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
                   >
-                    {COACH_INVITE_STATUS_LABELS[invite.status] || 'Unknown'}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-gray-600">
-                  {/* "Not sent" is a real answer and must not read as blank —
-                      the family not having been told is the thing a director
-                      needs to see. */}
-                  {invite.email_sent_at ? 'Sent' : 'Not sent'}
-                </td>
-                <td className="py-3 px-4 text-gray-600">
-                  {invite.rostered ? 'Yes' : 'No'}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
-                    {invite.status !== 'declined' && (
-                      <button
-                        onClick={() => onSetStatus(invite.id, 'declined')}
-                        className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                      >
-                        Declined
-                      </button>
-                    )}
-                    {invite.status !== 'withdrawn' && (
-                      <button
-                        onClick={() => onSetStatus(invite.id, 'withdrawn')}
-                        className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                      >
-                        Withdraw
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                    Declined
+                  </button>
+                )}
+                {invite.status !== 'withdrawn' && (
+                  <button
+                    onClick={() => onSetStatus(invite.id, 'withdrawn')}
+                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
+                  >
+                    Withdraw
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        rows={visible}
+        rowKey={(invite) => invite.id}
+        emptyState={
+          invites.length === 0
+            ? 'No coach has invited a player yet.'
+            : 'No coach invites match this filter.'
+        }
+      />
     </div>
   );
 };

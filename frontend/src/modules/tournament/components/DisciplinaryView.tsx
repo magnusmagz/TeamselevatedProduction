@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 import MatchCenterModal from './MatchCenterModal';
+import DataTable from '../../../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -253,69 +254,81 @@ const DisciplinaryView: React.FC<Props> = ({ tournamentId, divisions, isAdmin })
       </div>
 
       {/* Card table */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-sm text-gray-500">
-            {totals.cards === 0
-              ? 'No cards logged yet. Add cards via Match Center → Referee Report.'
-              : 'No cards match the current filters.'}
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded-lg">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                <th className="px-3 py-2 text-left">Card</th>
-                <th className="px-3 py-2 text-left">Division</th>
-                <th className="px-3 py-2 text-left">Match</th>
-                <th className="px-3 py-2 text-left">Player</th>
-                <th className="px-3 py-2 text-left">Team</th>
-                <th className="px-3 py-2 text-center w-12">Min</th>
-                <th className="px-3 py-2 text-right w-20">{isAdmin ? '' : ''}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((e) => {
-                const cardClass =
-                  e.event_type === 'yellow_card'
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : e.event_type === 'red_card'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-orange-100 text-orange-700';
-                return (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${cardClass}`}>
-                        {CARD_LABELS[e.event_type]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-600">{e.division_name}</td>
-                    <td className="px-3 py-2 text-xs text-gray-700 truncate max-w-[200px]">
-                      {e.home_team} vs {e.away_team}
-                    </td>
-                    <td className="px-3 py-2 font-medium text-gray-900">{e.player_label}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{e.team_name}</td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500">
-                      {e.minute != null ? `${e.minute}'` : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleViewMatch(e.match_id)}
-                          className="text-xs text-brand-primary hover:underline"
-                        >
-                          View match
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable<DisciplinaryEvent>
+        columns={[
+          {
+            key: 'card',
+            header: 'Card',
+            render: (e) => {
+              const cardClass =
+                e.event_type === 'yellow_card'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : e.event_type === 'red_card'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-orange-100 text-orange-700';
+              return (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${cardClass}`}>
+                  {CARD_LABELS[e.event_type]}
+                </span>
+              );
+            },
+          },
+          {
+            key: 'division',
+            header: 'Division',
+            render: (e) => <span className="text-xs text-gray-600">{e.division_name}</span>,
+          },
+          {
+            key: 'match',
+            header: 'Match',
+            className: 'truncate max-w-[200px]',
+            render: (e) => (
+              <span className="text-xs text-gray-700">
+                {e.home_team} vs {e.away_team}
+              </span>
+            ),
+          },
+          {
+            key: 'player',
+            header: 'Player',
+            render: (e) => <span className="font-medium text-gray-900">{e.player_label}</span>,
+          },
+          {
+            key: 'team',
+            header: 'Team',
+            render: (e) => <span className="text-xs text-gray-500">{e.team_name}</span>,
+          },
+          {
+            key: 'minute',
+            header: 'Min',
+            align: 'center',
+            width: '3rem',
+            render: (e) => <span className="text-xs text-gray-500">{e.minute != null ? `${e.minute}'` : '—'}</span>,
+          },
+          {
+            key: 'actions',
+            header: '',
+            actions: true,
+            width: '5rem',
+            render: (e) =>
+              isAdmin ? (
+                <button
+                  onClick={() => handleViewMatch(e.match_id)}
+                  className="text-xs text-brand-primary hover:underline"
+                >
+                  View match
+                </button>
+              ) : null,
+          },
+        ]}
+        rows={filtered}
+        rowKey={(e) => e.id}
+        emptyState={
+          totals.cards === 0
+            ? 'No cards logged yet. Add cards via Match Center → Referee Report.'
+            : 'No cards match the current filters.'
+        }
+      />
 
       {openMatch && (
         <MatchCenterModal
