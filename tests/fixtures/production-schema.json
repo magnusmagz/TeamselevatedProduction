@@ -1126,7 +1126,8 @@
     "started_at",
     "finished_at",
     "csv_content",
-    "column_mapping"
+    "column_mapping",
+    "org_unit_id"
   ],
   "invitation_links": [
     "id",

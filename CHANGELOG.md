@@ -32,6 +32,21 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### GOTR G6 — onboarding at scale (Heroku v606, migration 094 applied, then Netlify), dark
+- v605: `TE_FEATURE_COACH_INVITE_EMAIL=off`, `TE_FEATURE_NATIONAL_IMPORT=off` set BEFORE the push.
+- Coach creation no longer seeds `password123`: `legacy/coaches-gateway.php` and the import
+  create a passwordless account plus a single-use 7-day `:coach_invite` token
+  (`lib/coach_invite.php`, `api/coach-invite.php`, `/accept-coach-invite`). ⚠️ With the email
+  switch OFF a newly created coach gets no invite; they can still sign in via the login page's
+  magic link. Existing ~13 never-signed-in coach hashes NOT cleared (Maggie's call).
+- `services/NationalCoachImportStrategy.php` (`council_code` → `org_units.external_code`),
+  `ImportJobProcessor` streams rows; `api/imports-gateway.php` gates national uploads on org_admin
+  standing. `import_jobs.org_unit_id` (094).
+- Invite sends queue as `coach_invite` jobs on `email_queue` under the existing rate limiter.
+  **Worker bug fixed on the way:** two consecutive `pop()` calls discarded the first job taken.
+- `api/onboarding-funnel.php` + `/organizations/:id/onboarding` (created / invited / accepted /
+  signed in / compliant per council). Fixture +1 column.
+
 ### GOTR G5 — division/national compliance rollups (Heroku, then Netlify), dark
 - `api/compliance-rollup.php` (`?view=units|summary|trend|club`), `lib/compliance_rollup.php`
   (one CTE over `te_org_descendant_club_ids_sql`), `compliance-export.php?org_unit_id=`
