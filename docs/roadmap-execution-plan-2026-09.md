@@ -49,7 +49,9 @@ Plus two mechanisms that make rollback cheaper than a deploy:
 | GOTR G3, G4 | compliance model (091) + surfaces (093), dark behind TE_FEATURE_COMPLIANCE / _REMINDERS | v592 (2026-09-03) |
 | GOTR G5 | division/national rollups, drill-down, trend, cross-council CSV (dark) | v604 (2026-09-06) |
 | GOTR G6 | multi-council coach import (094), per-person coach invites replacing `password123`, queued sends, national funnel (dark: COACH_INVITE_EMAIL / NATIONAL_IMPORT off) | v606 (2026-09-06) |
-| 8 Coaches | 8.6 referee feedback (095) | v603 (2026-09-06) |
+| 8 Coaches | 8.6 referee feedback (095); 8.5 lineup builder (096); coach access controls on Club Settings → Users (097); assign coach to team from the Coaches page | v603, v612, v611, v617 (2026-09-06) |
+| GOTR G7 | reminder streams + LMS intake (098), dark: COMPLIANCE_REMINDERS / COMPLIANCE_INTAKE off | v615 (2026-09-06) |
+| UI | one PageHeader, one DataTable, scan test | Netlify 3de57df (2026-09-06) |
 | 2 Silent sends | 2.5 rich signature editor (092) + escaped text signatures (a live injection) | v592 (2026-09-03) |
 | Decisions | 3, 10, 11c, 2 (treasurer), 13 (auth-gateway link) | v579, v580, v600, v601 |
 
@@ -203,7 +205,7 @@ In the `te-stripe-payments` worktree only. Small first.
 | 8.2 | R86 | ✅ SHIPPED 2026-09-02 (Heroku v577, migration 087) — email dark behind `TE_FEATURE_TRYOUT_COACH_INVITE_EMAIL` |
 | 8.3 | R80 | ✅ ALREADY BUILT — `users.coaching_background` rendered on the portal athlete page's Coaches card via `api/team-coaches.php`. Sheet was wrong; closed 2026-09-02. |
 | 8.4 | R76/R77 | ✅ SHIPPED 2026-09-02 (Heroku v577, migration 086) — Performance tab, IDP goals, season trend; parent read-only |
-| 8.5 | R67 | Lineup builder — SPEC WRITTEN 2026-09-06 (`docs/lineup-builder-spec-2026-09.md`, decisions 16–19); migration 096 claimed |
+| 8.5 | R67 | ✅ SHIPPED 2026-09-06 (Heroku v612, migration 096) — built to decisions 16–19 recommendations |
 | 8.6 | R68 | ✅ SHIPPED 2026-09-06 (Heroku v603, migration 095) — `lib/referee_feedback.php`, `/referee-feedback` |
 
 Each is additive: a new table or a new page, revertable alone.
