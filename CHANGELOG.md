@@ -34,6 +34,8 @@ Newest first. Times are Pacific.
 
 ### GOTR G6 — onboarding at scale (Heroku v606, migration 094 applied, then Netlify), dark
 - v605: `TE_FEATURE_COACH_INVITE_EMAIL=off`, `TE_FEATURE_NATIONAL_IMPORT=off` set BEFORE the push.
+- v608: `TE_FEATURE_COACH_INVITE_EMAIL=on` — Maggie: no flag needed, make it live. Add Coach and
+  imports now email the invite.
 - Coach creation no longer seeds `password123`: `legacy/coaches-gateway.php` and the import
   create a passwordless account plus a single-use 7-day `:coach_invite` token
   (`lib/coach_invite.php`, `api/coach-invite.php`, `/accept-coach-invite`). ⚠️ With the email
