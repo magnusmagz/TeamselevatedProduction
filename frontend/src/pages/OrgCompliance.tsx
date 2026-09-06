@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 import { formatDateOnly } from '../utils/dateFormat';
 import StatusChip from '../compliance/StatusChip';
 import { API_URL, authHeaders } from '../compliance/api';
@@ -258,17 +260,99 @@ export const OrgCompliance: React.FC = () => {
   const total = summary?.total;
   const unitName = summary?.unit?.name || `Organization ${orgUnitId}`;
 
+  // Sort stays page-managed: the default is the SERVER's risk order and the
+  // numeric columns open descending, neither of which DataTable's built-in
+  // asc-first toggle would reproduce. The rows arrive already sorted.
+  const sortHeader = (label: string, k: SortKey) => (
+    <SortHeader label={label} k={k} sort={sort} onSort={toggleSort} />
+  );
+
+  const councilColumns: DataTableColumn<CouncilRollup>[] = [
+    {
+      key: 'name',
+      header: sortHeader('Council', 'name'),
+      render: (council) => (
+        <>
+          <button
+            type="button"
+            onClick={() => expand(council.club_id)}
+            aria-expanded={openClub === council.club_id}
+            className="text-left font-semibold text-brand-primary underline"
+          >
+            {council.club_name}
+          </button>
+          <span className="block text-xs text-gray-500">{council.org_unit_name}</span>
+        </>
+      ),
+    },
+    {
+      key: 'division',
+      header: sortHeader('Division', 'division'),
+      render: (council) => <span className="text-gray-700">{divisionFor(council, units)}</span>,
+    },
+    { key: 'staff_total', header: sortHeader('Staff', 'staff_total'), align: 'right' },
+    {
+      key: 'compliant',
+      header: sortHeader('Compliant', 'compliant'),
+      align: 'right',
+      render: (council) => <span className="text-green-700">{council.compliant}</span>,
+    },
+    {
+      key: 'expiring_30',
+      header: sortHeader('Expiring', 'expiring_30'),
+      align: 'right',
+      render: (council) => <span className="text-amber-700">{council.expiring_30}</span>,
+    },
+    {
+      key: 'expired',
+      header: sortHeader('Expired', 'expired'),
+      align: 'right',
+      render: (council) => <span className="text-red-700">{council.expired}</span>,
+    },
+    {
+      key: 'missing',
+      header: sortHeader('Missing', 'missing'),
+      align: 'right',
+      render: (council) => <span className="text-gray-700">{council.missing}</span>,
+    },
+    {
+      key: 'risk',
+      header: sortHeader('At risk', 'risk'),
+      align: 'right',
+      render: (council) => <RiskCell share={council.risk_share} />,
+    },
+    {
+      key: 'trend',
+      header: (
+        <>
+          <span className="block">Expiring next 6 months</span>
+          {trend && (
+            <span className="mt-1 flex gap-1 text-[10px] normal-case tracking-normal text-gray-400">
+              {trend.months.map((m) => (
+                <span key={m} className="w-9 text-center">{monthLabel(m)}</span>
+              ))}
+            </span>
+          )}
+        </>
+      ),
+      render: (council) =>
+        trend ? <TrendRow clubId={council.club_id} months={trend.months} row={trend.byClub.get(council.club_id)} /> : null,
+    },
+  ];
+
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">{unitName} — Compliance</h1>
-          <p className="mt-1 text-gray-600">
+      <PageHeader
+        title={`${unitName} — Compliance`}
+        subtitle={
+          <>
             Every council under this {summary?.unit?.type || 'organization'}, highest risk first.
             {summary?.as_of ? ` As of ${formatDateOnly(summary.as_of)}.` : ''}
-          </p>
-          {myUnits.length > 1 && (
-            <label className="mt-2 block text-sm text-gray-700">
+          </>
+        }
+        meta={
+          myUnits.length > 1 ? (
+            <label className="block text-sm text-gray-700">
               Organization{' '}
               <select
                 className="ml-1 rounded-md border border-gray-300 px-2 py-1 text-sm"
@@ -282,36 +366,38 @@ export const OrgCompliance: React.FC = () => {
                 ))}
               </select>
             </label>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-700">
-            <span className="sr-only">Requirement</span>
-            <select
-              aria-label="Requirement"
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-              value={requirementId ?? ''}
-              onChange={(e) => setRequirementId(e.target.value ? Number(e.target.value) : null)}
+          ) : undefined
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={download}
+              disabled={downloading || !!error}
+              className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
             >
-              <option value="">All requirements</option>
-              {(summary?.requirements || []).map((r: RollupRequirement) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                  {r.required ? '' : ' (optional)'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={download}
-            disabled={downloading || !!error}
-            className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
-          >
-            {downloading ? 'Preparing…' : 'Download CSV'}
-          </button>
-        </div>
-      </div>
+              {downloading ? 'Preparing…' : 'Download CSV'}
+            </button>
+            <label className="text-sm text-gray-700">
+              <span className="sr-only">Requirement</span>
+              <select
+                aria-label="Requirement"
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                value={requirementId ?? ''}
+                onChange={(e) => setRequirementId(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">All requirements</option>
+                {(summary?.requirements || []).map((r: RollupRequirement) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                    {r.required ? '' : ' (optional)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+      />
 
       {summary && summary.available === false && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
@@ -346,82 +432,29 @@ export const OrgCompliance: React.FC = () => {
 
       {loading ? (
         <p className="text-gray-500">Loading…</p>
-      ) : error ? null : councils.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-          No councils are attached under this organization yet.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <SortHeader label="Council" k="name" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Division" k="division" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Staff" k="staff_total" sort={sort} onSort={toggleSort} align="right" />
-                <SortHeader label="Compliant" k="compliant" sort={sort} onSort={toggleSort} align="right" />
-                <SortHeader label="Expiring" k="expiring_30" sort={sort} onSort={toggleSort} align="right" />
-                <SortHeader label="Expired" k="expired" sort={sort} onSort={toggleSort} align="right" />
-                <SortHeader label="Missing" k="missing" sort={sort} onSort={toggleSort} align="right" />
-                <SortHeader label="At risk" k="risk" sort={sort} onSort={toggleSort} align="right" />
-                <th className="px-3 py-2">
-                  <span className="block">Expiring next 6 months</span>
-                  {trend && (
-                    <span className="mt-1 flex gap-1 text-[10px] normal-case tracking-normal text-gray-400">
-                      {trend.months.map((m) => (
-                        <span key={m} className="w-9 text-center">{monthLabel(m)}</span>
-                      ))}
-                    </span>
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {councils.map((council) => (
-                <React.Fragment key={council.club_id}>
-                  <tr data-testid="council-row" className="hover:bg-gray-50">
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => expand(council.club_id)}
-                        aria-expanded={openClub === council.club_id}
-                        className="text-left font-semibold text-brand-primary underline"
-                      >
-                        {council.club_name}
-                      </button>
-                      <span className="block text-xs text-gray-500">{council.org_unit_name}</span>
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">{divisionFor(council, units)}</td>
-                    <td className="px-3 py-2 text-right">{council.staff_total}</td>
-                    <td className="px-3 py-2 text-right text-green-700">{council.compliant}</td>
-                    <td className="px-3 py-2 text-right text-amber-700">{council.expiring_30}</td>
-                    <td className="px-3 py-2 text-right text-red-700">{council.expired}</td>
-                    <td className="px-3 py-2 text-right text-gray-700">{council.missing}</td>
-                    <td className="px-3 py-2 text-right">
-                      <RiskCell share={council.risk_share} />
-                    </td>
-                    <td className="px-3 py-2">
-                      {trend && <TrendRow clubId={council.club_id} months={trend.months} row={trend.byClub.get(council.club_id)} />}
-                    </td>
-                  </tr>
-                  {openClub === council.club_id && (
-                    <tr>
-                      <td colSpan={9} className="bg-gray-50 px-3 py-3">
-                        <CouncilDrawer
-                          council={council}
-                          data={clubData[council.club_id] || null}
-                          error={clubError}
-                          canOpen={holdsRoleAt(council.club_id)}
-                          switching={switching}
-                          onOpen={() => openCouncil(council.club_id)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      ) : error ? null : (
+        <DataTable<CouncilRollup>
+          columns={councilColumns}
+          rows={councils}
+          rowKey={(council) => council.club_id}
+          // The row test hook. DataTable owns the <tr>, so the marker rides
+          // on a class rather than a data-testid.
+          rowTestId={() => 'council-row'}
+          emptyState="No councils are attached under this organization yet."
+          // The per-council drill-down, directly under the expanded council.
+          renderExpandedRow={(council) =>
+            openClub === council.club_id ? (
+              <CouncilDrawer
+                council={council}
+                data={clubData[council.club_id] || null}
+                error={clubError}
+                canOpen={holdsRoleAt(council.club_id)}
+                switching={switching}
+                onOpen={() => openCouncil(council.club_id)}
+              />
+            ) : null
+          }
+        />
       )}
 
       <p className="mt-6 text-xs text-gray-500">
@@ -442,19 +475,17 @@ export const OrgCompliance: React.FC = () => {
   );
 };
 
+/** The header node for a page-sorted column; DataTable supplies the <th>. */
 const SortHeader: React.FC<{
   label: string;
   k: SortKey;
   sort: SortState;
   onSort: (k: SortKey) => void;
-  align?: 'left' | 'right';
-}> = ({ label, k, sort, onSort, align = 'left' }) => (
-  <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : ''}`}>
-    <button type="button" onClick={() => onSort(k)} className="uppercase hover:underline">
-      {label}
-      {sort.key === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
-    </button>
-  </th>
+}> = ({ label, k, sort, onSort }) => (
+  <button type="button" onClick={() => onSort(k)} className="uppercase hover:underline">
+    {label}
+    {sort.key === k ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+  </button>
 );
 
 const Tile: React.FC<{ testId: string; label: string; value: number; total: number; accent: string }> = ({

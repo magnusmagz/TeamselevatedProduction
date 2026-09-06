@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -56,6 +58,26 @@ const METRICS: Array<{ key: keyof Totals; label: string; hint: string }> = [
 
 const cell = (v: number | null | undefined): string => (v === null || v === undefined ? 'n/a' : String(v));
 
+const columns: DataTableColumn<CouncilRow>[] = [
+  {
+    key: 'club_name',
+    header: 'Council',
+    render: (row) => <span className="font-medium">{row.club_name}</span>,
+  },
+  {
+    key: 'council_code',
+    header: 'Code',
+    render: (row) => <span className="text-gray-600">{row.council_code ?? '—'}</span>,
+  },
+  ...METRICS.map<DataTableColumn<CouncilRow>>((m) => ({
+    key: m.key,
+    header: <span title={m.hint}>{m.label}</span>,
+    align: 'right',
+    className: 'tabular-nums',
+    render: (row) => cell(row[m.key]),
+  })),
+];
+
 const OnboardingFunnel: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const orgUnitId = Number(id);
@@ -96,26 +118,21 @@ const OnboardingFunnel: React.FC = () => {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary">
-            {data?.org_unit ? `${data.org_unit.name} — coach onboarding` : 'Coach onboarding'}
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            One row per council. Accepted means the coach set a password through their own invite
-            link; a password an admin typed does not count.
-          </p>
-        </div>
-        <Link
-          to={`/imports/national-coaches?org_unit_id=${orgUnitId}`}
-          className="shrink-0 bg-white border border-gray-200 hover:border-brand-primary rounded-lg p-4 w-56"
-        >
-          <span className="block text-lg font-semibold text-brand-primary">Import coaches</span>
-          <span className="block text-xs text-gray-600 mt-1">
-            One CSV for every council, with a council code per row. Each coach is invited by email.
-          </span>
-        </Link>
-      </div>
+      <PageHeader
+        title={data?.org_unit ? `${data.org_unit.name} — coach onboarding` : 'Coach onboarding'}
+        subtitle="One row per council. Accepted means the coach set a password through their own invite link; a password an admin typed does not count."
+        actions={
+          <Link
+            to={`/imports/national-coaches?org_unit_id=${orgUnitId}`}
+            className="shrink-0 bg-white border border-gray-200 hover:border-brand-primary rounded-lg p-4 w-56"
+          >
+            <span className="block text-lg font-semibold text-brand-primary">Import coaches</span>
+            <span className="block text-xs text-gray-600 mt-1">
+              One CSV for every council, with a council code per row. Each coach is invited by email.
+            </span>
+          </Link>
+        }
+      />
 
       {loading && <p className="text-gray-600">Loading…</p>}
 
@@ -138,48 +155,24 @@ const OnboardingFunnel: React.FC = () => {
               Compliance was evaluated for the first 2,000 coaches only; the Compliant column is a lower bound.
             </p>
           )}
-          <div className="overflow-x-auto">
-            <table aria-label="Onboarding funnel" className="min-w-full text-sm border border-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-3 py-2">Council</th>
-                  <th className="text-left px-3 py-2">Code</th>
+          <DataTable<CouncilRow>
+            caption="Onboarding funnel"
+            columns={columns}
+            rows={data.councils || []}
+            rowKey={(row) => row.club_id}
+            emptyState="No councils are attached under this organization yet."
+            footer={
+              data.totals ? (
+                <tr className="bg-gray-50 font-semibold">
+                  <td className="px-4 py-3 text-sm">Totals</td>
+                  <td className="px-4 py-3 text-sm" />
                   {METRICS.map((m) => (
-                    <th key={m.key} className="text-right px-3 py-2" title={m.hint}>{m.label}</th>
+                    <td key={m.key} className="px-4 py-3 text-sm text-right tabular-nums">{cell(data.totals?.[m.key])}</td>
                   ))}
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {(data.councils || []).length === 0 && (
-                  <tr>
-                    <td colSpan={2 + METRICS.length} className="px-3 py-4 text-gray-600">
-                      No councils are attached under this organization yet.
-                    </td>
-                  </tr>
-                )}
-                {(data.councils || []).map((row) => (
-                  <tr key={row.club_id}>
-                    <td className="px-3 py-2 font-medium">{row.club_name}</td>
-                    <td className="px-3 py-2 text-gray-600">{row.council_code ?? '—'}</td>
-                    {METRICS.map((m) => (
-                      <td key={m.key} className="px-3 py-2 text-right tabular-nums">{cell(row[m.key])}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-              {data.totals && (
-                <tfoot className="bg-gray-50 font-semibold">
-                  <tr>
-                    <td className="px-3 py-2">Totals</td>
-                    <td className="px-3 py-2" />
-                    {METRICS.map((m) => (
-                      <td key={m.key} className="px-3 py-2 text-right tabular-nums">{cell(data.totals?.[m.key])}</td>
-                    ))}
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+              ) : undefined
+            }
+          />
         </>
       )}
     </main>

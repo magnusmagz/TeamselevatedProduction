@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
 import { formatDateOnly, toDateOnlyString } from '../utils/dateFormat';
 import StatusChip from '../compliance/StatusChip';
 import {
@@ -160,27 +161,25 @@ export const ClubCompliance: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Compliance</h1>
-          <p className="mt-1 text-gray-600">
-            Who is cleared to take part, and what is about to lapse.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/compliance/requirements" className="text-sm text-brand-primary underline">
-            Requirements
-          </Link>
-          <button
-            type="button"
-            onClick={download}
-            disabled={downloading}
-            className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
-          >
-            {downloading ? 'Preparing…' : 'Download CSV'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Compliance"
+        subtitle="Who is cleared to take part, and what is about to lapse."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={download}
+              disabled={downloading}
+              className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
+            >
+              {downloading ? 'Preparing…' : 'Download CSV'}
+            </button>
+            <Link to="/compliance/requirements" className="text-sm text-brand-primary underline">
+              Requirements
+            </Link>
+          </>
+        }
+      />
 
       {!available && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">

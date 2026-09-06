@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationHealth from '../components/superadmin/NotificationHealth';
 import LoadMore from '../components/LoadMore';
+import PageHeader from '../components/ui/PageHeader';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
@@ -582,14 +583,15 @@ const SuperAdminDashboard: React.FC = () => {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase">Platform Administration</h1>
-        <p className="text-gray-600 mt-1">Manage clubs, users, and roles across the platform</p>
-        <Link to="/super-admin/organizations" className="text-sm text-brand-primary underline">
-          Organizations (national / division / council)
-        </Link>
-      </div>
+      <PageHeader
+        title="Platform Administration"
+        subtitle="Manage clubs, users, and roles across the platform"
+        actions={
+          <Link to="/super-admin/organizations" className="text-sm text-brand-primary underline">
+            Organizations (national / division / council)
+          </Link>
+        }
+      />
 
       {/* Tabs */}
       <div className="border-b border-brand-secondary mb-6">

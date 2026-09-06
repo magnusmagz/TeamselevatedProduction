@@ -1,5 +1,6 @@
 import React from 'react';
 import ImportTilesGrid from '../components/ImportTilesGrid';
+import PageHeader from '../components/ui/PageHeader';
 
 /**
  * Standalone bulk-import landing page. The same tile grid also lives under
@@ -9,11 +10,10 @@ import ImportTilesGrid from '../components/ImportTilesGrid';
 const ImportsIndex: React.FC = () => {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-brand-primary mb-2">Bulk Import</h1>
-      <p className="text-sm text-gray-600 mb-6">
-        Choose what you want to import. Each importer walks you through a
-        CSV upload, column mapping, and live progress tracking.
-      </p>
+      <PageHeader
+        title="Bulk Import"
+        subtitle="Choose what you want to import. Each importer walks you through a CSV upload, column mapping, and live progress tracking."
+      />
 
       <ImportTilesGrid />
     </main>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -109,6 +111,11 @@ const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
 };
 
 const UNMAPPED = '__unmapped__';
+
+const errorColumns: DataTableColumn<ImportError>[] = [
+  { key: 'row_number', header: 'Row', render: (err) => <span className="font-mono">{err.row_number}</span> },
+  { key: 'error_message', header: 'Error', render: (err) => <span className="text-red-700">{err.error_message}</span> },
+];
 
 interface DataImportProps {
   entity: ImportEntity;
@@ -322,7 +329,7 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
   if (!currentClubId && !orgUnitId) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-brand-primary mb-4">Import Athletes</h1>
+        <PageHeader title="Import Athletes" />
         <p className="text-gray-600">Select a club to continue.</p>
       </main>
     );
@@ -334,7 +341,7 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-brand-primary mb-2">Import {displayName}</h1>
+      <PageHeader title={`Import ${displayName}`} className="mb-2" />
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6 text-sm">
@@ -478,26 +485,16 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
           {preview.preview_rows.length > 0 && (
             <div className="mb-6">
               <h3 className="text-sm font-semibold mb-2">Preview (first {preview.preview_rows.length} rows)</h3>
-              <div className="overflow-x-auto border border-gray-200 rounded">
-                <table className="text-xs">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {preview.headers.map((h) => (
-                        <th key={h} className="text-left p-2 whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.preview_rows.map((row, i) => (
-                      <tr key={i} className="border-t border-gray-200">
-                        {preview.headers.map((h) => (
-                          <td key={h} className="p-2 whitespace-nowrap">{row[h]}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable<Record<string, string>>
+                columns={preview.headers.map<DataTableColumn<Record<string, string>>>((h) => ({
+                  key: h,
+                  header: h,
+                  className: 'whitespace-nowrap',
+                  render: (row) => row[h],
+                }))}
+                rows={preview.preview_rows}
+                rowKey={(_row, i) => i}
+              />
             </div>
           )}
 
@@ -568,24 +565,12 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
               {importErrors.length > 0 && (
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold mb-2">Errors ({importErrors.length} shown)</h3>
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-2">Row</th>
-                          <th className="text-left p-2">Error</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {importErrors.map((err, i) => (
-                          <tr key={i} className="border-t border-gray-200">
-                            <td className="p-2 font-mono">{err.row_number}</td>
-                            <td className="p-2 text-red-700">{err.error_message}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable<ImportError>
+                    maxHeight="16rem"
+                    columns={errorColumns}
+                    rows={importErrors}
+                    rowKey={(_err, i) => i}
+                  />
                 </div>
               )}
 

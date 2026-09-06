@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import CrewAccountLinkPanel from '../components/CrewAccountLinkPanel';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 import {
   PortalStatus,
   PORTAL_STATUS_META,
@@ -254,28 +256,123 @@ const CrewRoster: React.FC = () => {
     await load();
   };
 
+  const crewColumns: DataTableColumn<CrewMember>[] = [
+    {
+      key: 'name',
+      header: 'Crew member',
+      className: 'whitespace-nowrap',
+      render: (m) => <span className="font-medium text-gray-900">{m.first_name} {m.last_name}</span>,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      render: (m) => <span className="text-gray-500">{m.email || <span className="italic text-gray-400">none</span>}</span>,
+    },
+    {
+      key: 'mobile_phone',
+      header: 'Phone',
+      className: 'whitespace-nowrap tabular-nums',
+      render: (m) => <span className="text-gray-500">{m.mobile_phone || <span className="italic text-gray-400">none</span>}</span>,
+    },
+    {
+      key: 'athletes',
+      header: 'Athlete(s)',
+      render: (m) => <span className="text-gray-500">{m.athletes}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (m) => {
+        const meta = portalStatusMeta(m.status);
+        const detail = portalStatusDetail(m);
+        return (
+          <>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-semibold ${meta.cls}`}
+              title={meta.help}
+            >
+              {meta.label}
+            </span>
+            {/* The date IS the claim. "On the platform" without it is the
+                old badge again, asserting more than we can show. */}
+            {detail && (
+              <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
+            )}
+            {m.shared_account && (
+              <div className="text-[11px] text-amber-700 mt-0.5" title={m.shared_reason || ''}>
+                ⚠ may be another account
+              </div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      actions: true,
+      render: (m) => {
+        const busy = inviting === m.guardian_id;
+        /* One control, four behaviours — the admin should not have
+           to know which state someone is in. `active` used to
+           render NOTHING, which is why a family who could not get
+           in had no path: "Invite to portal" sends nothing to an
+           existing account, and there was no other button. */
+        if (m.status === 'no_email') return null;
+        return (
+          <button
+            // The row opens the panel, so this must not also trigger it.
+            onClick={(e) => {
+              e.stopPropagation();
+              if (m.status === 'active') {
+                handleLoginLink(m);
+              } else {
+                handleInvite(m);
+              }
+            }}
+            disabled={busy || bulk.running}
+            className={
+              m.status === 'invited' || m.status === 'active'
+                ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
+                : 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
+            }
+          >
+            {busy
+              ? 'Sending…'
+              : m.status === 'active'
+              ? 'Send login link'
+              : m.status === 'invited' || m.status === 'invite_expired'
+              ? 'Resend'
+              : 'Invite to portal'}
+          </button>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Crew</h1>
-          <p className="text-sm text-gray-500 mt-1">Crew &amp; family across your club</p>
-        </div>
-        <button
-          onClick={inviteAll}
-          disabled={bulk.running || counts.not_invited + counts.invite_expired === 0}
-          className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {bulk.running
-            ? `Inviting ${bulk.done} of ${bulk.total}…`
-            : `Invite all not yet in (${
-                filtered.filter(
-                  (m) => m.status === 'not_invited' || m.status === 'invite_expired'
-                ).length
-              })`}
-        </button>
-      </div>
+      <PageHeader
+        title="Crew"
+        subtitle={<>Crew &amp; family across your club</>}
+        className="mb-2"
+        actions={
+          <button
+            onClick={inviteAll}
+            disabled={bulk.running || counts.not_invited + counts.invite_expired === 0}
+            className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulk.running
+              ? `Inviting ${bulk.done} of ${bulk.total}…`
+              : `Invite all not yet in (${
+                  filtered.filter(
+                    (m) => m.status === 'not_invited' || m.status === 'invite_expired'
+                  ).length
+                })`}
+          </button>
+        }
+      />
 
       {/* Bulk progress */}
       {bulk.running && (
@@ -342,99 +439,15 @@ const CrewRoster: React.FC = () => {
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />)}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">No crew members match this view.</div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Crew member', 'Email', 'Phone', 'Athlete(s)', 'Status', ''].map((h, i) => (
-                    <th key={i} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filtered.map((m) => {
-                  const meta = portalStatusMeta(m.status);
-                  const detail = portalStatusDetail(m);
-                  const busy = inviting === m.guardian_id;
-                  return (
-                    <tr
-                      key={m.guardian_id}
-                      onClick={() => openMember(m)}
-                      className={`hover:bg-gray-50 cursor-pointer ${
-                        selected?.guardian_id === m.guardian_id ? 'bg-brand-light' : ''
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                        {m.first_name} {m.last_name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{m.email || <span className="italic text-gray-400">none</span>}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap tabular-nums">
-                        {m.mobile_phone || <span className="italic text-gray-400">none</span>}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{m.athletes}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${meta.cls}`}
-                          title={meta.help}
-                        >
-                          {meta.label}
-                        </span>
-                        {/* The date IS the claim. "On the platform" without it is the
-                            old badge again, asserting more than we can show. */}
-                        {detail && (
-                          <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
-                        )}
-                        {m.shared_account && (
-                          <div className="text-[11px] text-amber-700 mt-0.5" title={m.shared_reason || ''}>
-                            ⚠ may be another account
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {/* One control, four behaviours — the admin should not have
-                            to know which state someone is in. `active` used to
-                            render NOTHING, which is why a family who could not get
-                            in had no path: "Invite to portal" sends nothing to an
-                            existing account, and there was no other button. */}
-                        {m.status === 'no_email' ? null : (
-                          <button
-                            // The row opens the panel, so this must not also trigger it.
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (m.status === 'active') {
-                                handleLoginLink(m);
-                              } else {
-                                handleInvite(m);
-                              }
-                            }}
-                            disabled={busy || bulk.running}
-                            className={
-                              m.status === 'invited' || m.status === 'active'
-                                ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
-                                : 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
-                            }
-                          >
-                            {busy
-                              ? 'Sending…'
-                              : m.status === 'active'
-                              ? 'Send login link'
-                              : m.status === 'invited' || m.status === 'invite_expired'
-                              ? 'Resend'
-                              : 'Invite to portal'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable<CrewMember>
+          columns={crewColumns}
+          rows={filtered}
+          rowKey={(m) => m.guardian_id}
+          onRowClick={openMember}
+          rowClassName={(m) => (selected?.guardian_id === m.guardian_id ? 'bg-brand-light' : '')}
+          emptyState="No crew members match this view."
+        />
       )}
 
       {/* ── Detail slide-out ───────────────────────────────────────────── */}

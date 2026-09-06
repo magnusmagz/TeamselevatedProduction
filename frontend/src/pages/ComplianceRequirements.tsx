@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
 import {
   deleteRequirement,
   fetchRequirements,
@@ -200,26 +201,24 @@ export const ComplianceRequirements: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Requirements</h1>
-          <p className="text-gray-600 mt-1">
-            What your staff and volunteers have to have on file, and how long each one lasts.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/compliance" className="text-sm text-brand-primary underline">
-            Compliance dashboard
-          </Link>
-          <button
-            type="button"
-            onClick={() => setDraft({ ...EMPTY_DRAFT })}
-            className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold uppercase text-white hover:opacity-90"
-          >
-            Add requirement
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Requirements"
+        subtitle="What your staff and volunteers have to have on file, and how long each one lasts."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setDraft({ ...EMPTY_DRAFT })}
+              className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold uppercase text-white hover:opacity-90"
+            >
+              Add requirement
+            </button>
+            <Link to="/compliance" className="text-sm text-brand-primary underline">
+              Compliance dashboard
+            </Link>
+          </>
+        }
+      />
 
       {!available && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">

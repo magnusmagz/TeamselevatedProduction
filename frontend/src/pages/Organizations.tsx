@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PageHeader from '../components/ui/PageHeader';
 
 /**
  * Organizations — the tier above the club (GOTR G1, migration 090).
@@ -229,28 +230,22 @@ const Organizations: React.FC = () => {
   if (available === false) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase">Organizations</h1>
+        <PageHeader title="Organizations" backTo="/super-admin" backLabel="Back to platform administration" />
         <p className="mt-4 text-gray-700">
           Organizations are not set up on this environment yet. Migration 090 has not been applied.
         </p>
-        <Link to="/super-admin" className="mt-4 inline-block text-brand-primary underline">
-          Back to platform administration
-        </Link>
       </main>
     );
   }
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase">Organizations</h1>
-        <p className="text-gray-600 mt-1">
-          The tier above the club: national, division and council. A council is a club — attach it here.
-        </p>
-        <Link to="/super-admin" className="text-sm text-brand-primary underline">
-          Back to platform administration
-        </Link>
-      </div>
+      <PageHeader
+        title="Organizations"
+        subtitle="The tier above the club: national, division and council. A council is a club — attach it here."
+        backTo="/super-admin"
+        backLabel="Back to platform administration"
+      />
 
       {error && (
         <div role="alert" className="mb-4 border border-red-300 bg-red-50 text-red-800 px-4 py-2 rounded">

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -291,6 +293,129 @@ export const VolunteerSignupRequests: React.FC = () => {
 
   const pendingCount = signups.length;
 
+  const signupColumns: DataTableColumn<Signup>[] = [
+    {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          aria-label="Select all pending requests"
+          checked={selectablePending.length > 0 && selectedIds.size === selectablePending.length}
+          onChange={toggleSelectAll}
+          disabled={selectablePending.length === 0}
+          className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+        />
+      ),
+      className: 'whitespace-nowrap',
+      render: (signup) =>
+        signup.status === 'pending' ? (
+          <input
+            type="checkbox"
+            aria-label={`Select ${signup.first_name} ${signup.last_name}`}
+            checked={selectedIds.has(signup.id)}
+            onChange={() => toggleSelect(signup.id)}
+            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+          />
+        ) : null,
+    },
+    {
+      key: 'name',
+      header: 'Name',
+      className: 'whitespace-nowrap',
+      render: (signup) => <span className="font-medium text-brand-primary">{signup.first_name} {signup.last_name}</span>,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      className: 'whitespace-nowrap',
+      render: (signup) => <span className="text-gray-500">{signup.email}</span>,
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      className: 'whitespace-nowrap',
+      render: (signup) => <span className="text-gray-500">{signup.phone || '--'}</span>,
+    },
+    {
+      key: 'team_name',
+      header: 'Team',
+      className: 'whitespace-nowrap',
+      render: (signup) => <span className="text-gray-500">{signup.team_name}</span>,
+    },
+    {
+      key: 'requested_at',
+      header: 'Requested',
+      className: 'whitespace-nowrap',
+      render: (signup) => <span className="text-gray-500">{formatDate(signup.requested_at)}</span>,
+    },
+    {
+      key: 'notes',
+      header: 'Notes',
+      className: 'max-w-xs truncate',
+      render: (signup) => <span className="text-gray-500">{signup.notes || '--'}</span>,
+    },
+    {
+      key: 'background_check_status',
+      header: 'BG Check',
+      className: 'whitespace-nowrap',
+      render: (signup) => getBgCheckBadge(signup.background_check_status),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (signup) => {
+        const bgCleared = signup.background_check_status === 'cleared';
+        const isRejecting = rejectingId === signup.id;
+        const isActioning = actionLoading === signup.id;
+        return signup.status === 'pending' ? (
+          <div className="flex items-center justify-end gap-2">
+            <div className="relative group">
+              <button
+                onClick={() => handleApprove(signup.id)}
+                disabled={!bgCleared || isActioning}
+                className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase transition-colors ${
+                  bgCleared
+                    ? 'bg-brand-primary text-white hover:opacity-90'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isActioning ? 'Processing...' : 'Approve'}
+              </button>
+              {!bgCleared && (
+                <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10">
+                  <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                    Background check not cleared
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setRejectingId(isRejecting ? null : signup.id);
+                setRejectNotes('');
+              }}
+              disabled={isActioning}
+              className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              Reject
+            </button>
+          </div>
+        ) : (
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              signup.status === 'approved'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {signup.status.charAt(0).toUpperCase() + signup.status.slice(1)}
+          </span>
+        );
+      },
+    },
+  ];
+
   const STATUS_TABS: { key: StatusFilter; label: string }[] = [
     { key: 'pending', label: 'Pending' },
     { key: 'approved', label: 'Approved' },
@@ -300,17 +425,16 @@ export const VolunteerSignupRequests: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Signup Requests</h1>
-          {!loading && (
+      <PageHeader
+        title="Volunteer Signup Requests"
+        meta={
+          !loading ? (
             <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-semibold bg-brand-primary/10 text-brand-primary">
               {pendingCount}
             </span>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       {/* Filters row */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
@@ -389,34 +513,6 @@ export const VolunteerSignupRequests: React.FC = () => {
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && signups.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-lg shadow-sm border border-brand-secondary">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-            />
-          </svg>
-          <h3 className="mt-4 text-lg font-medium text-brand-primary">
-            No {statusFilter !== 'all' ? statusFilter : ''} signup requests
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {statusFilter === 'pending'
-              ? 'There are no pending volunteer signup requests to review right now.'
-              : `No ${statusFilter !== 'all' ? statusFilter : ''} volunteer signup requests found.`}
-          </p>
-        </div>
-      )}
-
       {/* Bulk action bar */}
       {!loading && selectedIds.size > 0 && (
         <div
@@ -451,178 +547,77 @@ export const VolunteerSignupRequests: React.FC = () => {
       )}
 
       {/* Table */}
-      {!loading && signups.length > 0 && (
-        <div className="bg-white shadow-sm rounded-lg border border-brand-secondary overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all pending requests"
-                      checked={selectablePending.length > 0 && selectedIds.size === selectablePending.length}
-                      onChange={toggleSelectAll}
-                      disabled={selectablePending.length === 0}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+      {!loading && (
+        <>
+          <DataTable<Signup>
+            columns={signupColumns}
+            rows={signups}
+            rowKey={(signup) => signup.id}
+            emptyState={{
+              text: (
+                <>
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
                     />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Phone
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Team
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Requested
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Notes
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    BG Check
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {signups.map((signup) => {
-                  const bgCleared = signup.background_check_status === 'cleared';
-                  const isRejecting = rejectingId === signup.id;
-                  const isActioning = actionLoading === signup.id;
-
-                  return (
-                    <React.Fragment key={signup.id}>
-                      <tr className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {signup.status === 'pending' ? (
-                            <input
-                              type="checkbox"
-                              aria-label={`Select ${signup.first_name} ${signup.last_name}`}
-                              checked={selectedIds.has(signup.id)}
-                              onChange={() => toggleSelect(signup.id)}
-                              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
-                            />
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-brand-primary">
-                          {signup.first_name} {signup.last_name}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {signup.email}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {signup.phone || '--'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {signup.team_name}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(signup.requested_at)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                          {signup.notes || '--'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {getBgCheckBadge(signup.background_check_status)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                          {signup.status === 'pending' ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="relative group">
-                                <button
-                                  onClick={() => handleApprove(signup.id)}
-                                  disabled={!bgCleared || isActioning}
-                                  className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase transition-colors ${
-                                    bgCleared
-                                      ? 'bg-brand-primary text-white hover:opacity-90'
-                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                >
-                                  {isActioning ? 'Processing...' : 'Approve'}
-                                </button>
-                                {!bgCleared && (
-                                  <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10">
-                                    <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                                      Background check not cleared
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setRejectingId(isRejecting ? null : signup.id);
-                                  setRejectNotes('');
-                                }}
-                                disabled={isActioning}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                signup.status === 'approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {signup.status.charAt(0).toUpperCase() + signup.status.slice(1)}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                      {/* Reject reason input row */}
-                      {isRejecting && (
-                        <tr>
-                          <td colSpan={9} className="px-4 py-3 bg-red-50">
-                            <div className="flex items-center gap-3">
-                              <label className="text-sm text-gray-700 font-medium whitespace-nowrap">
-                                Reason (optional):
-                              </label>
-                              <input
-                                type="text"
-                                value={rejectNotes}
-                                onChange={(e) => setRejectNotes(e.target.value)}
-                                placeholder="Enter a reason for rejection..."
-                                className="flex-1 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
-                              />
-                              <button
-                                onClick={() => handleReject(signup.id)}
-                                disabled={isActioning}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                              >
-                                {isActioning ? 'Processing...' : 'Confirm Reject'}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRejectingId(null);
-                                  setRejectNotes('');
-                                }}
-                                className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </svg>
+                  <h3 className="mt-4 text-lg font-medium text-brand-primary">
+                    No {statusFilter !== 'all' ? statusFilter : ''} signup requests
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {statusFilter === 'pending'
+                      ? 'There are no pending volunteer signup requests to review right now.'
+                      : `No ${statusFilter !== 'all' ? statusFilter : ''} volunteer signup requests found.`}
+                  </p>
+                </>
+              ),
+            }}
+            // Reject reason input, directly under the request being rejected.
+            renderExpandedRow={(signup) => {
+              if (rejectingId !== signup.id) return null;
+              const isActioning = actionLoading === signup.id;
+              return (
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-700 font-medium whitespace-nowrap">
+                    Reason (optional):
+                  </label>
+                  <input
+                    type="text"
+                    value={rejectNotes}
+                    onChange={(e) => setRejectNotes(e.target.value)}
+                    placeholder="Enter a reason for rejection..."
+                    className="flex-1 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
+                  />
+                  <button
+                    onClick={() => handleReject(signup.id)}
+                    disabled={isActioning}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {isActioning ? 'Processing...' : 'Confirm Reject'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRejectingId(null);
+                      setRejectNotes('');
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              );
+            }}
+          />
+        </>
       )}
     </div>
   );

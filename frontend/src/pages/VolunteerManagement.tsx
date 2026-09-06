@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import LoadMore from '../components/LoadMore';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -397,6 +399,117 @@ export const VolunteerManagement: React.FC = () => {
     });
   };
 
+  const teamComplianceColumns: DataTableColumn<TeamCompliance>[] = [
+    {
+      key: 'team_name',
+      header: 'Team',
+      className: 'whitespace-nowrap',
+      render: (tc) => <span className="font-medium text-brand-primary">{tc.team_name}</span>,
+    },
+    {
+      key: 'volunteer_count',
+      header: 'Volunteers',
+      render: (tc) => <span className="text-gray-600">{tc.volunteer_count}</span>,
+    },
+    { key: 'cleared', header: 'Cleared', render: (tc) => <span className="text-green-700">{tc.cleared}</span> },
+    { key: 'pending_bg', header: 'Pending', render: (tc) => <span className="text-amber-600">{tc.pending_bg}</span> },
+    { key: 'expired_bg', header: 'Expired', render: (tc) => <span className="text-red-600">{tc.expired_bg}</span> },
+    {
+      key: 'compliance_rate',
+      header: 'Compliance',
+      render: (tc) => {
+        const rate = Number(tc.compliance_rate);
+        const rateClass =
+          rate >= 100 ? 'text-green-700' : rate >= 75 ? 'text-amber-600' : 'text-red-600';
+        return <span className={`font-semibold ${rateClass}`}>{rate}%</span>;
+      },
+    },
+  ];
+
+  const volunteerColumns: DataTableColumn<Volunteer>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      className: 'whitespace-nowrap',
+      render: (vol) => <span className="font-medium text-brand-primary">{vol.first_name} {vol.last_name}</span>,
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      className: 'whitespace-nowrap',
+      render: (vol) => <span className="text-gray-600">{vol.email}</span>,
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      className: 'whitespace-nowrap',
+      render: (vol) => <span className="text-gray-600">{vol.phone || '--'}</span>,
+    },
+    {
+      key: 'team_name',
+      header: 'Team',
+      className: 'whitespace-nowrap',
+      render: (vol) => <span className="text-gray-600">{vol.team_name}</span>,
+    },
+    {
+      key: 'bg_check_status',
+      header: 'BG Check',
+      className: 'whitespace-nowrap',
+      render: (vol) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            BG_BADGE_STYLES[vol.bg_check_status] || BG_BADGE_STYLES.never_checked
+          }`}
+        >
+          {vol.bg_check_status === 'never_checked'
+            ? 'Not Checked'
+            : vol.bg_check_status.charAt(0).toUpperCase() + vol.bg_check_status.slice(1)}
+        </span>
+      ),
+    },
+    {
+      key: 'start_date',
+      header: 'Start Date',
+      className: 'whitespace-nowrap',
+      render: (vol) => <span className="text-gray-600">{formatDate(vol.start_date)}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (vol) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            STATUS_BADGE_STYLES[vol.status] || STATUS_BADGE_STYLES.inactive
+          }`}
+        >
+          {vol.status.charAt(0).toUpperCase() + vol.status.slice(1)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (vol) => (
+        <>
+          <button
+            onClick={() => handleEdit(vol)}
+            className="text-brand-primary hover:underline text-sm font-medium mr-3"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setRemovingId(vol.id)}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            Remove
+          </button>
+        </>
+      ),
+    },
+  ];
+
   if (!currentClubId) {
     return (
       <div className="p-6 text-center text-brand-primary">
@@ -407,27 +520,24 @@ export const VolunteerManagement: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Management</h1>
-          <p className="text-sm text-brand-primary mt-1">
-            Manage volunteers, track background checks, and monitor compliance.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            resetAddForm();
-            setShowAddModal(true);
-          }}
-          className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-semibold uppercase rounded-md hover:opacity-90 transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Volunteer
-        </button>
-      </div>
+      <PageHeader
+        title="Volunteer Management"
+        subtitle="Manage volunteers, track background checks, and monitor compliance."
+        actions={
+          <button
+            onClick={() => {
+              resetAddForm();
+              setShowAddModal(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-semibold uppercase rounded-md hover:opacity-90 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Volunteer
+          </button>
+        }
+      />
 
       {/* Metrics Cards */}
       {compliance && (
@@ -459,45 +569,17 @@ export const VolunteerManagement: React.FC = () => {
 
       {/* Per-Team Compliance */}
       {isClubAdmin && teamCompliance.length > 0 && (
-        <div className="bg-white rounded-lg border border-brand-secondary overflow-hidden mb-6">
-          <div className="px-4 py-3 border-b border-gray-200">
+        <div className="mb-6">
+          <div className="px-4 py-3">
             <h2 className="text-sm font-semibold text-brand-primary uppercase tracking-wide">
               Per-Team Compliance
             </h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Volunteers</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Cleared</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Pending</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Expired</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Compliance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {teamCompliance.map((tc) => {
-                  const rate = Number(tc.compliance_rate);
-                  const rateClass =
-                    rate >= 100 ? 'text-green-700' : rate >= 75 ? 'text-amber-600' : 'text-red-600';
-                  return (
-                    <tr key={tc.team_id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-brand-primary whitespace-nowrap">
-                        {tc.team_name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{tc.volunteer_count}</td>
-                      <td className="px-4 py-3 text-sm text-green-700">{tc.cleared}</td>
-                      <td className="px-4 py-3 text-sm text-amber-600">{tc.pending_bg}</td>
-                      <td className="px-4 py-3 text-sm text-red-600">{tc.expired_bg}</td>
-                      <td className={`px-4 py-3 text-sm font-semibold ${rateClass}`}>{rate}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<TeamCompliance>
+            columns={teamComplianceColumns}
+            rows={teamCompliance}
+            rowKey={(tc) => tc.team_id}
+          />
         </div>
       )}
 
@@ -565,112 +647,31 @@ export const VolunteerManagement: React.FC = () => {
       </div>
 
       {/* Volunteer Table */}
-      <div className="bg-white rounded-lg border border-brand-secondary overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-brand-primary">Loading volunteers...</div>
-        ) : filteredVolunteers.length === 0 ? (
-          <div className="p-12 text-center text-brand-primary">
-            {volunteers.length === 0
-              ? 'No volunteers found. Click "Add Volunteer" to get started.'
-              : 'No volunteers match your current filters.'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Phone
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Team
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    BG Check
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Start Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-brand-primary uppercase tracking-wide">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredVolunteers.map((vol) => (
-                  <tr key={vol.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-brand-primary whitespace-nowrap">
-                      {vol.first_name} {vol.last_name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {vol.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {vol.phone || '--'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {vol.team_name}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          BG_BADGE_STYLES[vol.bg_check_status] || BG_BADGE_STYLES.never_checked
-                        }`}
-                      >
-                        {vol.bg_check_status === 'never_checked'
-                          ? 'Not Checked'
-                          : vol.bg_check_status.charAt(0).toUpperCase() + vol.bg_check_status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {formatDate(vol.start_date)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          STATUS_BADGE_STYLES[vol.status] || STATUS_BADGE_STYLES.inactive
-                        }`}
-                      >
-                        {vol.status.charAt(0).toUpperCase() + vol.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleEdit(vol)}
-                        className="text-brand-primary hover:underline text-sm font-medium mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setRemovingId(vol.id)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <LoadMore
-              page={page}
-              loading={loadingMore}
-              shown={volunteers.length}
-              label="volunteers"
-              onLoadMore={loadMoreVolunteers}
-            />
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <div className="bg-white rounded-lg border border-brand-secondary p-12 text-center text-brand-primary">
+          Loading volunteers...
+        </div>
+      ) : (
+        <>
+          <DataTable<Volunteer>
+            columns={volunteerColumns}
+            rows={filteredVolunteers}
+            rowKey={(vol) => vol.id}
+            emptyState={
+              volunteers.length === 0
+                ? 'No volunteers found. Click "Add Volunteer" to get started.'
+                : 'No volunteers match your current filters.'
+            }
+          />
+          <LoadMore
+            page={page}
+            loading={loadingMore}
+            shown={volunteers.length}
+            label="volunteers"
+            onLoadMore={loadMoreVolunteers}
+          />
+        </>
+      )}
 
       {/* Edit Modal */}
       {editingVolunteer && (

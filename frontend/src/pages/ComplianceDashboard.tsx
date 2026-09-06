@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -77,6 +79,124 @@ const statusSortOrder: Record<string, number> = {
   pending: 1,
   never_checked: 2,
 };
+
+const attentionColumns: DataTableColumn<NeedsAttention>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    className: 'whitespace-nowrap',
+    render: (vol) => (
+      <span className="font-medium text-brand-primary">{vol.first_name} {vol.last_name}</span>
+    ),
+  },
+  {
+    key: 'email',
+    header: 'Email',
+    className: 'whitespace-nowrap',
+    render: (vol) => <span className="text-gray-500">{vol.email}</span>,
+  },
+  {
+    key: 'team_name',
+    header: 'Team',
+    className: 'whitespace-nowrap',
+    render: (vol) => <span className="text-gray-500">{vol.team_name}</span>,
+  },
+  {
+    key: 'background_check_status',
+    header: 'BG Check Status',
+    className: 'whitespace-nowrap',
+    render: (vol) => statusBadge(vol.background_check_status),
+  },
+  {
+    key: 'background_check_date',
+    header: 'Last Check Date',
+    className: 'whitespace-nowrap',
+    render: (vol) => (
+      <span className="text-gray-500">
+        {vol.background_check_date
+          ? new Date(vol.background_check_date).toLocaleDateString()
+          : 'N/A'}
+      </span>
+    ),
+  },
+  {
+    key: 'days_since_check',
+    header: 'Days Since Check',
+    className: 'whitespace-nowrap',
+    render: (vol) => (
+      <span className="text-gray-500">
+        {vol.days_since_check != null ? `${vol.days_since_check} days` : 'N/A'}
+      </span>
+    ),
+  },
+];
+
+const teamColumns: DataTableColumn<TeamBreakdown>[] = [
+  {
+    key: 'team_name',
+    header: 'Team',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="font-medium text-brand-primary">{team.team_name}</span>,
+  },
+  {
+    key: 'age_group',
+    header: 'Age Group',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-gray-500">{team.age_group}</span>,
+  },
+  {
+    key: 'division',
+    header: 'Division',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-gray-500">{team.division}</span>,
+  },
+  {
+    key: 'volunteer_count',
+    header: 'Volunteers',
+    align: 'center',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-gray-500">{team.volunteer_count}</span>,
+  },
+  {
+    key: 'cleared',
+    header: 'Cleared',
+    align: 'center',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-green-600 font-medium">{team.cleared}</span>,
+  },
+  {
+    key: 'pending_bg',
+    header: 'Pending',
+    align: 'center',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-yellow-600 font-medium">{team.pending_bg}</span>,
+  },
+  {
+    key: 'expired_bg',
+    header: 'Expired',
+    align: 'center',
+    className: 'whitespace-nowrap',
+    render: (team) => <span className="text-red-600 font-medium">{team.expired_bg}</span>,
+  },
+  {
+    key: 'compliance_rate',
+    header: 'Compliance Rate',
+    className: 'whitespace-nowrap',
+    render: (team) => (
+      <div className="flex items-center gap-3">
+        <div className="flex-1 bg-brand-secondary rounded-full h-2 w-24">
+          <div
+            className={`h-2 rounded-full ${complianceRateBg(team.compliance_rate)}`}
+            style={{ width: `${Math.min(team.compliance_rate, 100)}%` }}
+          />
+        </div>
+        <span className={`text-sm font-medium ${complianceRateColor(team.compliance_rate)}`}>
+          {team.compliance_rate.toFixed(0)}%
+        </span>
+      </div>
+    ),
+  },
+];
 
 /**
  * Club Admin: Volunteer Compliance Dashboard
@@ -162,16 +282,17 @@ export const ComplianceDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Page Title */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Volunteer Compliance</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Overall compliance rate:{' '}
-          <span className={`text-3xl font-bold ${complianceRateColor(summary.compliance_rate)}`}>
-            {summary.compliance_rate.toFixed(1)}%
-          </span>
-        </p>
-      </div>
+      <PageHeader
+        title="Volunteer Compliance"
+        subtitle={
+          <>
+            Overall compliance rate:{' '}
+            <span className={`text-3xl font-bold ${complianceRateColor(summary.compliance_rate)}`}>
+              {summary.compliance_rate.toFixed(1)}%
+            </span>
+          </>
+        }
+      />
 
       {/* Pending Signups Banner */}
       {summary.pending_signups > 0 && (
@@ -235,108 +356,32 @@ export const ComplianceDashboard: React.FC = () => {
       {/* Needs Attention Section */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide mb-4">Needs Attention</h2>
-        {sortedAttention.length === 0 ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-            <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-green-800 font-medium">All volunteers are compliant!</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-brand-secondary">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">BG Check Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Last Check Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Days Since Check</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-brand-secondary">
-                  {sortedAttention.map(vol => (
-                    <tr key={vol.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-primary">
-                        {vol.first_name} {vol.last_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{vol.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{vol.team_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {statusBadge(vol.background_check_status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vol.background_check_date
-                          ? new Date(vol.background_check_date).toLocaleDateString()
-                          : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {vol.days_since_check != null ? `${vol.days_since_check} days` : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <DataTable<NeedsAttention>
+          columns={attentionColumns}
+          rows={sortedAttention}
+          rowKey={(vol) => vol.id}
+          emptyState={{
+            text: (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-green-800 font-medium">All volunteers are compliant!</p>
+              </div>
+            ),
+          }}
+        />
       </div>
 
       {/* Per-Team Breakdown */}
       <div>
         <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide mb-4">Per-Team Breakdown</h2>
-        {team_breakdown.length === 0 ? (
-          <p className="text-gray-500 text-sm">No team data available.</p>
-        ) : (
-          <div className="bg-white border border-brand-secondary rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-brand-secondary">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Team</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Age Group</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Division</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Volunteers</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Cleared</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Pending</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-brand-primary uppercase tracking-wide">Expired</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-brand-primary uppercase tracking-wide">Compliance Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-brand-secondary">
-                  {team_breakdown.map(team => (
-                    <tr key={team.team_id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-primary">
-                        {team.team_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{team.age_group}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{team.division}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{team.volunteer_count}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600 font-medium">{team.cleared}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-yellow-600 font-medium">{team.pending_bg}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600 font-medium">{team.expired_bg}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 bg-brand-secondary rounded-full h-2 w-24">
-                            <div
-                              className={`h-2 rounded-full ${complianceRateBg(team.compliance_rate)}`}
-                              style={{ width: `${Math.min(team.compliance_rate, 100)}%` }}
-                            />
-                          </div>
-                          <span className={`text-sm font-medium ${complianceRateColor(team.compliance_rate)}`}>
-                            {team.compliance_rate.toFixed(0)}%
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <DataTable<TeamBreakdown>
+          columns={teamColumns}
+          rows={team_breakdown}
+          rowKey={(team) => team.team_id}
+          emptyState="No team data available."
+        />
       </div>
     </div>
   );
