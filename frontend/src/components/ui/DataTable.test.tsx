@@ -1,3 +1,4 @@
+/* eslint-disable testing-library/no-node-access */
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import DataTable, { DataTableColumn } from './DataTable';
