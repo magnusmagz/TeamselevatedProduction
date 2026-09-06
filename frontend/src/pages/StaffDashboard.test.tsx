@@ -56,6 +56,11 @@ const routeFetch = (url: string) => {
     // it happened to fail.
     return Promise.resolve(json({ success: true, available: true, clubs: [] }));
   }
+  if (url.includes('user-profile.php')) {
+    // The admin-set-password banner asks the profile; nothing set here, so it
+    // renders nothing and the anchor counts below stay about the tiles.
+    return Promise.resolve(json({ success: true, user: { id: 1, password_set_by_admin_at: null } }));
+  }
   return Promise.reject(new Error(`unexpected fetch: ${url}`));
 };
 

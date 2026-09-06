@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) is written on `feature/coach-access` and NOT applied — it has a `PENDING_MIGRATION` entry. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -1247,6 +1247,26 @@ not_invited → *Invite to portal*, no_email → nothing.
   being able to show later.
 - `send-magic-link` on `auth-gateway.php` is deliberately left unauthenticated and
   untouched — it only ever mails the account owner, so identity proves nothing there.
+
+### Coach access controls — `api/coach-access.php` (2026-09-06, branch `feature/coach-access`)
+The Coaches page's equivalent of the Crew button, plus a temporary password. Three POST
+actions taking `{user_id, club_id}`: `invite` (not_invited → mint + mail; invited /
+invite_expired → re-mint, the old link stops working, audited `coach_invite_resent`),
+`send-login-link` (the same 24h mint as `portal-access.php`, audited
+`portal_login_link_sent`), `set-temporary-password` (`{…, password}`, min 10, bcrypt,
+`auth_provider='password'`, spends every unused `:coach_invite`, audited
+`password_set_by_admin` — never the password). Gate is `te_is_club_admin()` of the coach's
+club, and the target must hold an active unrevoked `coach` row there; the email comes from
+the users row, never the body. The state is re-derived server-side: invite on an account
+with a password is 409 `already_active`, login link on one without is 409 `not_active`.
+No token and no password in any response (`CoachAccessTest` scans the handler).
+`api/coach-invite.php` stays the PUBLIC redemption endpoint — keep the two files apart.
+Status → control lives in `lib/coach_access.php` / `frontend/src/utils/coachAccess.ts`;
+`CoachAccessControl` is rendered by BOTH CoachManagement tables. **No forced-change flag**
+(decided 2026-09-06): migration 097's nullable `users.password_set_by_admin_at` drives a
+dismissible banner on the staff dashboard (`AdminSetPasswordBanner`, read through
+`api/user-profile.php`, cleared by its own password change) and nothing else. Both writers
+probe `information_schema` and degrade to "not written / no banner" until 097 is applied.
 
 ### A one-time link needs THREE answers, not one — `lib/parent_invite_token.php`
 Added 2026-08-03 after a parent completed setup, re-clicked his link, was told it had

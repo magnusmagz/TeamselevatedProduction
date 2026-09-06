@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
 import ComplianceAlertCard from '../compliance/ComplianceAlertCard';
+import { AdminSetPasswordBanner } from '../components/AdminSetPasswordBanner';
 
 /**
  * StaffDashboard — the staff home page (`/dashboard`, and therefore `/`).
@@ -170,6 +171,10 @@ export const StaffDashboard: React.FC = () => {
           feature is off, and when the read fails — a dashboard the whole club
           opens every morning must not carry a permanent empty box. */}
       <ComplianceAlertCard className="mb-6" />
+
+      {/* Renders NOTHING unless a club admin set this person's password and
+          they have not changed it yet (users.password_set_by_admin_at). */}
+      <AdminSetPasswordBanner />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Tile
