@@ -119,7 +119,6 @@ const NOT_STAFF_APP: Record<string, string> = {
  * Every entry is a debt with a reason, not a permanent exemption.
  */
 const ALLOWLIST: Record<string, string> = {
-  'components/CoachManagement.tsx': 'concurrent lane, sweep next',
   'pages/HelpArticlePage.tsx':
     'the <table is a ReactMarkdown element override for tables AUTHORED in help articles — prose, not a data list; the h1 is PageHeader',
 };
@@ -186,10 +185,8 @@ describe('UI consistency: one header, one table (staff app)', () => {
 
   it('the two components are the only files under components/ui that render the raw elements', () => {
     const ui = listTsx('components/ui');
-    for (const f of ui) {
-      const src = stripComments(fs.readFileSync(path.join(SRC, f), 'utf8'));
-      if (/<h1[\s>]/.test(src)) expect(f).toBe('components/ui/PageHeader.tsx');
-      if (/<table[\s>]/.test(src)) expect(f).toBe('components/ui/DataTable.tsx');
-    }
+    const read = (f: string) => stripComments(fs.readFileSync(path.join(SRC, f), 'utf8'));
+    expect(ui.filter((f) => /<h1[\s>]/.test(read(f)))).toEqual(['components/ui/PageHeader.tsx']);
+    expect(ui.filter((f) => /<table[\s>]/.test(read(f)))).toEqual(['components/ui/DataTable.tsx']);
   });
 });

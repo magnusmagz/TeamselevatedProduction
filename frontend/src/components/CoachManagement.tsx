@@ -5,6 +5,8 @@ import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 import LoadMore from './LoadMore';
 import { PageMeta, pageQuery, readPage, rowsFrom } from '../utils/pagination';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from './ui/PageHeader';
+import DataTable, { DataTableColumn } from './ui/DataTable';
 
 /** One of the coach's teams, from api/coach-teams.php?action=list. */
 export interface CoachTeamRole {
@@ -390,6 +392,90 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   });
 
   // If modal mode (has onClose prop)
+  // One column set for both the modal and the standalone page — the two
+  // tables were identical and had drifted once already.
+  const coachColumns: DataTableColumn<Coach>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      className: 'whitespace-nowrap',
+      render: (coach) => (
+        <Link
+          to={`/coach/${coach.id}`}
+          className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
+        >
+          {coach.first_name} {coach.last_name}
+        </Link>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      className: 'whitespace-nowrap',
+      render: (coach) => <div className="text-brand-primary">{coach.email}</div>,
+    },
+    {
+      key: 'teams',
+      header: 'Teams',
+      className: 'whitespace-nowrap',
+      render: (coach) => (
+        <div className="text-brand-primary">
+          {coach.team_count > 0 ? (
+            <span className="font-semibold">{coach.team_count}</span>
+          ) : (
+            <span className="text-gray-500">0</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (coach) => {
+        const meta = portalStatusMeta(coach.status || 'not_invited');
+        const detail = portalStatusDetail(coach);
+        return (
+          <>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`} title={meta.help}>
+              {meta.label}
+            </span>
+            {detail && <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>}
+            {coach.shared_account && (
+              <div className="text-[11px] text-amber-700 mt-0.5" title={coach.shared_reason || ''}>
+                &#9888; may be another account
+              </div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      // Exactly Edit / View Schedule / View Teams in BOTH tables (Maggie,
+      // 2026-09-06). Invite, login link and password controls live on Club
+      // Settings -> Users, not here. Assign to Team added 2026-09-06 (Maggie).
+      render: (coach) => (
+        <>
+          <button onClick={() => handleEditCoach(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+            Edit
+          </button>
+          <button onClick={() => handleViewSchedule(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+            View Schedule
+          </button>
+          <button onClick={() => handleViewTeams(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+            View Teams
+          </button>
+          <button onClick={() => handleOpenAssign(coach)} className="text-brand-primary hover:underline uppercase text-xs">
+            Assign to Team
+          </button>
+        </>
+      ),
+    },
+  ];
+
   if (onClose) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -531,119 +617,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 )}
               </div>
             ) : (
-              <div className="border border-brand-secondary rounded-md overflow-hidden bg-white">
-                <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-secondary bg-white">
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Teams
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCoaches.map((coach, index) => (
-                      <tr
-                        key={coach.id}
-                        className="border-b border-gray-300 hover:bg-gray-50"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <Link
-                              to={`/coach/${coach.id}`}
-                              className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
-                            >
-                              {coach.first_name} {coach.last_name}
-                            </Link>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-brand-primary">{coach.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-brand-primary">
-                            {coach.team_count > 0 ? (
-                              <span className="font-semibold">{coach.team_count}</span>
-                            ) : (
-                              <span className="text-gray-500">0</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {(() => {
-                            const meta = portalStatusMeta(coach.status || 'not_invited');
-                            const detail = portalStatusDetail(coach);
-                            return (
-                              <>
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
-                                  title={meta.help}
-                                >
-                                  {meta.label}
-                                </span>
-                                {detail && (
-                                  <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">
-                                    {detail}
-                                  </div>
-                                )}
-                                {coach.shared_account && (
-                                  <div
-                                    className="text-[11px] text-amber-700 mt-0.5"
-                                    title={coach.shared_reason || ''}
-                                  >
-                                    &#9888; may be another account
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => handleEditCoach(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleViewSchedule(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            View Schedule
-                          </button>
-                          {/* Exactly Edit / View Schedule / View Teams in BOTH tables
-                              (Maggie, 2026-09-06). Invite, login link and password
-                              controls live on Club Settings -> Users, not here.
-                              Assign to Team added 2026-09-06 (Maggie). */}
-                          <button
-                            onClick={() => handleViewTeams(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            View Teams
-                          </button>
-                          <button
-                            onClick={() => handleOpenAssign(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
-                          >
-                            Assign to Team
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div>
+                <DataTable<Coach>
+                  columns={coachColumns}
+                  rows={filteredCoaches}
+                  rowKey={(coach) => coach.id}
+                />
                 <LoadMore
                   page={page}
                   loading={loadingMore}
@@ -651,7 +630,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   label="coaches"
                   onLoadMore={loadMoreCoaches}
                 />
-                </div>
               </div>
             )}
           </div>
@@ -697,13 +675,18 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   // Standalone page mode (no onClose prop)
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Back Button */}
-
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">COACH MANAGEMENT</h1>
-        <p className="text-gray-600 mt-2">Manage all coaches in the system</p>
-      </div>
+      <PageHeader
+        title="Coach Management"
+        subtitle="Manage all coaches in the system"
+        actions={
+          <button
+            onClick={handleAddCoach}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary-hover uppercase font-semibold w-full sm:w-auto"
+          >
+            + Add Coach
+          </button>
+        }
+      />
 
       <div className="bg-white border border-brand-secondary rounded-md">
         <div className="p-4 sm:p-6">
@@ -720,12 +703,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
-              <button
-                onClick={handleAddCoach}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold w-full sm:w-auto"
-              >
-                + Add Coach
-              </button>
             </div>
 
             {showForm && (
@@ -833,111 +810,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto border border-brand-secondary rounded-md bg-white">
-                <table className="min-w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-secondary bg-white">
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Teams
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider border-r border-gray-300">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCoaches.map((coach) => (
-                      <tr
-                        key={coach.id}
-                        className="border-b border-gray-300 hover:bg-gray-50"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          <div>
-                            <Link
-                              to={`/coach/${coach.id}`}
-                              className="text-sm font-medium text-brand-primary hover:text-brand-primary-hover hover:underline"
-                            >
-                              {coach.first_name} {coach.last_name}
-                            </Link>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
-                          {coach.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-primary border-r border-gray-300">
-                          {coach.team_count > 0 ? coach.team_count : '0'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap border-r border-gray-300">
-                          {/* Same source as the modal table above — two tables in this
-                              file render the same list, so both had the hardcoded
-                              "Active" and both have to move together. */}
-                          {(() => {
-                            const meta = portalStatusMeta(coach.status || 'not_invited');
-                            const detail = portalStatusDetail(coach);
-                            return (
-                              <>
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
-                                  title={meta.help}
-                                >
-                                  {meta.label}
-                                </span>
-                                {detail && (
-                                  <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">
-                                    {detail}
-                                  </div>
-                                )}
-                                {coach.shared_account && (
-                                  <div
-                                    className="text-[11px] text-amber-700 mt-0.5"
-                                    title={coach.shared_reason || ''}
-                                  >
-                                    &#9888; may be another account
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleEditCoach(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleViewSchedule(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            View Schedule
-                          </button>
-                          <button
-                            onClick={() => handleViewTeams(coach)}
-                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
-                          >
-                            View Teams
-                          </button>
-                          <button
-                            onClick={() => handleOpenAssign(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
-                          >
-                            Assign to Team
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div>
+                <DataTable<Coach>
+                  columns={coachColumns}
+                  rows={filteredCoaches}
+                  rowKey={(coach) => coach.id}
+                />
                 <LoadMore
                   page={page}
                   loading={loadingMore}
