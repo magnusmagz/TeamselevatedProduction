@@ -58,6 +58,12 @@ export interface DataTableProps<Row> {
   rowClassName?: (row: Row, index: number) => string;
   /** Rendered after the table body rows, inside <tbody>. Use for totals. */
   footer?: React.ReactNode;
+  /**
+   * Row expansion: return content for a row and it is rendered in a
+   * full-width row DIRECTLY UNDER that row (a detail drawer, a per-email
+   * report). Return null/undefined for rows that are not expanded.
+   */
+  renderExpandedRow?: (row: Row, index: number) => React.ReactNode;
   /** Optional caption for screen readers. */
   caption?: string;
   /** Height cap; the header stays visible while the body scrolls. */
@@ -106,6 +112,7 @@ function DataTable<Row>({
   defaultSort,
   rowClassName,
   footer,
+  renderExpandedRow,
   caption,
   maxHeight,
   className = '',
@@ -202,9 +209,11 @@ function DataTable<Row>({
             sorted.map((row, index) => {
               const clickable = Boolean(onRowClick);
               const extra = rowClassName ? rowClassName(row, index) : '';
+              const key = rowKey(row, index);
+              const expanded = renderExpandedRow ? renderExpandedRow(row, index) : null;
               return (
+                <React.Fragment key={key}>
                 <tr
-                  key={rowKey(row, index)}
                   onClick={clickable ? () => onRowClick!(row) : undefined}
                   className={`${DATA_TABLE_CLASSES.tr} ${clickable ? DATA_TABLE_CLASSES.trClickable : ''} ${extra}`.trim()}
                 >
@@ -224,6 +233,14 @@ function DataTable<Row>({
                     );
                   })}
                 </tr>
+                {expanded != null && expanded !== false && (
+                  <tr className="bg-gray-50" data-testid="expanded-row">
+                    <td colSpan={columns.length} className="px-4 py-4">
+                      {expanded}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               );
             })
           )}

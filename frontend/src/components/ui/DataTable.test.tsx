@@ -133,4 +133,21 @@ describe('DataTable', () => {
     expect(trs[3].className).toContain('opacity-50');
     expect(screen.getByText('Total: 3').closest('tbody')).not.toBeNull();
   });
+
+  it('renders renderExpandedRow content directly under its row, and nothing for null', () => {
+    render(
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.id}
+        renderExpandedRow={(r) => (r.id === 2 ? <div>Detail for alpha</div> : null)}
+      />
+    );
+    const trs = screen.getAllByRole('row');
+    expect(trs).toHaveLength(5); // header + 3 + 1 expanded
+    expect(trs[2]).toHaveTextContent('alpha');
+    expect(trs[3]).toHaveAttribute('data-testid', 'expanded-row');
+    expect(within(trs[3]).getByText('Detail for alpha')).toBeInTheDocument();
+    expect(within(trs[3]).getByRole('cell')).toHaveAttribute('colspan', '3');
+  });
 });
