@@ -4,6 +4,34 @@ import PracticeScheduler from './PracticeScheduler';
 import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 import LoadMore from './LoadMore';
 import { PageMeta, pageQuery, readPage, rowsFrom } from '../utils/pagination';
+import { useOrg } from '../contexts/OrgContext';
+
+/** One of the coach's teams, from api/coach-teams.php?action=list. */
+export interface CoachTeamRole {
+  id: number;
+  name: string;
+  program_name?: string | null;
+  age_group?: string | null;
+  head_coach?: { id: number; name: string } | null;
+  role: CoachTeamRoleName;
+}
+
+export type CoachTeamRoleName = 'head_coach' | 'assistant_coach' | 'team_manager';
+
+export const COACH_TEAM_ROLE_LABELS: Record<CoachTeamRoleName, string> = {
+  head_coach: 'Head coach',
+  assistant_coach: 'Assistant coach',
+  team_manager: 'Team manager',
+};
+
+/** A team the picker can offer: the club's active teams, with the current head. */
+export interface AssignableTeam {
+  id: number;
+  name: string;
+  program_name?: string | null;
+  age_group?: string | null;
+  head_coach?: { id: number; name: string } | null;
+}
 
 interface Coach {
   id: number;
@@ -45,7 +73,17 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingTeamsCoach, setViewingTeamsCoach] = useState<Coach | null>(null);
-  const [coachTeams, setCoachTeams] = useState<{ id: number; name: string }[]>([]);
+  const [coachTeams, setCoachTeams] = useState<CoachTeamRole[]>([]);
+  const [coachTeamsError, setCoachTeamsError] = useState<string | null>(null);
+  // Assign-to-team modal (2026-09-06). Writes the same two places the team page
+  // writes — teams.primary_coach_id and team_members — through api/coach-teams.php.
+  const { currentClubId } = useOrg();
+  const [assignCoach, setAssignCoach] = useState<Coach | null>(null);
+  const [assignableTeams, setAssignableTeams] = useState<AssignableTeam[]>([]);
+  const [assignTeamId, setAssignTeamId] = useState<string>('');
+  const [assignRole, setAssignRole] = useState<CoachTeamRoleName>('head_coach');
+  const [assignBusy, setAssignBusy] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
   // The coach list is paginated (200 a page). Without <LoadMore> a 900-coach
   // council would show 200 and read as complete.
   const [page, setPage] = useState<PageMeta | null>(null);
@@ -112,23 +150,155 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     }
   };
 
+  /**
+   * The coach's teams with their role on each (head / assistant / manager), plus
+   * the club's active teams for the picker. The old View Teams read
+   * `teams-gateway.php?primary_coach_id=` and therefore listed head-coach teams
+   * only — an assistant on three teams showed "No teams assigned".
+   */
+  const loadCoachTeams = async (coach: Coach): Promise<{ teams: CoachTeamRole[]; available: AssignableTeam[] } | null> => {
+    if (!currentClubId) {
+      setCoachTeamsError('Pick a club first.');
+      return null;
+    }
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(
+      `${API_URL}/api/coach-teams.php?action=list&user_id=${coach.id}&club_id=${currentClubId}`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      setCoachTeamsError(data.error || 'Could not load this coach\'s teams.');
+      return null;
+    }
+    setCoachTeamsError(null);
+    return { teams: data.teams || [], available: data.available || [] };
+  };
+
+  /** Keep the row's Teams count honest after an assign / unassign. */
+  const updateTeamCount = (coachId: number, count: number) => {
+    setCoaches((previous) => previous.map((c) => (c.id === coachId ? { ...c, team_count: count } : c)));
+  };
+
   const handleViewTeams = async (coach: Coach) => {
+    setCoachTeams([]);
+    setCoachTeamsError(null);
+    setViewingTeamsCoach(coach);
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_URL}/legacy/teams-gateway.php?primary_coach_id=${coach.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      setCoachTeams(data.teams || []);
-      setViewingTeamsCoach(coach);
+      const loaded = await loadCoachTeams(coach);
+      if (loaded) {
+        setCoachTeams(loaded.teams);
+        updateTeamCount(coach.id, loaded.teams.length);
+      }
     } catch (error) {
       console.error('Error fetching coach teams:', error);
-      setCoachTeams([]);
-      setViewingTeamsCoach(coach);
+      setCoachTeamsError('Could not load this coach\'s teams.');
     }
   };
+
+  const handleOpenAssign = async (coach: Coach) => {
+    setAssignCoach(coach);
+    setAssignableTeams([]);
+    setAssignTeamId('');
+    setAssignRole('head_coach');
+    setAssignError(null);
+    try {
+      const loaded = await loadCoachTeams(coach);
+      if (loaded) {
+        setAssignableTeams(loaded.available);
+      } else {
+        setAssignError('Could not load the club\'s teams.');
+      }
+    } catch (error) {
+      console.error('Error loading teams to assign:', error);
+      setAssignError('Could not load the club\'s teams.');
+    }
+  };
+
+  const closeAssign = () => {
+    setAssignCoach(null);
+    setAssignableTeams([]);
+    setAssignTeamId('');
+    setAssignError(null);
+  };
+
+  const handleAssign = async () => {
+    if (!assignCoach || !assignTeamId) return;
+    setAssignBusy(true);
+    setAssignError(null);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/coach-teams.php?action=assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ user_id: assignCoach.id, team_id: Number(assignTeamId), role: assignRole }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setAssignError(data.error || 'Could not assign this coach.');
+        return;
+      }
+      const coach = assignCoach;
+      closeAssign();
+      // Re-read so the count and (if open) the View Teams list say what the server says.
+      const loaded = await loadCoachTeams(coach).catch(() => null);
+      if (loaded) {
+        updateTeamCount(coach.id, loaded.teams.length);
+        if (viewingTeamsCoach && viewingTeamsCoach.id === coach.id) setCoachTeams(loaded.teams);
+      }
+      if (data.previous_head_coach) {
+        alert(`${coach.first_name} ${coach.last_name} is now head coach of ${data.team_name}, replacing ${data.previous_head_coach.name}.`);
+      }
+    } catch (error) {
+      console.error('Error assigning coach:', error);
+      setAssignError('Could not assign this coach.');
+    } finally {
+      setAssignBusy(false);
+    }
+  };
+
+  const handleUnassign = async (coach: Coach | null, team: CoachTeamRole) => {
+    if (!coach) return;
+    if (!window.confirm(`Remove ${coach.first_name} ${coach.last_name} as ${COACH_TEAM_ROLE_LABELS[team.role].toLowerCase()} of ${team.name}?`)) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/api/coach-teams.php?action=unassign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ user_id: coach.id, team_id: team.id }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setCoachTeamsError(data.error || 'Could not remove this coach from the team.');
+        return;
+      }
+      const remaining = coachTeams.filter((t) => t.id !== team.id);
+      setCoachTeams(remaining);
+      updateTeamCount(coach.id, remaining.length);
+    } catch (error) {
+      console.error('Error unassigning coach:', error);
+      setCoachTeamsError('Could not remove this coach from the team.');
+    }
+  };
+
+  const selectedAssignTeam = assignableTeams.find((t) => String(t.id) === assignTeamId) || null;
+  const assignReplaces =
+    assignRole === 'head_coach' && selectedAssignTeam?.head_coach && assignCoach &&
+    selectedAssignTeam.head_coach.id !== assignCoach.id
+      ? selectedAssignTeam.head_coach
+      : null;
+  const assignGroups = (() => {
+    const groups = new Map<string, AssignableTeam[]>();
+    assignableTeams.forEach((t) => {
+      const key = t.program_name || '';
+      const bucket = groups.get(key) || [];
+      if (!groups.has(key)) groups.set(key, bucket);
+      bucket.push(t);
+    });
+    return Array.from(groups.entries());
+  })();
 
   const handleViewSchedule = async (coach: Coach) => {
     const team = await fetchCoachTeams(coach.id);
@@ -455,12 +625,19 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </button>
                           {/* Exactly Edit / View Schedule / View Teams in BOTH tables
                               (Maggie, 2026-09-06). Invite, login link and password
-                              controls live on Club Settings -> Users, not here. */}
+                              controls live on Club Settings -> Users, not here.
+                              Assign to Team added 2026-09-06 (Maggie). */}
                           <button
                             onClick={() => handleViewTeams(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             View Teams
+                          </button>
+                          <button
+                            onClick={() => handleOpenAssign(coach)}
+                            className="text-brand-primary hover:underline uppercase text-xs"
+                          >
+                            Assign to Team
                           </button>
                         </td>
                       </tr>
@@ -746,9 +923,15 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </button>
                           <button
                             onClick={() => handleViewTeams(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             View Teams
+                          </button>
+                          <button
+                            onClick={() => handleOpenAssign(coach)}
+                            className="text-brand-primary hover:underline uppercase text-xs"
+                          >
+                            Assign to Team
                           </button>
                         </td>
                       </tr>
@@ -820,19 +1003,47 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               </button>
             </div>
             <div className="p-6">
+              {coachTeamsError && (
+                <p className="text-red-700 text-sm mb-3" role="alert">{coachTeamsError}</p>
+              )}
               {coachTeams.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No teams assigned to this coach.</p>
+                !coachTeamsError && <p className="text-gray-500 text-center py-4">No teams assigned to this coach.</p>
               ) : (
                 <ul className="space-y-2">
                   {coachTeams.map((team) => (
-                    <li key={team.id} className="p-3 border border-brand-secondary rounded-md">
-                      <span className="font-medium text-brand-primary">{team.name}</span>
+                    <li key={team.id} className="p-3 border border-brand-secondary rounded-md flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-medium text-brand-primary">{team.name}</span>
+                        <div className="text-xs text-gray-600">
+                          {COACH_TEAM_ROLE_LABELS[team.role] || team.role}
+                          {team.program_name ? ` · ${team.program_name}` : ''}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnassign(viewingTeamsCoach, team)}
+                        className="text-red-700 hover:underline uppercase text-xs whitespace-nowrap"
+                      >
+                        Unassign
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <div className="border-t border-brand-secondary px-6 py-4">
+            <div className="border-t border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const coach = viewingTeamsCoach;
+                  setViewingTeamsCoach(null);
+                  setCoachTeams([]);
+                  if (coach) handleOpenAssign(coach);
+                }}
+                className="text-brand-primary hover:underline uppercase text-xs"
+              >
+                Assign to Team
+              </button>
               <button
                 onClick={() => {
                   setViewingTeamsCoach(null);
@@ -841,6 +1052,102 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign to Team Modal */}
+      {assignCoach && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-brand-secondary rounded-md w-full max-w-lg">
+            <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
+                Assign {assignCoach.first_name} {assignCoach.last_name} to a Team
+              </h3>
+              <button
+                type="button"
+                onClick={closeAssign}
+                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label htmlFor="assign-team" className="block text-sm font-semibold text-brand-primary mb-1">
+                  Team
+                </label>
+                <select
+                  id="assign-team"
+                  value={assignTeamId}
+                  onChange={(e) => setAssignTeamId(e.target.value)}
+                  className="w-full px-3 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent"
+                >
+                  <option value="">Select a team…</option>
+                  {assignGroups.map(([program, teams]) =>
+                    program ? (
+                      <optgroup key={program} label={program}>
+                        {teams.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </optgroup>
+                    ) : (
+                      teams.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))
+                    )
+                  )}
+                </select>
+                {assignableTeams.length === 0 && !assignError && (
+                  <p className="text-xs text-gray-500 mt-1">Loading the club's teams…</p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="assign-role" className="block text-sm font-semibold text-brand-primary mb-1">
+                  Role
+                </label>
+                <select
+                  id="assign-role"
+                  value={assignRole}
+                  onChange={(e) => setAssignRole(e.target.value as CoachTeamRoleName)}
+                  className="w-full px-3 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-accent"
+                >
+                  {(Object.keys(COACH_TEAM_ROLE_LABELS) as CoachTeamRoleName[]).map((r) => (
+                    <option key={r} value={r}>{COACH_TEAM_ROLE_LABELS[r]}</option>
+                  ))}
+                </select>
+              </div>
+              {assignReplaces && (
+                <p className="text-sm text-amber-700" role="status">
+                  Replaces {assignReplaces.name} as head coach of {selectedAssignTeam?.name}.
+                </p>
+              )}
+              {selectedAssignTeam && assignRole === 'head_coach' && selectedAssignTeam.head_coach &&
+                assignCoach && selectedAssignTeam.head_coach.id === assignCoach.id && (
+                <p className="text-sm text-gray-600">Already head coach of this team.</p>
+              )}
+              {assignError && (
+                <p className="text-sm text-red-700" role="alert">{assignError}</p>
+              )}
+            </div>
+            <div className="border-t border-brand-secondary px-6 py-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeAssign}
+                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAssign}
+                disabled={!assignTeamId || assignBusy}
+                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold disabled:opacity-50"
+              >
+                {assignBusy ? 'Assigning…' : 'Assign'}
               </button>
             </div>
           </div>

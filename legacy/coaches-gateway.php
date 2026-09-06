@@ -78,7 +78,15 @@ try {
                        " . te_portal_status_columns('u.email', 'u', 'coach_invite') . "
                 FROM users u
                 LEFT JOIN teams t
-                       ON t.primary_coach_id = u.id
+                       ON (
+                            t.primary_coach_id = u.id
+                            OR EXISTS (
+                                SELECT 1 FROM team_members tm
+                                WHERE tm.team_id = t.id AND tm.user_id = u.id
+                                  AND tm.role IN ('assistant_coach', 'team_manager')
+                                  AND tm.status = 'active'
+                            )
+                          )
                       AND t.deleted_at IS NULL
                       $teamClubFilter
                 WHERE (
