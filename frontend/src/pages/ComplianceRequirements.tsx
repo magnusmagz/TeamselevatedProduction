@@ -8,6 +8,7 @@ import {
   type SaveRequirementBody,
 } from '../compliance/api';
 import type { ComplianceRequirement, ComplianceVocabulary, ProofType } from '../compliance/types';
+import ReminderStreamPanel from '../compliance/ReminderStreamPanel';
 
 /**
  * The requirement builder — `/compliance/requirements` (GOTR G4).
@@ -253,6 +254,14 @@ export const ComplianceRequirements: React.FC = () => {
                     data-testid={`inherited-${requirement.id}`}
                   >
                     <RequirementSummary requirement={requirement} />
+                    {/* The rule is theirs; the reminder cadence for THIS club's
+                        people can still be this club's own. A club stream
+                        replaces the inherited one for this club only. */}
+                    <ReminderStreamPanel
+                      requirementId={requirement.id}
+                      requirementName={requirement.name}
+                      tier={{ club_id: currentClubId }}
+                    />
                   </li>
                 ))}
               </ul>
@@ -294,6 +303,11 @@ export const ComplianceRequirements: React.FC = () => {
                         </button>
                       </div>
                     </div>
+                    <ReminderStreamPanel
+                      requirementId={requirement.id}
+                      requirementName={requirement.name}
+                      tier={{ club_id: currentClubId }}
+                    />
                   </li>
                 ))}
               </ul>

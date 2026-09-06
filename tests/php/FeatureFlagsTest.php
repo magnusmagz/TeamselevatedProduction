@@ -64,6 +64,14 @@ class FeatureFlagsTest extends TestCase
         // refuses, it does not accept-and-not-send.
         'lib/coach_invite.php' => 'COACH_INVITE_EMAIL',
         'api/imports-gateway.php' => 'NATIONAL_IMPORT',
+        // GOTR G7 — authored reminder streams dispatch through the same tick
+        // as the default cadence (lib/compliance_reminders.php above), so the
+        // stream send path is already on this roll call. The authoring gateway
+        // is behind the feature switch; the LMS intake feed has its OWN switch
+        // (COMPLIANCE_INTAKE) so a misbehaving feed can be shut off without
+        // taking the compliance screens with it.
+        'api/compliance-streams.php' => 'COMPLIANCE',
+        'api/compliance-intake.php' => ['COMPLIANCE', 'COMPLIANCE_INTAKE'],
     ];
 
     protected function setUp(): void

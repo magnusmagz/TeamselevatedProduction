@@ -18,6 +18,7 @@ import {
   type RollupSummaryResponse,
 } from '../compliance/rollupApi';
 import { useOrgStanding } from '../compliance/useOrgStanding';
+import IntakeKeysPanel from '../compliance/IntakeKeysPanel';
 
 /**
  * Division / national compliance — `/organizations/:id/compliance` (GOTR G5).
@@ -430,6 +431,13 @@ export const OrgCompliance: React.FC = () => {
         </Link>{' '}
         page, or by an organization administrator.
       </p>
+
+      {/* Intake keys and unmatched LMS arrivals (G7): org_admin only. The
+          server re-checks standing on every call; this only decides whether
+          to draw the section, because a viewer would get 403s from it. */}
+      {summary && summary.standing === 'org_admin' && (
+        <IntakeKeysPanel orgUnitId={orgUnitId} requirements={summary.requirements || []} />
+      )}
     </div>
   );
 };

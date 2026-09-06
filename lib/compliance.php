@@ -529,6 +529,24 @@ function te_credential_upsert(PDO $pdo, array $data, ?int $actorId = null): arra
             $set = implode(', ', array_map(static fn (string $k): string => "$k = ?", array_keys($fields)));
             $stmt = $pdo->prepare("UPDATE person_credentials SET $set WHERE id = ?");
             $stmt->execute(array_merge(array_values($fields), [(int) $existing['id']]));
+
+            // A renewal is a NEW CYCLE for the reminders. The log is keyed on
+            // the credential row, which is one row per person per requirement
+            // forever — so without this, the 60-day step sent before the 2024
+            // certificate lapsed would count as already sent for the 2026 one
+            // and the person would never be reminded again. Clearing on a
+            // changed expiry is the only thing that makes a second cycle
+            // possible; an unchanged expiry (an admin editing notes) keeps the
+            // history, so an edit cannot cause a resend.
+            $before = te_compliance_date_or_null($existing['expires_at'] ?? null);
+            if ($before !== $expiresAt) {
+                try {
+                    $pdo->prepare('DELETE FROM compliance_reminder_log WHERE credential_id = ?')
+                        ->execute([(int) $existing['id']]);
+                } catch (Throwable $e) {
+                    error_log('te_credential_upsert reminder-log reset: ' . $e->getMessage());
+                }
+            }
             return ['ok' => true, 'id' => (int) $existing['id'], 'expires_at' => $expiresAt, 'created' => false];
         }
 

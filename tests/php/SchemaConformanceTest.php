@@ -68,6 +68,9 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
+        // GOTR G7 — credential intake feeds, written 2026-09-06, not yet applied.
+        'compliance_intake_keys'      => '098_compliance_intake.sql',
+        'compliance_intake_unmatched' => '098_compliance_intake.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */
