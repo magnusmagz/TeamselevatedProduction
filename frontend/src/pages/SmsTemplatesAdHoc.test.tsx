@@ -32,7 +32,7 @@ describe('SMS Templates — sending without a template', () => {
 
   test('the free-form CTA opens compose with nothing preloaded', async () => {
     render(<SmsTemplates />);
-    fireEvent.click(await screen.findByText('Send a message without a template'));
+    fireEvent.click(await screen.findByText('Send a quick message', { exact: false }));
     await waitFor(() => expect(screen.getByText(/compose open: no template/)).toBeInTheDocument());
   });
 

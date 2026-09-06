@@ -381,8 +381,8 @@ const SmsTemplates: React.FC = () => {
         className="w-full mb-6 flex items-center justify-between gap-3 bg-white border border-brand-secondary rounded-lg px-4 py-3 text-left hover:bg-gray-50 transition-colors"
       >
         <span className="text-sm font-semibold text-brand-primary">
-          Send a message without a template
-          <span className="ml-2 text-xs font-normal text-gray-500">Free-form SMS to teams, crew or coaches</span>
+          Send a quick message
+          <span className="ml-2 text-xs font-normal text-gray-500">no template needed, to teams, crew or coaches</span>
         </span>
         <span className="text-sm font-semibold text-brand-primary uppercase flex-shrink-0" aria-hidden="true">Compose &rarr;</span>
       </button>
