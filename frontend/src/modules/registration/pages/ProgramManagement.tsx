@@ -12,6 +12,8 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useOrg } from '../../../contexts/OrgContext';
 import { listTournaments } from '../../tournament/api/tournamentApi';
 import { Tournament, TOURNAMENT_STATUS_CONFIG } from '../../tournament/types';
+import PageHeader from '../../../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../../../components/ui/DataTable';
 
 type ProgramTab = 'all' | ProgramType;
 
@@ -378,62 +380,57 @@ const ProgramManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-brand-primary uppercase tracking-wide">
-            Program Management
-          </h1>
-          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
-            Create and manage registration programs
-          </p>
-        </div>
-
-        {/* Action Bar */}
-        <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div className="flex gap-3 items-center">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary flex-1 sm:flex-none"
-            >
-              <option value="all">All Statuses</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="closed">Closed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            <label className="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-                className="rounded border-brand-secondary text-brand-primary focus:ring-brand-primary"
-              />
-              Show archived
-            </label>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleCreateProgram}
-              className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none"
-            >
-              + Program
-            </button>
-            {isClubAdmin && (
+        <PageHeader
+          title="Program Management"
+          subtitle="Create and manage registration programs"
+          actions={
+            <>
               <button
-                onClick={() => setShowTryoutWizard(true)}
-                className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none"
+                onClick={handleCreateProgram}
+                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm"
               >
-                + Tryout
+                + Program
               </button>
-            )}
-            <Link
-              to="/tournaments/create"
-              className="bg-brand-primary text-white px-4 py-2 sm:px-6 sm:py-3 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm sm:text-base flex-1 sm:flex-none text-center"
-            >
-              + Tournament
-            </Link>
-          </div>
+              {isClubAdmin && (
+                <button
+                  onClick={() => setShowTryoutWizard(true)}
+                  className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm"
+                >
+                  + Tryout
+                </button>
+              )}
+              <Link
+                to="/tournaments/create"
+                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm text-center"
+              >
+                + Tournament
+              </Link>
+            </>
+          }
+        />
+
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap gap-3 items-center">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-brand-secondary rounded-md px-3 py-2 text-sm text-brand-primary focus:ring-brand-primary focus:border-brand-primary"
+          >
+            <option value="all">All Statuses</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+            <option value="closed">Closed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <label className="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-brand-secondary text-brand-primary focus:ring-brand-primary"
+            />
+            Show archived
+          </label>
         </div>
 
         {/* Type Tabs */}
@@ -495,166 +492,167 @@ const ProgramManagement: React.FC = () => {
                   {!isCollapsed && (
                     <div id={`program-section-${group.type}`}>
                       {/* Desktop Table View */}
-                      <div className="hidden md:block border border-brand-secondary rounded-md">
-                        <table className="min-w-full bg-white">
-                          <thead>
-                            <tr className="border-b border-brand-secondary">
-                              {isClubAdmin && (
-                                <th className="px-2 py-3 text-left text-xs font-bold text-brand-primary uppercase w-10">
-                                  <span className="sr-only">Order</span>
-                                </th>
-                              )}
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Program Name
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Type
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Dates
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Registrations
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.items.map((program, index) => (
-                              <tr
-                                key={program.id}
-                                className={`border-b border-gray-300 hover:bg-gray-50 ${
-                                  isArchived(program) ? 'opacity-60 bg-gray-50' : ''
-                                }`}
-                              >
-                                {isClubAdmin && (
-                                  <td className="px-2 py-4 align-middle">
-                                    {reorderControls(group.type, index, group.items.length)}
-                                  </td>
+                      <DataTable<Program>
+                        className="hidden md:block"
+                        data-testid={`program-table-${group.type}`}
+                        rowKey={(program) => program.id ?? ''}
+                        rows={group.items}
+                        rowClassName={(program) => (isArchived(program) ? 'opacity-60 bg-gray-50' : '')}
+                        columns={[
+                          ...(isClubAdmin
+                            ? [
+                                {
+                                  key: 'order',
+                                  header: <span className="sr-only">Order</span>,
+                                  width: '2.5rem',
+                                  className: 'px-2',
+                                  render: (_program: Program, index: number) =>
+                                    reorderControls(group.type, index, group.items.length),
+                                } as DataTableColumn<Program>,
+                              ]
+                            : []),
+                          {
+                            key: 'name',
+                            header: 'Program Name',
+                            render: (program) => (
+                              <>
+                                <div className="text-brand-primary font-medium">
+                                  {program.name}
+                                  {isArchived(program) && archivedBadge}
+                                </div>
+                                {program.description && (
+                                  <div className="text-gray-500 text-sm mt-1 truncate max-w-xs">
+                                    {program.description}
+                                  </div>
                                 )}
-                                <td className="px-6 py-4">
-                                  <div className="text-brand-primary font-medium">
-                                    {program.name}
-                                    {isArchived(program) && archivedBadge}
-                                  </div>
-                                  {program.description && (
-                                    <div className="text-gray-500 text-sm mt-1 truncate max-w-xs">
-                                      {program.description}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className="text-brand-primary">
-                                    {getProgramTypeLabel(program.type)}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="text-sm text-brand-primary">
-                                    {program.start_date ? (
-                                      <>
-                                        {formatDateOnly(program.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
-                                        {program.end_date && (
-                                          <> - {formatDateOnly(program.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="text-gray-400">No dates set</span>
+                              </>
+                            ),
+                          },
+                          {
+                            key: 'type',
+                            header: 'Type',
+                            render: (program) => (
+                              <span className="text-brand-primary">{getProgramTypeLabel(program.type)}</span>
+                            ),
+                          },
+                          {
+                            key: 'dates',
+                            header: 'Dates',
+                            render: (program) => (
+                              <div className="text-sm text-brand-primary">
+                                {program.start_date ? (
+                                  <>
+                                    {formatDateOnly(program.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
+                                    {program.end_date && (
+                                      <> - {formatDateOnly(program.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                                     )}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400">No dates set</span>
+                                )}
+                              </div>
+                            ),
+                          },
+                          {
+                            key: 'registrations',
+                            header: 'Registrations',
+                            render: (program) => (
+                              <>
+                                <button
+                                  onClick={() => setRegistrationsProgram(program)}
+                                  className="text-brand-primary hover:text-brand-primary-dark underline"
+                                >
+                                  {program.registration_count || 0} registrations
+                                </button>
+                                {(program.pending_count ?? 0) > 0 && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                    {program.pending_count} pending
+                                  </span>
+                                )}
+                                {program.capacity && (
+                                  <span className="text-gray-500 ml-1">/ {program.capacity}</span>
+                                )}
+                              </>
+                            ),
+                          },
+                          {
+                            key: 'status',
+                            header: 'Status',
+                            render: (program) => (
+                              <span className={`uppercase text-xs font-semibold ${getStatusColor(program.status)}`}>
+                                {program.status}
+                              </span>
+                            ),
+                          },
+                          {
+                            key: 'actions',
+                            header: 'Actions',
+                            actions: true,
+                            render: (program) => (
+                              <div className="flex justify-end space-x-3">
+                                <button
+                                  onClick={() => handleEditProgram(program)}
+                                  className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+                                >
+                                  Edit
+                                </button>
+                                {program.type === 'tryout' && (
                                   <button
-                                    onClick={() => setRegistrationsProgram(program)}
-                                    className="text-brand-primary hover:text-brand-primary-dark underline"
+                                    onClick={() => setManageTryoutProgram(program)}
+                                    className="text-green-600 hover:text-green-500 uppercase text-xs font-semibold"
                                   >
-                                    {program.registration_count || 0} registrations
+                                    Manage
                                   </button>
-                                  {(program.pending_count ?? 0) > 0 && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                      {program.pending_count} pending
-                                    </span>
-                                  )}
-                                  {program.capacity && (
-                                    <span className="text-gray-500 ml-1">/ {program.capacity}</span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className={`uppercase text-xs font-semibold ${getStatusColor(program.status)}`}>
-                                    {program.status}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex space-x-3">
+                                )}
+                                {program.status === 'published' && (
+                                  <>
                                     <button
-                                      onClick={() => handleEditProgram(program)}
-                                      className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+                                      onClick={() => setEmbedProgram(program)}
+                                      className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                                     >
-                                      Edit
+                                      Embed
                                     </button>
-                                    {program.type === 'tryout' && (
-                                      <button
-                                        onClick={() => setManageTryoutProgram(program)}
-                                        className="text-green-600 hover:text-green-500 uppercase text-xs font-semibold"
-                                      >
-                                        Manage
-                                      </button>
-                                    )}
-                                    {program.status === 'published' && (
-                                      <>
-                                        <button
-                                          onClick={() => setEmbedProgram(program)}
-                                          className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
-                                        >
-                                          Embed
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            navigator.clipboard.writeText(
-                                              `${window.location.origin}/register/${program.embed_code}`
-                                            );
-                                            alert('Registration link copied to clipboard!');
-                                          }}
-                                          className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
-                                        >
-                                          Link
-                                        </button>
-                                      </>
-                                    )}
-                                    {isClubAdmin && (
-                                      <button
-                                        onClick={() => setStaffProgram(program)}
-                                        className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
-                                      >
-                                        Staff
-                                      </button>
-                                    )}
-                                    {isClubAdmin && (
-                                      <button
-                                        onClick={() => handleArchiveToggle(program)}
-                                        disabled={busyProgramId === program.id}
-                                        className="text-gray-600 hover:text-gray-500 uppercase text-xs font-semibold disabled:opacity-50"
-                                      >
-                                        {isArchived(program) ? 'Unarchive' : 'Archive'}
-                                      </button>
-                                    )}
                                     <button
-                                      onClick={() => program.id && handleDeleteProgram(program.id)}
-                                      className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(
+                                          `${window.location.origin}/register/${program.embed_code}`
+                                        );
+                                        alert('Registration link copied to clipboard!');
+                                      }}
+                                      className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                                     >
-                                      Delete
+                                      Link
                                     </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                  </>
+                                )}
+                                {isClubAdmin && (
+                                  <button
+                                    onClick={() => setStaffProgram(program)}
+                                    className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
+                                  >
+                                    Staff
+                                  </button>
+                                )}
+                                {isClubAdmin && (
+                                  <button
+                                    onClick={() => handleArchiveToggle(program)}
+                                    disabled={busyProgramId === program.id}
+                                    className="text-gray-600 hover:text-gray-500 uppercase text-xs font-semibold disabled:opacity-50"
+                                  >
+                                    {isArchived(program) ? 'Unarchive' : 'Archive'}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => program.id && handleDeleteProgram(program.id)}
+                                  className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ),
+                          },
+                        ]}
+                      />
 
                       {/* Mobile Card View */}
                       <div className="md:hidden space-y-4">
@@ -808,65 +806,70 @@ const ProgramManagement: React.FC = () => {
                     {shownTournaments.length}
                   </span>
                 </div>
-                <div className="hidden md:block border border-brand-secondary rounded-md">
-                  <table className="min-w-full bg-white">
-                    <thead>
-                      <tr className="border-b border-brand-secondary">
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Dates</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Registrations</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shownTournaments.map((t) => (
-                        <tr key={`tournament-${t.id}`} className="border-b border-gray-300 hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="text-brand-primary font-medium">{t.name}</div>
-                            <div className="text-gray-500 text-xs mt-1">Tournament module</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-brand-primary">Tournament</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-brand-primary">
-                              {t.start_date ? (
-                                <>
-                                  {formatDateOnly(t.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
-                                  {t.end_date && (
-                                    <> - {formatDateOnly(t.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-gray-400">No dates set</span>
+                <DataTable<Tournament>
+                  className="hidden md:block"
+                  data-testid="tournament-module-table"
+                  rowKey={(t) => `tournament-${t.id}`}
+                  rows={shownTournaments}
+                  columns={[
+                    {
+                      key: 'name',
+                      header: 'Name',
+                      render: (t) => (
+                        <>
+                          <div className="text-brand-primary font-medium">{t.name}</div>
+                          <div className="text-gray-500 text-xs mt-1">Tournament module</div>
+                        </>
+                      ),
+                    },
+                    { key: 'type', header: 'Type', render: () => <span className="text-brand-primary">Tournament</span> },
+                    {
+                      key: 'dates',
+                      header: 'Dates',
+                      render: (t) => (
+                        <div className="text-sm text-brand-primary">
+                          {t.start_date ? (
+                            <>
+                              {formatDateOnly(t.start_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}
+                              {t.end_date && (
+                                <> - {formatDateOnly(t.end_date, { year: 'numeric', month: 'numeric', day: 'numeric' })}</>
                               )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-brand-primary">
-                              {t.registration_count || 0} registrations
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`uppercase text-xs font-semibold px-2 py-0.5 rounded-full ${TOURNAMENT_STATUS_CONFIG[t.status]?.color || 'bg-gray-100 text-gray-700'}`}>
-                              {TOURNAMENT_STATUS_CONFIG[t.status]?.label || t.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <Link
-                              to={`/tournaments/${t.id}`}
-                              className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                            >
-                              Manage
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">No dates set</span>
+                          )}
+                        </div>
+                      ),
+                    },
+                    {
+                      key: 'registrations',
+                      header: 'Registrations',
+                      render: (t) => <span className="text-brand-primary">{t.registration_count || 0} registrations</span>,
+                    },
+                    {
+                      key: 'status',
+                      header: 'Status',
+                      render: (t) => (
+                        <span className={`uppercase text-xs font-semibold px-2 py-0.5 rounded-full ${TOURNAMENT_STATUS_CONFIG[t.status]?.color || 'bg-gray-100 text-gray-700'}`}>
+                          {TOURNAMENT_STATUS_CONFIG[t.status]?.label || t.status}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: 'actions',
+                      header: 'Actions',
+                      actions: true,
+                      render: (t) => (
+                        <Link
+                          to={`/tournaments/${t.id}`}
+                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
+                        >
+                          Manage
+                        </Link>
+                      ),
+                    },
+                  ]}
+                />
 
                 <div className="md:hidden space-y-4">
                   {shownTournaments.map((t) => (
