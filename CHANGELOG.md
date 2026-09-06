@@ -30,6 +30,16 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-06
+
+### Referee feedback (8.6 / R68) — Heroku v602, migration 095 applied, then Netlify
+- Coaches rate the referee(s) of a past game from the event modal (name, 1–5, categories,
+  comments, incident flag); club admins review, filter and export at `/referee-feedback`.
+  `lib/referee_feedback.php`, `api/referee-feedback.php`. Writes gate on
+  `te_event_staff_standing()`; list/export on `te_is_club_admin()`; families see nothing.
+- 095 applied via `scripts/apply-migration.php`; fixture +14 lines (one table); both
+  PENDING entries removed.
+
 ## 2026-09-03
 
 ### Parent-invite redemption writes the user_guardians link (Heroku) — decision 13

@@ -1478,6 +1478,20 @@
     "created_at",
     "last_used_at"
   ],
+  "referee_feedback": [
+    "id",
+    "club_id",
+    "calendar_event_id",
+    "team_id",
+    "submitted_by",
+    "referee_name",
+    "rating",
+    "categories",
+    "comments",
+    "incident",
+    "created_at",
+    "updated_at"
+  ],
   "registrations": [
     "id",
     "program_id",

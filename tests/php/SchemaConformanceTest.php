@@ -69,8 +69,6 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
-        // 095 written 2026-09-06 (referee feedback, slice 8.6); not yet applied to Neon.
-        'referee_feedback' => '095_referee_feedback.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */
