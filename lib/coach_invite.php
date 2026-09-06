@@ -233,10 +233,18 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
  * decides for itself which reasons are worth a retry.
  *
  * @param callable|null $sender fn(string $to, string $name, string $link): bool
+ * @param int|null $actorId who asked — the audit row's user_id; null for a system path
+ * @param string $auditAction 'coach_invite_sent' (default) or 'coach_invite_resent'
  * @return array{sent: bool, reason: string, feature_disabled?: string}
  */
-function te_coach_invite_send(PDO $pdo, int $userId, int $clubId, ?callable $sender = null): array
-{
+function te_coach_invite_send(
+    PDO $pdo,
+    int $userId,
+    int $clubId,
+    ?callable $sender = null,
+    ?int $actorId = null,
+    string $auditAction = 'coach_invite_sent'
+): array {
     if (!te_feature_enabled('COACH_INVITE_EMAIL')) {
         return te_feature_disabled_response('COACH_INVITE_EMAIL') + ['reason' => 'feature_disabled'];
     }
@@ -284,7 +292,10 @@ function te_coach_invite_send(PDO $pdo, int $userId, int $clubId, ?callable $sen
         error_log('te_coach_invite_send: ' . $e->getMessage());
     }
 
-    AuditLogger::log($pdo, null, 'coach_invite_sent', 'users', $userId, [
+    // $actorId is the admin who pressed the button (api/coach-access.php);
+    // null for the create path and the importer. $auditAction lets a re-send
+    // record itself as one — one row per action, not two.
+    AuditLogger::log($pdo, $actorId, $auditAction, 'users', $userId, [
         'club_id' => $clubId, 'email' => $email, 'delivered_to_transport' => $ok,
         'expires_at' => $row['expires_at'] ?? null,
     ]);

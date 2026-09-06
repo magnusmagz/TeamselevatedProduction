@@ -9,6 +9,7 @@ require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/guardian_sync.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
 require_once __DIR__ . '/../lib/signature_html.php';
+require_once __DIR__ . '/../lib/coach_access.php';
 
 // Get database connection
 $pdo = Database::getInstance()->getConnection();
@@ -23,6 +24,14 @@ $signatureFormatLive = te_signature_format_column_present($pdo);
 $signatureFormatSelect = $signatureFormatLive
     ? 'email_signature_format'
     : "'text' AS email_signature_format";
+
+// users.password_set_by_admin_at (migration 097), same treatment. Reported so
+// the staff dashboard can show its one-line "change it" banner; cleared by the
+// password change below. Absent, it reads as NULL and no banner is shown.
+$adminSetMarkLive = te_password_set_by_admin_column_present($pdo);
+$adminSetMarkSelect = $adminSetMarkLive
+    ? 'password_set_by_admin_at'
+    : 'NULL AS password_set_by_admin_at';
 
 // Get the authorization header
 $headers = getallheaders();
@@ -53,7 +62,7 @@ if ($method === 'GET') {
     try {
         $stmt = $pdo->prepare("
             SELECT id, email, first_name, last_name, phone, email_signature,
-                   $signatureFormatSelect, created_at
+                   $signatureFormatSelect, $adminSetMarkSelect, created_at
             FROM users
             WHERE id = :user_id
         ");
@@ -106,11 +115,14 @@ if ($method === 'GET') {
                 exit();
             }
 
-            // Update password
+            // Update password. A password the user chose themselves clears the
+            // admin-set mark in the same statement, so the banner cannot outlive
+            // the temporary password it is about.
             $newHash = password_hash($data['new_password'], PASSWORD_DEFAULT);
+            $clearMark = $adminSetMarkLive ? ', password_set_by_admin_at = NULL' : '';
             $stmt = $pdo->prepare("
                 UPDATE users
-                SET password_hash = :password_hash, updated_at = CURRENT_TIMESTAMP
+                SET password_hash = :password_hash, updated_at = CURRENT_TIMESTAMP $clearMark
                 WHERE id = :user_id
             ");
             $stmt->execute([
@@ -242,7 +254,7 @@ if ($method === 'GET') {
         // Fetch updated user data
         $stmt = $pdo->prepare("
             SELECT id, email, first_name, last_name, phone, email_signature,
-                   $signatureFormatSelect, created_at
+                   $signatureFormatSelect, $adminSetMarkSelect, created_at
             FROM users
             WHERE id = :user_id
         ");

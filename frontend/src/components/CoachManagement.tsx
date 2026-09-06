@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import PracticeScheduler from './PracticeScheduler';
 import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 import LoadMore from './LoadMore';
+import CoachAccessControl from './CoachAccessControl';
+import CoachSetPasswordModal from './CoachSetPasswordModal';
+import { useOrg } from '../contexts/OrgContext';
 import { PageMeta, pageQuery, readPage, rowsFrom } from '../utils/pagination';
 
 interface Coach {
@@ -29,7 +32,12 @@ interface CoachManagementProps {
 
 const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
+  // The access controls act on a coach IN a club (api/coach-access.php takes
+  // user_id + club_id and checks the coach role there). The active club is the
+  // one the admin is looking at.
+  const { currentClubId } = useOrg();
   const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [passwordCoach, setPasswordCoach] = useState<Coach | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
   const [showScheduler, setShowScheduler] = useState(false);
@@ -449,10 +457,18 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </button>
                           <button
                             onClick={() => handleViewSchedule(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             View Schedule
                           </button>
+                          {/* Same control as the standalone table below — both
+                              tables render this list and must move together. */}
+                          <CoachAccessControl
+                            coach={coach}
+                            clubId={currentClubId}
+                            onChanged={() => fetchCoaches()}
+                            onSetPassword={(c) => setPasswordCoach(c as Coach)}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -470,6 +486,15 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             )}
           </div>
         </div>
+
+        {passwordCoach && (
+          <CoachSetPasswordModal
+            coach={passwordCoach}
+            clubId={currentClubId ?? 0}
+            onClose={() => setPasswordCoach(null)}
+            onSaved={() => fetchCoaches()}
+          />
+        )}
 
         {/* Practice Scheduler Modal */}
         {showScheduler && schedulerCoach && (
@@ -737,10 +762,16 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           </button>
                           <button
                             onClick={() => handleViewTeams(coach)}
-                            className="text-brand-primary hover:underline uppercase text-xs"
+                            className="text-brand-primary hover:underline mr-4 uppercase text-xs"
                           >
                             View Teams
                           </button>
+                          <CoachAccessControl
+                            coach={coach}
+                            clubId={currentClubId}
+                            onChanged={() => fetchCoaches()}
+                            onSetPassword={(c) => setPasswordCoach(c as Coach)}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -757,6 +788,15 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
             )}
         </div>
       </div>
+
+      {passwordCoach && (
+        <CoachSetPasswordModal
+          coach={passwordCoach}
+          clubId={currentClubId ?? 0}
+          onClose={() => setPasswordCoach(null)}
+          onSaved={() => fetchCoaches()}
+        />
+      )}
 
       {/* Practice Scheduler Modal */}
       {showScheduler && schedulerCoach && (

@@ -74,6 +74,12 @@ function te_magic_link_url(string $token): string
  */
 function te_magic_link_ttl_phrase(int $ttlSeconds): string
 {
+    // Multi-day windows read as days — a 7-day coach invite is "7 days", not
+    // "168 hours". Exactly 24h stays "24 hours": that is the admin-sent phrase
+    // the Crew page has shown since 2026-08-04.
+    if ($ttlSeconds >= 2 * 86400 && $ttlSeconds % 86400 === 0) {
+        return intdiv($ttlSeconds, 86400) . ' days';
+    }
     if ($ttlSeconds >= 3600) {
         $hours = (int) round($ttlSeconds / 3600);
         return $hours === 1 ? '1 hour' : "$hours hours";

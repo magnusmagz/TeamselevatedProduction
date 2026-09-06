@@ -90,6 +90,8 @@ class MagicLinkTtlTest extends TestCase
         $this->assertSame('24 hours', te_magic_link_ttl_phrase(TE_MAGIC_LINK_TTL_ADMIN_SENT));
         $this->assertSame('1 hour', te_magic_link_ttl_phrase(3600));
         $this->assertSame('1 minute', te_magic_link_ttl_phrase(60));
+        // Multi-day windows read as days (the coach invite); 24h stays "24 hours".
+        $this->assertSame('7 days', te_magic_link_ttl_phrase(7 * 24 * 3600));
     }
 
     /**
