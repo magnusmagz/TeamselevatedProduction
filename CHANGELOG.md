@@ -32,6 +32,16 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### GOTR G7 — reminder streams + LMS intake (Heroku v615, migration 098 applied, then Netlify), dark
+- v614: `TE_FEATURE_COMPLIANCE_INTAKE=off` set BEFORE the push. Streams ride `COMPLIANCE_REMINDERS` (off).
+- `lib/compliance_streams.php` / `api/compliance-streams.php`: admin-authored per-requirement streams
+  (steps: days_before incl. negative, subject, body with a fixed merge-tag set); resolution = club's
+  own > nearest ancestor org unit > default 90/60/30/7; deactivate falls back, never to silence.
+  `lib/compliance_intake.php` / `api/compliance-intake.php`: keyed LMS feed (`source='lms'`,
+  lands as `verified`), unmatched arrivals queue with match-to-person. Renewal now clears the
+  credential's reminder log (previously a second cycle was never reminded).
+- Left for later: email-in submissions, vendor result feeds, org-tier stream authoring page.
+
 ### Lineup builder (8.5 / R67) — Heroku v612, migration 096 applied, then Netlify
 - `lib/lineups.php`, `api/lineups.php`, 14 formation presets mirrored PHP↔TS. Coach screen at
   `/teams/:id/lineup?event=`, print view, "Lineup" link on game event modals, Lineups card on

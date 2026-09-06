@@ -700,6 +700,34 @@
     "conversation_id",
     "read_at"
   ],
+  "compliance_intake_keys": [
+    "id",
+    "org_unit_id",
+    "name",
+    "key_hash",
+    "key_prefix",
+    "created_by",
+    "created_at",
+    "last_used_at",
+    "revoked_at",
+    "revoked_by"
+  ],
+  "compliance_intake_unmatched": [
+    "id",
+    "org_unit_id",
+    "key_id",
+    "email",
+    "requirement_key",
+    "completed_on",
+    "external_id",
+    "reason",
+    "payload",
+    "received_at",
+    "matched_user_id",
+    "credential_id",
+    "matched_by",
+    "matched_at"
+  ],
   "compliance_reminder_log": [
     "id",
     "credential_id",
