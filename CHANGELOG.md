@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Assign a coach to a team from the Coaches page (Heroku, then Netlify)
+- `lib/coach_teams.php`, `api/coach-teams.php`: list / assign / unassign; head coach =
+  `teams.primary_coach_id` (previous head reported + audited), assistant/manager = one
+  `team_members` row per (team, user), unassign sets inactive + leave_date. Club-admin gated;
+  role cache invalidated for the coach. "Assign to Team" + View Teams (all three roles, Unassign)
+  on both Coaches tables; `team_count` now includes assistant/manager teams. No migration.
+
 ### GOTR G7 — reminder streams + LMS intake (Heroku v615, migration 098 applied, then Netlify), dark
 - v614: `TE_FEATURE_COMPLIANCE_INTAKE=off` set BEFORE the push. Streams ride `COMPLIANCE_REMINDERS` (off).
 - `lib/compliance_streams.php` / `api/compliance-streams.php`: admin-authored per-requirement streams
