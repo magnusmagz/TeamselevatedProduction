@@ -4,8 +4,17 @@
  *
  *   ?club_id=100                    -> every staff member × every requirement
  *   ?club_id=100&filter=expiring    -> only people with something expiring in 30 days
+ *   ?org_unit_id=2[&filter=…]       -> the same, across every council under the unit,
+ *                                      with the council name as the first column (G5)
  *
- * AUTHORIZATION — staff only, via te_compliance_can_admin_club(): club admin of
+ * AUTHORIZATION — two branches, two predicates, on purpose.
+ *
+ * ?org_unit_id: te_user_org_standing() at that unit — org_admin OR org_viewer.
+ * The viewer role exists to read rollups, and a downloadable rollup is a
+ * rollup. Standing inherits down and never sideways, so a division viewer
+ * cannot pull a sibling division's file.
+ *
+ * ?club_id: staff only, via te_compliance_can_admin_club(): club admin of
  * the club, or org_admin over the tier it hangs from. Deliberately the SAME
  * predicate as the `club-status` screen it exports, and deliberately NOT the
  * wider te_is_club_staff: a coach is team-scoped and this file is every other
@@ -32,6 +41,7 @@ Cors::handle();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/org_scope.php';
 require_once __DIR__ . '/../lib/compliance.php';
 require_once __DIR__ . '/../lib/compliance_export.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
@@ -66,8 +76,9 @@ if (!te_feature_enabled('COMPLIANCE')) {
 }
 
 $clubId = (int) ($_GET['club_id'] ?? 0);
-if ($clubId <= 0) {
-    te_compliance_export_fail(400, 'club_id is required');
+$orgUnitId = (int) ($_GET['org_unit_id'] ?? 0);
+if ($clubId <= 0 && $orgUnitId <= 0) {
+    te_compliance_export_fail(400, 'club_id or org_unit_id is required');
 }
 
 // An unrecognised filter is refused rather than quietly treated as "everyone".
@@ -79,7 +90,13 @@ if ($filter !== '' && !in_array($filter, TE_COMPLIANCE_EXPORT_FILTERS, true)) {
 }
 
 // Authorization BEFORE anything is read.
-if (!te_compliance_can_admin_club($pdo, $auth, $clubId)) {
+if ($orgUnitId > 0) {
+    // Any standing reads; only NO standing is refused. `!== 'org_admin'` here
+    // would lock out every org_viewer, and this file is the viewer's product.
+    if (te_user_org_standing($pdo, $auth, $orgUnitId) === null) {
+        te_compliance_export_fail(403, 'You do not have standing at this organization');
+    }
+} elseif (!te_compliance_can_admin_club($pdo, $auth, $clubId)) {
     te_compliance_export_fail(403, 'Only a club administrator can download the compliance report');
 }
 
@@ -91,21 +108,37 @@ if (!te_compliance_tables_present($pdo)) {
 
 $today = te_compliance_today();
 
-$stmt = $pdo->prepare('SELECT name FROM club_profile WHERE id = ?');
-$stmt->execute([$clubId]);
-$clubName = (string) ($stmt->fetchColumn() ?: 'club');
+if ($orgUnitId > 0) {
+    $unit = te_org_unit($pdo, $orgUnitId);
+    $sheet = te_compliance_export_org_sheet($pdo, $orgUnitId, $filter, $today);
+    $notice = te_compliance_export_truncation_notice($sheet);
+    $filename = te_compliance_export_filename((string) ($unit['name'] ?? 'organization'), $filter, $today);
 
-$sheet = te_compliance_export_sheet($pdo, $clubId, $filter, $today);
-$notice = te_compliance_export_truncation_notice($sheet);
-$filename = te_compliance_export_filename($clubName, $filter, $today);
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'compliance_exported', 'org_units', $orgUnitId, [
+        'filter'    => $filter === '' ? null : $filter,
+        'councils'  => $sheet['councils'],
+        'row_count' => count($sheet['rows']),
+        'people'    => $sheet['people'],
+        'truncated' => $notice !== null,
+        'notice'    => $notice,
+    ]);
+} else {
+    $stmt = $pdo->prepare('SELECT name FROM club_profile WHERE id = ?');
+    $stmt->execute([$clubId]);
+    $clubName = (string) ($stmt->fetchColumn() ?: 'club');
 
-AuditLogger::log($pdo, (int) $auth->getUserId(), 'compliance_exported', 'club_profile', $clubId, [
-    'filter'    => $filter === '' ? null : $filter,
-    'row_count' => count($sheet['rows']),
-    'people'    => $sheet['people'],
-    'truncated' => $notice !== null,
-    'notice'    => $notice,
-]);
+    $sheet = te_compliance_export_sheet($pdo, $clubId, $filter, $today);
+    $notice = te_compliance_export_truncation_notice($sheet);
+    $filename = te_compliance_export_filename($clubName, $filter, $today);
+
+    AuditLogger::log($pdo, (int) $auth->getUserId(), 'compliance_exported', 'club_profile', $clubId, [
+        'filter'    => $filter === '' ? null : $filter,
+        'row_count' => count($sheet['rows']),
+        'people'    => $sheet['people'],
+        'truncated' => $notice !== null,
+        'notice'    => $notice,
+    ]);
+}
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');

@@ -54,6 +54,9 @@ class FeatureFlagsTest extends TestCase
         'workers/queue-worker.php' => ['COMPLIANCE', 'COMPLIANCE_REMINDERS'],
         'api/compliance-gateway.php' => 'COMPLIANCE',
         'api/compliance-export.php' => 'COMPLIANCE',
+        // GOTR G5 — the org-tier rollup. Read-only, but a read that is off must
+        // still answer feature_disabled rather than data.
+        'api/compliance-rollup.php' => 'COMPLIANCE',
     ];
 
     protected function setUp(): void
