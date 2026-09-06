@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface Transaction {
   id: number;
@@ -153,14 +155,102 @@ export const TransactionReport: React.FC = () => {
 
   const hasFilters = selectedProgram || selectedStatus || dateFrom || dateTo || paymentType;
 
+  const columns: DataTableColumn<Transaction>[] = [
+    {
+      key: 'transaction_id',
+      header: 'Transaction ID',
+      className: 'whitespace-nowrap',
+      render: (txn) => <div className="text-sm font-mono text-gray-900">{txn.transaction_id}</div>,
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      className: 'whitespace-nowrap',
+      render: (txn) => <span className="text-gray-600">{formatDate(txn.date)}</span>,
+    },
+    {
+      key: 'athlete',
+      header: 'Athlete',
+      className: 'whitespace-nowrap',
+      render: (txn) => (
+        <>
+          <Link
+            to={`/athlete/${txn.athlete_id}/payments`}
+            className="text-sm font-medium text-brand-primary hover:text-brand-primary-dark"
+          >
+            {txn.athlete_name}
+          </Link>
+          <div className="text-xs text-gray-500">{txn.guardian_name}</div>
+        </>
+      ),
+    },
+    {
+      key: 'program_name',
+      header: 'Program',
+      className: 'whitespace-nowrap',
+      render: (txn) => <span className="text-gray-600">{txn.program_name}</span>,
+    },
+    {
+      key: 'item_name',
+      header: 'Item',
+      className: 'whitespace-nowrap',
+      render: (txn) => <span className="text-gray-600">{txn.item_name}</span>,
+    },
+    {
+      key: 'accounting_code',
+      header: 'Acct Code',
+      className: 'whitespace-nowrap',
+      render: (txn) => <span className="text-gray-500 font-mono">{txn.accounting_code || '—'}</span>,
+    },
+    {
+      key: 'payment_type',
+      header: 'Type',
+      className: 'whitespace-nowrap',
+      render: (txn) => (
+        <>
+          <span className="capitalize">{txn.payment_type}</span>
+          {txn.installment_number && (
+            <span className="text-gray-500 text-xs ml-1">
+              (#{txn.installment_number})
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      className: 'whitespace-nowrap',
+      render: (txn) => (
+        <>
+          <div className="font-semibold text-gray-900">{formatCurrency(txn.amount)}</div>
+          {txn.refund_amount > 0 && (
+            <div className="text-xs text-red-600">
+              Refunded: {formatCurrency(txn.refund_amount)}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (txn) => (
+        <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(txn.status)}`}>
+          {txn.status}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Transaction Report</h1>
-          <p className="text-gray-600">View and export payment transactions</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Transaction Report"
+        subtitle="View and export payment transactions"
+        actions={
           <button
             onClick={handleExportCSV}
             className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
@@ -170,8 +260,8 @@ export const TransactionReport: React.FC = () => {
             </svg>
             Export CSV
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary Cards */}
       {summary && (
@@ -280,89 +370,23 @@ export const TransactionReport: React.FC = () => {
         <div className="text-center py-10">
           <p className="text-gray-500">Loading transactions...</p>
         </div>
-      ) : transactions.length === 0 ? (
-        <div className="bg-white shadow rounded-lg p-10 text-center">
-          <p className="text-gray-500">No transactions found.</p>
-          {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="mt-4 text-brand-primary hover:text-brand-primary-dark"
-            >
-              Clear filters to see all transactions
-            </button>
-          )}
-        </div>
       ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Athlete</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Program</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acct Code</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {transactions.map(txn => (
-                  <tr key={txn.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="text-sm font-mono text-gray-900">{txn.transaction_id}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {formatDate(txn.date)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link
-                        to={`/athlete/${txn.athlete_id}/payments`}
-                        className="text-sm font-medium text-brand-primary hover:text-brand-primary-dark"
-                      >
-                        {txn.athlete_name}
-                      </Link>
-                      <div className="text-xs text-gray-500">{txn.guardian_name}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {txn.program_name}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {txn.item_name}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">
-                      {txn.accounting_code || '—'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className="capitalize">{txn.payment_type}</span>
-                      {txn.installment_number && (
-                        <span className="text-gray-500 text-xs ml-1">
-                          (#{txn.installment_number})
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
-                      <div className="font-semibold text-gray-900">{formatCurrency(txn.amount)}</div>
-                      {txn.refund_amount > 0 && (
-                        <div className="text-xs text-red-600">
-                          Refunded: {formatCurrency(txn.refund_amount)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(txn.status)}`}>
-                        {txn.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable<Transaction>
+          columns={columns}
+          rows={transactions}
+          rowKey={(txn) => txn.id}
+          emptyState={{
+            text: 'No transactions found.',
+            action: hasFilters ? (
+              <button
+                onClick={clearFilters}
+                className="text-brand-primary hover:text-brand-primary-dark"
+              >
+                Clear filters to see all transactions
+              </button>
+            ) : undefined,
+          }}
+        />
       )}
     </div>
   );

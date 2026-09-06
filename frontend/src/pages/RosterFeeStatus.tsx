@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface RosterAthlete {
   athlete_id: number;
@@ -211,6 +213,108 @@ export const RosterFeeStatus: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const rosterColumns: DataTableColumn<RosterAthlete>[] = [
+    {
+      key: 'athlete',
+      header: 'Athlete',
+      className: 'whitespace-nowrap',
+      render: (athlete) => (
+        <>
+          <Link
+            to={`/athlete/${athlete.athlete_id}`}
+            className="text-brand-primary hover:text-brand-primary font-medium"
+          >
+            {athlete.first_name} {athlete.last_name}
+          </Link>
+          {athlete.date_of_birth && (
+            <p className="text-xs text-gray-500">
+              DOB: {formatDate(athlete.date_of_birth)}
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'guardian',
+      header: 'Guardian',
+      className: 'whitespace-nowrap',
+      render: (athlete) =>
+        athlete.guardian_first && athlete.guardian_last ? (
+          <span className="text-gray-900">
+            {athlete.guardian_first} {athlete.guardian_last}
+          </span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'contact',
+      header: 'Contact',
+      render: (athlete) => (
+        <>
+          {athlete.guardian_email && (
+            <a
+              href={`mailto:${athlete.guardian_email}`}
+              className="text-sm text-brand-primary hover:text-brand-primary block"
+            >
+              {athlete.guardian_email}
+            </a>
+          )}
+          {athlete.guardian_phone && (
+            <span className="text-sm text-gray-500 block">
+              {athlete.guardian_phone}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'total_owed',
+      header: 'Total Owed',
+      align: 'right',
+      className: 'whitespace-nowrap',
+      render: (athlete) => formatCurrency(athlete.total_owed),
+    },
+    {
+      key: 'total_paid',
+      header: 'Paid',
+      align: 'right',
+      className: 'whitespace-nowrap',
+      render: (athlete) => <span className="text-green-600">{formatCurrency(athlete.total_paid)}</span>,
+    },
+    {
+      key: 'total_remaining',
+      header: 'Remaining',
+      align: 'right',
+      className: 'whitespace-nowrap',
+      render: (athlete) => (
+        <span className={athlete.total_remaining > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+          {formatCurrency(athlete.total_remaining)}
+        </span>
+      ),
+    },
+    {
+      key: 'payment_status',
+      header: 'Status',
+      align: 'center',
+      className: 'whitespace-nowrap',
+      render: (athlete) => getStatusBadge(athlete.payment_status),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (athlete) => (
+        <Link
+          to={`/athlete/${athlete.athlete_id}/payments`}
+          className="text-brand-primary hover:text-brand-primary text-sm font-medium"
+        >
+          View Payments
+        </Link>
+      ),
+    },
+  ];
+
   if (!clubId) {
     return (
       <div className="text-center py-12">
@@ -221,23 +325,22 @@ export const RosterFeeStatus: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary">Roster Fee Status</h1>
-          <p className="text-gray-600 mt-1">View payment status for each athlete in your roster</p>
-        </div>
-        <button
-          onClick={handleExportCSV}
-          disabled={roster.length === 0}
-          className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Export CSV
-        </button>
-      </div>
+      <PageHeader
+        title="Roster Fee Status"
+        subtitle="View payment status for each athlete in your roster"
+        actions={
+          <button
+            onClick={handleExportCSV}
+            disabled={roster.length === 0}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export CSV
+          </button>
+        }
+      />
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
@@ -358,119 +461,28 @@ export const RosterFeeStatus: React.FC = () => {
       )}
 
       {/* Roster Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {loading ? (
+      {loading ? (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-8 text-center text-gray-500">Loading roster...</div>
-        ) : error ? (
+        </div>
+      ) : error ? (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-8 text-center text-red-500">{error}</div>
-        ) : roster.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            {viewMode === 'program' && !selectedProgram
+        </div>
+      ) : (
+        <DataTable<RosterAthlete>
+          columns={rosterColumns}
+          rows={roster}
+          rowKey={(athlete) => athlete.athlete_id}
+          emptyState={
+            viewMode === 'program' && !selectedProgram
               ? 'Please select a program to view roster'
               : viewMode === 'team' && !selectedTeam
               ? 'Please select a team to view roster'
-              : 'No athletes found matching your filters'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Athlete
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Guardian
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Owed
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Paid
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Remaining
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {roster.map((athlete) => (
-                  <tr key={athlete.athlete_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <Link
-                        to={`/athlete/${athlete.athlete_id}`}
-                        className="text-brand-primary hover:text-brand-primary font-medium"
-                      >
-                        {athlete.first_name} {athlete.last_name}
-                      </Link>
-                      {athlete.date_of_birth && (
-                        <p className="text-xs text-gray-500">
-                          DOB: {formatDate(athlete.date_of_birth)}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      {athlete.guardian_first && athlete.guardian_last ? (
-                        <span className="text-gray-900">
-                          {athlete.guardian_first} {athlete.guardian_last}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      {athlete.guardian_email && (
-                        <a
-                          href={`mailto:${athlete.guardian_email}`}
-                          className="text-sm text-brand-primary hover:text-brand-primary block"
-                        >
-                          {athlete.guardian_email}
-                        </a>
-                      )}
-                      {athlete.guardian_phone && (
-                        <span className="text-sm text-gray-500 block">
-                          {athlete.guardian_phone}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                      {formatCurrency(athlete.total_owed)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-green-600">
-                      {formatCurrency(athlete.total_paid)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
-                      <span className={athlete.total_remaining > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                        {formatCurrency(athlete.total_remaining)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      {getStatusBadge(athlete.payment_status)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-right">
-                      <Link
-                        to={`/athlete/${athlete.athlete_id}/payments`}
-                        className="text-brand-primary hover:text-brand-primary text-sm font-medium"
-                      >
-                        View Payments
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              : 'No athletes found matching your filters'
+          }
+        />
+      )}
     </div>
   );
 };

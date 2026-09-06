@@ -65,13 +65,18 @@ describe('RefereeFeedback (admin page)', () => {
     const url: string = (global.fetch as jest.Mock).mock.calls[0][0];
     expect(url).toContain('/api/referee-feedback.php?action=list&club_id=100');
 
-    // Incident row is marked; the other is not.
+    // Incident row is marked (data attribute on the Game cell, tint on the
+    // row); the other is not.
     const incidentRow = screen.getByText('Sam Second').closest('tr')!;
-    expect(incidentRow).toHaveAttribute('data-incident', 'true');
-    expect(screen.getByText('Cora Coach').closest('tr')).toHaveAttribute('data-incident', 'false');
+    expect(incidentRow.querySelector('[data-incident]')).toHaveAttribute('data-incident', 'true');
+    expect(incidentRow).toHaveClass('bg-red-50');
+    const calmRow = screen.getByText('Cora Coach').closest('tr')!;
+    expect(calmRow.querySelector('[data-incident]')).toHaveAttribute('data-incident', 'false');
+    expect(calmRow).not.toHaveClass('bg-red-50');
 
-    // Summary: count, average, incident count.
-    const summaryRow = screen.getByTestId('summary-J. Whistle');
+    // Summary: count, average, incident count. The testid sits on the name
+    // cell; the assertions are about the whole row.
+    const summaryRow = screen.getByTestId('summary-J. Whistle').closest('tr')!;
     expect(summaryRow).toHaveTextContent('2');
     expect(summaryRow).toHaveTextContent('3.0');
     expect(summaryRow).toHaveTextContent('1');

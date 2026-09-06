@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
+import PageHeader from '../components/ui/PageHeader';
 
 interface CampaignUpdate {
   id: number;
@@ -289,43 +290,22 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          to="/admin/fundraisers"
-          className="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Campaigns
-        </Link>
-
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-brand-primary">{campaign.title}</h1>
-              {campaign.status === 'active' && campaign.is_active ? (
-                <span className="px-3 py-1 text-sm font-medium bg-green-100 text-green-700 rounded-full">Active</span>
-              ) : campaign.status === 'draft' ? (
-                <span className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-600 rounded-full">Draft</span>
-              ) : (
-                <span className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-600 rounded-full">Ended</span>
-              )}
-            </div>
-            <p className="text-gray-500 mt-1">{campaign.club_name}</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              to={`/admin/fundraisers/${campaign.id}/edit`}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit
-            </Link>
+      <PageHeader
+        title={campaign.title}
+        subtitle={campaign.club_name}
+        backTo="/admin/fundraisers"
+        backLabel="Back to Campaigns"
+        meta={
+          campaign.status === 'active' && campaign.is_active ? (
+            <span className="px-3 py-1 text-sm font-medium bg-green-100 text-green-700 rounded-full">Active</span>
+          ) : campaign.status === 'draft' ? (
+            <span className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-600 rounded-full">Draft</span>
+          ) : (
+            <span className="px-3 py-1 text-sm font-medium bg-gray-100 text-gray-600 rounded-full">Ended</span>
+          )
+        }
+        actions={
+          <>
             <a
               href={publicUrl}
               target="_blank"
@@ -337,9 +317,18 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
               </svg>
               View Page
             </a>
-          </div>
-        </div>
-      </div>
+            <Link
+              to={`/admin/fundraisers/${campaign.id}/edit`}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </Link>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}

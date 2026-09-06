@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import CoachProfileEdit from '../components/CoachProfileEdit';
+import PageHeader from '../components/ui/PageHeader';
 
 interface CoachProfileData {
   id: number;
@@ -134,7 +135,30 @@ const CoachProfile: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Header Section */}
+      <PageHeader
+        title={`${coach.first_name} ${coach.last_name}`}
+        subtitle="Coach"
+        actions={
+          <>
+            <a
+              href={`mailto:${coach.email}`}
+              className="bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary font-semibold uppercase text-center"
+            >
+              Send Message
+            </a>
+            {(isAdmin() || user?.id === coach.id) && (
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="bg-white text-brand-primary border-2 border-brand-primary px-6 py-2 rounded-md hover:bg-brand-secondary font-semibold uppercase"
+              >
+                Edit Profile
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {/* Profile card */}
       <div className="bg-white border border-brand-secondary rounded-md p-8 mb-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           {/* Profile Image */}
@@ -156,12 +180,6 @@ const CoachProfile: React.FC = () => {
 
           {/* Coach Info */}
           <div className="flex-1 text-center md:text-left">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Coach
-            </div>
-            <h1 className="text-4xl font-bold text-brand-primary mb-4">
-              {coach.first_name} {coach.last_name}
-            </h1>
             <div className="space-y-2">
               {coach.phone && (
                 <div>
@@ -182,24 +200,6 @@ const CoachProfile: React.FC = () => {
                 </a>
               </div>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-2">
-            <a
-              href={`mailto:${coach.email}`}
-              className="bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary font-semibold uppercase text-center"
-            >
-              Send Message
-            </a>
-            {(isAdmin() || user?.id === coach.id) && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="bg-white text-brand-primary border-2 border-brand-primary px-6 py-2 rounded-md hover:bg-brand-secondary font-semibold uppercase"
-              >
-                Edit Profile
-              </button>
-            )}
           </div>
         </div>
       </div>

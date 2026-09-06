@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface PaymentItem {
   id: number;
@@ -28,7 +30,6 @@ interface Program {
  */
 export const PaymentItemsList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { currentClubId, activeContext } = useOrg();
   const clubId = currentClubId ?? activeContext?.scope_id ?? null;
   const [items, setItems] = useState<PaymentItem[]>([]);
@@ -143,17 +144,84 @@ export const PaymentItemsList: React.FC = () => {
     ? programs.filter(p => p.season === selectedSeason)
     : programs;
 
+  const columns: DataTableColumn<PaymentItem>[] = [
+    {
+      key: 'name',
+      header: 'Item Name',
+      className: 'whitespace-nowrap',
+      render: (item) => (
+        <>
+          <div className="text-sm font-medium text-gray-900">{item.name}</div>
+          <div className="text-sm text-gray-500">{item.description}</div>
+        </>
+      ),
+    },
+    {
+      key: 'program_name',
+      header: 'Program',
+      className: 'whitespace-nowrap',
+      render: (item) => <span className="text-gray-600">{item.program_name}</span>,
+    },
+    {
+      key: 'item_type',
+      header: 'Type',
+      className: 'whitespace-nowrap',
+      render: (item) => (
+        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColor(item.item_type)}`}>
+          {item.item_type}
+        </span>
+      ),
+    },
+    {
+      key: 'accounting_code',
+      header: 'Accounting Code',
+      className: 'whitespace-nowrap',
+      render: (item) => <span className="text-gray-500 font-mono">{item.accounting_code || '—'}</span>,
+    },
+    {
+      key: 'base_price',
+      header: 'Price',
+      className: 'whitespace-nowrap',
+      render: (item) => (
+        <>
+          {formatPrice(item.base_price)}
+          {item.is_recurring && <span className="text-gray-500 text-xs ml-1">/period</span>}
+        </>
+      ),
+    },
+    {
+      key: 'details',
+      header: 'Details',
+      className: 'whitespace-nowrap',
+      render: (item) => (
+        <div className="space-y-1 text-gray-500">
+          {item.is_required && <div className="text-xs">Required</div>}
+          {item.allow_payment_plan && <div className="text-xs">Payment plan available</div>}
+          {item.is_recurring && <div className="text-xs">Recurring</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'active',
+      header: 'Status',
+      className: 'whitespace-nowrap',
+      render: (item) => (
+        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {item.active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Payment Items</h1>
-        <button
-          onClick={() => navigate('/payment/revenue')}
-          className="text-brand-primary hover:text-brand-primary-dark"
-        >
-          &larr; Back to Revenue Dashboard
-        </button>
-      </div>
+      <PageHeader
+        title="Payment Items"
+        backTo="/payment/revenue"
+        backLabel="Back to Revenue Dashboard"
+      />
 
       {/* Filters */}
       <div className="bg-white shadow rounded-lg p-4 mb-6">
@@ -223,89 +291,24 @@ export const PaymentItemsList: React.FC = () => {
         <div className="text-center py-10">
           <p className="text-gray-500">Loading payment items...</p>
         </div>
-      ) : items.length === 0 ? (
-        <div className="bg-white shadow rounded-lg p-10 text-center">
-          <p className="text-gray-500">No payment items found.</p>
-          {(selectedProgramId || selectedSeason) && (
-            <button
-              onClick={clearFilters}
-              className="mt-4 text-brand-primary hover:text-brand-primary-dark"
-            >
-              Clear filters to see all items
-            </button>
-          )}
-        </div>
       ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Item Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Program
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Accounting Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.map(item => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                    <div className="text-sm text-gray-500">{item.description}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {item.program_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColor(item.item_type)}`}>
-                      {item.item_type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                    {item.accounting_code || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatPrice(item.base_price)}
-                    {item.is_recurring && <span className="text-gray-500 text-xs ml-1">/period</span>}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="space-y-1">
-                      {item.is_required && <div className="text-xs">Required</div>}
-                      {item.allow_payment_plan && <div className="text-xs">Payment plan available</div>}
-                      {item.is_recurring && <div className="text-xs">Recurring</div>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      item.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {item.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
+        <DataTable<PaymentItem>
+          columns={columns}
+          rows={items}
+          rowKey={(item) => item.id}
+          emptyState={{
+            text: 'No payment items found.',
+            action:
+              selectedProgramId || selectedSeason ? (
+                <button
+                  onClick={clearFilters}
+                  className="text-brand-primary hover:text-brand-primary-dark"
+                >
+                  Clear filters to see all items
+                </button>
+              ) : undefined,
+          }}
+        />
       )}
     </div>
   );

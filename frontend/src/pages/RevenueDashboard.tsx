@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface RevenueSummary {
   total_revenue: string;
@@ -72,6 +74,37 @@ export const RevenueDashboard: React.FC = () => {
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const programColumns: DataTableColumn<ProgramRevenue>[] = [
+    {
+      key: 'name',
+      header: 'Program',
+      render: (program) => (
+        <Link to={`/payment/items?program_id=${program.id}`} className="font-medium text-blue-600 hover:text-blue-800 hover:underline">
+          {program.name}
+        </Link>
+      ),
+    },
+    { key: 'athletes', header: 'Athletes', render: (program) => <span className="text-gray-600">{program.athletes}</span> },
+    { key: 'revenue', header: 'Revenue', render: (program) => <span className="font-semibold">{formatCurrency(program.revenue)}</span> },
+    { key: 'collected', header: 'Collected', render: (program) => <span className="text-brand-primary">{formatCurrency(program.collected)}</span> },
+    { key: 'outstanding', header: 'Outstanding', render: (program) => <span className="text-orange-600">{formatCurrency(program.outstanding)}</span> },
+    {
+      key: 'collection_rate',
+      header: 'Rate',
+      render: (program) => (
+        <div className="flex items-center">
+          <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+            <div
+              className="bg-brand-primary h-2 rounded-full"
+              style={{ width: `${program.collection_rate}%` }}
+            />
+          </div>
+          <span className="text-gray-600">{program.collection_rate}%</span>
+        </div>
+      ),
+    },
+  ];
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -94,33 +127,32 @@ export const RevenueDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">Revenue Dashboard</h1>
-        <p className="text-gray-600">Track payments, roster fees, and transactions for your club</p>
-      </div>
-
-      <div className="border border-brand-secondary rounded-md p-4 sm:p-6 mb-6 bg-white">
-        <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3">
-          <Link
-            to="/payment/roster-fees"
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            Roster Fees
-          </Link>
-          <Link
-            to="/payment/transactions"
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary-hover font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Transactions
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Revenue Dashboard"
+        subtitle="Track payments, roster fees, and transactions for your club"
+        actions={
+          <>
+            <Link
+              to="/payment/roster-fees"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Roster Fees
+            </Link>
+            <Link
+              to="/payment/transactions"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary-hover font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Transactions
+            </Link>
+          </>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -149,46 +181,11 @@ export const RevenueDashboard: React.FC = () => {
       {/* Revenue by Program */}
       <div className="bg-white shadow rounded-lg p-6 mb-8">
         <h2 className="text-xl font-bold mb-4">Revenue by Program</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Program</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Athletes</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Collected</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outstanding</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {byProgram.map(program => (
-                <tr key={program.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    <Link to={`/payment/items?program_id=${program.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
-                      {program.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{program.athletes}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{formatCurrency(program.revenue)}</td>
-                  <td className="px-4 py-3 text-sm text-brand-primary">{formatCurrency(program.collected)}</td>
-                  <td className="px-4 py-3 text-sm text-orange-600">{formatCurrency(program.outstanding)}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                        <div
-                          className="bg-brand-primary h-2 rounded-full"
-                          style={{ width: `${program.collection_rate}%` }}
-                        />
-                      </div>
-                      <span className="text-gray-600">{program.collection_rate}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<ProgramRevenue>
+          columns={programColumns}
+          rows={byProgram}
+          rowKey={(program) => program.id}
+        />
       </div>
 
       {/* Payment Status Breakdown */}

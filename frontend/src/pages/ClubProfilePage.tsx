@@ -8,6 +8,7 @@ import ImportTilesGrid from '../components/ImportTilesGrid';
 import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
 import GooglePlacesAutocomplete from '../components/GooglePlacesAutocomplete';
+import PageHeader from '../components/ui/PageHeader';
 
 interface ClubProfile {
   id?: number;
@@ -119,13 +120,10 @@ const ClubProfilePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">CLUB PROFILE</h1>
-          <p className="text-gray-600 mt-2">Manage your club's information and settings</p>
-        </div>
+        <PageHeader
+          title="Club Profile"
+          subtitle="Manage your club's information and settings"
+        />
 
         {/* Tabs */}
         <div className="border-b border-brand-secondary mb-6 overflow-x-auto">

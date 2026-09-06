@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import PushNotificationToggle from '../components/PushNotificationToggle';
 import SignatureEditor from '../components/SignatureEditor';
+import PageHeader from '../components/ui/PageHeader';
 import {
   signatureTextToHtml,
   signatureHtmlToText,
@@ -273,10 +274,10 @@ const UserProfile: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">My Profile</h2>
-        <p className="text-gray-600">Manage your personal information and account settings</p>
-      </div>
+      <PageHeader
+        title="My Profile"
+        subtitle="Manage your personal information and account settings"
+      />
 
       {message && (
         <div

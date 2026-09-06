@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { pageQuery } from '../utils/pagination';
+import PageHeader from '../components/ui/PageHeader';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -421,23 +422,18 @@ const ClubDocumentCenter: React.FC = () => {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">
-            Document Center
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage required compliance documents and custom files for your club
-          </p>
-        </div>
-        <button
-          onClick={() => openAddModal()}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-        >
-          Upload Document
-        </button>
-      </div>
+      <PageHeader
+        title="Document Center"
+        subtitle="Manage required compliance documents and custom files for your club"
+        actions={
+          <button
+            onClick={() => openAddModal()}
+            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+          >
+            Upload Document
+          </button>
+        }
+      />
 
       {/* Slot Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">

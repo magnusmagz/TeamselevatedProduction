@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface Payment {
   id: number;
@@ -126,6 +128,25 @@ export const OutstandingBalances: React.FC = () => {
     a.click();
   };
 
+  const paymentColumns: DataTableColumn<Payment>[] = [
+    { key: 'item_name', header: 'Item', render: (payment) => payment.item_name },
+    { key: 'program_name', header: 'Program', render: (payment) => payment.program_name },
+    {
+      key: 'due_date',
+      header: 'Due Date',
+      render: (payment) =>
+        payment.due_date
+          ? new Date(payment.due_date).toLocaleDateString()
+          : '-',
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      render: (payment) => <span className="font-semibold">{formatCurrency(payment.amount)}</span>,
+    },
+  ];
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -138,21 +159,21 @@ export const OutstandingBalances: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Outstanding Balances</h1>
-          <p className="text-gray-600">Families with unpaid registration fees</p>
-        </div>
-        <button
-          onClick={exportToCSV}
-          className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Export CSV
-        </button>
-      </div>
+      <PageHeader
+        title="Outstanding Balances"
+        subtitle="Families with unpaid registration fees"
+        actions={
+          <button
+            onClick={exportToCSV}
+            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+        }
+      />
 
       {/* Summary Cards */}
       {summary && (
@@ -262,34 +283,11 @@ export const OutstandingBalances: React.FC = () => {
                 {expandedRows.has(balance.athlete_id) && (
                   <div className="px-4 pb-4 bg-gray-50">
                     <div className="ml-9 border-l-2 border-gray-200 pl-4">
-                      <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-gray-500">
-                            <th className="py-2">Item</th>
-                            <th className="py-2">Program</th>
-                            <th className="py-2">Due Date</th>
-                            <th className="py-2 text-right">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {balance.payments.map(payment => (
-                            <tr key={payment.id} className="border-t border-gray-200">
-                              <td className="py-2">{payment.item_name}</td>
-                              <td className="py-2">{payment.program_name}</td>
-                              <td className="py-2">
-                                {payment.due_date
-                                  ? new Date(payment.due_date).toLocaleDateString()
-                                  : '-'}
-                              </td>
-                              <td className="py-2 text-right font-semibold">
-                                {formatCurrency(payment.amount)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
+                      <DataTable<Payment>
+                        columns={paymentColumns}
+                        rows={balance.payments}
+                        rowKey={(payment) => payment.id}
+                      />
                     </div>
                   </div>
                 )}

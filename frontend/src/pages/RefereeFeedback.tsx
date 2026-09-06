@@ -3,6 +3,8 @@ import { useOrg } from '../contexts/OrgContext';
 import { formatDateOnly } from '../utils/dateFormat';
 import { refereeCategoryLabel } from '../constants/refereeFeedbackCategories';
 import { RefereeFeedbackRow, RefereeSummaryRow } from '../components/referee/types';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 /**
  * Club admin review of referee feedback (CKU R68, slice 8.6).
@@ -135,29 +137,90 @@ const RefereeFeedback: React.FC = () => {
 
   const incidentCount = rows.filter((r) => r.incident).length;
 
+  const summaryColumns: DataTableColumn<RefereeSummaryRow>[] = [
+    {
+      key: 'referee_name',
+      header: 'Referee',
+      render: (s) => (
+        <span data-testid={`summary-${s.referee_name}`} className="font-medium text-gray-900">{s.referee_name}</span>
+      ),
+    },
+    { key: 'count', header: 'Feedback', align: 'right', render: (s) => s.count },
+    { key: 'average_rating', header: 'Avg rating', align: 'right', render: (s) => Number(s.average_rating).toFixed(1) },
+    {
+      key: 'incident_count',
+      header: 'Incidents',
+      align: 'right',
+      render: (s) => (
+        <span className={s.incident_count > 0 ? 'text-red-700 font-semibold' : ''}>{s.incident_count}</span>
+      ),
+    },
+  ];
+
+  const feedbackColumns: DataTableColumn<RefereeFeedbackRow>[] = [
+    {
+      key: 'game',
+      header: 'Game',
+      className: 'whitespace-nowrap',
+      render: (r) => (
+        <div data-incident={r.incident ? 'true' : 'false'}>
+          <div className="text-gray-900">{formatDateOnly(r.event_date)}</div>
+          <div className="text-xs text-gray-500">
+            {r.event_name}{r.opponent_name ? ` vs ${r.opponent_name}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    { key: 'team_name', header: 'Team', className: 'whitespace-nowrap', render: (r) => r.team_name ?? '—' },
+    {
+      key: 'referee_name',
+      header: 'Referee',
+      className: 'whitespace-nowrap',
+      render: (r) => (
+        <>
+          {r.referee_name}
+          {r.incident && (
+            <span className="ml-2 inline-block px-2 py-0.5 text-xs rounded bg-red-100 text-red-800">Incident</span>
+          )}
+        </>
+      ),
+    },
+    { key: 'rating', header: 'Rating', align: 'right', render: (r) => `${r.rating}/5` },
+    {
+      key: 'categories',
+      header: 'Categories',
+      render: (r) => <span className="text-xs text-gray-600">{r.categories.map(refereeCategoryLabel).join(', ') || '—'}</span>,
+    },
+    {
+      key: 'comments',
+      header: 'Comments',
+      className: 'max-w-md',
+      render: (r) => <span className="text-gray-700">{r.comments || '—'}</span>,
+    },
+    { key: 'submitted_by_name', header: 'Coach', className: 'whitespace-nowrap', render: (r) => r.submitted_by_name },
+  ];
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-primary">Referee Feedback</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            What your coaches recorded about the referees of their games. Coaches see only their own; this page is club-admin only.
-          </p>
-        </div>
-        <div className="text-right">
-          <button
-            type="button"
-            onClick={download}
-            disabled={downloading || !available || rows.length === 0}
-            className="inline-flex items-center px-4 py-2 bg-brand-primary text-white rounded-md font-semibold uppercase text-sm disabled:opacity-50"
-          >
-            {downloading ? 'Preparing…' : 'Download CSV'}
-          </button>
-          {downloadNote && (
-            <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded p-2 max-w-xs">{downloadNote}</p>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Referee Feedback"
+        subtitle="What your coaches recorded about the referees of their games. Coaches see only their own; this page is club-admin only."
+        actions={
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={download}
+              disabled={downloading || !available || rows.length === 0}
+              className="inline-flex items-center px-4 py-2 bg-brand-primary text-white rounded-md font-semibold uppercase text-sm disabled:opacity-50"
+            >
+              {downloading ? 'Preparing…' : 'Download CSV'}
+            </button>
+            {downloadNote && (
+              <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded p-2 max-w-xs">{downloadNote}</p>
+            )}
+          </div>
+        }
+      />
 
       {!available && !loading && (
         <div className="bg-amber-50 border border-amber-200 rounded-md p-4 text-sm text-amber-900 mb-6">
@@ -226,28 +289,11 @@ const RefereeFeedback: React.FC = () => {
               <p className="text-xs text-gray-500 mb-3">
                 Grouped on the name exactly as coaches typed it — there is no referee registry, so two spellings are two rows.
               </p>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-left text-xs uppercase text-gray-600">
-                    <tr>
-                      <th className="px-4 py-2">Referee</th>
-                      <th className="px-4 py-2 text-right">Feedback</th>
-                      <th className="px-4 py-2 text-right">Avg rating</th>
-                      <th className="px-4 py-2 text-right">Incidents</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {summary.map((s) => (
-                      <tr key={s.referee_name} data-testid={`summary-${s.referee_name}`}>
-                        <td className="px-4 py-2 font-medium text-gray-900">{s.referee_name}</td>
-                        <td className="px-4 py-2 text-right">{s.count}</td>
-                        <td className="px-4 py-2 text-right">{Number(s.average_rating).toFixed(1)}</td>
-                        <td className={`px-4 py-2 text-right ${s.incident_count > 0 ? 'text-red-700 font-semibold' : ''}`}>{s.incident_count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable<RefereeSummaryRow>
+                columns={summaryColumns}
+                rows={summary}
+                rowKey={(s) => s.referee_name}
+              />
             </section>
           )}
 
@@ -258,50 +304,13 @@ const RefereeFeedback: React.FC = () => {
                 {rows.length} row{rows.length === 1 ? '' : 's'}{incidentCount > 0 ? ` · ${incidentCount} flagged` : ''}
               </span>
             </div>
-            {rows.length === 0 ? (
-              <p className="text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg p-6 text-center">
-                No referee feedback matches these filters.
-              </p>
-            ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-left text-xs uppercase text-gray-600">
-                    <tr>
-                      <th className="px-4 py-2">Game</th>
-                      <th className="px-4 py-2">Team</th>
-                      <th className="px-4 py-2">Referee</th>
-                      <th className="px-4 py-2 text-right">Rating</th>
-                      <th className="px-4 py-2">Categories</th>
-                      <th className="px-4 py-2">Comments</th>
-                      <th className="px-4 py-2">Coach</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {rows.map((r) => (
-                      <tr key={r.id} data-incident={r.incident ? 'true' : 'false'} className={r.incident ? 'bg-red-50' : ''}>
-                        <td className="px-4 py-2 whitespace-nowrap">
-                          <div className="text-gray-900">{formatDateOnly(r.event_date)}</div>
-                          <div className="text-xs text-gray-500">
-                            {r.event_name}{r.opponent_name ? ` vs ${r.opponent_name}` : ''}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap">{r.team_name ?? '—'}</td>
-                        <td className="px-4 py-2 whitespace-nowrap">
-                          {r.referee_name}
-                          {r.incident && (
-                            <span className="ml-2 inline-block px-2 py-0.5 text-xs rounded bg-red-100 text-red-800">Incident</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-right">{r.rating}/5</td>
-                        <td className="px-4 py-2 text-xs text-gray-600">{r.categories.map(refereeCategoryLabel).join(', ') || '—'}</td>
-                        <td className="px-4 py-2 text-gray-700 max-w-md">{r.comments || '—'}</td>
-                        <td className="px-4 py-2 whitespace-nowrap">{r.submitted_by_name}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<RefereeFeedbackRow>
+              columns={feedbackColumns}
+              rows={rows}
+              rowKey={(r) => r.id}
+              rowClassName={(r) => (r.incident ? 'bg-red-50' : '')}
+              emptyState="No referee feedback matches these filters."
+            />
           </section>
         </>
       )}

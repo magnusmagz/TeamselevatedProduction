@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import PageHeader from '../components/ui/PageHeader';
 
 interface CampaignFormData {
   title: string;
@@ -268,21 +269,11 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
 
   return (
     <div className="p-6 max-w-3xl">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          to="/admin/fundraisers"
-          className="text-brand-primary hover:text-brand-primary-hover mb-2 inline-flex items-center gap-1 text-sm uppercase"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Campaigns
-        </Link>
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">
-          {isEditing ? 'Edit Campaign' : 'Create New Campaign'}
-        </h1>
-      </div>
+      <PageHeader
+        title={isEditing ? 'Edit Campaign' : 'Create New Campaign'}
+        backTo="/admin/fundraisers"
+        backLabel="Back to Campaigns"
+      />
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4 text-red-700">

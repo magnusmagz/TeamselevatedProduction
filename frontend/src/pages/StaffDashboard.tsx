@@ -4,6 +4,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
 import ComplianceAlertCard from '../compliance/ComplianceAlertCard';
 import { AdminSetPasswordBanner } from '../components/AdminSetPasswordBanner';
+import PageHeader from '../components/ui/PageHeader';
 
 /**
  * StaffDashboard — the staff home page (`/dashboard`, and therefore `/`).
@@ -156,16 +157,14 @@ export const StaffDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-brand-primary mb-2 uppercase tracking-wide">
-          Overview
-        </h1>
-        <p className="text-gray-600">
-          {isClubAdmin
+      <PageHeader
+        title="Overview"
+        subtitle={
+          isClubAdmin
             ? 'Your club at a glance. Select any area to manage it.'
-            : 'Your teams at a glance. Select any area to manage it.'}
-        </p>
-      </div>
+            : 'Your teams at a glance. Select any area to manage it.'
+        }
+      />
 
       {/* GOTR G4. Renders NOTHING when this person owes nothing, when the
           feature is off, and when the read fails — a dashboard the whole club

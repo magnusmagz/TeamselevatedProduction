@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PlayerCard from '../components/PlayerCard';
+import PageHeader from '../components/ui/PageHeader';
 
 interface TeamMember {
   id: number;
@@ -108,33 +109,31 @@ const PlayerCards: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="no-print mb-6 flex items-center justify-between border-b border-brand-secondary pb-6">
-          <div>
-            <div className="mb-2">
-              <Link to={`/teams`} className="text-sm text-brand-primary hover:underline">
-                &larr; Back to Teams
-              </Link>
-            </div>
-            <h1 className="text-3xl font-bold text-brand-primary uppercase tracking-wide">
-              {teamName ? `${teamName} \u2014 Player Cards` : 'Player Cards'}
-            </h1>
-            <p className="text-gray-600 mt-1">{roster.length} players</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              disabled
-              title="Coming soon"
-              className="bg-gray-200 text-gray-500 border border-gray-300 rounded-md px-4 py-2 uppercase font-semibold text-sm cursor-not-allowed"
-            >
-              Game Day
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:opacity-90 uppercase font-semibold text-sm"
-            >
-              Print Cards
-            </button>
-          </div>
+        <div className="no-print">
+          <PageHeader
+            title={teamName ? `${teamName} \u2014 Player Cards` : 'Player Cards'}
+            subtitle={`${roster.length} players`}
+            backTo="/teams"
+            backLabel="Back to Teams"
+            className="border-b border-brand-secondary pb-6"
+            actions={
+              <>
+                <button
+                  onClick={() => window.print()}
+                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:opacity-90 uppercase font-semibold text-sm"
+                >
+                  Print Cards
+                </button>
+                <button
+                  disabled
+                  title="Coming soon"
+                  className="bg-gray-200 text-gray-500 border border-gray-300 rounded-md px-4 py-2 uppercase font-semibold text-sm cursor-not-allowed"
+                >
+                  Game Day
+                </button>
+              </>
+            }
+          />
         </div>
 
         {/* Cards */}
