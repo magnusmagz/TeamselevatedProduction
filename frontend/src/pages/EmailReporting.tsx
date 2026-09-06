@@ -915,77 +915,73 @@ export const EmailReporting: React.FC = () => {
               rowKey={(send) => `${send.type}-${send.id}`}
               onRowClick={(send) => fetchPerEmailReport(send.id, send.type)}
               rowClassName={(send) => (expandedSendId === send.id ? 'bg-gray-50' : '')}
-              footer={
-                expandedSendId !== null && recentSends.sends.some((s) => s.id === expandedSendId) ? (
-                  <tr>
-                    <td colSpan={sendColumns.length} className="px-0 py-0">
-                      <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-5">
-                        {loadingPerEmail ? (
-                          <LoadingSpinner text="Loading report details..." />
-                        ) : perEmailReport ? (
-                          <div>
-                            {/* Report Header */}
-                            <div className="flex flex-wrap gap-6 mb-5">
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase">Subject</p>
-                                <p className="text-sm font-medium text-gray-800">
-                                  {perEmailReport.subject || 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase">Sender</p>
-                                <p className="text-sm text-gray-700">{perEmailReport.sender_name}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase">Sent</p>
-                                <p className="text-sm text-gray-700">{formatDate(perEmailReport.sent_at)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500 uppercase">Recipients</p>
-                                <p className="text-sm text-gray-700">{perEmailReport.recipient_count}</p>
-                              </div>
-                            </div>
-
-                            {/* Aggregate Metrics */}
-                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
-                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                <p className="text-lg font-bold text-brand-primary">{perEmailReport.recipient_count}</p>
-                                <p className="text-xs text-gray-500">Sent</p>
-                              </div>
-                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                <p className="text-lg font-bold text-green-600">{perEmailReport.total_delivered}</p>
-                                <p className="text-xs text-gray-500">Delivered</p>
-                              </div>
-                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                <p className="text-lg font-bold text-brand-primary">{perEmailReport.total_opened}</p>
-                                <p className="text-xs text-gray-500">Opened</p>
-                              </div>
-                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                <p className="text-lg font-bold" style={{ color: '#3fcb9a' }}>{perEmailReport.total_clicked}</p>
-                                <p className="text-xs text-gray-500">Clicked</p>
-                              </div>
-                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                <p className="text-lg font-bold text-orange-500">{perEmailReport.total_bounced}</p>
-                                <p className="text-xs text-gray-500">Bounced</p>
-                              </div>
-                            </div>
-
-                            {/* Per-Recipient Table */}
-                            {perEmailReport.recipients && perEmailReport.recipients.length > 0 && (
-                              <DataTable<RecipientDetail>
-                                columns={recipientColumns}
-                                rows={perEmailReport.recipients}
-                                rowKey={(_r, idx) => idx}
-                              />
-                            )}
-                          </div>
-                        ) : (
-                          <EmptyState message="Could not load report details." />
-                        )}
+              renderExpandedRow={(send) =>
+                expandedSendId === send.id ? (
+                <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-5">
+                  {loadingPerEmail ? (
+                    <LoadingSpinner text="Loading report details..." />
+                  ) : perEmailReport ? (
+                    <div>
+                      {/* Report Header */}
+                      <div className="flex flex-wrap gap-6 mb-5">
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Subject</p>
+                          <p className="text-sm font-medium text-gray-800">
+                            {perEmailReport.subject || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Sender</p>
+                          <p className="text-sm text-gray-700">{perEmailReport.sender_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Sent</p>
+                          <p className="text-sm text-gray-700">{formatDate(perEmailReport.sent_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Recipients</p>
+                          <p className="text-sm text-gray-700">{perEmailReport.recipient_count}</p>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                ) : undefined
+
+                      {/* Aggregate Metrics */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+                        <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                          <p className="text-lg font-bold text-brand-primary">{perEmailReport.recipient_count}</p>
+                          <p className="text-xs text-gray-500">Sent</p>
+                        </div>
+                        <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                          <p className="text-lg font-bold text-green-600">{perEmailReport.total_delivered}</p>
+                          <p className="text-xs text-gray-500">Delivered</p>
+                        </div>
+                        <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                          <p className="text-lg font-bold text-brand-primary">{perEmailReport.total_opened}</p>
+                          <p className="text-xs text-gray-500">Opened</p>
+                        </div>
+                        <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                          <p className="text-lg font-bold" style={{ color: '#3fcb9a' }}>{perEmailReport.total_clicked}</p>
+                          <p className="text-xs text-gray-500">Clicked</p>
+                        </div>
+                        <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                          <p className="text-lg font-bold text-orange-500">{perEmailReport.total_bounced}</p>
+                          <p className="text-xs text-gray-500">Bounced</p>
+                        </div>
+                      </div>
+
+                      {/* Per-Recipient Table */}
+                      {perEmailReport.recipients && perEmailReport.recipients.length > 0 && (
+                        <DataTable<RecipientDetail>
+                          columns={recipientColumns}
+                          rows={perEmailReport.recipients}
+                          rowKey={(_r, idx) => idx}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <EmptyState message="Could not load report details." />
+                  )}
+                </div>
+                ) : null
               }
             />
 
