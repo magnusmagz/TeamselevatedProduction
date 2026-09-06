@@ -104,7 +104,12 @@ class CoachAccessTest extends TestCase
                 (10, '',                   'Nel', 'NoEmail',  NULL),
                 (11, 'other@club.test',    'Otto','Other',    NULL),
                 (12, 'parent@club.test',   'Pam', 'Parent',   'hash'),
-                (13, 'revoked@club.test',  'Rex', 'Revoked',  NULL);
+                (13, 'revoked@club.test',  'Rex', 'Revoked',  NULL),
+                (14, 'treasurer@club.test','Tia', 'Treasurer',NULL),
+                (15, 'volunteer@club.test','Val', 'Volunteer',NULL),
+                (16, 'admin2@club.test',   'Abe', 'Admin',    NULL),
+                (17, 'coachparent@club.test','Cy','Both',     NULL),
+                (18, 'player@club.test',   'Pip', 'Player',   NULL);
             INSERT INTO user_club_access (user_id, club_profile_id, role, active, revoked_at) VALUES
                 (7,  100, 'coach', 1, NULL),
                 (8,  100, 'coach', 1, NULL),
@@ -112,7 +117,13 @@ class CoachAccessTest extends TestCase
                 (10, 100, 'coach', 1, NULL),
                 (11, 200, 'coach', 1, NULL),
                 (12, 100, 'parent', 1, NULL),
-                (13, 100, 'coach', 0, '2026-08-01 00:00:00');
+                (13, 100, 'coach', 0, '2026-08-01 00:00:00'),
+                (14, 100, 'treasurer', 1, NULL),
+                (15, 100, 'volunteer', 1, NULL),
+                (16, 100, 'club_admin', 1, NULL),
+                (17, 100, 'parent', 1, NULL),
+                (17, 100, 'coach', 1, NULL),
+                (18, 100, 'player', 1, NULL);
             INSERT INTO magic_link_tokens (email, token, expires_at, used_at) VALUES
                 ('invited@club.test:coach_invite', 'oldtoken', '2099-01-01 00:00:00', NULL);
         ");
@@ -205,9 +216,13 @@ class CoachAccessTest extends TestCase
         $r = coachAccess_invite($this->pdo, $this->admin(), $this->body(11), $this->sender($calls));
         $this->assertSame(404, $r['status'], json_encode($r));
         $this->assertSame('not_a_coach', $r['body']['reason']);
-        // A parent in this club is not a coach.
+        // A parent in this club is crew, not staff — pointed at the Crew page.
         $r = coachAccess_sendLoginLink($this->pdo, $this->admin(), $this->body(12), $this->sender($calls));
-        $this->assertSame(404, $r['status']);
+        $this->assertSame(422, $r['status']);
+        $this->assertSame('not_staff', $r['body']['reason']);
+        $this->assertStringContainsString('Crew page', $r['body']['error']);
+        $r = coachAccess_invite($this->pdo, $this->admin(), $this->body(18), $this->sender($calls));
+        $this->assertSame(422, $r['status'], 'player is crew too');
         // A revoked coach access does not count.
         $r = coachAccess_setTemporaryPassword($this->pdo, $this->admin(), $this->body(13, self::CLUB, ['password' => 'LongEnough12']));
         $this->assertSame(404, $r['status']);
@@ -221,6 +236,47 @@ class CoachAccessTest extends TestCase
         $r = coachAccess_invite($this->pdo, $super, $this->body(8), $this->sender($calls));
         $this->assertSame(200, $r['status'], json_encode($r));
         $this->assertCount(1, $calls);
+    }
+
+    public function testEveryStaffRoleIsServedWithARoleAwareInvite(): void
+    {
+        $expected = [14 => 'treasurer@club.test', 15 => 'volunteer@club.test', 16 => 'admin2@club.test', 17 => 'coachparent@club.test'];
+        foreach ($expected as $userId => $email) {
+            $calls = [];
+            $r = coachAccess_invite($this->pdo, $this->admin(), $this->body($userId), $this->sender($calls));
+            $this->assertSame(200, $r['status'], "user $userId: " . json_encode($r));
+            $this->assertCount(1, $this->tokens($email . ':coach_invite'), 'same suffix for every staff role');
+            $this->assertSame($email, $calls[0]['to']);
+        }
+        // The coach-parent (17) is served as staff: the coach row wins over the parent row.
+        $this->assertCount(1, $this->audits('coach_invite_sent') ? array_filter($this->audits('coach_invite_sent'), fn($a) => (int) $a['resource_id'] === 17) : []);
+
+        $r = coachAccess_setTemporaryPassword($this->pdo, $this->admin(), $this->body(14, self::CLUB, ['password' => 'Temporary-9x']));
+        $this->assertSame(200, $r['status']);
+    }
+
+    public function testRoleLabelsAndTheEmailCopyAreRoleAware(): void
+    {
+        $this->assertSame('Club Admin', te_coach_invite_role_label('club_admin'));
+        $this->assertSame('Coach', te_coach_invite_role_label('coach'));
+        $this->assertSame('Treasurer', te_coach_invite_role_label('treasurer'));
+        $this->assertSame('Volunteer', te_coach_invite_role_label('volunteer'));
+        $this->assertSame('Coach', te_coach_invite_role_label(null));
+        $this->assertSame(['club_admin', 'coach', 'treasurer', 'volunteer'], TE_STAFF_INVITE_ROLES);
+
+        // The template takes the label and uses it in the heading; the subject
+        // no longer says "coach". Parse-based: Email::send() is private.
+        $src = file_get_contents(__DIR__ . '/../../lib/Email.php');
+        $this->assertMatchesRegularExpression('/function sendCoachInvite\(\$to, \$name, \$inviteLink, \$roleLabel/', $src);
+        $this->assertStringContainsString('"Set up your {$clubName} account"', $src);
+        $this->assertStringContainsString('"You\'re invited to join {$clubName} as {$roleLabel}"', $src);
+        $this->assertStringNotContainsString('coach account"', $src);
+
+        // And the handler hands the resolved role's label to the sender.
+        $handler = file_get_contents(__DIR__ . '/../../api/coach-access.php');
+        $this->assertStringContainsString("te_coach_invite_role_label((string) (\$coach['role']", $handler);
+        $lib = file_get_contents(__DIR__ . '/../../lib/coach_invite.php');
+        $this->assertStringContainsString('->sendCoachInvite($to, $name, $link, $label)', $lib);
     }
 
     // ------------------------------------------------------------ mapping

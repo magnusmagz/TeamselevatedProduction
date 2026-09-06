@@ -32,6 +32,19 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Staff access controls moved to Club Settings → Users; club-users GET tightened (branch `feature/coach-access`, backend first)
+- Invite / Resend invite / Send login link / Set password now render on the Users tab
+  (`ClubUserManagement.tsx`) for club_admin / coach / treasurer / volunteer rows, with a
+  Status column; parent/player rows read "Managed on Crew". Removed from the Coaches page,
+  whose rows now show exactly Edit / View Schedule / View Teams in both tables (Maggie).
+- `api/coach-access.php` accepts any active unrevoked staff role (`TE_STAFF_INVITE_ROLES`);
+  parent/player → 422 `not_staff`. Invite email is role-aware: "Set up your {club} account" /
+  "You're invited to join {club} as {Club Admin|Coach|Treasurer|Volunteer}". Suffix stays
+  `:coach_invite`.
+- ⚠️ Security: `api/club-users-gateway.php` GET gated on `canAccessClub()` — a parent could
+  list every staff member's name and email. Now `te_is_club_admin()`, matching PUT/DELETE
+  (`ClubUsersGatewayTest`). The GET response gains portal-status fields.
+
 ### Coach access controls on the Coaches page (Heroku v609, migration 097 applied, then Netlify)
 - Per-coach context button: Invite / Resend invite / Send login link (24 h), and a "Set password"
   modal that shows the password once and spends any outstanding invite. `api/coach-access.php`,

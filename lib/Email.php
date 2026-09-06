@@ -1571,11 +1571,14 @@ HTML;
      * @param string $inviteLink Tokenised /accept-coach-invite URL
      * @return bool
      */
-    public function sendCoachInvite($to, $name, $inviteLink) {
-        $clubName = $this->fromName;
-        $subject  = "Set up your {$clubName} coach account";
-        $heading  = "You're invited to coach with {$clubName}";
-        $intro    = "{$clubName} has set up a Teams Elevated coach account for you. "
+    public function sendCoachInvite($to, $name, $inviteLink, $roleLabel = 'Coach') {
+        $clubName  = $this->fromName;
+        $roleLabel = trim((string) $roleLabel) !== '' ? trim((string) $roleLabel) : 'Coach';
+        // Role-aware since 2026-09-06: the same invite serves club admins,
+        // treasurers and volunteers from Club Settings -> Users.
+        $subject  = "Set up your {$clubName} account";
+        $heading  = "You're invited to join {$clubName} as {$roleLabel}";
+        $intro    = "{$clubName} has set up a Teams Elevated account for you as {$roleLabel}. "
                   . "Choose a password to finish setting it up. This link works once and expires in 7 days; "
                   . "after you have set your password, sign in with it instead of clicking the link again.";
 

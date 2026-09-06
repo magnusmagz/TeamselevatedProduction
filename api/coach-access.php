@@ -1,7 +1,8 @@
 <?php
 /**
- * Club-admin controls for getting a COACH signed in when the coach cannot
- * manage it themselves. Three POST actions, all taking { user_id, club_id }:
+ * Club-admin controls (Club Settings -> Users) for getting a STAFF member —
+ * club_admin / coach / treasurer / volunteer — signed in when they cannot
+ * manage it themselves. Crew (parent / player) are the Crew page's business. Three POST actions, all taking { user_id, club_id }:
  *
  *   ?action=invite                  not_invited → mint + mail a 7-day
  *                                   `:coach_invite`; invited / invite_expired →
@@ -20,9 +21,9 @@
  * RULES THAT BITE
  *  - Standing is `te_is_club_admin()` of the COACH's club — never canAccessClub()
  *    (club membership; a parent row satisfies it). Super admin passes.
- *  - The coach is resolved by (user_id, club_id) and must hold an ACTIVE,
- *    unrevoked coach role in that club. The email is read from the users row,
- *    never from the body.
+ *  - The target is resolved by (user_id, club_id) and must hold an ACTIVE,
+ *    unrevoked STAFF role in that club (TE_STAFF_INVITE_ROLES); a parent/player
+ *    row is 422 not_staff. The email is read from the users row, never the body.
  *  - The token is never in a response. Neither is the password. The email is
  *    the channel for the first two; the admin's screen is the channel for the
  *    third, and it already has the password because they typed it.
@@ -98,20 +99,37 @@ function coachAccess_resolve(PDO $pdo, $auth, array $body): array
         return ['ok' => false, 'fail' => coachAccess_fail(403, 'Only club admins can manage a coach\'s access', 'forbidden')];
     }
 
-    // Must be a coach OF THIS CLUB — the pair is what stops an admin acting on
-    // any user id on the platform by passing their own club.
+    // Must hold an active, unrevoked role IN THIS CLUB — the pair is what stops
+    // an admin acting on any user id on the platform by passing their own club.
+    // Staff roles (TE_STAFF_INVITE_ROLES) are served here; a parent/player row
+    // is crew and is refused with a pointer to the Crew page. The staff role
+    // wins when someone holds both (the coach-parent case).
     $stmt = $pdo->prepare(
-        "SELECT u.id, u.email, u.first_name, u.last_name, u.password_hash
+        "SELECT u.id, u.email, u.first_name, u.last_name, u.password_hash, uca.role
            FROM users u
            JOIN user_club_access uca ON uca.user_id = u.id
-          WHERE u.id = ? AND uca.club_profile_id = ? AND uca.role = 'coach'
+          WHERE u.id = ? AND uca.club_profile_id = ?
             AND uca.active = TRUE AND uca.revoked_at IS NULL
-          LIMIT 1"
+          ORDER BY uca.id"
     );
     $stmt->execute([$userId, $clubId]);
-    $coach = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$coach) {
-        return ['ok' => false, 'fail' => coachAccess_fail(404, 'That person is not a coach in this club', 'not_a_coach')];
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        return ['ok' => false, 'fail' => coachAccess_fail(404, 'That person is not a member of this club', 'not_a_coach')];
+    }
+    $coach = null;
+    foreach ($rows as $row) {
+        if (in_array((string) $row['role'], TE_STAFF_INVITE_ROLES, true)) {
+            $coach = $row;
+            break;
+        }
+    }
+    if ($coach === null) {
+        return ['ok' => false, 'fail' => coachAccess_fail(
+            422,
+            'That person is crew, not staff — manage their access from the Crew page.',
+            'not_staff'
+        )];
     }
 
     return ['ok' => true, 'coach' => $coach, 'club_id' => $clubId];
@@ -166,7 +184,8 @@ function coachAccess_invite(PDO $pdo, $auth, array $body, ?callable $sender = nu
         $clubId,
         $sender,
         (int) $auth->getUserId() ?: null,
-        $resend ? 'coach_invite_resent' : 'coach_invite_sent'
+        $resend ? 'coach_invite_resent' : 'coach_invite_sent',
+        te_coach_invite_role_label((string) ($coach['role'] ?? 'coach'))
     );
 
     if (empty($sent['sent'])) {

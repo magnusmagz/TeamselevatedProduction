@@ -45,6 +45,29 @@ require_once __DIR__ . '/feature_flags.php';
 const TE_COACH_INVITE_SUFFIX = ':coach_invite';
 const TE_COACH_INVITE_TTL_SECONDS = 7 * 24 * 3600;
 
+/**
+ * Staff roles the invite serves (Club Settings -> Users, 2026-09-06). parent and
+ * player are crew and are handled on the Crew page with `:parent_invite`.
+ * The token suffix stays `:coach_invite` for every one of these — the
+ * portal-status evidence and the status->action map key on it.
+ */
+const TE_STAFF_INVITE_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer'];
+
+/** The label the invite email uses for a role. */
+function te_coach_invite_role_label(?string $role): string
+{
+    switch ($role) {
+        case 'club_admin':
+            return 'Club Admin';
+        case 'treasurer':
+            return 'Treasurer';
+        case 'volunteer':
+            return 'Volunteer';
+        default:
+            return 'Coach';
+    }
+}
+
 /** The magic_link_tokens.email key for an address. */
 function te_coach_invite_email_key(string $email): string
 {
@@ -235,6 +258,7 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
  * @param callable|null $sender fn(string $to, string $name, string $link): bool
  * @param int|null $actorId who asked — the audit row's user_id; null for a system path
  * @param string $auditAction 'coach_invite_sent' (default) or 'coach_invite_resent'
+ * @param string|null $roleLabel te_coach_invite_role_label(); null reads as Coach
  * @return array{sent: bool, reason: string, feature_disabled?: string}
  */
 function te_coach_invite_send(
@@ -243,7 +267,8 @@ function te_coach_invite_send(
     int $clubId,
     ?callable $sender = null,
     ?int $actorId = null,
-    string $auditAction = 'coach_invite_sent'
+    string $auditAction = 'coach_invite_sent',
+    ?string $roleLabel = null
 ): array {
     if (!te_feature_enabled('COACH_INVITE_EMAIL')) {
         return te_feature_disabled_response('COACH_INVITE_EMAIL') + ['reason' => 'feature_disabled'];
@@ -279,9 +304,10 @@ function te_coach_invite_send(
     }
 
     if ($sender === null) {
-        $sender = static function (string $to, string $name, string $link) use ($pdo, $clubId): bool {
+        $label = $roleLabel ?? te_coach_invite_role_label('coach');
+        $sender = static function (string $to, string $name, string $link) use ($pdo, $clubId, $label): bool {
             require_once __DIR__ . '/Email.php';
-            return (bool) (new Email())->forClub($pdo, $clubId)->sendCoachInvite($to, $name, $link);
+            return (bool) (new Email())->forClub($pdo, $clubId)->sendCoachInvite($to, $name, $link, $label);
         };
     }
 

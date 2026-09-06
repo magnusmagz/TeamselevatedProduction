@@ -1248,21 +1248,31 @@ not_invited → *Invite to portal*, no_email → nothing.
 - `send-magic-link` on `auth-gateway.php` is deliberately left unauthenticated and
   untouched — it only ever mails the account owner, so identity proves nothing there.
 
-### Coach access controls — `api/coach-access.php` (2026-09-06, branch `feature/coach-access`)
-The Coaches page's equivalent of the Crew button, plus a temporary password. Three POST
-actions taking `{user_id, club_id}`: `invite` (not_invited → mint + mail; invited /
+### Staff access controls live on Club Settings → Users — `api/coach-access.php` (2026-09-06)
+Maggie manages access at **Club Settings → Users** (`ClubUserManagement.tsx`), not the Coaches
+page. The Coaches page shows exactly Edit / View Schedule / View Teams per row in BOTH its
+tables, plus a read-only Status column — nothing about invites or passwords there. The Users
+tab draws one context-aware control per row for `club_admin` / `coach` / `treasurer` /
+`volunteer` (`TE_STAFF_INVITE_ROLES`); a `parent` / `player` row reads "Managed on Crew" and
+the endpoint 422s them (`not_staff`). The invite token suffix is `:coach_invite` for every
+staff role — the `club-users-gateway.php` GET reads that evidence through
+`lib/portal_status.php` — and only the email copy is role-aware
+(`te_coach_invite_role_label()`: "Set up your {club} account" / "…join {club} as {label}").
+⚠️ **`club-users-gateway.php` GET is `te_is_club_admin()`** since 2026-09-06; it was
+`canAccessClub()`, so any parent could list the club's staff names and emails
+(`ClubUsersGatewayTest`). Three POST actions taking `{user_id, club_id}`: `invite` (not_invited → mint + mail; invited /
 invite_expired → re-mint, the old link stops working, audited `coach_invite_resent`),
 `send-login-link` (the same 24h mint as `portal-access.php`, audited
 `portal_login_link_sent`), `set-temporary-password` (`{…, password}`, min 10, bcrypt,
 `auth_provider='password'`, spends every unused `:coach_invite`, audited
-`password_set_by_admin` — never the password). Gate is `te_is_club_admin()` of the coach's
-club, and the target must hold an active unrevoked `coach` row there; the email comes from
+`password_set_by_admin` — never the password). Gate is `te_is_club_admin()` of the target's
+club, and the target must hold an active unrevoked STAFF row there; the email comes from
 the users row, never the body. The state is re-derived server-side: invite on an account
 with a password is 409 `already_active`, login link on one without is 409 `not_active`.
 No token and no password in any response (`CoachAccessTest` scans the handler).
 `api/coach-invite.php` stays the PUBLIC redemption endpoint — keep the two files apart.
 Status → control lives in `lib/coach_access.php` / `frontend/src/utils/coachAccess.ts`;
-`CoachAccessControl` is rendered by BOTH CoachManagement tables. **No forced-change flag**
+`CoachAccessControl` is rendered by `ClubUserManagement` only. **No forced-change flag**
 (decided 2026-09-06): migration 097's nullable `users.password_set_by_admin_at` drives a
 dismissible banner on the staff dashboard (`AdminSetPasswordBanner`, read through
 `api/user-profile.php`, cleared by its own password change) and nothing else. Both writers

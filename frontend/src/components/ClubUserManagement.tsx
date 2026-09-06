@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import InviteUsersForm from './InviteUsersForm';
 import InvitationDashboard from './InvitationDashboard';
+import CoachAccessControl from './CoachAccessControl';
+import CoachSetPasswordModal from './CoachSetPasswordModal';
+import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 
 interface ClubUser {
   id: number;
@@ -12,7 +15,22 @@ interface ClubUser {
   role: string;
   active: boolean;
   granted_at: string;
+  // Platform access, from lib/portal_status.php (api/club-users-gateway.php GET
+  // carries it since 2026-09-06). Optional: an older backend sends none, and an
+  // absent status renders as Unknown with no action rather than crashing.
+  status?: string;
+  first_login_at?: string | null;
+  invited_at?: string | null;
+  shared_account?: boolean;
+  shared_reason?: string | null;
 }
+
+/**
+ * Roles whose sign-in a club admin manages HERE. parent and player are crew —
+ * the Crew page invites them with a `:parent_invite`, and api/coach-access.php
+ * refuses them with a 422 that says so. Mirrors TE_STAFF_INVITE_ROLES.
+ */
+const STAFF_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer'];
 
 const ClubUserManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -24,6 +42,8 @@ const ClubUserManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'invite' | 'invitations'>('users');
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingRole, setEditingRole] = useState<string>('');
+  const [passwordUser, setPasswordUser] = useState<ClubUser | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (clubId) {
@@ -42,6 +62,13 @@ const ClubUserManagement: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setUsers(data.users || []);
+        setLoadError(null);
+      } else if (response.status === 403) {
+        // Club-admin data. A coach who reaches this tab gets told, not an
+        // empty table that reads as "no users".
+        setLoadError('Only club admins can see the club user list.');
+      } else {
+        setLoadError(data.error || 'Could not load users.');
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -158,7 +185,13 @@ const ClubUserManagement: React.FC = () => {
                       Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
                       Actions
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-primary uppercase tracking-wider">
+                      Access
                     </th>
                   </tr>
                 </thead>
@@ -186,6 +219,30 @@ const ClubUserManagement: React.FC = () => {
                             {formatRole(user.role)}
                           </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {(() => {
+                          const meta = portalStatusMeta(user.status);
+                          const detail = portalStatusDetail(user);
+                          return (
+                            <>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}
+                                title={meta.help}
+                              >
+                                {meta.label}
+                              </span>
+                              {detail && (
+                                <div className="text-[11px] text-gray-500 mt-0.5 tabular-nums">{detail}</div>
+                              )}
+                              {user.shared_account && (
+                                <div className="text-[11px] text-amber-700 mt-0.5" title={user.shared_reason || ''}>
+                                  &#9888; may be another account
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {editingUserId === user.user_id ? (
@@ -223,11 +280,36 @@ const ClubUserManagement: React.FC = () => {
                           </div>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {STAFF_ROLES.includes(user.role) ? (
+                          <CoachAccessControl
+                            coach={{
+                              id: user.user_id,
+                              first_name: user.first_name,
+                              last_name: user.last_name,
+                              email: user.email,
+                              status: user.status,
+                            }}
+                            clubId={clubId ?? null}
+                            onChanged={fetchUsers}
+                            onSetPassword={() => setPasswordUser(user)}
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-500" title="Crew are invited from the Crew page.">
+                            Managed on Crew
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {users.length === 0 && (
+              {loadError && (
+                <div className="text-center py-8 text-red-700" role="alert">
+                  {loadError}
+                </div>
+              )}
+              {!loadError && users.length === 0 && (
                 <div className="text-center py-8 text-gray-600">
                   No users found
                 </div>
@@ -235,6 +317,20 @@ const ClubUserManagement: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {passwordUser && (
+        <CoachSetPasswordModal
+          coach={{
+            id: passwordUser.user_id,
+            first_name: passwordUser.first_name,
+            last_name: passwordUser.last_name,
+            email: passwordUser.email,
+          }}
+          clubId={clubId ?? 0}
+          onClose={() => setPasswordUser(null)}
+          onSaved={fetchUsers}
+        />
       )}
 
       {activeTab === 'invite' && (
