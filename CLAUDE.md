@@ -198,6 +198,32 @@ sync"). Emails and SMS actually send in production.
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
 
+### UI conventions: ONE page header, ONE table — `components/ui/` (2026-09-06)
+Maggie: "we have different header treatments — Programs and Tournaments — let's fix it so we
+have one" and "we have different table treatments, we need one." Before this there were ~30
+h1 class strings and three table families (club pages with `border-r` gridlines, the gray
+`bg-gray-50` family, the superadmin `bg-brand-secondary` band). Tally and the choice in
+`docs/ui-consistency-inventory-2026-09.md`.
+
+- **`PageHeader`** (`frontend/src/components/ui/PageHeader.tsx`) — `title`, `subtitle?`,
+  `backTo?`/`backLabel?`, `actions?` (right-aligned, PRIMARY FIRST, stacks on mobile),
+  `meta?` (chips/counts). The h1 is `text-2xl font-bold text-brand-primary uppercase
+  tracking-wide`; nothing else on a staff page renders an `<h1`.
+- **`DataTable`** (`frontend/src/components/ui/DataTable.tsx`) — typed `columns` / `rows` /
+  `rowKey`, `emptyState` (text + optional action, rendered INSIDE the table so the header
+  still shows), `onRowClick`, `rowClassName`, `footer` (totals), optional client-side
+  `sortable` columns. It sits in its own `overflow-x-auto` so a wide table never scrolls the
+  page. An `actions: true` column is right-aligned and swallows row clicks. Pagination /
+  Load More stay in the page, after the table. No library.
+- **`frontend/src/uiConsistency.test.ts` is a SCAN** over `pages/`, `modules/*/pages/` and the
+  page-level components routed from `App.tsx`: a raw `<h1`, a `text-3xl <h2` page title, or a
+  raw `<table` fails it. Public/auth/print pages are listed in `NOT_STAFF_APP` with the
+  surface they are; a staff file that must keep a raw element goes in `ALLOWLIST` with a
+  reason. Add to those lists only as a statement about the product, never to get past the
+  test. The parent portal is out of scope (own mobile layout).
+- A form grid (attendance, the practice-review step, the availability matrix) is not a
+  list of records and is not a DataTable; those are documented in the inventory and stay.
+
 ### A tab that owns a list must report it back — tournament divisions (2026-09-03)
 `TournamentDetail` loads `tournament.divisions` once on mount; `DivisionManager` fetches and
 owns the live list. Divisions created on the Divisions tab were therefore invisible to the
