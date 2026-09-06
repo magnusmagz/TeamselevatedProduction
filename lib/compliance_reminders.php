@@ -67,7 +67,17 @@
  */
 
 require_once __DIR__ . '/compliance.php';
+require_once __DIR__ . '/compliance_streams.php';
 require_once __DIR__ . '/feature_flags.php';
+
+/**
+ * How far past expiry a credential is still walked for an authored stream's
+ * post-expiry steps. A certificate that lapsed more than a year ago is not
+ * chased — the person has been `expired` on every screen for a year and a
+ * fifth email is not what changes that. Pre-expiry, the window is the widest
+ * step any active stream carries.
+ */
+const TE_COMPLIANCE_STREAM_POST_EXPIRY_LOOKBACK_DAYS = 365;
 
 /**
  * Days before expiry at which a reminder goes out, LARGEST FIRST.
@@ -219,9 +229,19 @@ function te_compliance_pending_reminders(PDO $pdo, array $opts = []): array
     }
 
     $sent = te_compliance_reminder_already_sent($pdo);
+    $sentStream = te_compliance_stream_already_sent($pdo);
+    $streamMemo = [];
 
     $envelopes = [];
+    $peopleWithEnvelopes = [];
     foreach ($userIds as $userId) {
+        // The cap counts people who are actually OWED something. The default
+        // bands exclude the already-sent in SQL; the stream candidates cannot
+        // (which step is due depends on JSON the query cannot read), so they
+        // are walked and the cap is applied to what the walk finds.
+        if ($limit > 0 && count($peopleWithEnvelopes) >= $limit) {
+            break;
+        }
         foreach (te_compliance_user_club_ids($pdo, $userId) as $clubId) {
             $status = te_compliance_status($pdo, $userId, $clubId, $today);
             foreach ($status['requirements'] as $row) {
@@ -230,6 +250,54 @@ function te_compliance_pending_reminders(PDO $pdo, array $opts = []): array
                     // No stored row: nothing to key the dedupe on, and the
                     // never-recorded case is deliberately not mailed. See the
                     // note at the top of this file.
+                    continue;
+                }
+
+                // Which stream applies to this credential — resolved once per
+                // (requirement, club) per tick. An authored stream REPLACES the
+                // default cadence for the credential; steps are never merged
+                // (lib/compliance_streams.php header).
+                $requirementId = (int) $row['requirement']['id'];
+                $memoKey = $requirementId . ':' . $clubId;
+                if (!array_key_exists($memoKey, $streamMemo)) {
+                    $streamMemo[$memoKey] = te_compliance_stream_resolve($pdo, $requirementId, $clubId);
+                }
+                $stream = $streamMemo[$memoKey];
+
+                if ($stream !== null) {
+                    // A stream is authored against an expiry date. A stored
+                    // `missing` row has none and is not its business; a
+                    // `submitted` or `rejected` one is with a reviewer.
+                    if (!in_array($row['status'], ['verified', 'expired'], true) || $row['expires_at'] === null) {
+                        continue;
+                    }
+                    $step = te_compliance_stream_step_due(
+                        $stream['steps'],
+                        $row['days_to_expiry'],
+                        $sentStream[$credentialId][$stream['id']] ?? []
+                    );
+                    if ($step === null) {
+                        continue;
+                    }
+                    // One envelope per credential-step: the copy names the
+                    // requirement, so two lapsing certificates are two mails
+                    // here where the default cadence would fold them into one.
+                    $envelopes[] = [
+                        'user_id'        => $userId,
+                        'club_id'        => $clubId,
+                        'threshold'      => $step['days_before'],
+                        'stream_id'      => $stream['id'],
+                        'step'           => $step,
+                        'requirement_id' => $requirementId,
+                        'items'          => [[
+                            'credential_id' => $credentialId,
+                            'name'          => (string) $row['requirement']['name'],
+                            'expires_at'    => $row['expires_at'],
+                            'days'          => $row['days_to_expiry'],
+                            'proof_url'     => $row['requirement']['proof_url'] ?? null,
+                        ]],
+                    ];
+                    $peopleWithEnvelopes[$userId] = true;
                     continue;
                 }
 
@@ -261,11 +329,99 @@ function te_compliance_pending_reminders(PDO $pdo, array $opts = []): array
                     'expires_at'    => $row['expires_at'],
                     'days'          => $row['days_to_expiry'],
                 ];
+                $peopleWithEnvelopes[$userId] = true;
             }
         }
     }
 
     return array_values($envelopes);
+}
+
+/**
+ * Everything the AUTHORED streams have already sent, as
+ * [credential_id][stream_id][days_before]. Same caveat as the default map: an
+ * optimisation, not the dedupe — the unique constraint is the dedupe.
+ *
+ * @return array<int, array<int, array<int, true>>>
+ */
+function te_compliance_stream_already_sent(PDO $pdo): array
+{
+    $out = [];
+    try {
+        $stmt = $pdo->query(
+            'SELECT credential_id, stream_id, days_before FROM compliance_reminder_log WHERE stream_id IS NOT NULL'
+        );
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $out[(int) $row['credential_id']][(int) $row['stream_id']][(int) $row['days_before']] = true;
+        }
+    } catch (Throwable $e) {
+        error_log('te_compliance_stream_already_sent: ' . $e->getMessage());
+    }
+    return $out;
+}
+
+/**
+ * The subject and body for one authored-stream envelope, merge tags filled.
+ *
+ * Values: first_name from the account, requirement_name / expires_on /
+ * days_left from the credential, club_name from club_profile, renewal_url from
+ * the requirement's proof_url when it has one and otherwise the person's own
+ * requirements page. `days_left` is the whole-day distance to expiry in either
+ * direction — "{{days_left}} days ago" reads correctly on a post-expiry step.
+ *
+ * ⚠️ `missing` lists any tag that resolved to nothing. The caller must not send
+ * when it is non-empty: a coach mailed the literal `{{first_name}}` cannot be
+ * un-mailed, and a blank name is exactly the sort of record gap that exists in
+ * an imported roster.
+ *
+ * @return array{subject: string, body: string, link: string, missing: string[]}
+ */
+function te_compliance_stream_copy(PDO $pdo, array $envelope, array $person): array
+{
+    $item = $envelope['items'][0] ?? [];
+    $step = $envelope['step'] ?? [];
+    $days = $item['days'] ?? null;
+
+    require_once __DIR__ . '/../config/env.php';
+    $portal = rtrim((string) Env::get('APP_URL', 'https://teams-elevated.netlify.app'), '/') . '/compliance/mine';
+    $renewal = trim((string) ($item['proof_url'] ?? ''));
+    $link = $renewal !== '' ? $renewal : $portal;
+
+    $values = [
+        'first_name'       => trim((string) ($person['first_name'] ?? '')),
+        'requirement_name' => (string) ($item['name'] ?? ''),
+        'expires_on'       => !empty($item['expires_at']) ? te_compliance_reminder_format_date($item['expires_at']) : '',
+        'days_left'        => $days === null ? '' : (string) abs((int) $days),
+        'club_name'        => te_compliance_stream_club_name($pdo, (int) ($envelope['club_id'] ?? 0)),
+        'renewal_url'      => $link,
+    ];
+
+    $subject = te_compliance_stream_render((string) ($step['subject'] ?? ''), $values);
+    $body = te_compliance_stream_render((string) ($step['body'] ?? ''), $values);
+
+    return [
+        'subject' => $subject['text'],
+        'body'    => $body['text'],
+        'link'    => $link,
+        'missing' => array_values(array_unique(array_merge($subject['missing'], $body['missing']))),
+    ];
+}
+
+/** The club's display name for the {{club_name}} tag; '' (unresolved) when unknown. */
+function te_compliance_stream_club_name(PDO $pdo, int $clubId): string
+{
+    if ($clubId <= 0) {
+        return '';
+    }
+    try {
+        $stmt = $pdo->prepare('SELECT name FROM club_profile WHERE id = ?');
+        $stmt->execute([$clubId]);
+        $name = $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        error_log('te_compliance_stream_club_name: ' . $e->getMessage());
+        return '';
+    }
+    return $name === false || $name === null ? '' : trim((string) $name);
 }
 
 /**
@@ -374,7 +530,59 @@ function te_compliance_reminder_candidate_users(PDO $pdo, string $today, int $li
 
     $out = array_keys($ids);
     sort($out);
-    return $limit > 0 ? array_slice($out, 0, $limit) : $out;
+    $out = $limit > 0 ? array_slice($out, 0, $limit) : $out;
+
+    // Authored streams (G7): verified OR expired rows inside the widest step
+    // window any active stream carries, for requirements that have a stream
+    // somewhere. Over-inclusive on purpose — the join is on the requirement,
+    // not on the tier that resolves — and NOT excluded by the log here, because
+    // which step is due lives in JSON the query cannot read. The PHP walk
+    // resolves both and te_compliance_pending_reminders() applies the cap to
+    // what it actually finds owed. 'expired' rows are candidates here and
+    // nowhere else: that is what a post-expiry step is.
+    $bounds = te_compliance_stream_offset_bounds($pdo);
+    if ($bounds !== null) {
+        [$max, $min] = $bounds;
+        $low = $min < 0 ? -TE_COMPLIANCE_STREAM_POST_EXPIRY_LOOKBACK_DAYS : 0;
+        try {
+            $stmt = $pdo->prepare(
+                "SELECT DISTINCT pc.user_id
+                   FROM person_credentials pc
+                  WHERE pc.status IN ('verified', 'expired')
+                    AND pc.expires_at IS NOT NULL
+                    AND pc.expires_at >= ?
+                    AND pc.expires_at <= ?
+                    AND EXISTS (
+                        SELECT 1 FROM compliance_reminder_streams s
+                         WHERE s.requirement_id = pc.requirement_id
+                           AND s.active = {$true}
+                    )
+                  ORDER BY pc.user_id"
+            );
+            $stmt->execute([
+                te_compliance_reminder_shift($today, $low),
+                te_compliance_reminder_shift($today, max($max, 0)),
+            ]);
+            $streamIds = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN, 0) ?: [] as $id) {
+                if ((int) $id > 0 && !in_array((int) $id, $out, true)) {
+                    $streamIds[] = (int) $id;
+                }
+            }
+            // Bounded so one tick's walk cannot grow without limit on a council
+            // that just imported 5,000 coaches under a stream; the remainder is
+            // reached on the next pass because the ordering is by user id and
+            // people with nothing owed are cheap to pass over.
+            if ($limit > 0) {
+                $streamIds = array_slice($streamIds, 0, $limit * 5);
+            }
+            $out = array_merge($out, $streamIds);
+        } catch (Throwable $e) {
+            error_log('te_compliance_reminder_candidate_users streams: ' . $e->getMessage());
+        }
+    }
+
+    return $out;
 }
 
 /**
@@ -442,14 +650,16 @@ function te_compliance_reminder_already_sent(PDO $pdo): array
  * Postgres a failed statement inside a transaction poisons the whole thing,
  * which is why there is no transaction here at all.
  */
-function te_compliance_claim_reminder(PDO $pdo, int $credentialId, int $threshold): bool
+function te_compliance_claim_reminder(PDO $pdo, int $credentialId, int $threshold, ?int $streamId = null): bool
 {
     try {
+        // NULL stream_id is the default cadence (deduped by 093's partial
+        // index); a real id is an authored stream (deduped by 091's UNIQUE).
         $stmt = $pdo->prepare(
             'INSERT INTO compliance_reminder_log (credential_id, stream_id, days_before, sent_at)
-             VALUES (?, NULL, ?, ?)'
+             VALUES (?, ?, ?, ?)'
         );
-        $stmt->execute([$credentialId, $threshold, date('Y-m-d H:i:s')]);
+        $stmt->execute([$credentialId, $streamId, $threshold, date('Y-m-d H:i:s')]);
         return true;
     } catch (Throwable $e) {
         // A unique violation is the normal, expected outcome of a race or a
@@ -460,13 +670,20 @@ function te_compliance_claim_reminder(PDO $pdo, int $credentialId, int $threshol
 }
 
 /** Undo a claim whose send then failed, so the next tick may try again. */
-function te_compliance_release_reminder(PDO $pdo, int $credentialId, int $threshold): void
+function te_compliance_release_reminder(PDO $pdo, int $credentialId, int $threshold, ?int $streamId = null): void
 {
     try {
-        $pdo->prepare(
-            'DELETE FROM compliance_reminder_log
-              WHERE credential_id = ? AND days_before = ? AND stream_id IS NULL'
-        )->execute([$credentialId, $threshold]);
+        if ($streamId === null) {
+            $pdo->prepare(
+                'DELETE FROM compliance_reminder_log
+                  WHERE credential_id = ? AND days_before = ? AND stream_id IS NULL'
+            )->execute([$credentialId, $threshold]);
+        } else {
+            $pdo->prepare(
+                'DELETE FROM compliance_reminder_log
+                  WHERE credential_id = ? AND days_before = ? AND stream_id = ?'
+            )->execute([$credentialId, $threshold, $streamId]);
+        }
     } catch (Throwable $e) {
         error_log('te_compliance_release_reminder: ' . $e->getMessage());
     }
@@ -626,6 +843,17 @@ function te_compliance_dispatch_reminders(PDO $pdo, array $opts = []): array
         // ->forClub, so the coach sees their own club's name in the From line
         // and recognises it. lib/Email.php, never EmailSendService — rule 6.
         $email = (new Email())->forClub($pdo, (int) $envelope['club_id']);
+        if (isset($envelope['stream_id'])) {
+            // An authored step: the admin's own subject and body, tags filled
+            // by te_compliance_stream_copy(), and nothing else added to it.
+            return (bool) $email->sendComplianceStreamStep(
+                (string) $person['email'],
+                (string) $person['first_name'],
+                (string) $copy['subject'],
+                (string) $copy['body'],
+                (string) $copy['link']
+            );
+        }
         return (bool) $email->sendComplianceReminder(
             (string) $person['email'],
             (string) $person['first_name'],
@@ -646,9 +874,10 @@ function te_compliance_dispatch_reminders(PDO $pdo, array $opts = []): array
 
             // Claim BEFORE sending — rule 1. Partial claims are kept and
             // released together if the send fails.
+            $streamId = isset($envelope['stream_id']) ? (int) $envelope['stream_id'] : null;
             $claimed = [];
             foreach ($envelope['items'] as $item) {
-                if (te_compliance_claim_reminder($pdo, (int) $item['credential_id'], (int) $envelope['threshold'])) {
+                if (te_compliance_claim_reminder($pdo, (int) $item['credential_id'], (int) $envelope['threshold'], $streamId)) {
                     $claimed[] = (int) $item['credential_id'];
                 }
             }
@@ -657,7 +886,30 @@ function te_compliance_dispatch_reminders(PDO $pdo, array $opts = []): array
                 continue;
             }
 
-            $copy = te_compliance_reminder_copy($envelope);
+            if ($streamId !== null) {
+                $copy = te_compliance_stream_copy($pdo, $envelope, $person);
+                if ($copy['missing']) {
+                    // A tag with nothing to fill it blocks THIS send and says
+                    // so. The claim is released so a fixed record (a first name
+                    // added to the account, say) is picked up on the next tick
+                    // rather than silently never.
+                    $result['failed']++;
+                    foreach ($claimed as $credentialId) {
+                        te_compliance_release_reminder($pdo, $credentialId, (int) $envelope['threshold'], $streamId);
+                    }
+                    $result['errors'][] = sprintf(
+                        'stream %d step %d for user %d (club %d) not sent: unresolved merge tag %s',
+                        $streamId,
+                        $envelope['threshold'],
+                        $envelope['user_id'],
+                        $envelope['club_id'],
+                        implode(', ', array_map(static fn (string $t): string => '{{' . $t . '}}', $copy['missing']))
+                    );
+                    continue;
+                }
+            } else {
+                $copy = te_compliance_reminder_copy($envelope);
+            }
             $ok = $mailer($envelope, $copy, $person);
 
             if ($ok) {
@@ -665,7 +917,7 @@ function te_compliance_dispatch_reminders(PDO $pdo, array $opts = []): array
             } else {
                 $result['failed']++;
                 foreach ($claimed as $credentialId) {
-                    te_compliance_release_reminder($pdo, $credentialId, (int) $envelope['threshold']);
+                    te_compliance_release_reminder($pdo, $credentialId, (int) $envelope['threshold'], $streamId);
                 }
                 $result['errors'][] = sprintf(
                     'reminder to user %d (club %d, %d-day) was not accepted by the mailer',

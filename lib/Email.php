@@ -1559,6 +1559,97 @@ HTML;
     }
 
     /**
+     * Send one step of an admin-authored reminder stream (GOTR G7).
+     *
+     * The subject and body are the ADMIN'S OWN COPY with the merge tags already
+     * filled by lib/compliance_reminders.php — nothing is added to the body
+     * beyond the club shell, the renewal button and the standard "why you got
+     * this" line. The body is plain text from a textarea: escaped, paragraphs
+     * on blank lines, line breaks kept. It is never emitted as HTML, for the
+     * same reason the plain-text signature path had to stop being (an admin
+     * textarea is not a place to type markup that 300 coaches will render).
+     *
+     * Call on an instance that has had forClub() applied. The CTA carries the
+     * inline white label EmailButtonContrastTest enforces.
+     *
+     * @param string $to
+     * @param string $recipientName
+     * @param string $subject   already resolved
+     * @param string $bodyText  already resolved, plain text
+     * @param string $link      the renewal URL the button points at
+     * @return bool
+     */
+    public function sendComplianceStreamStep($to, $recipientName, $subject, $bodyText, $link) {
+        $clubName = $this->fromName;
+        $subject = trim((string) $subject) !== '' ? (string) $subject : 'Your requirements need attention';
+
+        $paragraphs = preg_split('/\R\s*\R/', trim((string) $bodyText)) ?: [];
+        $bodyHtml = '';
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+            if ($paragraph === '') {
+                continue;
+            }
+            $bodyHtml .= '<p>' . nl2br($this->escapeForEmail($paragraph)) . '</p>';
+        }
+
+        $safeLink = $this->escapeForEmail($link);
+        $safeClub = $this->escapeForEmail($clubName);
+        $greeting = trim((string) $recipientName) !== ''
+            ? '<p>Hi ' . $this->escapeForEmail($recipientName) . ',</p>'
+            : '';
+        $ctaHtml = '<p style="text-align: center;">'
+            . '<a href="' . $safeLink . '" class="button" style="display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0;">'
+            . '<span style="color: #ffffff !important; text-decoration: none;">Renew now</span>'
+            . '</a></p>'
+            . '<p style="color: #999; font-size: 12px; word-break: break-all;">Or copy and paste this link: ' . $safeLink . '</p>';
+        $note = 'You are getting this because you hold a staff or volunteer role with ' . $safeClub . '.';
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #12443E; color: white; padding: 30px; text-align: center; }
+        .content { background: #f9f9f9; padding: 30px; }
+        .button { display: inline-block; background: #12443E; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .button span { color: #ffffff !important; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0;">{$safeClub}</h1>
+        </div>
+        <div class="content">
+            {$greeting}
+            {$bodyHtml}
+            {$ctaHtml}
+            <p style="color: #666; font-size: 14px;">{$note}</p>
+        </div>
+        <div class="footer">
+            <p>{$safeClub} &middot; via Teams Elevated</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+
+        $textBody = (trim((string) $recipientName) !== '' ? "Hi {$recipientName},\n\n" : '')
+            . trim((string) $bodyText) . "\n\n"
+            . "Renew now:\n{$link}\n\n"
+            . "You are getting this because you hold a staff or volunteer role with {$clubName}.\n\n"
+            . "{$clubName}\nvia Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * Send a coach their single-use "set your password" link (GOTR G6).
      *
      * Call on an instance that has had forClub() applied — the heading names
