@@ -32,6 +32,19 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Lineup builder (8.5 / R67) — Heroku v612, migration 096 applied, then Netlify
+- `lib/lineups.php`, `api/lineups.php`, 14 formation presets mirrored PHP↔TS. Coach screen at
+  `/teams/:id/lineup?event=`, print view, "Lineup" link on game event modals, Lineups card on
+  the team page. Template lineup = NULL-event row. Parents see a published lineup only
+  (slots + bench names) on the portal schedule page. Built to decisions 16–19 recommendations.
+
+### Access controls moved to Club Settings → Users (Heroku v611, then Netlify)
+- Maggie: the Coaches page keeps Edit / View schedule / View teams only. Invite / Resend /
+  Send login link / Set password now sit on the Users tab for club_admin, coach, treasurer,
+  volunteer rows; parent/player rows point to Crew. Invite copy is role-aware.
+- ⚠️ `club-users-gateway.php` GET was gated on `canAccessClub()` — any parent could list every
+  staff name and email in their club. Now `te_is_club_admin()`; `ClubUsersGatewayTest`.
+
 ### Staff access controls moved to Club Settings → Users; club-users GET tightened (branch `feature/coach-access`, backend first)
 - Invite / Resend invite / Send login link / Set password now render on the Users tab
   (`ClubUserManagement.tsx`) for club_admin / coach / treasurer / volunteer rows, with a

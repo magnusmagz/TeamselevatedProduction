@@ -1216,6 +1216,29 @@
     "created_at",
     "updated_at"
   ],
+  "lineup_slots": [
+    "id",
+    "lineup_id",
+    "athlete_id",
+    "slot",
+    "sort_order",
+    "captain",
+    "note"
+  ],
+  "lineups": [
+    "id",
+    "club_id",
+    "team_id",
+    "calendar_event_id",
+    "name",
+    "formation",
+    "field_size",
+    "published_at",
+    "created_by",
+    "updated_by",
+    "created_at",
+    "updated_at"
+  ],
   "magic_link_tokens": [
     "id",
     "email",

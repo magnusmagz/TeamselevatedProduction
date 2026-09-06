@@ -65,9 +65,6 @@ class SchemaConformanceTest extends TestCase
      * self-check (testPendingTablesAreStillPending).
      */
     private const PENDING_MIGRATION_TABLES = [
-        // 096 written 2026-09-06 (lineup builder, slice 8.5); not yet applied to Neon.
-        'lineups'      => '096_lineups.sql',
-        'lineup_slots' => '096_lineups.sql',
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
