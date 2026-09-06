@@ -359,6 +359,7 @@ foreach ([
     '/api/invitations-gateway.php?action=list',
     '/api/user-profile.php',
     '/api/coach-notes.php?action=list',
+    '/api/lineups.php?action=get&team_id=1',
 ] as $p) {
     check($p, get($base, $p, null), 401);
 }

@@ -69,6 +69,8 @@ import { DemoPaymentPage } from './pages/DemoPaymentPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { TeamDetailPage } from './pages/TeamDetailPage';
 import TeamCalendarPage from './pages/TeamCalendarPage';
+import LineupPage from './pages/LineupPage';
+import LineupPrintPage from './pages/LineupPrintPage';
 import { RegistrationCartProvider } from './contexts/RegistrationCartContext';
 // Fundraiser Campaign pages
 import { ContributePage } from './pages/ContributePage';
@@ -932,6 +934,10 @@ function AppContent() {
           <Route path="/team/:teamId" element={<TeamDetailPage />} />
           <Route path="/team/:teamId/calendar" element={<ProtectedRoute><TeamCalendarPage /></ProtectedRoute>} />
           <Route path="/teams/:teamId/roster" element={<TeamRosterPage />} />
+          {/* Lineup builder (slice 8.5). The server gates on staff standing; the
+              print route is the same data as plain HTML for a screenshot or A4. */}
+          <Route path="/teams/:teamId/lineup" element={<ProtectedRoute><LineupPage /></ProtectedRoute>} />
+          <Route path="/teams/:teamId/lineup/print" element={<ProtectedRoute><LineupPrintPage /></ProtectedRoute>} />
           <Route path="/teams/:teamId/player-cards" element={<ProtectedRoute><PlayerCards /></ProtectedRoute>} />
           <Route path="/athlete/:athleteId" element={<AthleteProfileEnhanced />} />
           <Route path="/athlete/:athleteId/enhanced" element={<AthleteProfileEnhanced />} />

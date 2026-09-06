@@ -3,6 +3,7 @@ import { ageGroup, ageInYears, ageQuarter } from '../utils/ageGroup';
 import { useParams, Link } from 'react-router-dom';
 import TeamFormWithTabs from '../components/TeamFormWithTabs';
 import RosterDownloadButton from '../components/RosterDownloadButton';
+import TeamLineupsCard from '../components/lineup/TeamLineupsCard';
 
 interface Team {
   id: number;
@@ -492,6 +493,9 @@ export const TeamDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Lineups (slice 8.5) — staff only; the card renders nothing for a family. */}
+      {team.id && <TeamLineupsCard teamId={team.id} apiUrl={API_URL} />}
 
       {/* Roster Section */}
       <div className="bg-white border border-brand-secondary rounded-lg">
