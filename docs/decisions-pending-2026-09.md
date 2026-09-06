@@ -215,3 +215,23 @@ pattern as the consent checkbox removed on 07-30: the schema asserts signing and
 - **Recommendation:** (a). It is the coach-side surface the audit found missing, and G4 builds
   it anyway. Until G4 the badge copy should say "required" without implying enforcement.
 - **If left:** the club page keeps showing "required" and "expires" labels that do nothing.
+
+## From the lineup builder spec (2026-09-06) — `docs/lineup-builder-spec-2026-09.md`
+
+### 16. Can a coach publish a game lineup to families?
+- **Options:** (a) yes, opt-in per game via `published_at`, default unpublished; (b) staff only.
+- **Recommendation:** (a). It answers the "is my kid starting" text the coach otherwise gets.
+- **If left:** built staff-only; the column exists so (a) is a later frontend change.
+
+### 17. Per-game lineups only, or also a saved team default?
+- **Options:** (a) both (a NULL-event row is the template); (b) per game only.
+- **Recommendation:** (a). "Start over every week" is half of CKU's complaint.
+
+### 18. Minutes played / substitution tracking in the builder?
+- **Options:** (a) not now, pre-game only; (b) include a live sub log.
+- **Recommendation:** (a). A live-game clock belongs with match reporting; the slot table
+  leaves room for it later.
+
+### 19. Goalkeeper at 4v4?
+- **Options:** (a) none (US Youth Soccer rule), club toggle if asked; (b) always a keeper slot.
+- **Recommendation:** (a).
