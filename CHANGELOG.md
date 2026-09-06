@@ -32,6 +32,14 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Coach access controls on the Coaches page (Heroku v609, migration 097 applied, then Netlify)
+- Per-coach context button: Invite / Resend invite / Send login link (24 h), and a "Set password"
+  modal that shows the password once and spends any outstanding invite. `api/coach-access.php`,
+  `lib/coach_access.php`; gated on `te_is_club_admin()` of the coach's club; audited
+  (`coach_invite_sent/_resent`, `portal_login_link_sent`, `password_set_by_admin` — never the
+  password). `users.password_set_by_admin_at` (097) drives a dismissible dashboard banner until
+  the coach changes it. No forced change (Maggie: accepted B2B tradeoff).
+
 ### GOTR G6 — onboarding at scale (Heroku v606, migration 094 applied, then Netlify), dark
 - v605: `TE_FEATURE_COACH_INVITE_EMAIL=off`, `TE_FEATURE_NATIONAL_IMPORT=off` set BEFORE the push.
 - v608: `TE_FEATURE_COACH_INVITE_EMAIL=on` — Maggie: no flag needed, make it live. Add Coach and

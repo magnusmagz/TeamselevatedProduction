@@ -57,8 +57,6 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
-        // 097 written 2026-09-06 (coach access: temporary password banner mark).
-        'users.password_set_by_admin_at' => '097_users_password_set_by_admin.sql',
     ];
 
     /**

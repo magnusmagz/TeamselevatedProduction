@@ -2076,7 +2076,8 @@
     "email_signature",
     "tos_accepted_at",
     "tos_version",
-    "email_signature_format"
+    "email_signature_format",
+    "password_set_by_admin_at"
   ],
   "venues": [
     "id",
