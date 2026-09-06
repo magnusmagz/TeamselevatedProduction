@@ -11,6 +11,8 @@ import {
   countByCategory,
   groupByCategory,
 } from '../constants/templateCategories';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface EmailTemplate {
   id: number;
@@ -214,23 +216,133 @@ const TemplateLibrary: React.FC = () => {
     );
   }
 
+  const listColumns: DataTableColumn<EmailTemplate>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      className: 'whitespace-nowrap',
+      render: (template) => (
+        <div className="flex items-center gap-2 font-medium text-gray-900">
+          {template.name}
+          {!template.is_active && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+              Inactive
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'subject',
+      header: 'Subject',
+      className: 'max-w-xs truncate',
+      render: (template) => <span className="text-gray-500">{template.subject}</span>,
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      className: 'whitespace-nowrap',
+      render: (template) => (
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(template.category)}`}
+        >
+          {categoryLabel(template.category)}
+        </span>
+      ),
+    },
+    {
+      key: 'scope',
+      header: 'Scope',
+      className: 'whitespace-nowrap',
+      render: (template) => (
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            template.scope === 'club'
+              ? 'bg-brand-light text-brand-primary'
+              : 'bg-orange-100 text-orange-700'
+          }`}
+        >
+          {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
+        </span>
+      ),
+    },
+    {
+      key: 'updated',
+      header: 'Last Updated',
+      className: 'whitespace-nowrap',
+      render: (template) => <span className="text-gray-500">{formatDate(template.updated_at)}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (template) => (
+        <div className="flex justify-end gap-3">
+          {canEditTemplate(template) && (
+            <button
+              onClick={() => handleEditTemplate(template)}
+              className="text-xs text-brand-primary hover:underline font-medium"
+            >
+              Edit
+            </button>
+          )}
+          <button
+            onClick={() => handleDuplicate(template.id)}
+            disabled={duplicating === template.id}
+            className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
+          >
+            {duplicating === template.id ? '...' : 'Duplicate'}
+          </button>
+          {canDeleteTemplate(template) && (
+            <>
+              {deleteConfirmId === template.id ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleDelete(template.id)}
+                    className="text-xs text-red-600 hover:underline font-medium"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className="text-xs text-gray-400 hover:underline font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeleteConfirmId(template.id)}
+                  className="text-xs text-red-500 hover:underline font-medium"
+                >
+                  Delete
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Email Templates</h1>
-        {isAdmin && (
-          <button
-            onClick={() => navigate('/email-templates/new')}
-            className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Template
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Email Templates"
+        actions={
+          isAdmin ? (
+            <button
+              onClick={() => navigate('/email-templates/new')}
+              className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Create Template
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Error banner */}
       {error && (
@@ -505,120 +617,11 @@ const TemplateLibrary: React.FC = () => {
 
       {/* List view */}
       {viewMode === 'list' && filteredTemplates.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Subject
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scope
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {listTemplates.map((template) => (
-                  <tr key={template.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {template.name}
-                        {!template.is_active && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                      {template.subject}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(template.category)}`}
-                      >
-                        {categoryLabel(template.category)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          template.scope === 'club'
-                            ? 'bg-brand-light text-brand-primary'
-                            : 'bg-orange-100 text-orange-700'
-                        }`}
-                      >
-                        {template.scope === 'platform' ? 'Platform' : template.scope === 'club' ? 'Club' : 'Personal'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                      {formatDate(template.updated_at)}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex justify-end gap-3">
-                        {canEditTemplate(template) && (
-                          <button
-                            onClick={() => handleEditTemplate(template)}
-                            className="text-xs text-brand-primary hover:underline font-medium"
-                          >
-                            Edit
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDuplicate(template.id)}
-                          disabled={duplicating === template.id}
-                          className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
-                        >
-                          {duplicating === template.id ? '...' : 'Duplicate'}
-                        </button>
-                        {canDeleteTemplate(template) && (
-                          <>
-                            {deleteConfirmId === template.id ? (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleDelete(template.id)}
-                                  className="text-xs text-red-600 hover:underline font-medium"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(null)}
-                                  className="text-xs text-gray-400 hover:underline font-medium"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirmId(template.id)}
-                                className="text-xs text-red-500 hover:underline font-medium"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable<EmailTemplate>
+          columns={listColumns}
+          rows={listTemplates}
+          rowKey={(template) => template.id}
+        />
       )}
 
       {/* Delete confirmation modal */}

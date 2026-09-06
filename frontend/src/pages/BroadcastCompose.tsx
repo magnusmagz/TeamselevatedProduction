@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
+import PageHeader from '../components/ui/PageHeader';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -226,13 +227,10 @@ export const BroadcastCompose: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Broadcast SMS</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Send one message to whole teams or the entire club. Sends appear in Reporting as a
-          single campaign.
-        </p>
-      </header>
+      <PageHeader
+        title="Broadcast SMS"
+        subtitle="Send one message to whole teams or the entire club. Sends appear in Reporting as a single campaign."
+      />
 
       {/* ── Audience ─────────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">

@@ -10,6 +10,8 @@ import {
 } from '../constants/templateCategories';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 // Lazy, like the email editor loads EmailCompose — the compose modal pulls in
 // recipient search and is dead weight for anyone only browsing templates.
@@ -350,20 +352,98 @@ const SmsTemplates: React.FC = () => {
     );
   }
 
+  const listColumns: DataTableColumn<SmsTemplate>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (t) => <span className="font-medium text-gray-900 whitespace-nowrap">{t.name}</span>,
+    },
+    {
+      key: 'message',
+      header: 'Message',
+      className: 'max-w-xs truncate',
+      render: (t) => <span className="text-gray-500">{t.body_text}</span>,
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      className: 'whitespace-nowrap',
+      render: (t) => (
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(t.category)}`}>
+          {categoryLabel(t.category)}
+        </span>
+      ),
+    },
+    { key: 'scope', header: 'Scope', className: 'whitespace-nowrap', render: (t) => getScopeBadge(t.scope) },
+    {
+      key: 'length',
+      header: 'Length',
+      className: 'whitespace-nowrap',
+      render: (t) => {
+        const bodyLen = (t.body_text || '').length;
+        const segs = getSegmentCount(bodyLen);
+        return (
+          <span className="text-gray-500">
+            {bodyLen} chars &middot; {segs} seg{segs !== 1 ? 's' : ''}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'updated',
+      header: 'Last Updated',
+      className: 'whitespace-nowrap',
+      render: (t) => <span className="text-gray-500">{formatDate(t.updated_at)}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (t) => (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => handleSendClick(t)}
+            disabled={!clubProfileId}
+            title="Send this template to recipients"
+            className="text-xs text-brand-primary hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            Send
+          </button>
+          {isAdmin && (
+            <button onClick={() => openEditModal(t)} className="text-xs text-brand-primary hover:underline font-medium">
+              Edit
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={() => handleDuplicate(t)} className="text-xs text-gray-600 hover:underline font-medium">
+              Duplicate
+            </button>
+          )}
+          {isAdmin && t.scope !== 'platform' && (
+            <button onClick={() => handleDelete(t)} className="text-xs text-red-600 hover:underline font-medium">
+              Delete
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Templates</h1>
-        {isAdmin && (
-          <button
-            onClick={openCreateModal}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-          >
-            Create Template
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="SMS Templates"
+        actions={
+          isAdmin ? (
+            <button
+              onClick={openCreateModal}
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
+            >
+              Create Template
+            </button>
+          ) : undefined
+        }
+      />
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
@@ -622,72 +702,11 @@ const SmsTemplates: React.FC = () => {
           {/* List view — same columns as the email library, with the SMS length
               column standing in for Subject. */}
           {viewMode === 'list' && (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Length</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {listTemplates.map((t) => {
-                      const bodyLen = (t.body_text || '').length;
-                      const segs = getSegmentCount(bodyLen);
-                      return (
-                        <tr key={t.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{t.name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{t.body_text}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(t.category)}`}>
-                              {categoryLabel(t.category)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">{getScopeBadge(t.scope)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                            {bodyLen} chars &middot; {segs} seg{segs !== 1 ? 's' : ''}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(t.updated_at)}</td>
-                          <td className="px-4 py-3 text-right whitespace-nowrap">
-                            <div className="flex justify-end gap-3">
-                              <button
-                                onClick={() => handleSendClick(t)}
-                                disabled={!clubProfileId}
-                                title="Send this template to recipients"
-                                className="text-xs text-brand-primary hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
-                              >
-                                Send
-                              </button>
-                              {isAdmin && (
-                                <button onClick={() => openEditModal(t)} className="text-xs text-brand-primary hover:underline font-medium">
-                                  Edit
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button onClick={() => handleDuplicate(t)} className="text-xs text-gray-600 hover:underline font-medium">
-                                  Duplicate
-                                </button>
-                              )}
-                              {isAdmin && t.scope !== 'platform' && (
-                                <button onClick={() => handleDelete(t)} className="text-xs text-red-600 hover:underline font-medium">
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <DataTable<SmsTemplate>
+              columns={listColumns}
+              rows={listTemplates}
+              rowKey={(t) => t.id}
+            />
           )}
         </div>
       )}

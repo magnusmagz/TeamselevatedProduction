@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
+import PageHeader from '../components/ui/PageHeader';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -213,7 +214,7 @@ export const SmsInbox: React.FC = () => {
   if (disabled) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Inbox</h1>
+        <PageHeader title="SMS Inbox" />
         <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg text-sm text-amber-900">
           The inbox is not switched on for this club yet. Replies to your number are
           being recorded in the meantime, so nothing is being lost — they will all be
@@ -225,10 +226,7 @@ export const SmsInbox: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">SMS Inbox</h1>
-        <p className="text-sm text-gray-500 mt-1">Replies to your club's number</p>
-      </header>
+      <PageHeader title="SMS Inbox" subtitle="Replies to your club's number" className="mb-4" />
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>

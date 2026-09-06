@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -162,14 +163,10 @@ export default function ChatModeration() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Reported Messages</h1>
-        <p className="text-sm text-brand-primary mt-1 max-w-3xl">
-          Messages reported by members or flagged automatically. Open the conversation in
-          chat to remove a message — removing it leaves a visible note in the thread and is
-          recorded in the audit log.
-        </p>
-      </div>
+      <PageHeader
+        title="Reported Messages"
+        subtitle="Messages reported by members or flagged automatically. Open the conversation in chat to remove a message — removing it leaves a visible note in the thread and is recorded in the audit log."
+      />
 
       {/* Queue health. The age of the oldest open item is the number that matters. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

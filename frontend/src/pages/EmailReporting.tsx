@@ -4,6 +4,8 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -403,18 +405,146 @@ export const EmailReporting: React.FC = () => {
       ].filter(d => d.value > 0)
     : [];
 
+  const sendColumns: DataTableColumn<RecentSend>[] = [
+    {
+      key: 'date',
+      header: 'Date',
+      render: (send) => <span className="text-gray-600 whitespace-nowrap">{formatDate(send.sent_at)}</span>,
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (send) => (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            send.channel === 'email'
+              ? 'bg-blue-50 text-blue-700'
+              : 'bg-purple-50 text-purple-700'
+          }`}
+        >
+          {send.channel === 'email' ? 'Email' : 'SMS'}
+        </span>
+      ),
+    },
+    {
+      key: 'subject',
+      header: 'Subject / Preview',
+      className: 'max-w-xs truncate',
+      render: (send) => <span className="text-gray-800">{send.subject || send.body_preview}</span>,
+    },
+    {
+      key: 'recipients',
+      header: 'Recipients',
+      align: 'center',
+      render: (send) => <span className="text-gray-600">{send.recipient_count}</span>,
+    },
+    ...(!smsOnly
+      ? ([
+          {
+            key: 'open_rate',
+            header: 'Open Rate',
+            align: 'center',
+            render: (send) =>
+              send.open_rate !== null ? (
+                <span className="text-gray-700 font-medium">{send.open_rate.toFixed(1)}%</span>
+              ) : (
+                <span className="text-gray-300">--</span>
+              ),
+          },
+          {
+            key: 'click_rate',
+            header: 'Click Rate',
+            align: 'center',
+            render: (send) =>
+              send.click_rate !== null ? (
+                <span className="text-gray-700 font-medium">{send.click_rate.toFixed(1)}%</span>
+              ) : (
+                <span className="text-gray-300">--</span>
+              ),
+          },
+        ] as DataTableColumn<RecentSend>[])
+      : []),
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (send) => (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            send.status === 'delivered'
+              ? 'bg-green-50 text-green-700'
+              : send.status === 'sent'
+              ? 'bg-blue-50 text-blue-700'
+              : send.status === 'failed'
+              ? 'bg-red-50 text-red-700'
+              : send.status === 'bounced'
+              ? 'bg-orange-50 text-orange-700'
+              : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {(send.status || 'unknown').charAt(0).toUpperCase() + (send.status || 'unknown').slice(1)}
+        </span>
+      ),
+    },
+  ];
+
+  const recipientColumns: DataTableColumn<RecipientDetail>[] = [
+    { key: 'name', header: 'Name', render: (r) => <span className="text-gray-800">{r.name}</span> },
+    { key: 'email', header: 'Email', render: (r) => <span className="text-gray-600">{r.email || r.phone || '--'}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (r) => (
+        <span
+          className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+            r.status === 'delivered'
+              ? 'bg-green-50 text-green-700'
+              : r.status === 'bounced'
+              ? 'bg-orange-50 text-orange-700'
+              : r.status === 'failed'
+              ? 'bg-red-50 text-red-700'
+              : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {r.status}
+        </span>
+      ),
+    },
+    {
+      key: 'opened',
+      header: 'Opened',
+      align: 'center',
+      render: (r) =>
+        r.opened ? (
+          <span className="text-green-600 font-medium" title={r.opened_at || ''}>
+            Yes
+          </span>
+        ) : (
+          <span className="text-gray-300">No</span>
+        ),
+    },
+    {
+      key: 'clicked',
+      header: 'Clicked',
+      align: 'center',
+      render: (r) =>
+        r.clicked ? (
+          <span className="text-green-600 font-medium" title={r.clicked_at || ''}>
+            Yes
+          </span>
+        ) : (
+          <span className="text-gray-300">No</span>
+        ),
+    },
+  ];
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">
-          Email &amp; SMS Reporting
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Track delivery, engagement, and performance across all communications
-        </p>
-      </div>
+      <PageHeader
+        title={<>Email &amp; SMS Reporting</>}
+        subtitle="Track delivery, engagement, and performance across all communications"
+      />
 
       {/* Filters Section */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 mb-6 shadow-sm">
@@ -778,210 +908,86 @@ export const EmailReporting: React.FC = () => {
         ) : recentSends && recentSends.sends.length > 0 ? (
           <>
             {/* Desktop Table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 text-left">
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject / Preview</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Recipients</th>
-                    {!smsOnly && (
-                      <>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Open Rate</th>
-                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Click Rate</th>
-                      </>
-                    )}
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentSends.sends.map(send => (
-                    <React.Fragment key={send.id}>
-                      <tr
-                        onClick={() => fetchPerEmailReport(send.id, send.type)}
-                        className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                          {formatDate(send.sent_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              send.channel === 'email'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-purple-50 text-purple-700'
-                            }`}
-                          >
-                            {send.channel === 'email' ? 'Email' : 'SMS'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-800 max-w-xs truncate">
-                          {send.subject || send.body_preview}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 text-center">
-                          {send.recipient_count}
-                        </td>
-                        {!smsOnly && (
-                        <><td className="px-4 py-3 text-center">
-                          {send.open_rate !== null ? (
-                            <span className="text-gray-700 font-medium">{send.open_rate.toFixed(1)}%</span>
-                          ) : (
-                            <span className="text-gray-300">--</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {send.click_rate !== null ? (
-                            <span className="text-gray-700 font-medium">{send.click_rate.toFixed(1)}%</span>
-                          ) : (
-                            <span className="text-gray-300">--</span>
-                          )}
-                        </td></>
-                        )}
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              send.status === 'delivered'
-                                ? 'bg-green-50 text-green-700'
-                                : send.status === 'sent'
-                                ? 'bg-blue-50 text-blue-700'
-                                : send.status === 'failed'
-                                ? 'bg-red-50 text-red-700'
-                                : send.status === 'bounced'
-                                ? 'bg-orange-50 text-orange-700'
-                                : 'bg-gray-50 text-gray-600'
-                            }`}
-                          >
-                            {(send.status || 'unknown').charAt(0).toUpperCase() + (send.status || 'unknown').slice(1)}
-                          </span>
-                        </td>
-                      </tr>
-
-                      {/* Expanded Per-Email Report */}
-                      {expandedSendId === send.id && (
-                        <tr>
-                          <td colSpan={7} className="px-0 py-0">
-                            <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-5">
-                              {loadingPerEmail ? (
-                                <LoadingSpinner text="Loading report details..." />
-                              ) : perEmailReport ? (
-                                <div>
-                                  {/* Report Header */}
-                                  <div className="flex flex-wrap gap-6 mb-5">
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase">Subject</p>
-                                      <p className="text-sm font-medium text-gray-800">
-                                        {perEmailReport.subject || 'N/A'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase">Sender</p>
-                                      <p className="text-sm text-gray-700">{perEmailReport.sender_name}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase">Sent</p>
-                                      <p className="text-sm text-gray-700">{formatDate(perEmailReport.sent_at)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase">Recipients</p>
-                                      <p className="text-sm text-gray-700">{perEmailReport.recipient_count}</p>
-                                    </div>
-                                  </div>
-
-                                  {/* Aggregate Metrics */}
-                                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
-                                    <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                      <p className="text-lg font-bold text-brand-primary">{perEmailReport.recipient_count}</p>
-                                      <p className="text-xs text-gray-500">Sent</p>
-                                    </div>
-                                    <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                      <p className="text-lg font-bold text-green-600">{perEmailReport.total_delivered}</p>
-                                      <p className="text-xs text-gray-500">Delivered</p>
-                                    </div>
-                                    <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                      <p className="text-lg font-bold text-brand-primary">{perEmailReport.total_opened}</p>
-                                      <p className="text-xs text-gray-500">Opened</p>
-                                    </div>
-                                    <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                      <p className="text-lg font-bold" style={{ color: '#3fcb9a' }}>{perEmailReport.total_clicked}</p>
-                                      <p className="text-xs text-gray-500">Clicked</p>
-                                    </div>
-                                    <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
-                                      <p className="text-lg font-bold text-orange-500">{perEmailReport.total_bounced}</p>
-                                      <p className="text-xs text-gray-500">Bounced</p>
-                                    </div>
-                                  </div>
-
-                                  {/* Per-Recipient Table */}
-                                  {perEmailReport.recipients && perEmailReport.recipients.length > 0 && (
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full text-xs">
-                                        <thead>
-                                          <tr className="border-b border-gray-200">
-                                            <th className="text-left px-3 py-2 text-gray-500 uppercase font-semibold">Name</th>
-                                            <th className="text-left px-3 py-2 text-gray-500 uppercase font-semibold">Email</th>
-                                            <th className="text-center px-3 py-2 text-gray-500 uppercase font-semibold">Status</th>
-                                            <th className="text-center px-3 py-2 text-gray-500 uppercase font-semibold">Opened</th>
-                                            <th className="text-center px-3 py-2 text-gray-500 uppercase font-semibold">Clicked</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {perEmailReport.recipients.map((r, idx) => (
-                                            <tr key={idx} className="border-b border-gray-100">
-                                              <td className="px-3 py-2 text-gray-800">{r.name}</td>
-                                              <td className="px-3 py-2 text-gray-600">{r.email || r.phone || '--'}</td>
-                                              <td className="px-3 py-2 text-center">
-                                                <span
-                                                  className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
-                                                    r.status === 'delivered'
-                                                      ? 'bg-green-50 text-green-700'
-                                                      : r.status === 'bounced'
-                                                      ? 'bg-orange-50 text-orange-700'
-                                                      : r.status === 'failed'
-                                                      ? 'bg-red-50 text-red-700'
-                                                      : 'bg-gray-50 text-gray-600'
-                                                  }`}
-                                                >
-                                                  {r.status}
-                                                </span>
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                {r.opened ? (
-                                                  <span className="text-green-600 font-medium" title={r.opened_at || ''}>
-                                                    Yes
-                                                  </span>
-                                                ) : (
-                                                  <span className="text-gray-300">No</span>
-                                                )}
-                                              </td>
-                                              <td className="px-3 py-2 text-center">
-                                                {r.clicked ? (
-                                                  <span className="text-green-600 font-medium" title={r.clicked_at || ''}>
-                                                    Yes
-                                                  </span>
-                                                ) : (
-                                                  <span className="text-gray-300">No</span>
-                                                )}
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <EmptyState message="Could not load report details." />
-                              )}
+            <DataTable<RecentSend>
+              className="hidden sm:block"
+              columns={sendColumns}
+              rows={recentSends.sends}
+              rowKey={(send) => `${send.type}-${send.id}`}
+              onRowClick={(send) => fetchPerEmailReport(send.id, send.type)}
+              rowClassName={(send) => (expandedSendId === send.id ? 'bg-gray-50' : '')}
+              footer={
+                expandedSendId !== null && recentSends.sends.some((s) => s.id === expandedSendId) ? (
+                  <tr>
+                    <td colSpan={sendColumns.length} className="px-0 py-0">
+                      <div className="bg-gray-50 border-t border-b border-gray-200 px-6 py-5">
+                        {loadingPerEmail ? (
+                          <LoadingSpinner text="Loading report details..." />
+                        ) : perEmailReport ? (
+                          <div>
+                            {/* Report Header */}
+                            <div className="flex flex-wrap gap-6 mb-5">
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Subject</p>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {perEmailReport.subject || 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Sender</p>
+                                <p className="text-sm text-gray-700">{perEmailReport.sender_name}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Sent</p>
+                                <p className="text-sm text-gray-700">{formatDate(perEmailReport.sent_at)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Recipients</p>
+                                <p className="text-sm text-gray-700">{perEmailReport.recipient_count}</p>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+                            {/* Aggregate Metrics */}
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                                <p className="text-lg font-bold text-brand-primary">{perEmailReport.recipient_count}</p>
+                                <p className="text-xs text-gray-500">Sent</p>
+                              </div>
+                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                                <p className="text-lg font-bold text-green-600">{perEmailReport.total_delivered}</p>
+                                <p className="text-xs text-gray-500">Delivered</p>
+                              </div>
+                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                                <p className="text-lg font-bold text-brand-primary">{perEmailReport.total_opened}</p>
+                                <p className="text-xs text-gray-500">Opened</p>
+                              </div>
+                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                                <p className="text-lg font-bold" style={{ color: '#3fcb9a' }}>{perEmailReport.total_clicked}</p>
+                                <p className="text-xs text-gray-500">Clicked</p>
+                              </div>
+                              <div className="bg-white rounded-md px-3 py-2 border border-gray-200 text-center">
+                                <p className="text-lg font-bold text-orange-500">{perEmailReport.total_bounced}</p>
+                                <p className="text-xs text-gray-500">Bounced</p>
+                              </div>
+                            </div>
+
+                            {/* Per-Recipient Table */}
+                            {perEmailReport.recipients && perEmailReport.recipients.length > 0 && (
+                              <DataTable<RecipientDetail>
+                                columns={recipientColumns}
+                                rows={perEmailReport.recipients}
+                                rowKey={(_r, idx) => idx}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <EmptyState message="Could not load report details." />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : undefined
+              }
+            />
 
             {/* Mobile Cards */}
             <div className="sm:hidden divide-y divide-gray-100">
@@ -1136,7 +1142,7 @@ class EmailReportingErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div className="container mx-auto p-6 max-w-7xl">
-          <h1 className="text-2xl font-bold text-brand-primary uppercase mb-4">Email & SMS Reporting</h1>
+          <PageHeader title={<>Email &amp; SMS Reporting</>} />
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <p className="text-red-700 font-medium mb-2">Something went wrong loading the reporting dashboard.</p>
             <p className="text-red-500 text-sm mb-4">{this.state.error}</p>

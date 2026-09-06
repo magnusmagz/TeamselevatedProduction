@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -221,23 +223,104 @@ export const CommunicationLog: React.FC = () => {
     fetchEntries(1, false);
   };
 
-  // Skeleton rows for loading state
+  // Skeleton for loading state (rendered inside the table's empty cell)
   const SkeletonRows = () => (
-    <>
+    <div className="animate-pulse space-y-3 text-left">
       {[...Array(8)].map((_, i) => (
-        <tr key={i} className="animate-pulse">
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-20" /></td>
-          <td className="px-6 py-3"><div className="h-5 bg-gray-200 rounded w-14" /></td>
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-48" /></td>
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="px-6 py-3"><div className="h-5 bg-gray-200 rounded w-20" /></td>
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
-          <td className="px-6 py-3"><div className="h-4 bg-gray-200 rounded w-8" /></td>
-        </tr>
+        <div key={i} className="flex gap-6">
+          <div className="h-4 bg-gray-200 rounded w-20" />
+          <div className="h-5 bg-gray-200 rounded w-14" />
+          <div className="h-4 bg-gray-200 rounded w-32" />
+          <div className="h-4 bg-gray-200 rounded w-48" />
+          <div className="h-4 bg-gray-200 rounded w-24" />
+          <div className="h-5 bg-gray-200 rounded w-20" />
+          <div className="h-4 bg-gray-200 rounded w-8" />
+          <div className="h-4 bg-gray-200 rounded w-8" />
+        </div>
       ))}
-    </>
+    </div>
   );
+
+  const logColumns: DataTableColumn<CommunicationEntry>[] = [
+    {
+      key: 'date',
+      header: 'Date',
+      render: (entry) => <span className="text-gray-600 whitespace-nowrap">{formatShortDate(entry.created_at)}</span>,
+    },
+    {
+      key: 'channel',
+      header: 'Channel',
+      render: (entry) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            entry.channel === 'email'
+              ? 'bg-blue-50 text-blue-700'
+              : 'bg-purple-50 text-purple-700'
+          }`}
+        >
+          {entry.channel === 'email' ? 'Email' : 'SMS'}
+        </span>
+      ),
+    },
+    {
+      key: 'recipient',
+      header: 'Recipient',
+      render: (entry) => (
+        <>
+          <div className="text-sm font-medium text-gray-900">{entry.recipient_name}</div>
+          <div className="text-xs text-gray-500">
+            {entry.channel === 'email' ? entry.recipient_email : entry.recipient_phone}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: 'subject',
+      header: 'Subject / Preview',
+      className: 'max-w-xs truncate',
+      render: (entry) => (
+        <span className="text-gray-700">
+          {entry.channel === 'email'
+            ? entry.subject || '(no subject)'
+            : entry.body?.substring(0, 80) + (entry.body?.length > 80 ? '...' : '')}
+        </span>
+      ),
+    },
+    {
+      key: 'sender',
+      header: 'Sender',
+      render: (entry) => (
+        <span className="text-gray-600 whitespace-nowrap">
+          {entry.sender_first_name} {entry.sender_last_name}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (entry) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
+            STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          {entry.status}
+        </span>
+      ),
+    },
+    {
+      key: 'opens',
+      header: 'Opens',
+      align: 'center',
+      render: (entry) => <span className="text-gray-600">{entry.channel === 'email' ? entry.open_count : '—'}</span>,
+    },
+    {
+      key: 'clicks',
+      header: 'Clicks',
+      align: 'center',
+      render: (entry) => <span className="text-gray-600">{entry.channel === 'email' ? entry.click_count : '—'}</span>,
+    },
+  ];
 
   const getStatusStep = (entry: CommunicationDetail): number => {
     if (entry.events?.some((e) => e.event_type === 'open')) return 3;
@@ -248,34 +331,27 @@ export const CommunicationLog: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-brand-primary uppercase tracking-wide">Communication Log</h1>
-              <p className="mt-1 text-sm text-gray-500">Track all emails and SMS sent from your organization</p>
-            </div>
-            <div className="flex gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <PageHeader
+          title="Communication Log"
+          subtitle="Track all emails and SMS sent from your organization"
+          actions={
+            <>
               <button
                 onClick={() => setShowEmailCompose(true)}
                 className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                                Compose Email
+                Compose Email
               </button>
               <button
                 onClick={() => setShowSmsCompose(true)}
                 className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                                Compose SMS
+                Compose SMS
               </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Filters */}
+            </>
+          }
+        />
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-wrap items-center gap-4">
             {/* Channel toggle */}
@@ -363,107 +439,44 @@ export const CommunicationLog: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="border border-brand-secondary rounded-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr className="border-b border-gray-300">
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Channel</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Recipient</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Subject / Preview</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Sender</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-brand-primary uppercase border-r border-gray-300">Opens</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-brand-primary uppercase">Clicks</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {loading ? (
-                  <SkeletonRows />
-                ) : entries.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center">
+        <div>
+          <DataTable<CommunicationEntry>
+            columns={logColumns}
+            rows={loading ? [] : entries}
+            rowKey={(entry) => entry.id}
+            onRowClick={handleRowClick}
+            emptyState={
+              loading
+                ? { text: <SkeletonRows /> }
+                : {
+                    text: (
                       <div className="flex flex-col items-center">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <span className="text-2xl">📨</span>
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-1">No communications sent yet</h3>
-                        <p className="text-sm text-gray-500 mb-4">Get started by composing your first email or SMS</p>
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => setShowEmailCompose(true)}
-                            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Compose Email
-                          </button>
-                          <button
-                            onClick={() => setShowSmsCompose(true)}
-                            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Compose SMS
-                          </button>
-                        </div>
+                        <p className="text-sm text-gray-500">Get started by composing your first email or SMS</p>
                       </div>
-                    </td>
-                  </tr>
-                ) : (
-                  entries.map((entry) => (
-                    <tr
-                      key={entry.id}
-                      onClick={() => handleRowClick(entry)}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
-                        {formatShortDate(entry.created_at)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            entry.channel === 'email'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-purple-50 text-purple-700'
-                          }`}
+                    ),
+                    action: (
+                      <div className="flex justify-center gap-3">
+                        <button
+                          onClick={() => setShowEmailCompose(true)}
+                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {entry.channel === 'email' ? 'Email' : 'SMS'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="text-sm font-medium text-gray-900">{entry.recipient_name}</div>
-                        <div className="text-xs text-gray-500">
-                          {entry.channel === 'email' ? entry.recipient_email : entry.recipient_phone}
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-700 max-w-xs truncate">
-                        {entry.channel === 'email'
-                          ? entry.subject || '(no subject)'
-                          : entry.body?.substring(0, 80) + (entry.body?.length > 80 ? '...' : '')}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
-                        {entry.sender_first_name} {entry.sender_last_name}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                            STATUS_COLORS[entry.status] || 'bg-gray-100 text-gray-700'
-                          }`}
+                          Compose Email
+                        </button>
+                        <button
+                          onClick={() => setShowSmsCompose(true)}
+                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {entry.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-600 text-center">
-                        {entry.channel === 'email' ? entry.open_count : '—'}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-600 text-center">
-                        {entry.channel === 'email' ? entry.click_count : '—'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
+                          Compose SMS
+                        </button>
+                      </div>
+                    ),
+                  }
+            }
+          />
           {/* Load more */}
           {!loading && hasMore && entries.length > 0 && (
             <div className="border-t border-gray-200 px-4 py-4 text-center">

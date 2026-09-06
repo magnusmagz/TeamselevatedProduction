@@ -18,6 +18,8 @@ import {
 import { HelpArticle, HelpCategory, HelpReleaseNote } from '../types/help';
 import HelpRoleBadge from '../components/help/HelpRoleBadge';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
+import PageHeader from '../components/ui/PageHeader';
+import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 type Tab = 'articles' | 'categories' | 'release-notes';
 type EditorMode = null | 'article' | 'category' | 'release-note';
@@ -428,11 +430,89 @@ const HelpAdmin: React.FC = () => {
     );
   }
 
+  const articleColumns: DataTableColumn<HelpArticle>[] = [
+    { key: 'title', header: 'Title', render: (a) => <span className="text-gray-900">{a.title}</span> },
+    { key: 'category', header: 'Category', render: (a) => <span className="text-gray-500">{a.category_name}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (a) => (
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.is_published ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+          {a.is_published ? 'Published' : 'Draft'}
+        </span>
+      ),
+    },
+    {
+      key: 'roles',
+      header: 'Roles',
+      render: (a) => <div className="flex gap-1">{a.role_tags.map((t) => <HelpRoleBadge key={t} role={t} />)}</div>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (a) => (
+        <>
+          <button onClick={() => editArticle(a)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
+          <button onClick={() => removeArticle(a.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+        </>
+      ),
+    },
+  ];
+
+  const categoryColumns: DataTableColumn<HelpCategory>[] = [
+    { key: 'name', header: 'Name', render: (c) => <span className="text-gray-900">{c.name}</span> },
+    { key: 'slug', header: 'Slug', render: (c) => <span className="text-gray-500 font-mono">{c.slug}</span> },
+    {
+      key: 'role',
+      header: 'Role',
+      render: (c) => (c.role_tag ? <HelpRoleBadge role={c.role_tag} /> : <span className="text-xs text-gray-400">All</span>),
+    },
+    { key: 'order', header: 'Order', render: (c) => <span className="text-gray-500">{c.sort_order}</span> },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (c) => (
+        <>
+          <button onClick={() => editCategory(c)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
+          <button onClick={() => removeCategory(c.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+        </>
+      ),
+    },
+  ];
+
+  const releaseNoteColumns: DataTableColumn<HelpReleaseNote>[] = [
+    { key: 'title', header: 'Title', render: (rn) => <span className="text-gray-900">{rn.title}</span> },
+    { key: 'version', header: 'Version', render: (rn) => <span className="text-gray-500 font-mono">{rn.version || '-'}</span> },
+    { key: 'date', header: 'Date', render: (rn) => <span className="text-gray-500">{rn.release_date}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (rn) => (
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${rn.is_published ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+          {rn.is_published ? 'Published' : 'Draft'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      actions: true,
+      render: (rn) => (
+        <>
+          <button onClick={() => editReleaseNote(rn)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
+          <button onClick={() => removeReleaseNote(rn.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+        </>
+      ),
+    },
+  ];
+
   // Main admin list view
   return (
     <div className="max-w-5xl mx-auto">
       <HelpBreadcrumb items={[{ label: 'Admin' }]} />
-      <h1 className="text-2xl font-bold text-brand-primary mb-6">Help Portal Admin</h1>
+      <PageHeader title="Help Portal Admin" />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
@@ -458,40 +538,12 @@ const HelpAdmin: React.FC = () => {
             className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
             + New Article
           </button>
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Title</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Category</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Roles</th>
-                <th className="px-4 py-2.5 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {articles.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 text-sm text-gray-900">{a.title}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500">{a.category_name}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.is_published ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {a.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex gap-1">{a.role_tags.map((t) => <HelpRoleBadge key={t} role={t} />)}</div>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => editArticle(a)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-                    <button onClick={() => removeArticle(a.id)} className="text-xs text-red-600 hover:underline">Delete</button>
-                  </td>
-                </tr>
-              ))}
-              {articles.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">No articles yet</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable<HelpArticle>
+            columns={articleColumns}
+            rows={articles}
+            rowKey={(a) => a.id}
+            emptyState="No articles yet"
+          />
         </>
       )}
 
@@ -502,31 +554,12 @@ const HelpAdmin: React.FC = () => {
             className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
             + New Category
           </button>
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Name</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Slug</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Role</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Order</th>
-                <th className="px-4 py-2.5 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {categories.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 text-sm text-gray-900">{c.name}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500 font-mono">{c.slug}</td>
-                  <td className="px-4 py-2.5">{c.role_tag ? <HelpRoleBadge role={c.role_tag} /> : <span className="text-xs text-gray-400">All</span>}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500">{c.sort_order}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => editCategory(c)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-                    <button onClick={() => removeCategory(c.id)} className="text-xs text-red-600 hover:underline">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable<HelpCategory>
+            columns={categoryColumns}
+            rows={categories}
+            rowKey={(c) => c.id}
+            emptyState="No categories yet"
+          />
         </>
       )}
 
@@ -537,38 +570,12 @@ const HelpAdmin: React.FC = () => {
             className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
             + New Release Note
           </button>
-          <table className="min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Title</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Version</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-2.5 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {releaseNotes.map((rn) => (
-                <tr key={rn.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 text-sm text-gray-900">{rn.title}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500 font-mono">{rn.version || '-'}</td>
-                  <td className="px-4 py-2.5 text-sm text-gray-500">{rn.release_date}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${rn.is_published ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {rn.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => editReleaseNote(rn)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-                    <button onClick={() => removeReleaseNote(rn.id)} className="text-xs text-red-600 hover:underline">Delete</button>
-                  </td>
-                </tr>
-              ))}
-              {releaseNotes.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">No release notes yet</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable<HelpReleaseNote>
+            columns={releaseNoteColumns}
+            rows={releaseNotes}
+            rowKey={(rn) => rn.id}
+            emptyState="No release notes yet"
+          />
         </>
       )}
     </div>

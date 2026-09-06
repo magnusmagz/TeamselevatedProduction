@@ -8,6 +8,7 @@ import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
 import HelpTableOfContents from '../components/help/HelpTableOfContents';
 import HelpFeedback from '../components/help/HelpFeedback';
 import HelpRoleBadge from '../components/help/HelpRoleBadge';
+import PageHeader from '../components/ui/PageHeader';
 
 function slugify(text: string): string {
   return String(text)
@@ -57,15 +58,15 @@ const HelpArticlePage: React.FC = () => {
           ]}
         />
 
-        <h1 className="text-2xl font-bold text-brand-primary mb-2">{article.title}</h1>
-
-        {article.role_tags.length > 0 && (
-          <div className="flex gap-1.5 mb-4">
-            {article.role_tags.map((tag) => (
-              <HelpRoleBadge key={tag} role={tag} size="md" />
-            ))}
-          </div>
-        )}
+        <PageHeader
+          title={article.title}
+          meta={
+            article.role_tags.length > 0
+              ? article.role_tags.map((tag) => <HelpRoleBadge key={tag} role={tag} size="md" />)
+              : undefined
+          }
+          className="mb-4"
+        />
 
         {article.summary && (
           <p className="text-gray-600 mb-6 text-base leading-relaxed">{article.summary}</p>

@@ -5,6 +5,7 @@ import HelpSearchModal from '../components/help/HelpSearchModal';
 import { fetchCategories } from '../services/helpApi';
 import { HelpCategory } from '../types/help';
 import HelpRoleBadge from '../components/help/HelpRoleBadge';
+import PageHeader from '../components/ui/PageHeader';
 
 const categoryIcons: Record<string, React.ReactNode> = {
   'getting-started': (
@@ -49,16 +50,19 @@ const HelpLanding: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-brand-primary mb-2">How can we help?</h1>
-        <p className="text-gray-600">
-          Browse guides and articles, or press{' '}
-          <kbd className="text-xs border border-gray-300 rounded px-1.5 py-0.5 font-mono bg-gray-50">
-            {navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}+K
-          </kbd>{' '}
-          to search.
-        </p>
-      </div>
+      <PageHeader
+        title="How can we help?"
+        subtitle={
+          <>
+            Browse guides and articles, or press{' '}
+            <kbd className="text-xs border border-gray-300 rounded px-1.5 py-0.5 font-mono bg-gray-50">
+              {navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}+K
+            </kbd>{' '}
+            to search.
+          </>
+        }
+        className="mb-10"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {categories.map((cat) => (

@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { fetchReleaseNote } from '../services/helpApi';
 import { HelpReleaseNote } from '../types/help';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
+import PageHeader from '../components/ui/PageHeader';
 
 const tagColors: Record<string, string> = {
   feature: 'bg-blue-100 text-blue-700',
@@ -50,24 +51,27 @@ const ReleaseNotePage: React.FC = () => {
         ]}
       />
 
-      <div className="flex items-center gap-3 mb-2">
-        {note.version && (
-          <span className="text-sm font-mono font-medium text-brand-primary bg-brand-secondary/30 px-2.5 py-0.5 rounded">
-            v{note.version}
-          </span>
-        )}
-        <span className="text-sm text-gray-500">{date}</span>
-        {note.tags.map((tag) => (
-          <span
-            key={tag}
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${tagColors[tag] || 'bg-gray-100 text-gray-600'}`}
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      <h1 className="text-2xl font-bold text-brand-primary mb-6">{note.title}</h1>
+      <PageHeader
+        title={note.title}
+        meta={
+          <>
+            {note.version && (
+              <span className="text-sm font-mono font-medium text-brand-primary bg-brand-secondary/30 px-2.5 py-0.5 rounded">
+                v{note.version}
+              </span>
+            )}
+            <span className="text-sm text-gray-500">{date}</span>
+            {note.tags.map((tag) => (
+              <span
+                key={tag}
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${tagColors[tag] || 'bg-gray-100 text-gray-600'}`}
+              >
+                {tag}
+              </span>
+            ))}
+          </>
+        }
+      />
 
       <div className="prose prose-brand max-w-none">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>

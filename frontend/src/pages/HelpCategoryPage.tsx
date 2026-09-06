@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { fetchCategoryArticles, fetchCategories } from '../services/helpApi';
 import HelpRoleBadge from '../components/help/HelpRoleBadge';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
+import PageHeader from '../components/ui/PageHeader';
 
 const HelpCategoryPage: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug: string }>();
@@ -29,7 +30,7 @@ const HelpCategoryPage: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto">
       <HelpBreadcrumb items={[{ label: categoryName }]} />
-      <h1 className="text-2xl font-bold text-brand-primary mb-6">{categoryName}</h1>
+      <PageHeader title={categoryName} />
       <div className="space-y-3">
         {articles.map((article) => (
           <Link

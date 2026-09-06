@@ -3,6 +3,7 @@ import { fetchReleaseNotes } from '../services/helpApi';
 import { HelpReleaseNote } from '../types/help';
 import ReleaseNoteCard from '../components/help/ReleaseNoteCard';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
+import PageHeader from '../components/ui/PageHeader';
 
 const ReleaseNotes: React.FC = () => {
   const [notes, setNotes] = useState<HelpReleaseNote[]>([]);
@@ -28,8 +29,7 @@ const ReleaseNotes: React.FC = () => {
     <div className="max-w-3xl mx-auto">
       <HelpBreadcrumb items={[{ label: 'Release Notes' }]} />
 
-      <h1 className="text-2xl font-bold text-brand-primary mb-2">Release Notes</h1>
-      <p className="text-gray-600 mb-8">Stay up to date with what's new in Teams Elevated.</p>
+      <PageHeader title="Release Notes" subtitle="Stay up to date with what's new in Teams Elevated." className="mb-8" />
 
       {loading && notes.length === 0 ? (
         <div className="text-center text-brand-primary py-12">Loading...</div>
