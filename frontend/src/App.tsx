@@ -106,6 +106,10 @@ import ComplianceDashboard from './pages/ComplianceDashboard';
 import ClubCompliance from './pages/ClubCompliance';
 import RefereeFeedback from './pages/RefereeFeedback';
 import ComplianceRequirements from './pages/ComplianceRequirements';
+// GOTR G5 — the rollup for the tier above the club. Read-only; the server
+// decides standing per request, the nav entry is a convenience.
+import OrgCompliance from './pages/OrgCompliance';
+import { useOrgStanding } from './compliance/useOrgStanding';
 import MyRequirements from './pages/MyRequirements';
 import ClubDocumentCenter from './pages/ClubDocumentCenter';
 // Help Portal
@@ -262,6 +266,13 @@ function AppContent() {
 
   // Determine if user has admin capabilities (super_admin always gets full admin view)
   const isAdmin = isClubAdmin || user?.system_role === 'super_admin';
+
+  // Org-tier standing (division / national) is not in the token; one fetch per
+  // session answers whether the Organizations entry belongs in this nav.
+  const { units: orgUnits } = useOrgStanding();
+  const orgComplianceLink = orgUnits.length > 0
+    ? [{ to: `/organizations/${orgUnits[0].org_unit_id}/compliance`, label: 'Organizations' }]
+    : [];
 
   // Reported-messages badge. Admin-only; the endpoint enforces that server-side
   // too, since a client flag is not an access control.
@@ -448,6 +459,7 @@ function AppContent() {
     // Bulk import lives under Club Settings → Imports now (was a top-level
     // nav item). Route /imports still resolves for any saved bookmarks.
     { to: '/__amplifiers_dropdown__', label: 'Amplifiers' },
+    ...orgComplianceLink,
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ] : [
     { to: '/dashboard', label: 'Home' },
@@ -455,6 +467,7 @@ function AppContent() {
     { to: '/__programs_dropdown__', label: 'Programs' },
     { to: '/__comms_dropdown__', label: 'Communications' },
     { to: '/calendar', label: 'Calendar' },
+    ...orgComplianceLink,
     ...(user?.system_role === 'super_admin' ? [{ to: '/super-admin', label: 'Platform Admin' }] : []),
   ];
 
@@ -1055,6 +1068,14 @@ function AppContent() {
           <Route path="/compliance/mine" element={
             <ProtectedRoute>
               <MyRequirements />
+            </ProtectedRoute>
+          } />
+
+          {/* GOTR G5. Authentication only — api/compliance-rollup.php decides
+              org standing on every request, and renders a 403 as a sentence. */}
+          <Route path="/organizations/:id/compliance" element={
+            <ProtectedRoute>
+              <OrgCompliance />
             </ProtectedRoute>
           } />
 

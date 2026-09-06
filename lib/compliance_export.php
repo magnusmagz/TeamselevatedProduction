@@ -43,8 +43,13 @@ const TE_COMPLIANCE_EXPORT_FILTERS = ['compliant', 'expiring', 'expired', 'missi
  * @return array{headers: string[], rows: array<int, array>, people: int,
  *               total_rows: int, omitted_rows: int}
  */
-function te_compliance_export_sheet(PDO $pdo, int $clubId, string $filter, string $today): array
-{
+function te_compliance_export_sheet(
+    PDO $pdo,
+    int $clubId,
+    string $filter,
+    string $today,
+    int $capRemaining = TE_COMPLIANCE_EXPORT_MAX_ROWS
+): array {
     $headers = [
         'Last name', 'First name', 'Email', 'Staff roles',
         'Requirement', 'Required by', 'Category', 'Required',
@@ -83,7 +88,10 @@ function te_compliance_export_sheet(PDO $pdo, int $clubId, string $filter, strin
 
         foreach ($status['requirements'] as $index => $row) {
             $totalRows++;
-            if (count($rows) >= TE_COMPLIANCE_EXPORT_MAX_ROWS) {
+            // `$capRemaining` rather than the constant: the org export shares one
+            // cap across every council's rows, so each club is told how much of
+            // the file is left rather than each club assuming the whole of it.
+            if (count($rows) >= $capRemaining) {
                 continue;
             }
             $requirement = $decorated[$index] ?? $row['requirement'];
@@ -114,6 +122,82 @@ function te_compliance_export_sheet(PDO $pdo, int $clubId, string $filter, strin
         'people'       => $people,
         'total_rows'   => $totalRows,
         'omitted_rows' => max(0, $totalRows - count($rows)),
+    ];
+}
+
+/**
+ * The same sheet across every council under an org unit, with the council
+ * name as the FIRST column (GOTR G5).
+ *
+ * Council first because that is what the reader sorts and pivots on: a
+ * national admin opening this file wants "which councils" before "which
+ * people". The per-council sheet is reused unchanged so the two files cannot
+ * disagree about a person; only the leading column is added.
+ *
+ * ⚠️ The cap is ONE cap for the whole file, not one per council. The
+ * per-club sheet is told how many rows are still allowed, and the count keeps
+ * going past it exactly as the single-club export does — the notice needs
+ * both numbers. Councils are visited in name order, so a truncated file is
+ * the first N councils complete rather than a random slice of each.
+ *
+ * The club list here IS materialised (one id per council), and that is fine:
+ * it is bounded by the number of councils, not by staff or credentials, and
+ * te_compliance_export_sheet needs an int per club regardless.
+ *
+ * @return array{headers: string[], rows: array<int, array>, people: int,
+ *               total_rows: int, omitted_rows: int, councils: int}
+ */
+function te_compliance_export_org_sheet(PDO $pdo, int $orgUnitId, string $filter, string $today): array
+{
+    $headers = [];
+    $rows = [];
+    $people = 0;
+    $totalRows = 0;
+    $councils = 0;
+
+    $scope = te_org_descendant_club_ids_sql([$orgUnitId]);
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT c.id, c.name FROM club_profile c WHERE c.id IN (' . $scope['sql'] . ') ORDER BY c.name, c.id'
+        );
+        $stmt->execute($scope['params']);
+        $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('te_compliance_export_org_sheet: ' . $e->getMessage());
+        $clubs = [];
+    }
+
+    foreach ($clubs as $club) {
+        $councils++;
+        $sheet = te_compliance_export_sheet(
+            $pdo,
+            (int) $club['id'],
+            $filter,
+            $today,
+            max(0, TE_COMPLIANCE_EXPORT_MAX_ROWS - count($rows))
+        );
+        if (!$headers) {
+            $headers = array_merge(['Council'], $sheet['headers']);
+        }
+        foreach ($sheet['rows'] as $row) {
+            $rows[] = array_merge([(string) $club['name']], $row);
+        }
+        $people += $sheet['people'];
+        $totalRows += $sheet['total_rows'];
+    }
+
+    if (!$headers) {
+        // No councils at all: still a well-formed file with a header row.
+        $headers = array_merge(['Council'], te_compliance_export_sheet($pdo, 0, $filter, $today)['headers']);
+    }
+
+    return [
+        'headers'      => $headers,
+        'rows'         => $rows,
+        'people'       => $people,
+        'total_rows'   => $totalRows,
+        'omitted_rows' => max(0, $totalRows - count($rows)),
+        'councils'     => $councils,
     ];
 }
 
