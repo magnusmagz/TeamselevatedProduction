@@ -40,7 +40,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
     last_name: '',
     email: '',
     phone: '',
-    password: 'password123',
     role: 'coach'
   });
   const [loading, setLoading] = useState(true);
@@ -149,7 +148,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       last_name: '',
       email: '',
       phone: '',
-      password: 'password123',
       role: 'coach'
     });
     setShowForm(true);
@@ -162,7 +160,6 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       last_name: coach.last_name,
       email: coach.email,
       phone: coach.phone || '',
-      password: '',
       role: 'coach'
     });
     setShowForm(true);
@@ -191,14 +188,16 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         if (isEditing) {
           alert('Coach updated successfully!');
         } else {
-          alert('Coach created successfully! Default password is: password123');
+          // The server says what happened to the invitation (sent, already had
+          // an account, switched off) — it is the only one that knows.
+          const created = await response.json().catch(() => ({}));
+          alert(created.message || 'Coach added. An invitation to set their password has been emailed to them.');
         }
         setFormData({
           first_name: '',
           last_name: '',
           email: '',
           phone: '',
-          password: 'password123',
           role: 'coach'
         });
         setSelectedCoach(null);
@@ -315,14 +314,14 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         />
                       </div>
 
-                      <div className="col-span-2">
-                        <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-brand-primary px-2 py-1">password123</span>
-                        </p>
-                        <p className="text-gray-500 text-xs mt-1">
-                          The coach should change this password on first login
-                        </p>
-                      </div>
+                      {!selectedCoach && (
+                        <div className="col-span-2">
+                          <p className="text-gray-600 text-sm">
+                            No password is set here. The coach receives an invitation email with a
+                            single-use link (valid 7 days) to choose their own password.
+                          </p>
+                        </div>
+                      )}
 
                       <div className="col-span-2 flex justify-end space-x-4 mt-4">
                         <button
@@ -601,14 +600,14 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         />
                       </div>
 
-                      <div className="col-span-2">
-                        <p className="text-gray-600 text-sm">
-                          Default password: <span className="font-mono bg-gray-100 border border-brand-primary px-2 py-1">password123</span>
-                        </p>
-                        <p className="text-gray-500 text-xs mt-1">
-                          The coach should change this password on first login
-                        </p>
-                      </div>
+                      {!selectedCoach && (
+                        <div className="col-span-2">
+                          <p className="text-gray-600 text-sm">
+                            No password is set here. The coach receives an invitation email with a
+                            single-use link (valid 7 days) to choose their own password.
+                          </p>
+                        </div>
+                      )}
 
                       <div className="col-span-2 flex justify-end space-x-4 mt-4">
                         <button

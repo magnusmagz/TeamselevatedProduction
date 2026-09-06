@@ -57,7 +57,8 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
-        // Nothing pending as of 2026-09-03 (089/091/092/093 applied).
+        // GOTR G6 — a multi-council import remembers the org unit that authorised it.
+        'import_jobs.org_unit_id' => '094_import_jobs_org_unit.sql',
     ];
 
     /**

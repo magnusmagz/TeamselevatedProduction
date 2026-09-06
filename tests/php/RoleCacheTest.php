@@ -282,7 +282,9 @@ class RoleCacheTest extends TestCase
             }
         }
 
-        $this->assertGreaterThanOrEqual(11, $found, 'the scan found fewer write sites than exist — the pattern stopped matching');
+        // 11 until GOTR G6 (2026-09-06) folded the Coaches-page and coach-import
+        // INSERTs into the one in lib/coach_invite.php — two sites became one.
+        $this->assertGreaterThanOrEqual(10, $found, 'the scan found fewer write sites than exist — the pattern stopped matching');
         $this->assertSame([], $offenders, "these write user_club_access without dropping the cached role context:\n" . implode("\n", $offenders));
     }
 

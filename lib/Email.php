@@ -1559,6 +1559,48 @@ HTML;
     }
 
     /**
+     * Send a coach their single-use "set your password" link (GOTR G6).
+     *
+     * Call on an instance that has had forClub() applied — the heading names
+     * the club, and "Teams Elevated" is the honest fallback when it has not.
+     * Uses the shared renderer so the CTA carries the inline white label that
+     * EmailButtonContrastTest exists to enforce.
+     *
+     * @param string $to         Coach email
+     * @param string $name       Coach name
+     * @param string $inviteLink Tokenised /accept-coach-invite URL
+     * @return bool
+     */
+    public function sendCoachInvite($to, $name, $inviteLink) {
+        $clubName = $this->fromName;
+        $subject  = "Set up your {$clubName} coach account";
+        $heading  = "You're invited to coach with {$clubName}";
+        $intro    = "{$clubName} has set up a Teams Elevated coach account for you. "
+                  . "Choose a password to finish setting it up. This link works once and expires in 7 days; "
+                  . "after you have set your password, sign in with it instead of clicking the link again.";
+
+        $htmlBody = $this->renderPaymentEmail(
+            $heading,
+            $clubName,
+            $name,
+            $intro,
+            [],
+            'Set my password',
+            $inviteLink,
+            "If you weren't expecting this invitation, you can safely ignore this email.",
+            $clubName
+        );
+
+        $textBody = "Hi {$name},\n\n"
+            . "{$intro}\n\n"
+            . "Set my password:\n{$inviteLink}\n\n"
+            . "If you weren't expecting this invitation, you can safely ignore this email.\n\n"
+            . "{$clubName}\nvia Teams Elevated";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
+    }
+
+    /**
      * One renderer for all three payment emails.
      *
      * The four older templates in this file are near-identical copies and have

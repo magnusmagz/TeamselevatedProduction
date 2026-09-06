@@ -75,7 +75,7 @@ try {
             $sql = "
                 SELECT u.id, u.first_name, u.last_name, u.email,
                        COUNT(DISTINCT t.id) AS team_count,
-                       " . te_portal_status_columns('u.email', 'u') . "
+                       " . te_portal_status_columns('u.email', 'u', 'coach_invite') . "
                 FROM users u
                 LEFT JOIN teams t
                        ON t.primary_coach_id = u.id
@@ -201,51 +201,69 @@ try {
                 exit();
             }
 
-            // Check if email already exists
-            $stmt = $connection->prepare("SELECT id FROM users WHERE email = ?");
-            $stmt->execute([$data['email']]);
-            if ($stmt->fetch()) {
+            // GOTR G6: no password is written here any more. Every coach made on
+            // this page gets an account with NO credential and a single-use,
+            // 7-day invite link; setting the password through that link is the
+            // "accepted" fact the onboarding funnel counts. An address that
+            // already has an account is attached to this club rather than
+            // refused (users.email is UNIQUE), and one that can already sign in
+            // is `already_active` — access added, no mail. Identity decisions
+            // live in lib/coach_invite.php, shared with the importer.
+            require_once __DIR__ . '/../lib/coach_invite.php';
+
+            $invite = te_coach_invite_ensure_user_and_token(
+                $connection,
+                [
+                    'first_name' => $data['first_name'],
+                    'last_name'  => $data['last_name'],
+                    'email'      => $data['email'],
+                    'phone'      => $data['phone'] ?? '',
+                ],
+                $targetClub,
+                (int) $auth->getUserId(),
+                'coaches_page'
+            );
+
+            if ($invite['status'] === 'error') {
                 http_response_code(400);
-                echo json_encode(['error' => 'Email already exists']);
+                echo json_encode(['error' => $invite['message']]);
+                exit();
+            }
+            if ($invite['status'] === 'access_revoked') {
+                http_response_code(409);
+                echo json_encode([
+                    'error' => 'This person\'s coach access to the club was revoked. Restore it rather than re-adding them.',
+                    'id'    => $invite['user_id'],
+                ]);
                 exit();
             }
 
-            $connection->beginTransaction();
-            try {
-                // Create coach account
-                $stmt = $connection->prepare("
-                    INSERT INTO users (first_name, last_name, email, password_hash, role, created_at)
-                    VALUES (?, ?, ?, ?, 'coach', NOW())
-                ");
-                $hashedPassword = password_hash($data['password'] ?? 'password123', PASSWORD_DEFAULT);
-                $stmt->execute([
-                    $data['first_name'],
-                    $data['last_name'],
-                    $data['email'],
-                    $hashedPassword
-                ]);
-                $coachId = $connection->lastInsertId();
+            $coachId = (int) $invite['user_id'];
 
-                // Grant the coach club-scoped access so they are visible to the club.
-                $stmt = $connection->prepare("
-                    INSERT INTO user_club_access (user_id, club_profile_id, role, active, granted_at)
-                    VALUES (?, ?, 'coach', true, NOW())
-                ");
-                $stmt->execute([$coachId, $targetClub]);
-                // Five minutes of a stale cached context is five minutes of a
-                // coach who cannot see their own club.
-                te_role_cache_invalidate($coachId);
-
-                $connection->commit();
-            } catch (Exception $e) {
-                $connection->rollBack();
-                throw $e;
+            // The page sends inline — one admin, one coach, and they want to know
+            // now whether the mail left. Imports go through the queue instead.
+            $emailResult = null;
+            if ($invite['status'] === 'invited') {
+                $emailResult = te_coach_invite_send($connection, $coachId, $targetClub);
             }
+
+            $message = $invite['status'] === 'already_active'
+                ? 'This coach already has an account; they have been added to your club and can sign in as usual.'
+                : (($emailResult['sent'] ?? false)
+                    ? 'Coach added. An invitation to set their password has been emailed to them.'
+                    : 'Coach added, but the invitation email was not sent'
+                      . (($emailResult['feature_disabled'] ?? null) ? ' (invite emails are switched off).' : '. Use Resend later.'));
 
             echo json_encode([
                 'success' => true,
                 'id' => $coachId,
-                'message' => 'Coach created successfully'
+                'invite' => [
+                    'status'     => $invite['status'],
+                    'access'     => $invite['access'] ?? null,
+                    'email_sent' => (bool) ($emailResult['sent'] ?? false),
+                    'reason'     => $emailResult['reason'] ?? null,
+                ],
+                'message' => $message,
             ]);
             break;
 

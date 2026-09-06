@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -43,7 +44,7 @@ type WizardStep = 'upload' | 'map' | 'status';
 // Per-entity display config. Adding a new entity = one entry here + one
 // backend ImportStrategy class. The page title, sample CSV template, and
 // helper copy all read from these tables.
-export type ImportEntity = 'athletes' | 'facilities' | 'volunteers' | 'coaches' | 'teams';
+export type ImportEntity = 'athletes' | 'facilities' | 'volunteers' | 'coaches' | 'teams' | 'national_coaches';
 
 const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
   athletes: 'Athletes',
@@ -51,6 +52,7 @@ const ENTITY_DISPLAY_NAMES: Record<ImportEntity, string> = {
   volunteers: 'Volunteers',
   coaches: 'Coaches',
   teams: 'Teams',
+  national_coaches: 'Coaches (all councils)',
 };
 
 const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
@@ -59,6 +61,7 @@ const ENTITY_DESCRIPTIONS: Partial<Record<ImportEntity, string>> = {
   volunteers: 'Upload a CSV with one row per volunteer assignment. Each row references a team by name, so one file can span multiple teams in your club. Users without accounts will be created (login disabled until they claim it).',
   coaches: 'Upload a CSV with one row per coach. Creates a user account if needed and grants the coach role on your club. Team assignments are not handled here — assign coaches to specific teams from the team management UI after they\'re imported.',
   teams: 'Upload a CSV with one row per team. Required: name and age_group. A team is identified by the combination (e.g. "Tigers U12" and "Tigers U14" are distinct teams). Optional foreign keys — season, primary coach, home field — are looked up by name/email if provided.',
+  national_coaches: 'Upload one CSV for every council under your organization. Each row carries a council_code that must match a council\'s code; a row whose code is unknown is rejected with a reason, never attached to another council. Each coach is created without a password and emailed a single-use invitation.',
 };
 
 // Entity types that support optional team assignment at upload time.
@@ -91,6 +94,12 @@ const SAMPLE_CSVS: Partial<Record<ImportEntity, string>> = {
     'Riley,Nakamura,riley.nakamura@example.com,5552001001',
     'Jordan,Goldberg,jordan.goldberg@example.com,',
   ].join('\n'),
+  national_coaches: [
+    'first_name,last_name,email,phone,council_code',
+    'Pat,Henderson,pat.henderson@example.com,5552001000,KS',
+    'Riley,Nakamura,riley.nakamura@example.com,5552001001,CA',
+    'Jordan,Goldberg,jordan.goldberg@example.com,,KS',
+  ].join('\n'),
   teams: [
     'name,age_group,division,skill_level,gender,season_name,primary_coach_email,home_venue_name,home_field_name',
     'Tigers,U12,Competitive,Intermediate,Mixed,Spring 2026,pat.henderson@example.com,Greenlake Park,Field A',
@@ -108,6 +117,10 @@ interface DataImportProps {
 const DataImport: React.FC<DataImportProps> = ({ entity }) => {
   const token = localStorage.getItem('auth_token');
   const { currentClubId } = useOrg();
+  // A multi-council import (GOTR G6) is scoped to an org unit, not the active
+  // club — the funnel page links here with ?org_unit_id=N preselected.
+  const [searchParams] = useSearchParams();
+  const orgUnitId = entity === 'national_coaches' ? searchParams.get('org_unit_id') : null;
 
   const [step, setStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -225,7 +238,7 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
     : [];
 
   const handleStartImport = async () => {
-    if (!file || !currentClubId || !preview) return;
+    if (!file || !preview || (!currentClubId && !orgUnitId)) return;
     if (missingRequired.length > 0) {
       setErrorMessage('Please map all required fields before starting the import.');
       return;
@@ -241,7 +254,11 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('club_profile_id', String(currentClubId));
+      if (orgUnitId) {
+        formData.append('org_unit_id', orgUnitId);
+      } else {
+        formData.append('club_profile_id', String(currentClubId));
+      }
       if (selectedTeamId) formData.append('team_id', selectedTeamId);
       formData.append('column_mapping', JSON.stringify(cleanMapping));
 
@@ -302,7 +319,7 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
     setErrorMessage(null);
   };
 
-  if (!currentClubId) {
+  if (!currentClubId && !orgUnitId) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-brand-primary mb-4">Import Athletes</h1>

@@ -57,6 +57,13 @@ class FeatureFlagsTest extends TestCase
         // GOTR G5 — the org-tier rollup. Read-only, but a read that is off must
         // still answer feature_disabled rather than data.
         'api/compliance-rollup.php' => 'COMPLIANCE',
+        // GOTR G6 — onboarding. COACH_INVITE_EMAIL is the mail behind every coach
+        // invite (Coaches page inline, import via the queue); the account and
+        // token still exist with it off, so an admin can stage a roster dark.
+        // NATIONAL_IMPORT gates the multi-council upload itself — the endpoint
+        // refuses, it does not accept-and-not-send.
+        'lib/coach_invite.php' => 'COACH_INVITE_EMAIL',
+        'api/imports-gateway.php' => 'NATIONAL_IMPORT',
     ];
 
     protected function setUp(): void
