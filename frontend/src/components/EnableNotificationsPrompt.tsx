@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import Button from './ui/Button';
 
 const DISMISSED_KEY = 'te_push_prompt_dismissed_until';
 
@@ -80,25 +81,15 @@ export const EnableNotificationsPrompt: React.FC = () => {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={dismiss}
-          className="shrink-0 text-sm text-gray-500 hover:text-gray-700 px-1"
-          aria-label="Dismiss"
-        >
+        <Button variant="ghost" size="icon" onClick={dismiss} className="shrink-0" aria-label="Dismiss">
           ✕
-        </button>
+        </Button>
       </div>
 
       {!iosNeedsInstall && (
-        <button
-          type="button"
-          onClick={enable}
-          disabled={busy}
-          className="mt-3 w-full sm:w-auto px-4 py-2 rounded-md bg-brand-primary text-white text-sm font-semibold disabled:opacity-50"
-        >
-          {busy ? 'Working…' : 'Turn on notifications'}
-        </button>
+        <Button onClick={enable} loading={busy} className="mt-3 w-full sm:w-auto">
+          Turn on notifications
+        </Button>
       )}
     </div>
   );

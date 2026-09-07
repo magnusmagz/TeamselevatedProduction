@@ -198,7 +198,7 @@ sync"). Emails and SMS actually send in production.
 - Mixed architecture: business logic lives in `/controllers/`, `/api/` gateway files, and `/services/` — no strict service layer
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
 
-### UI conventions: ONE page header, ONE table — `components/ui/` (2026-09-06)
+### UI conventions: ONE page header, ONE table, ONE button — `components/ui/` (2026-09-06)
 **Design source:** `Teams Elevated Logo Package/teams Elevated_brand.pdf` (palette + Orbitron headlines); app tokens are `--color-*` in `frontend/src/index.css`, exposed as `brand-*` Tailwind colours. Prefer `brand-*` over `gray-*` for borders, dividers and text — the gray table shipped 2026-09-06 read as off-brand and was re-skinned the same day.
 Maggie: "we have different header treatments — Programs and Tournaments — let's fix it so we
 have one" and "we have different table treatments, we need one." Before this there were ~30
@@ -224,6 +224,21 @@ h1 class strings and three table families (club pages with `border-r` gridlines,
   test. The parent portal is out of scope (own mobile layout).
 - A form grid (attendance, the practice-review step, the availability matrix) is not a
   list of records and is not a DataTable; those are documented in the inventory and stay.
+- **`Button` / `LinkButton`** (`frontend/src/components/ui/Button.tsx`, same day) — variants
+  `primary` (brand fill), `secondary` (white, brand-secondary border), `danger` (red fill),
+  `danger-link` (red text row action), `ghost` (quiet, brand-light hover), `link`
+  (underline on hover); sizes `sm` / `md` / `icon`; `loading` (spinner, keeps width),
+  `fullWidth`, `leadingIcon` / `trailingIcon`; **`type` defaults to `button`** — pass
+  `type="submit"` where a form relies on it. `LinkButton` is the same look on a router
+  `Link` (or `href`). Icon-only controls are `variant="ghost" size="icon"` with an
+  `aria-label`. `className` is for LAYOUT only (`flex-1`, `mt-4`, `sm:w-auto`); never pass
+  a colour, padding, font or border class — the variant owns those, and a `text-red-600`
+  override silently loses to the variant's `text-brand-primary` in Tailwind's output order
+  (which is why `danger-link` exists). The scan fails on any raw `<button className=…>` in
+  a staff page or component outside `components/ui/`; a control whose look IS its state (a
+  tab strip, a segmented toggle, a filter chip, a colour swatch, a calendar cell) stays
+  raw and is listed in `BUTTON_ALLOWLIST` with the count it keeps and why. Tally in the
+  inventory doc, "Buttons".
 
 ### A tab that owns a list must report it back — tournament divisions (2026-09-03)
 `TournamentDetail` loads `tournament.divisions` once on mount; `DivisionManager` fetches and
