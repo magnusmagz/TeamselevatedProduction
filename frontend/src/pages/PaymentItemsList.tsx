@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface PaymentItem {
@@ -258,12 +259,9 @@ export const PaymentItemsList: React.FC = () => {
 
           {/* Clear Filters Button */}
           {(selectedProgramId || selectedSeason) && (
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
-            >
+            <Button variant="secondary" onClick={clearFilters}>
               Clear Filters
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -300,12 +298,9 @@ export const PaymentItemsList: React.FC = () => {
             text: 'No payment items found.',
             action:
               selectedProgramId || selectedSeason ? (
-                <button
-                  onClick={clearFilters}
-                  className="text-brand-primary hover:text-brand-primary-dark"
-                >
+                <Button variant="link" onClick={clearFilters}>
                   Clear filters to see all items
-                </button>
+                </Button>
               ) : undefined,
           }}
         />

@@ -3,6 +3,7 @@ import { TournamentMatch, TournamentDivision, Tournament } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 import MatchCreateModal from './MatchCreateModal';
 import ScheduleGenerateModal, { GenerationSummary } from './ScheduleGenerateModal';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -66,14 +67,12 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
         <h4 className="font-semibold text-gray-900">{division.name} — Schedule</h4>
         {isAdmin && (
           <div className="flex space-x-2">
-            <button onClick={() => setShowCreate(true)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Button variant="secondary" onClick={() => setShowCreate(true)}>
               + Add Match
-            </button>
-            <button onClick={() => setShowGenerate(true)}
-              className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover">
+            </Button>
+            <Button onClick={() => setShowGenerate(true)}>
               Generate Schedule…
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -89,7 +88,7 @@ const ScheduleManager: React.FC<Props> = ({ division, tournament, isAdmin }) => 
               <> · {formatTime(lastSummary.first_kickoff)} – {formatTime(lastSummary.last_kickoff)}</>
             )}
           </div>
-          <button onClick={() => setLastSummary(null)} className="text-green-700 hover:text-green-900 text-xs">Dismiss</button>
+          <Button variant="link" size="sm" onClick={() => setLastSummary(null)}>Dismiss</Button>
         </div>
       )}
 

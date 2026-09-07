@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TournamentDivision, SportPreset, DivisionFormat, Gender, ScoringSystem, CompetitiveLevel, COMPETITIVE_LEVEL_LABELS, OvertimeMode, OvertimeRules, OVERTIME_MODE_LABELS } from '../types';
 import { getSportPresets } from '../api/tournamentApi';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -213,9 +214,9 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
         <h3 className="text-lg font-semibold text-gray-900">
           {isEdit ? 'Edit Division' : 'Add Division'}
         </h3>
-        <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700">
+        <Button variant="link" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -358,13 +359,15 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
               {ruleNotes.map((note, i) => (
                 <span key={i} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
                   {note}
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
+                    size="icon"
+                    className="ml-1"
+                    aria-label="Remove note"
                     onClick={() => setRuleNotes(ruleNotes.filter((_, j) => j !== i))}
-                    className="ml-1 text-yellow-600 hover:text-yellow-900"
                   >
                     &times;
-                  </button>
+                  </Button>
                 </span>
               ))}
             </div>
@@ -436,12 +439,12 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
             <div key={tb} className="flex items-center space-x-2 bg-gray-50 rounded px-3 py-2">
               <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
               <span className="flex-1 text-sm text-gray-900">{TIEBREAKER_LABELS[tb] || tb}</span>
-              <button type="button" onClick={() => moveTiebreaker(i, -1)} disabled={i === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">
+              <Button variant="ghost" size="icon" aria-label="Move up" onClick={() => moveTiebreaker(i, -1)} disabled={i === 0}>
                 &#9650;
-              </button>
-              <button type="button" onClick={() => moveTiebreaker(i, 1)} disabled={i === tiebreakers.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="Move down" onClick={() => moveTiebreaker(i, 1)} disabled={i === tiebreakers.length - 1}>
                 &#9660;
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -539,12 +542,12 @@ const DivisionForm: React.FC<Props> = ({ tournamentId, sport, division, onSave, 
 
       {/* Actions */}
       <div className="flex justify-end space-x-3">
-        <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={saving} className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-          {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Division'}
-        </button>
+        </Button>
+        <Button type="submit" loading={saving}>
+          {isEdit ? 'Save Changes' : 'Add Division'}
+        </Button>
       </div>
     </form>
   );

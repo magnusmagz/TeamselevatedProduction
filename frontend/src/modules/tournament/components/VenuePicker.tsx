@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import VenueManagement from '../../../components/VenueManagement';
 import { VenueSummary } from '../types';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -85,14 +86,9 @@ const VenuePicker: React.FC<Props> = ({ value, onChange, className, disabled }) 
     <div className={className}>
       <div className="flex items-center justify-between mb-1">
         <label className="block text-sm font-medium text-gray-700">Venue</label>
-        <button
-          type="button"
-          onClick={() => setShowManage(true)}
-          disabled={disabled}
-          className="text-xs font-medium text-brand-primary hover:underline disabled:opacity-50"
-        >
+        <Button variant="link" size="sm" onClick={() => setShowManage(true)} disabled={disabled}>
           + Manage / create venues
-        </button>
+        </Button>
       </div>
 
       <select

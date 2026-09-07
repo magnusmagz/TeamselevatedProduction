@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Button from '../../../components/ui/Button';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
 interface GroupTeam {
@@ -218,15 +219,13 @@ const GroupManager: React.FC<Props> = ({ divisionId, isAdmin }) => {
         </h3>
         {isAdmin && (
           <div className="flex space-x-2">
-            <button onClick={handleCreateGroup}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Button variant="secondary" onClick={handleCreateGroup}>
               Add Group
-            </button>
+            </Button>
             {totalTeams > 0 && (
-              <button onClick={handleAutoAssign} disabled={autoAssigning}
-                className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-                {autoAssigning ? 'Assigning...' : 'Auto-Assign (Snake Seed)'}
-              </button>
+              <Button onClick={handleAutoAssign} loading={autoAssigning}>
+                Auto-Assign (Snake Seed)
+              </Button>
             )}
           </div>
         )}

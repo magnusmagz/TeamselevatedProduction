@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/ui/PageHeader';
+import { LinkButton } from '../components/ui/Button';
 
 interface Campaign {
   id: number;
@@ -131,15 +132,16 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
         title="Fundraiser Campaigns"
         subtitle="Create and manage goal-based fundraising campaigns"
         actions={
-          <Link
+          <LinkButton
             to="/admin/fundraisers/new"
-            className="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover flex items-center gap-2"
+            leadingIcon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
             New Campaign
-          </Link>
+          </LinkButton>
         }
       />
 
@@ -196,15 +198,16 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
               : `No ${filter} campaigns at the moment.`}
           </p>
           {filter === 'all' && (
-            <Link
+            <LinkButton
               to="/admin/fundraisers/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover"
+              leadingIcon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              }
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
               Create Campaign
-            </Link>
+            </LinkButton>
           )}
         </div>
       ) : (
@@ -260,35 +263,41 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 ml-4">
-                  <Link
+                  <LinkButton
+                    variant="ghost"
+                    size="icon"
                     to={`/admin/fundraisers/${campaign.id}`}
-                    className="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"
                     title="View Dashboard"
+                    aria-label="View Dashboard"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                  </Link>
-                  <Link
+                  </LinkButton>
+                  <LinkButton
+                    variant="ghost"
+                    size="icon"
                     to={`/admin/fundraisers/${campaign.id}/edit`}
-                    className="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"
                     title="Edit"
+                    aria-label="Edit"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
-                  </Link>
-                  <a
+                  </LinkButton>
+                  <LinkButton
+                    variant="ghost"
+                    size="icon"
                     href={`/donate/${clubSlug}/campaign/${campaign.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 text-gray-400 hover:text-brand-primary hover:bg-gray-100 rounded-lg"
                     title="View Public Page"
+                    aria-label="View Public Page"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                  </a>
+                  </LinkButton>
                 </div>
               </div>
             </div>

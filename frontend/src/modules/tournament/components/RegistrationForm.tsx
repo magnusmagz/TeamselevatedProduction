@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TournamentDivision } from '../types';
 import { teamGenderLabel } from '../../../utils/teamGender';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -195,7 +196,7 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-900">{isPreOpen ? 'Join the Waitlist' : 'Register Team'}</h3>
-        <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <Button variant="link" onClick={onCancel}>Cancel</Button>
       </div>
 
       {isPreOpen && (
@@ -298,13 +299,9 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
                       className="flex-1 text-sm bg-white border border-gray-300 rounded px-2 py-1"
                     />
                     {filteredTeams.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={toggleAllFiltered}
-                        className="text-xs text-brand-primary hover:underline whitespace-nowrap"
-                      >
+                      <Button variant="link" size="sm" onClick={toggleAllFiltered}>
                         {allFilteredSelected ? 'Clear shown' : 'Select all shown'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -334,13 +331,14 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
                       {filteredTeams.length} of {teams.length}
                     </span>
                     {filtersActive && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="ml-auto"
                         onClick={() => { setTeamFilter(''); setGenderFilter(''); setAgeFilter(''); }}
-                        className="text-xs text-brand-primary hover:underline whitespace-nowrap ml-auto"
                       >
                         Clear filters
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -398,20 +396,18 @@ const RegistrationForm: React.FC<Props> = ({ tournamentId, divisions, clubId, is
       </div>
 
       <div className="flex justify-end space-x-3">
-        <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={saving} className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-          {saving
-            ? (isPreOpen ? 'Joining...' : 'Registering...')
-            : isPreOpen
+        </Button>
+        <Button type="submit" loading={saving}>
+          {isPreOpen
               ? (isGuest || teamIds.length <= 1 ? 'Join the Waitlist' : `Join Waitlist (${teamIds.length} Teams)`)
               : isGuest
                 ? 'Register Team'
                 : teamIds.length <= 1
                   ? 'Register Team'
                   : `Register ${teamIds.length} Teams`}
-        </button>
+        </Button>
       </div>
     </form>
   );

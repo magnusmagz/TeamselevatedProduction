@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tournament, TournamentDivision } from '../types';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -122,7 +123,7 @@ const ScheduleGenerateModal: React.FC<Props> = ({ tournament, division, onClose,
               <p className="text-xs text-gray-500 mt-0.5">Fields shown are at {tournament.venue_name}</p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}>✕</Button>
         </div>
 
         {loading ? (
@@ -185,13 +186,13 @@ const ScheduleGenerateModal: React.FC<Props> = ({ tournament, division, onClose,
                   Fields <span className="text-xs text-gray-500 font-normal">({selectedFieldIds.length} of {fields.length})</span>
                 </label>
                 {fields.length > 0 && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() => setSelectedFieldIds(allSelected ? [] : fields.map((f) => f.id))}
-                    className="text-xs text-brand-primary hover:underline"
                   >
                     {allSelected ? 'Clear all' : 'Select all'}
-                  </button>
+                  </Button>
                 )}
               </div>
               {fields.length === 0 ? (
@@ -224,14 +225,12 @@ const ScheduleGenerateModal: React.FC<Props> = ({ tournament, division, onClose,
             </div>
 
             <div className="flex justify-end space-x-2 pt-2 border-t border-gray-200">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button type="submit" disabled={submitting || selectedFieldIds.length === 0}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-                {submitting ? 'Generating…' : 'Generate Schedule'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting} disabled={selectedFieldIds.length === 0}>
+                Generate Schedule
+              </Button>
             </div>
           </form>
         )}

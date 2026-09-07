@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TournamentDivision, Tournament, TournamentRegistration } from '../types';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -164,7 +165,7 @@ const MatchCreateModal: React.FC<Props> = ({ tournament, division, onClose, onCr
               <p className="text-xs text-gray-500 mt-0.5">Fields shown are at {tournament.venue_name}</p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}>✕</Button>
         </div>
 
         {loading ? (
@@ -297,14 +298,12 @@ const MatchCreateModal: React.FC<Props> = ({ tournament, division, onClose, onCr
             </div>
 
             <div className="flex justify-end space-x-3 pt-2">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button type="submit" disabled={saving}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-                {saving ? 'Creating…' : 'Add Match'}
-              </button>
+              </Button>
+              <Button type="submit" loading={saving}>
+                Add Match
+              </Button>
             </div>
           </form>
         )}

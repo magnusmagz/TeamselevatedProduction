@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TournamentDivision } from '../types';
 import DivisionForm from './DivisionForm';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -113,15 +114,16 @@ const DivisionManager: React.FC<Props> = ({ tournamentId, sport, isAdmin, onDivi
           Divisions ({divisions.length})
         </h3>
         {isAdmin && (
-          <button
+          <Button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover"
+            leadingIcon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
           >
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
             Add Division
-          </button>
+          </Button>
         )}
       </div>
 
@@ -166,19 +168,16 @@ const DivisionManager: React.FC<Props> = ({ tournamentId, sport, isAdmin, onDivi
 
               {isAdmin && (
                 <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    onClick={() => setEditingDivision(div)}
-                    className="text-sm text-brand-primary hover:underline"
-                  >
+                  <Button variant="link" onClick={() => setEditingDivision(div)}>
                     Edit
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="danger-link"
                     onClick={() => handleDelete(div.id)}
-                    disabled={deleting === div.id}
-                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                    loading={deleting === div.id}
                   >
-                    {deleting === div.id ? 'Deleting...' : 'Delete'}
-                  </button>
+                    Delete
+                  </Button>
                 </div>
               )}
             </div>

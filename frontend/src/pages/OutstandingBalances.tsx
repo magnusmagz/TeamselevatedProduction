@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface Payment {
@@ -163,15 +164,16 @@ export const OutstandingBalances: React.FC = () => {
         title="Outstanding Balances"
         subtitle="Families with unpaid registration fees"
         actions={
-          <button
+          <Button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            leadingIcon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
+            }
+          >
             Export CSV
-          </button>
+          </Button>
         }
       />
 
@@ -227,11 +229,11 @@ export const OutstandingBalances: React.FC = () => {
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                      <button className="text-gray-400">
+                      <Button variant="ghost" size="icon" aria-label={expandedRows.has(balance.athlete_id) ? 'Collapse' : 'Expand'} tabIndex={-1}>
                         <svg className={`w-5 h-5 transition-transform ${expandedRows.has(balance.athlete_id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                      </button>
+                      </Button>
                       <div>
                         <div className="flex items-center gap-2">
                           <Link
@@ -265,16 +267,17 @@ export const OutstandingBalances: React.FC = () => {
                         <div className="text-xs text-gray-500">Outstanding</div>
                         <div className="text-xl font-bold text-orange-600">{formatCurrency(balance.total_remaining)}</div>
                       </div>
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSendReminder(balance);
                         }}
-                        disabled={sendingReminder === balance.athlete_id}
-                        className="px-3 py-1 text-sm bg-brand-light text-brand-primary rounded hover:bg-brand-light/70 disabled:opacity-50"
+                        loading={sendingReminder === balance.athlete_id}
                       >
-                        {sendingReminder === balance.athlete_id ? 'Sending...' : 'Send Reminder'}
-                      </button>
+                        Send Reminder
+                      </Button>
                     </div>
                   </div>
                 </div>

@@ -3,6 +3,7 @@ import { TournamentRegistration, TournamentDivision, RegistrationStatus, Payment
 import RegistrationForm from './RegistrationForm';
 import RegistrationRosterModal from './RegistrationRosterModal';
 import DataTable, { DataTableColumn } from '../../../components/ui/DataTable';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -297,66 +298,72 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
               <>
                 {reg.status === 'pending' && (
                   <>
-                    <button
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={() => handleStatusUpdate(reg.id, 'accepted')}
                       disabled={updatingId === reg.id}
-                      className="text-xs text-green-600 hover:underline disabled:opacity-50"
                     >
                       Accept
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="danger-link"
+                      size="sm"
                       onClick={() => openDeclineModal(reg)}
                       disabled={updatingId === reg.id}
-                      className="text-xs text-red-600 hover:underline disabled:opacity-50"
                     >
                       Reject
-                    </button>
+                    </Button>
                   </>
                 )}
                 {reg.status === 'waitlisted' && (
                   <>
-                    <button
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={() => handleStatusUpdate(reg.id, 'accepted')}
                       disabled={updatingId === reg.id}
-                      className="text-xs text-green-600 hover:underline disabled:opacity-50"
                     >
                       Accept
-                    </button>
+                    </Button>
                     {/* Promote = email this team an offer with a 48h
                         acceptance window. Useful when re-offering a
                         previously declined/expired row, or when the
                         director wants to skip ahead in the FIFO queue. */}
-                    <button
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={() => handlePromoteWaitlist(reg.id)}
                       disabled={updatingId === reg.id || reg.waitlist_offer_state === 'offered'}
-                      className="text-xs text-purple-600 hover:underline disabled:opacity-50"
                       title={reg.waitlist_offer_state === 'offered'
                         ? 'Offer already sent — waiting for response'
                         : 'Email this team an offer with a 48-hour acceptance window'}
                     >
                       Promote
-                    </button>
+                    </Button>
                   </>
                 )}
                 {reg.payment_status === 'unpaid' && (
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() => {
                       const ref = prompt('Payment reference (check #, etc):');
                       if (ref !== null) handlePaymentUpdate(reg.id, 'paid', ref);
                     }}
-                    className="text-xs text-blue-600 hover:underline"
                   >
                     Mark Paid
-                  </button>
+                  </Button>
                 )}
                 {(reg.status === 'accepted' || reg.status === 'waitlisted') && (
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() => setRosterRegistration(reg)}
-                    className="text-xs text-gray-700 hover:underline"
                     title="Manage tournament roster for this team"
                   >
                     Roster
-                  </button>
+                  </Button>
                 )}
               </>
             ),
@@ -385,14 +392,13 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
         <h3 className="text-lg font-semibold text-gray-900">
           Registrations ({totalCount})
         </h3>
-        <button
+        <Button
           onClick={() => setShowForm(true)}
           disabled={!hasDivisions}
           title={hasDivisions ? undefined : 'Add a division first'}
-          className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Register Team
-        </button>
+        </Button>
       </div>
 
       {/* Why a team may not be registerable yet. A division is required — the
@@ -572,24 +578,17 @@ const RegistrationManager: React.FC<Props> = ({ tournamentId, divisions, isAdmin
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-              <button
-                onClick={closeDeclineModal}
-                disabled={declineSending}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-              >
+              <Button variant="secondary" onClick={closeDeclineModal} disabled={declineSending}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={submitDecline}
-                disabled={declineSending || declinePreviewLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+                loading={declineSending}
+                disabled={declinePreviewLoading}
               >
-                {declineSending
-                  ? 'Declining…'
-                  : declineSkipEmail
-                  ? 'Decline silently'
-                  : 'Send Decline & Email'}
-              </button>
+                {declineSkipEmail ? 'Decline silently' : 'Send Decline & Email'}
+              </Button>
             </div>
           </div>
         </div>

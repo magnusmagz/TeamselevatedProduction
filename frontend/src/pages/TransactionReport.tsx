@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 
 interface Transaction {
@@ -251,15 +252,16 @@ export const TransactionReport: React.FC = () => {
         title="Transaction Report"
         subtitle="View and export payment transactions"
         actions={
-          <button
+          <Button
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary-hover flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            leadingIcon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
+            }
+          >
             Export CSV
-          </button>
+          </Button>
         }
       />
 
@@ -355,12 +357,9 @@ export const TransactionReport: React.FC = () => {
           </div>
 
           {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded"
-            >
+            <Button variant="secondary" onClick={clearFilters}>
               Clear Filters
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -378,12 +377,9 @@ export const TransactionReport: React.FC = () => {
           emptyState={{
             text: 'No transactions found.',
             action: hasFilters ? (
-              <button
-                onClick={clearFilters}
-                className="text-brand-primary hover:text-brand-primary-dark"
-              >
+              <Button variant="link" onClick={clearFilters}>
                 Clear filters to see all transactions
-              </button>
+              </Button>
             ) : undefined,
           }}
         />

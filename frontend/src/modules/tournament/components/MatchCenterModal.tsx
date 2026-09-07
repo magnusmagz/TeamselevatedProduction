@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -353,11 +354,8 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
             )}
 
             <div className="flex justify-end gap-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cancel</button>
-              <button onClick={handleSaveScore} disabled={saving}
-                className="px-5 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover rounded-md disabled:opacity-50">
-                {saving ? 'Saving…' : 'Save Score'}
-              </button>
+              <Button variant="ghost" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSaveScore} loading={saving}>Save Score</Button>
             </div>
           </div>
         )}
@@ -383,18 +381,16 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                         {' · '}<span className="text-gray-600">{e.team_name}</span>
                         {e.minute != null && <span className="text-gray-500"> · {e.minute}'</span>}
                       </div>
-                      <button onClick={() => handleDeleteEvent(e.id)} className="text-red-500 hover:text-red-700 ml-2">×</button>
+                      <Button variant="danger-link" size="icon" className="ml-2" aria-label="Remove card" onClick={() => handleDeleteEvent(e.id)}>×</Button>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-1 mt-2">
                   {match.home_registration_id && (
-                    <button onClick={() => openCardPicker('yellow_card', 'home')}
-                      className="text-xs px-2 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">+ Home</button>
+                    <Button variant="secondary" size="sm" onClick={() => openCardPicker('yellow_card', 'home')}>+ Home</Button>
                   )}
                   {match.away_registration_id && (
-                    <button onClick={() => openCardPicker('yellow_card', 'away')}
-                      className="text-xs px-2 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">+ Away</button>
+                    <Button variant="secondary" size="sm" onClick={() => openCardPicker('yellow_card', 'away')}>+ Away</Button>
                   )}
                 </div>
               </div>
@@ -414,18 +410,16 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                         {' · '}<span className="text-gray-600">{e.team_name}</span>
                         {e.minute != null && <span className="text-gray-500"> · {e.minute}'</span>}
                       </div>
-                      <button onClick={() => handleDeleteEvent(e.id)} className="text-red-500 hover:text-red-700 ml-2">×</button>
+                      <Button variant="danger-link" size="icon" className="ml-2" aria-label="Remove card" onClick={() => handleDeleteEvent(e.id)}>×</Button>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-1 mt-2">
                   {match.home_registration_id && (
-                    <button onClick={() => openCardPicker('red_card', 'home')}
-                      className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded">+ Home</button>
+                    <Button variant="secondary" size="sm" onClick={() => openCardPicker('red_card', 'home')}>+ Home</Button>
                   )}
                   {match.away_registration_id && (
-                    <button onClick={() => openCardPicker('red_card', 'away')}
-                      className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded">+ Away</button>
+                    <Button variant="secondary" size="sm" onClick={() => openCardPicker('red_card', 'away')}>+ Away</Button>
                   )}
                 </div>
               </div>
@@ -454,8 +448,7 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                 <div className="flex items-start gap-3">
                   <img src={photoUrl.startsWith('http') ? photoUrl : `${API_URL}${photoUrl}`}
                     alt="Match card" className="max-h-40 rounded-md border border-gray-200" />
-                  <button onClick={() => setPhotoUrl(null)}
-                    className="text-xs text-red-600 hover:underline">Remove</button>
+                  <Button variant="danger-link" size="sm" onClick={() => setPhotoUrl(null)}>Remove</Button>
                 </div>
               ) : (
                 <label className="block border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-brand-primary">
@@ -466,11 +459,8 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
             </div>
 
             <div className="flex justify-end gap-2 border-t border-gray-200 pt-4">
-              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cancel</button>
-              <button onClick={handleSaveReport} disabled={saving}
-                className="px-5 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover rounded-md disabled:opacity-50">
-                {saving ? 'Saving…' : 'Save Report'}
-              </button>
+              <Button variant="ghost" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSaveReport} loading={saving}>Save Report</Button>
             </div>
           </div>
         )}
@@ -483,11 +473,8 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
               placeholder="Any private notes about this match…"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             <div className="flex justify-end gap-2">
-              <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md">Cancel</button>
-              <button onClick={handleSaveNotes} disabled={saving}
-                className="px-5 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover rounded-md disabled:opacity-50">
-                {saving ? 'Saving…' : 'Save Notes'}
-              </button>
+              <Button variant="ghost" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSaveNotes} loading={saving}>Save Notes</Button>
             </div>
           </div>
         )}
@@ -506,7 +493,7 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
               <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between">
                 <h4 className="font-semibold text-gray-900">{cardLabel} — {teamName}</h4>
-                <button onClick={closeCardPicker} className="text-gray-400 hover:text-gray-600">✕</button>
+                <Button variant="ghost" size="icon" aria-label="Close" onClick={closeCardPicker}>✕</Button>
               </div>
               <div className="p-5 space-y-3">
                 <div>
@@ -594,14 +581,8 @@ const MatchCenterModal: React.FC<Props> = ({ match, isKnockout, onClose, onSaved
                 {error && <div className="text-sm text-red-600">{error}</div>}
               </div>
               <div className="px-5 py-3 border-t border-gray-200 flex justify-end space-x-2">
-                <button onClick={closeCardPicker}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  Cancel
-                </button>
-                <button onClick={submitCardPicker} disabled={pickerSaving}
-                  className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-                  {pickerSaving ? 'Saving…' : 'Add card'}
-                </button>
+                <Button variant="secondary" onClick={closeCardPicker}>Cancel</Button>
+                <Button onClick={submitCardPicker} loading={pickerSaving}>Add card</Button>
               </div>
             </div>
           </div>

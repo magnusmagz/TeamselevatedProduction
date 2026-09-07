@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/ui/PageHeader';
+import Button, { LinkButton } from '../components/ui/Button';
 
 interface CampaignFormData {
   title: string;
@@ -345,13 +346,9 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
                     />
                     <div>
                       <p className="text-sm text-gray-600">{formData.image_filename}</p>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="text-red-600 hover:text-red-500 text-sm mt-1"
-                      >
+                      <Button variant="danger-link" className="mt-1" onClick={handleRemoveImage}>
                         Remove Image
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -530,30 +527,18 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-4 pt-4">
-          <Link
-            to="/admin/fundraisers"
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold"
-          >
+          <LinkButton variant="secondary" to="/admin/fundraisers">
             Cancel
-          </Link>
+          </LinkButton>
 
           <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold disabled:opacity-50"
-            >
+            <Button type="submit" variant="secondary" disabled={saving}>
               {saving ? 'Saving...' : 'Save as Draft'}
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e, true)}
-              disabled={saving}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary-hover uppercase font-semibold disabled:opacity-50"
-            >
+            <Button onClick={(e) => handleSubmit(e, true)} disabled={saving}>
               {saving ? 'Publishing...' : isEditing ? 'Save & Publish' : 'Publish Campaign'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

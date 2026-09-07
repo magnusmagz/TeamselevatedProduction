@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
 import PageHeader from '../components/ui/PageHeader';
+import Button, { LinkButton } from '../components/ui/Button';
 
 interface CampaignUpdate {
   id: number;
@@ -306,26 +307,29 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         }
         actions={
           <>
-            <a
+            <LinkButton
               href={publicUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover flex items-center gap-2"
+              leadingIcon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              }
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
               View Page
-            </a>
-            <Link
+            </LinkButton>
+            <LinkButton
+              variant="secondary"
               to={`/admin/fundraisers/${campaign.id}/edit`}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2"
+              leadingIcon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              }
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
               Edit
-            </Link>
+            </LinkButton>
           </>
         }
       />
@@ -343,12 +347,9 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                 readOnly
                 className="flex-1 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-600"
               />
-              <button
-                onClick={handleCopyLink}
-                className="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover"
-              >
+              <Button onClick={handleCopyLink}>
                 {linkCopied ? 'Copied!' : 'Copy'}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -385,15 +386,17 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                   {/* Export button */}
                   {donations.length > 0 && (
                     <div className="mb-4 flex justify-end">
-                      <button
+                      <Button
+                        variant="secondary"
                         onClick={handleExport}
-                        className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                        leadingIcon={
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        }
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
                         Export CSV
-                      </button>
+                      </Button>
                     </div>
                   )}
 
@@ -433,12 +436,9 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                               <p className="text-xs text-gray-400 mt-1">{formatDate(donation.created_at)}</p>
                             </div>
                             {donation.status === 'succeeded' && (
-                              <button
-                                onClick={() => handleResendReceipt(donation.id)}
-                                className="text-sm text-brand-primary hover:text-brand-primary-hover"
-                              >
+                              <Button variant="link" onClick={() => handleResendReceipt(donation.id)}>
                                 Resend Receipt
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -472,30 +472,19 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
                         />
                         <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowUpdateForm(false)}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                          >
+                          <Button variant="secondary" onClick={() => setShowUpdateForm(false)}>
                             Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={postingUpdate}
-                            className="px-4 py-2 bg-brand-primary text-white rounded-lg font-medium hover:bg-brand-primary-hover disabled:opacity-50"
-                          >
-                            {postingUpdate ? 'Posting...' : 'Post Update'}
-                          </button>
+                          </Button>
+                          <Button type="submit" loading={postingUpdate}>
+                            Post Update
+                          </Button>
                         </div>
                       </div>
                     </form>
                   ) : (
-                    <button
-                      onClick={() => setShowUpdateForm(true)}
-                      className="mb-6 px-4 py-2 border-2 border-dashed border-gray-300 text-gray-600 rounded-lg w-full hover:border-brand-primary hover:text-brand-primary"
-                    >
+                    <Button variant="secondary" fullWidth className="mb-6" onClick={() => setShowUpdateForm(true)}>
                       + Post an Update
-                    </button>
+                    </Button>
                   )}
 
                   {/* Updates list */}
@@ -566,28 +555,18 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                     Are you sure you want to end this campaign? This action cannot be undone.
                   </p>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowEndConfirm(false)}
-                      className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
-                    >
+                    <Button variant="secondary" className="flex-1" onClick={() => setShowEndConfirm(false)}>
                       Cancel
-                    </button>
-                    <button
-                      onClick={handleEndCampaign}
-                      disabled={endingCampaign}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {endingCampaign ? 'Ending...' : 'End Campaign'}
-                    </button>
+                    </Button>
+                    <Button variant="danger" className="flex-1" onClick={handleEndCampaign} loading={endingCampaign}>
+                      End Campaign
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowEndConfirm(true)}
-                  className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50"
-                >
+                <Button variant="danger" fullWidth onClick={() => setShowEndConfirm(true)}>
                   End Campaign Early
-                </button>
+                </Button>
               )
             )}
 
@@ -603,28 +582,18 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
                     <p className="text-sm text-red-600">{deleteError}</p>
                   )}
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}
-                      className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
-                    >
+                    <Button variant="secondary" className="flex-1" onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}>
                       Cancel
-                    </button>
-                    <button
-                      onClick={handleDeleteCampaign}
-                      disabled={deletingCampaign}
-                      className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {deletingCampaign ? 'Deleting...' : 'Delete Campaign'}
-                    </button>
+                    </Button>
+                    <Button variant="danger" className="flex-1" onClick={handleDeleteCampaign} loading={deletingCampaign}>
+                      Delete Campaign
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50"
-                >
+                <Button variant="danger" fullWidth onClick={() => setShowDeleteConfirm(true)}>
                   Delete Campaign
-                </button>
+                </Button>
               )}
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TournamentRegistration } from '../types';
 import DataTable from '../../../components/ui/DataTable';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -182,7 +183,7 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
             <h3 className="text-lg font-semibold text-gray-900">Tournament Roster — {teamName}</h3>
             <p className="text-xs text-gray-500 mt-0.5">{registration.division_name}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}>✕</Button>
         </div>
 
         <div className="p-5 space-y-5">
@@ -197,7 +198,7 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
                 <strong>Age eligibility warning:</strong> {eligibilityWarning}.
                 Player was added — review or remove if this isn't an intentional play-up / guest registration.
               </div>
-              <button onClick={() => setEligibilityWarning(null)} className="text-amber-700 hover:text-amber-900 text-xs">Dismiss</button>
+              <Button variant="link" size="sm" onClick={() => setEligibilityWarning(null)}>Dismiss</Button>
             </div>
           )}
 
@@ -205,14 +206,15 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
           <section>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-gray-900">Roster ({roster.length})</h4>
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={handleImportFromTeam}
                 disabled={busy}
-                className="text-xs text-brand-primary hover:underline disabled:opacity-50"
                 title="Copy the team's regular roster into this tournament roster"
               >
                 ↪ Import from team
-              </button>
+              </Button>
             </div>
 
             {loading ? (
@@ -256,16 +258,8 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
                     className: 'space-x-2',
                     render: (p) => (
                       <>
-                        <button
-                          onClick={() => handleEditJersey(p.id, p.jersey_number)}
-                          disabled={busy}
-                          className="text-xs text-blue-600 hover:underline disabled:opacity-50"
-                        >Jersey</button>
-                        <button
-                          onClick={() => handleRemove(p.id)}
-                          disabled={busy}
-                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                        >Remove</button>
+                        <Button variant="link" size="sm" onClick={() => handleEditJersey(p.id, p.jersey_number)} disabled={busy}>Jersey</Button>
+                        <Button variant="danger-link" size="sm" onClick={() => handleRemove(p.id)} disabled={busy}>Remove</Button>
                       </>
                     ),
                   },
@@ -275,13 +269,9 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
                 emptyState={{
                   text: 'No players on the tournament roster yet.',
                   action: (
-                    <button
-                      onClick={handleImportFromTeam}
-                      disabled={busy}
-                      className="px-3 py-1.5 border border-brand-primary text-brand-primary rounded-md text-sm hover:bg-brand-primary/5 disabled:opacity-50"
-                    >
+                    <Button variant="secondary" size="sm" onClick={handleImportFromTeam} disabled={busy}>
                       Import from team
-                    </button>
+                    </Button>
                   ),
                 }}
               />
@@ -372,21 +362,19 @@ const RegistrationRosterModal: React.FC<Props> = ({ registration, onClose }) => 
             </div>
 
             <div className="mt-3 text-right">
-              <button
+              <Button
                 onClick={handleAdd}
-                disabled={busy || (addMode === 'team' && !pickAthleteId) || (addMode === 'guest' && !guestName.trim())}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50"
+                loading={busy}
+                disabled={(addMode === 'team' && !pickAthleteId) || (addMode === 'guest' && !guestName.trim())}
               >
-                {busy ? 'Saving…' : 'Add to roster'}
-              </button>
+                Add to roster
+              </Button>
             </div>
           </section>
         </div>
 
         <div className="px-5 py-3 border-t border-gray-200 text-right">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Done
-          </button>
+          <Button variant="secondary" onClick={onClose}>Done</Button>
         </div>
       </div>
     </div>

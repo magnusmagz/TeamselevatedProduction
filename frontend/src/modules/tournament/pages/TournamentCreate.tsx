@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import Button from '../../../components/ui/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrg } from '../../../contexts/OrgContext';
 import { TournamentFormData, GOVERNING_BODY_LABELS, GoverningBody } from '../types';
@@ -492,8 +493,7 @@ const TournamentCreate: React.FC = () => {
                     target="_blank" rel="noopener noreferrer"
                     className="text-xs text-brand-primary hover:underline"
                   >View</a>
-                  <button type="button" onClick={() => setForm((p) => ({ ...p, insurance_certificate_url: '', insurance_certificate_filename: '' }))}
-                    className="text-xs text-red-600 hover:underline">Remove</button>
+                  <Button variant="danger-link" size="sm" onClick={() => setForm((p) => ({ ...p, insurance_certificate_url: '', insurance_certificate_filename: '' }))}>Remove</Button>
                 </div>
               ) : (
                 <label className="block border-2 border-dashed border-gray-300 rounded-md p-3 text-center cursor-pointer hover:border-brand-primary text-sm text-gray-500">
@@ -591,20 +591,12 @@ const TournamentCreate: React.FC = () => {
 
         {/* Actions */}
         <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={() => navigate(isEdit ? `/tournaments/${id}` : '/tournaments')}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <Button variant="secondary" onClick={() => navigate(isEdit ? `/tournaments/${id}` : '/tournaments')}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Tournament'}
-          </button>
+          </Button>
+          <Button type="submit" loading={saving}>
+            {isEdit ? 'Save Changes' : 'Create Tournament'}
+          </Button>
         </div>
       </form>
     </main>

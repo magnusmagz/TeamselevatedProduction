@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Tournament, TournamentMatch, TOURNAMENT_STATUS_CONFIG } from '../types';
 import { updateTournamentStatus } from '../api/tournamentApi';
 import MatchCenterModal from './MatchCenterModal';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -156,13 +157,9 @@ const GameDayBoard: React.FC<Props> = ({ tournament, isAdmin, onTournamentUpdate
                   : '⛈️ Weather delay'}
             </button>
           )}
-          <button
-            onClick={() => window.print()}
-            className="px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-            title="Print or project this view"
-          >
+          <Button variant="secondary" size="sm" onClick={() => window.print()} title="Print or project this view">
             🖨️ Print / project
-          </button>
+          </Button>
         </div>
       </div>
 

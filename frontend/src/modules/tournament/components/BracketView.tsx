@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 import MatchCenterModal from './MatchCenterModal';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -75,14 +76,12 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
         <h4 className="font-semibold text-gray-900">Knockout Bracket</h4>
         {isAdmin && (
           <div className="flex space-x-2">
-            <button onClick={handleSlotWinners}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Button variant="secondary" onClick={handleSlotWinners}>
               Slot Group Winners
-            </button>
-            <button onClick={handleGenerate} disabled={generating}
-              className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-50">
-              {generating ? 'Generating...' : 'Generate Bracket'}
-            </button>
+            </Button>
+            <Button onClick={handleGenerate} loading={generating}>
+              Generate Bracket
+            </Button>
           </div>
         )}
       </div>
@@ -142,10 +141,9 @@ const BracketView: React.FC<Props> = ({ divisionId, isAdmin }) => {
                       {/* Match Center */}
                       {match.home_registration_id && match.away_registration_id && isAdmin && (
                         <div className="mt-2 pt-2 border-t border-gray-100">
-                          <button onClick={() => setOpenMatch(match)}
-                            className="text-xs text-brand-primary hover:underline">
+                          <Button variant="link" size="sm" onClick={() => setOpenMatch(match)}>
                             {match.status === 'completed' ? 'Edit / Report' : 'Open Match Center'}
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>

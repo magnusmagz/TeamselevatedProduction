@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TournamentMatch } from '../types';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -73,10 +74,9 @@ const ScoreEntry: React.FC<Props> = ({ match, isKnockout = false, onScored }) =>
         </>
       )}
 
-      <button onClick={handleSubmit} disabled={saving}
-        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
-        {saving ? '...' : 'Save'}
-      </button>
+      <Button size="sm" onClick={handleSubmit} loading={saving}>
+        Save
+      </Button>
 
       {error && <span className="text-xs text-red-500 ml-1">{error}</span>}
     </div>

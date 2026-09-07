@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import Button, { LinkButton } from '../../../components/ui/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrg } from '../../../contexts/OrgContext';
 import { Tournament, TournamentDivision, TournamentStatus, TOURNAMENT_STATUS_CONFIG, VALID_STATUS_TRANSITIONS } from '../types';
@@ -201,20 +202,14 @@ const TournamentDetail: React.FC = () => {
                 </div>
               )}
 
-              <Link
-                to={`/tournaments/${id}/edit`}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
+              <LinkButton variant="secondary" to={`/tournaments/${id}/edit`}>
                 Edit
-              </Link>
+              </LinkButton>
 
               {tournament.status !== 'cancelled' && (
-                <button
-                  onClick={handleDelete}
-                  className="px-3 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50"
-                >
+                <Button variant="danger" onClick={handleDelete}>
                   Cancel
-                </button>
+                </Button>
               )}
             </>
           ) : undefined
@@ -385,12 +380,9 @@ const TournamentDetail: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">
                 Divisions ({tournament.divisions?.length || 0})
               </h3>
-              <button
-                onClick={() => setActiveTab('divisions')}
-                className="text-sm text-brand-primary hover:underline"
-              >
+              <Button variant="link" onClick={() => setActiveTab('divisions')}>
                 Manage Divisions
-              </button>
+              </Button>
             </div>
             {tournament.divisions && tournament.divisions.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

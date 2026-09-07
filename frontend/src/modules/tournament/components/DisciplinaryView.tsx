@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { TournamentMatch } from '../types';
 import MatchCenterModal from './MatchCenterModal';
 import DataTable from '../../../components/ui/DataTable';
+import Button from '../../../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -244,12 +245,14 @@ const DisciplinaryView: React.FC<Props> = ({ tournamentId, divisions, isAdmin })
           />
         </div>
         {(filterDivision !== 'all' || filterType !== 'all' || filterTeam) && (
-          <button
+          <Button
+            variant="link"
+            size="sm"
+            className="pb-1"
             onClick={() => { setFilterDivision('all'); setFilterType('all'); setFilterTeam(''); }}
-            className="text-xs text-gray-500 hover:text-gray-700 underline pb-1"
           >
             Clear
-          </button>
+          </Button>
         )}
       </div>
 
@@ -312,12 +315,9 @@ const DisciplinaryView: React.FC<Props> = ({ tournamentId, divisions, isAdmin })
             width: '5rem',
             render: (e) =>
               isAdmin ? (
-                <button
-                  onClick={() => handleViewMatch(e.match_id)}
-                  className="text-xs text-brand-primary hover:underline"
-                >
+                <Button variant="link" size="sm" onClick={() => handleViewMatch(e.match_id)}>
                   View match
-                </button>
+                </Button>
               ) : null,
           },
         ]}
