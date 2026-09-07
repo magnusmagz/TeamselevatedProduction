@@ -35,6 +35,7 @@ export interface ChatMessage {
   // ship two visible bugs. Compare with sameUser(), never with ===.
   senderId: string | number;
   timestamp: string;
+  /** Server-formatted on the dyno's clock (UTC). Never display it — see messageTime.ts. */
   time?: string;
   role?: string;
   /** Set on optimistically-appended messages until the server echo reconciles them. */

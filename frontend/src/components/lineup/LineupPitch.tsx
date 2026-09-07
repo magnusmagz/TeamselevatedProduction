@@ -67,7 +67,7 @@ const LineupPitch: React.FC<Props> = ({
         const unavailable = p && (p.attendance === 'absent' || p.attendance === 'excused');
         const flagged = p && (p.status === 'injured' || p.status === 'suspended');
         const fill = !p ? 'rgba(255,255,255,0.25)' : highlighted ? '#f59e0b' : unavailable ? '#9ca3af' : '#ffffff';
-        const stroke = selected ? '#facc15' : flagged ? '#ef4444' : '#0f3d2a';
+        const stroke = flagged ? '#ef4444' : '#0f3d2a';
         const label = p
           ? `${s.label}: ${p.name}${p.jersey_number != null ? ` #${p.jersey_number}` : ''}`
           : `${s.label} slot, empty`;
@@ -82,9 +82,22 @@ const LineupPitch: React.FC<Props> = ({
             data-slot={s.slot}
             data-selected={selected ? 'true' : undefined}
             onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSlotTap?.(s); } } : undefined}
-            style={interactive ? { cursor: 'pointer' } : undefined}
+            className="lineup-slot"
+            // The browser's default focus outline is a rectangle drawn around the
+            // whole group (circle + name), which read as a broken blue box on the
+            // pitch. The selected/focused state is the ring below instead.
+            style={interactive ? { cursor: 'pointer', outline: 'none' } : { outline: 'none' }}
           >
-            <circle r="6.2" fill={fill} stroke={stroke} strokeWidth={selected ? 1.6 : 0.9} strokeDasharray={p ? undefined : '1.5 1'} />
+            <circle
+              className="lineup-slot-ring"
+              r="8.2"
+              fill="none"
+              stroke="#06e5ac"
+              strokeWidth="1.4"
+              opacity={selected ? 1 : 0}
+              data-testid={selected ? 'selected-ring' : undefined}
+            />
+            <circle r="6.2" fill={fill} stroke={stroke} strokeWidth={selected ? 1.4 : 0.9} strokeDasharray={p ? undefined : '1.5 1'} />
             {p ? (
               <text y="1.8" textAnchor="middle" fontSize="5" fontWeight="700" fill="#0f3d2a">
                 {p.jersey_number ?? '·'}

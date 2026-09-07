@@ -1,3 +1,4 @@
+import { formatMessageTime } from './messageTime';
 import React from 'react';
 import type { Conversation } from './types';
 import Button from '../ui/Button';
@@ -43,31 +44,6 @@ function getTypeIcon(type: Conversation['type']) {
   );
 }
 
-function formatTime(timestamp: string) {
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-
-    if (isToday) {
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    }
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    }
-
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
-}
 
 function ArchiveIcon({ restore }: { restore?: boolean }) {
   return (
@@ -181,7 +157,7 @@ export default function ConversationList({
                   </span>
                   {conv.lastMessage?.timestamp && (
                     <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                      {formatTime(conv.lastMessage.timestamp)}
+                      {formatMessageTime(conv.lastMessage.timestamp)}
                     </span>
                   )}
                 </div>

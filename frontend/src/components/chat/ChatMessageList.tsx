@@ -6,6 +6,8 @@ import type { MessageReaction } from './reactionEmoji';
 import PollMessage from './PollMessage';
 import type { PollView } from './pollTypes';
 import Button from '../ui/Button';
+import { linkify } from './linkify';
+import { formatMessageTime } from './messageTime';
 
 interface Message {
   id: string;
@@ -67,17 +69,6 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
     }
   }, [messages]);
 
-  const formatTime = (timestamp: string) => {
-    try {
-      return new Date(timestamp).toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch {
-      return '';
-    }
-  };
 
   const isOwnMessage = (msg: Message) => {
     return sameUser(msg.senderId, currentUser.id) ||
@@ -180,7 +171,7 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                 <PollMessage poll={msg.poll} onVote={onVotePoll} onDark={isOwn} />
               ) : (
                 <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                  {msg.text}
+                  {linkify(msg.text)}
                 </p>
               )}
 
@@ -190,7 +181,7 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                   isOwn ? 'text-brand-light' : 'text-gray-400'
                 }`}
               >
-                {msg.time || formatTime(msg.timestamp)}
+                {formatMessageTime(msg.timestamp)}
               </div>
 
             </div>

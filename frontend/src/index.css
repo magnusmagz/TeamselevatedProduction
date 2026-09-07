@@ -37,3 +37,6 @@
     font-family: 'Orbitron', sans-serif;
   }
 }
+/* Lineup pitch: a keyboard-focused slot shows the same mint ring the selected
+   slot uses, instead of the browser's rectangular outline (see LineupPitch.tsx). */
+.lineup-slot:focus-visible .lineup-slot-ring { opacity: 1; }

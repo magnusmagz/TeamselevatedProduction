@@ -32,6 +32,16 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Chat: clickable links, viewer-timezone times; lineup selected-slot ring (Netlify only)
+- `components/chat/linkify.tsx`: http(s) and www. addresses in a message become new-tab links;
+  everything else stays text nodes, so nothing typed can become markup. Staff chat + portal.
+- `components/chat/messageTime.ts` is the one chat time formatter. The staff chat preferred the
+  chat server's pre-formatted `time` (built on the dyno clock, UTC), so a live message read
+  five hours off from the same message after a reload. `messageTime.test.ts` scans the three
+  surfaces for `.time`.
+- Lineup pitch: the browser's rectangular focus outline around a slot group (the "funky blue
+  box") replaced by a mint ring on the selected/focused slot.
+
 ### Shared Button (Netlify only)
 - `components/ui/Button.tsx` (+ `LinkButton`): primary / secondary / danger / danger-link /
   ghost / link, sizes sm / md / icon, `loading`. 628 buttons across 130 files migrated; ~40

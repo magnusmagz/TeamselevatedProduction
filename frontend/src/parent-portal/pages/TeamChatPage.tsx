@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChatContext } from '../contexts/ChatContext';
 import ConversationList from '../../components/chat/ConversationList';
+import { linkify } from '../../components/chat/linkify';
+import { formatMessageTime } from '../../components/chat/messageTime';
 import NewConversationDialog from '../../components/chat/NewConversationDialog';
 import ReportMessageButton from '../../components/chat/ReportMessageButton';
 import { ParentHeader } from '../components/ParentHeader';
@@ -177,17 +179,6 @@ export const TeamChatPage: React.FC = () => {
     selectConversation(null);
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    if (isToday) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    }
-    return date.toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
-  };
 
   const getInitials = (name: string) => {
     return name
@@ -347,7 +338,7 @@ export const TeamChatPage: React.FC = () => {
                             onDark={isOwnMessage}
                           />
                         ) : (
-                          <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                          <p className="text-sm whitespace-pre-wrap break-words">{linkify(message.text)}</p>
                         )}
                       </div>
                       {!message.removed && (
@@ -364,7 +355,7 @@ export const TeamChatPage: React.FC = () => {
                             ? 'Not delivered'
                             : message.pending
                             ? 'Sending…'
-                            : formatTime(message.timestamp)}
+                            : formatMessageTime(message.timestamp)}
                         </p>
                         {/* Reporting is offered on other people's messages only. */}
                         {!isOwnMessage && (
