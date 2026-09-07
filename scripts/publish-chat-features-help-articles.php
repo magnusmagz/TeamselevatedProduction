@@ -79,6 +79,12 @@ Tap the **+** under any message, including your own. Tap a reaction again to tak
 
 There is deliberately nothing negative in the set. A thumbs-down in a chat full of parents starts arguments a message on its own would not.
 
+## Links and times
+
+Paste a web address into a message and it becomes a link that opens in a new tab — a field map, a sign-up sheet, the club's weather line.
+
+Message times are shown in each reader's own timezone, so a coach in Kansas and a grandparent in Arizona each see the time as it was for them.
+
 ## A note on moderation
 
 Polls and pinned messages are ordinary messages underneath, so everything that applies to a message applies to them: they can be reported, a club admin can remove them, and they are covered by your club's retention policy. A removed message stops being pinned and stops counting votes.
@@ -114,6 +120,12 @@ Six reactions: 👍 ❤️ 🎉 👏 😂 😮
 Tap the **+** under a message and pick one. Tap it again to take it back. Your name shows against a reaction — it is a quick reply rather than an anonymous vote, so people can see who said thanks.
 
 Reacting is a good way to say "got it" without adding another message to a busy team chat.
+
+## Links and times
+
+A web address in a message is a link; tap it to open it in a new tab.
+
+Message times are shown in your own timezone.
 
 ## Getting told about all this
 
