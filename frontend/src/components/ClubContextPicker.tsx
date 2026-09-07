@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useOrg, contextLabel } from '../contexts/OrgContext';
+import Button from './ui/Button';
 
 /**
  * Switch the active club, for people who have more than one.
@@ -72,24 +73,26 @@ const ClubContextPicker: React.FC = () => {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        className="max-w-[12rem]"
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label="Switch club"
-        className="max-w-[12rem] px-3 py-2 text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm flex items-center gap-1"
+        trailingIcon={
+          <svg
+            className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        }
       >
         <span className="truncate">{contextLabel(activeContext) || 'Select club'}</span>
-        <svg
-          className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </Button>
 
       {isOpen && (
         <div

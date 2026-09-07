@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import Button from './ui/Button';
 
 /**
  * Turn chat notifications on for this device.
@@ -37,25 +38,15 @@ export const PushNotificationToggle: React.FC = () => {
         </div>
 
         {state === 'on' && (
-          <button
-            type="button"
-            onClick={disable}
-            disabled={busy}
-            className="shrink-0 px-3 py-1.5 text-sm font-medium rounded-md border border-brand-secondary text-brand-primary disabled:opacity-50"
-          >
+          <Button variant="secondary" size="sm" className="shrink-0" onClick={disable} disabled={busy}>
             {busy ? 'Working…' : 'Turn off'}
-          </button>
+          </Button>
         )}
 
         {state === 'off' && (
-          <button
-            type="button"
-            onClick={enable}
-            disabled={busy}
-            className="shrink-0 px-3 py-1.5 text-sm font-medium rounded-md bg-brand-primary text-white disabled:opacity-50"
-          >
+          <Button size="sm" className="shrink-0" onClick={enable} disabled={busy}>
             {busy ? 'Working…' : 'Turn on'}
-          </button>
+          </Button>
         )}
       </div>
 

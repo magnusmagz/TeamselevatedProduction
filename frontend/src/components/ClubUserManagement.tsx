@@ -6,6 +6,7 @@ import CoachAccessControl from './CoachAccessControl';
 import CoachSetPasswordModal from './CoachSetPasswordModal';
 import { portalStatusMeta, portalStatusDetail } from '../utils/portalStatus';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface ClubUser {
   id: number;
@@ -198,36 +199,27 @@ const ClubUserManagement: React.FC = () => {
       render: (user) =>
         editingUserId === user.user_id ? (
           <div className="flex space-x-2">
-            <button
-              onClick={() => handleUpdateRole(user.user_id, editingRole)}
-              className="text-green-600 hover:text-green-700 font-semibold uppercase"
-            >
+            <Button variant="link" onClick={() => handleUpdateRole(user.user_id, editingRole)}>
               Save
-            </button>
-            <button
-              onClick={() => setEditingUserId(null)}
-              className="text-gray-600 hover:text-gray-700 font-semibold uppercase"
-            >
+            </Button>
+            <Button variant="link" onClick={() => setEditingUserId(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex space-x-2">
-            <button
+            <Button
+              variant="link"
               onClick={() => {
                 setEditingUserId(user.user_id);
                 setEditingRole(user.role);
               }}
-              className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
             >
               Edit
-            </button>
-            <button
-              onClick={() => handleRemoveUser(user.user_id)}
-              className="text-red-600 hover:text-red-700 font-semibold uppercase"
-            >
+            </Button>
+            <Button variant="danger-link" onClick={() => handleRemoveUser(user.user_id)}>
               Remove
-            </button>
+            </Button>
           </div>
         ),
     },

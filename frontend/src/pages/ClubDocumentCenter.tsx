@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { pageQuery } from '../utils/pagination';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -426,12 +427,7 @@ const ClubDocumentCenter: React.FC = () => {
         title="Document Center"
         subtitle="Manage required compliance documents and custom files for your club"
         actions={
-          <button
-            onClick={() => openAddModal()}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-          >
-            Upload Document
-          </button>
+          <Button onClick={() => openAddModal()}>Upload Document</Button>
         }
       />
 
@@ -509,10 +505,12 @@ const ClubDocumentCenter: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-1 flex-shrink-0">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => openEditModal(doc)}
-                          className="text-gray-400 hover:text-brand-primary p-1"
                           title="Edit"
+                          aria-label="Edit"
                         >
                           <svg
                             className="w-4 h-4"
@@ -527,11 +525,13 @@ const ClubDocumentCenter: React.FC = () => {
                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                             />
                           </svg>
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="danger-link"
+                          size="icon"
                           onClick={() => handleDelete(doc.id)}
-                          className="text-gray-400 hover:text-red-600 p-1"
                           title="Delete"
+                          aria-label="Delete"
                         >
                           <svg
                             className="w-4 h-4"
@@ -546,7 +546,7 @@ const ClubDocumentCenter: React.FC = () => {
                               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                             />
                           </svg>
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -558,12 +558,9 @@ const ClubDocumentCenter: React.FC = () => {
               )}
 
               {/* Add button */}
-              <button
-                onClick={() => openAddModal(slot.key)}
-                className="text-xs text-brand-primary hover:underline font-semibold uppercase"
-              >
+              <Button variant="link" size="sm" onClick={() => openAddModal(slot.key)}>
                 + Add
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -575,16 +572,15 @@ const ClubDocumentCenter: React.FC = () => {
           <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">
             Custom Documents
           </h2>
-          <button
+          <Button
             onClick={() => {
               resetModal();
               setModalSlot('__custom__');
               setShowModal(true);
             }}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
           >
             Add Custom Document
-          </button>
+          </Button>
         </div>
 
         {customDocuments.length === 0 ? (
@@ -656,18 +652,12 @@ const ClubDocumentCenter: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-                  <button
-                    onClick={() => openEditModal(doc)}
-                    className="text-brand-primary hover:text-brand-primary-hover font-semibold text-sm uppercase"
-                  >
+                  <Button variant="link" onClick={() => openEditModal(doc)}>
                     Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="text-red-600 hover:text-red-700 font-semibold text-sm uppercase"
-                  >
+                  </Button>
+                  <Button variant="danger-link" onClick={() => handleDelete(doc.id)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -684,10 +674,7 @@ const ClubDocumentCenter: React.FC = () => {
               <h3 className="text-lg font-bold text-brand-primary uppercase">
                 {editingDoc ? 'Edit Document' : 'Add Document'}
               </h3>
-              <button
-                onClick={resetModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <Button variant="ghost" size="icon" onClick={resetModal} aria-label="Close">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -701,7 +688,7 @@ const ClubDocumentCenter: React.FC = () => {
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             {/* Modal body */}
@@ -779,12 +766,9 @@ const ClubDocumentCenter: React.FC = () => {
                           <span className="text-sm text-green-700 truncate flex-1">
                             File uploaded successfully
                           </span>
-                          <button
-                            onClick={() => setModalFileUrl('')}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium ml-2"
-                          >
+                          <Button variant="danger-link" className="ml-2" onClick={() => setModalFileUrl('')}>
                             Remove
-                          </button>
+                          </Button>
                         </div>
                       ) : (
                         <div className="relative">
@@ -857,13 +841,9 @@ const ClubDocumentCenter: React.FC = () => {
                   <label className="block text-brand-primary text-sm font-medium uppercase">
                     Assigned To ({modalAssignments.length})
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAssignmentPicker(!showAssignmentPicker)}
-                    className="text-xs text-brand-primary hover:underline font-semibold uppercase"
-                  >
+                  <Button variant="link" size="sm" onClick={() => setShowAssignmentPicker(!showAssignmentPicker)}>
                     {showAssignmentPicker ? 'Hide' : 'Edit assignments'}
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Current chips */}
@@ -976,23 +956,12 @@ const ClubDocumentCenter: React.FC = () => {
 
             {/* Modal footer */}
             <div className="flex justify-end space-x-3 px-6 py-4 border-t border-brand-secondary">
-              <button
-                onClick={resetModal}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-semibold uppercase hover:bg-gray-300 text-sm"
-              >
+              <Button variant="secondary" onClick={resetModal}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || uploading}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-              >
-                {saving
-                  ? 'Saving...'
-                  : editingDoc
-                  ? 'Update Document'
-                  : 'Save Document'}
-              </button>
+              </Button>
+              <Button onClick={handleSave} loading={saving} disabled={uploading}>
+                {editingDoc ? 'Update Document' : 'Save Document'}
+              </Button>
             </div>
           </div>
         </div>

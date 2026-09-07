@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PushNotificationToggle from '../components/PushNotificationToggle';
 import SignatureEditor from '../components/SignatureEditor';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import {
   signatureTextToHtml,
   signatureHtmlToText,
@@ -356,21 +357,13 @@ const UserProfile: React.FC = () => {
                   Email Signature
                 </label>
                 {signatureMode === 'text' ? (
-                  <button
-                    type="button"
-                    onClick={switchToRichSignature}
-                    className="text-xs text-brand-primary underline"
-                  >
+                  <Button variant="link" size="sm" onClick={switchToRichSignature}>
                     Use formatting
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={switchToPlainSignature}
-                    className="text-xs text-brand-primary underline"
-                  >
+                  <Button variant="link" size="sm" onClick={switchToPlainSignature}>
                     Switch to plain text
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -418,13 +411,9 @@ const UserProfile: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            <Button type="submit" loading={saving}>
+              Save Changes
+            </Button>
           </div>
         </form>
       </div>
@@ -479,13 +468,9 @@ const UserProfile: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-            >
-              {saving ? 'Updating...' : 'Update Password'}
-            </button>
+            <Button type="submit" loading={saving}>
+              Update Password
+            </Button>
           </div>
         </form>
       </div>

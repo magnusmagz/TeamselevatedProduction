@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RecipientSelector } from './RecipientSelector';
+import Button from '../ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -335,16 +336,11 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
             </div>
             <h2 className="text-lg font-semibold text-gray-900">Compose Email</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            aria-label="Close"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {/* Body — scrollable */}
@@ -511,13 +507,9 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">Preview</label>
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(false)}
-                  className="text-sm text-brand-primary hover:underline"
-                >
+                <Button variant="link" onClick={() => setShowPreview(false)}>
                   Back to editor
-                </button>
+                </Button>
               </div>
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 {/* Subject preview */}
@@ -568,48 +560,28 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <Button variant="secondary" onClick={onClose}>
               Cancel
-            </button>
+            </Button>
 
             {!showPreview && (
-              <button
-                type="button"
-                onClick={handlePreview}
-                disabled={!bodyHtml && !selectedTemplate}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <Button variant="secondary" onClick={handlePreview} disabled={!bodyHtml && !selectedTemplate}>
                 Preview
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
+            <Button
               onClick={handleSend}
-              disabled={sendStatus === 'sending' || activeRecipientCount === 0 || !subject.trim()}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              loading={sendStatus === 'sending'}
+              disabled={activeRecipientCount === 0 || !subject.trim()}
+              leadingIcon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              }
             >
-              {sendStatus === 'sending' ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  {activeRecipientCount > 1 ? 'Send to Group' : 'Send'}
-                </>
-              )}
-            </button>
+              {activeRecipientCount > 1 ? 'Send to Group' : 'Send'}
+            </Button>
           </div>
         </div>
 

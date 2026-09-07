@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import Button from './ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -165,14 +166,9 @@ export const ClubSmsSettings: React.FC = () => {
           {state.twilio_phone_sid && (
             <p className="text-xs text-gray-400 mt-2">Twilio SID {state.twilio_phone_sid}</p>
           )}
-          <button
-            type="button"
-            onClick={clear}
-            disabled={saving}
-            className="mt-4 text-sm text-red-600 hover:text-red-700 underline disabled:opacity-40"
-          >
+          <Button variant="danger-link" className="mt-4" onClick={clear} disabled={saving}>
             Remove this number
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="border border-red-200 bg-red-50 rounded-md p-4" role="alert">
@@ -243,14 +239,9 @@ export const ClubSmsSettings: React.FC = () => {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving || (!input.trim() && !serviceSid.trim())}
-          className="px-5 py-2.5 rounded-md bg-brand-primary text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
-        >
-          {saving ? 'Verifying…' : 'Verify & Save'}
-        </button>
+        <Button onClick={save} loading={saving} disabled={!input.trim() && !serviceSid.trim()}>
+          Verify & Save
+        </Button>
       </div>
 
       <div className="border border-amber-200 bg-amber-50 rounded-md p-4">

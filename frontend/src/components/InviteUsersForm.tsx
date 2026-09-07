@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import Button from './ui/Button';
 
 interface InviteUsersFormProps {
   clubId?: number;
@@ -166,26 +167,23 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                       required
                     />
                     {emails.length > 1 && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger-link"
+                        size="icon"
                         onClick={() => removeEmailField(index)}
-                        className="text-red-600 hover:text-red-700 p-2"
+                        aria-label="Remove email"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={addEmailField}
-                className="mt-3 text-sm text-brand-primary hover:text-brand-primary-hover font-semibold uppercase"
-              >
+              <Button variant="link" className="mt-3" onClick={addEmailField}>
                 + Add another email
-              </button>
+              </Button>
             </div>
 
             {/* Role Selection */}
@@ -275,13 +273,9 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                     readOnly
                     className="flex-1 bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 text-sm"
                   />
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(generatedLink)}
-                    className="px-4 py-2 bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-brand-secondary font-semibold text-sm uppercase"
-                  >
+                  <Button variant="secondary" onClick={() => navigator.clipboard.writeText(generatedLink)}>
                     Copy
-                  </button>
+                  </Button>
                 </div>
 
                 {/*
@@ -327,13 +321,9 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
         )}
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand-primary hover:bg-brand-primary text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase"
-        >
-          {loading ? 'Processing...' : inviteMethod === 'email' ? 'Send Invitations' : 'Generate Link'}
-        </button>
+        <Button type="submit" fullWidth loading={loading}>
+          {inviteMethod === 'email' ? 'Send Invitations' : 'Generate Link'}
+        </Button>
       </form>
     </div>
   );

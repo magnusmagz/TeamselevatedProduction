@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import { formatDateOnly, toDateOnlyString } from '../utils/dateFormat';
 import StatusChip from '../compliance/StatusChip';
 import {
@@ -166,14 +167,9 @@ export const ClubCompliance: React.FC = () => {
         subtitle="Who is cleared to take part, and what is about to lapse."
         actions={
           <>
-            <button
-              type="button"
-              onClick={download}
-              disabled={downloading}
-              className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
-            >
-              {downloading ? 'Preparing…' : 'Download CSV'}
-            </button>
+            <Button variant="secondary" onClick={download} loading={downloading}>
+              Download CSV
+            </Button>
             <Link to="/compliance/requirements" className="text-sm text-brand-primary underline">
               Requirements
             </Link>
@@ -382,17 +378,16 @@ const PersonDrawer: React.FC<{
             )}
 
             <div className="mt-2 flex flex-wrap gap-3">
-              <button
-                type="button"
+              <Button
+                variant="link"
                 onClick={() => setRecording(recording === row.requirement.id ? null : row.requirement.id)}
-                className="text-sm text-brand-primary underline"
               >
                 Record completion
-              </button>
+              </Button>
               {row.status === 'submitted' && (
                 <>
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
                     disabled={busy === row.requirement.id}
                     onClick={() =>
                       run(row.requirement.id, () =>
@@ -404,18 +399,12 @@ const PersonDrawer: React.FC<{
                         })
                       )
                     }
-                    className="text-sm text-green-700 underline disabled:opacity-50"
                   >
                     Verify
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy === row.requirement.id}
-                    onClick={() => reject(row)}
-                    className="text-sm text-red-700 underline disabled:opacity-50"
-                  >
+                  </Button>
+                  <Button variant="danger-link" disabled={busy === row.requirement.id} onClick={() => reject(row)}>
                     Reject
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -442,8 +431,8 @@ const PersonDrawer: React.FC<{
                     className="rounded-md border border-gray-300 px-2 py-1 text-sm"
                   />
                 </label>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
                   disabled={busy === row.requirement.id}
                   onClick={() =>
                     run(row.requirement.id, () =>
@@ -459,10 +448,9 @@ const PersonDrawer: React.FC<{
                       })
                     )
                   }
-                  className="rounded-md bg-brand-primary px-3 py-1.5 text-sm font-semibold uppercase text-white disabled:opacity-50"
                 >
                   Save
-                </button>
+                </Button>
               </div>
             )}
           </li>

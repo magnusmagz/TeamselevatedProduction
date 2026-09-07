@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ColorExtractor, ColorExtractionResult, lightenColor } from '../utils/colorExtractor';
+import Button from './ui/Button';
 
 export interface LogoColorData {
   logoBase64: string;
@@ -191,13 +192,9 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
               />
               <div>
                 <p className="text-brand-primary font-medium">{logoFilename}</p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mt-2 text-brand-primary hover:text-brand-primary-hover uppercase text-sm font-medium"
-                >
+                <Button variant="link" className="mt-2" onClick={() => fileInputRef.current?.click()}>
                   Change Logo
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -206,13 +203,7 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-medium"
-                >
-                  Upload Logo
-                </button>
+                <Button onClick={() => fileInputRef.current?.click()}>Upload Logo</Button>
                 <p className="mt-2 text-sm text-gray-600">or drag and drop</p>
               </div>
               <p className="text-xs text-gray-500">
@@ -338,14 +329,9 @@ export const LogoColorExtractor: React.FC<LogoColorExtractorProps> = ({
       {/* Save Button */}
       {onSave && logoData && (
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Logo & Colors'}
-          </button>
+          <Button onClick={handleSave} loading={saving}>
+            Save Logo & Colors
+          </Button>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import {
   deleteRequirement,
   fetchRequirements,
@@ -206,13 +207,7 @@ export const ComplianceRequirements: React.FC = () => {
         subtitle="What your staff and volunteers have to have on file, and how long each one lasts."
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => setDraft({ ...EMPTY_DRAFT })}
-              className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold uppercase text-white hover:opacity-90"
-            >
-              Add requirement
-            </button>
+            <Button onClick={() => setDraft({ ...EMPTY_DRAFT })}>Add requirement</Button>
             <Link to="/compliance" className="text-sm text-brand-primary underline">
               Compliance dashboard
             </Link>
@@ -286,20 +281,12 @@ export const ComplianceRequirements: React.FC = () => {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <RequirementSummary requirement={requirement} />
                       <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setDraft(draftFrom(requirement))}
-                          className="text-sm text-brand-primary underline"
-                        >
+                        <Button variant="link" onClick={() => setDraft(draftFrom(requirement))}>
                           Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(requirement)}
-                          className="text-sm text-red-700 underline"
-                        >
+                        </Button>
+                        <Button variant="danger-link" onClick={() => remove(requirement)}>
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     <ReminderStreamPanel
@@ -461,20 +448,12 @@ export const ComplianceRequirements: React.FC = () => {
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md bg-brand-primary px-4 py-2 text-sm font-semibold uppercase text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDraft(null)}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold uppercase text-gray-700"
-            >
+            <Button type="submit" loading={saving}>
+              Save
+            </Button>
+            <Button variant="secondary" onClick={() => setDraft(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}

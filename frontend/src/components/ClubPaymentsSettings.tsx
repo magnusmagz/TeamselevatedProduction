@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface PaymentAccount {
   stripe_account_id: string;
@@ -219,13 +220,9 @@ const ClubPaymentsSettings: React.FC = () => {
             Your club isn't set up for online payments yet. Setup takes about 10 minutes and is
             handled securely by Stripe — you'll need your club's bank account details and tax ID.
           </p>
-          <button
-            onClick={() => startOnboarding('create')}
-            disabled={working}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-          >
+          <Button onClick={() => startOnboarding('create')} disabled={working}>
             {working ? 'Redirecting to Stripe…' : 'Set up payments with Stripe'}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="rounded-md border border-brand-secondary p-6">
@@ -241,9 +238,9 @@ const ClubPaymentsSettings: React.FC = () => {
             >
               {status?.label}
             </span>
-            <button onClick={fetchStatus} className="text-sm text-gray-500 hover:text-gray-700 underline">
+            <Button variant="link" onClick={fetchStatus}>
               Refresh status
-            </button>
+            </Button>
           </div>
 
           <p className="text-sm text-gray-600 mb-4">
@@ -259,13 +256,9 @@ const ClubPaymentsSettings: React.FC = () => {
           </div>
 
           {account.onboarding_status !== 'complete' && (
-            <button
-              onClick={() => startOnboarding('refresh-link')}
-              disabled={working}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-            >
+            <Button onClick={() => startOnboarding('refresh-link')} disabled={working}>
               {working ? 'Redirecting to Stripe…' : 'Continue setup on Stripe'}
-            </button>
+            </Button>
           )}
         </div>
       )}

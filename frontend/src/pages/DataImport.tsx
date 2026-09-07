@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -371,13 +372,9 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
             {sampleCsv && (
               <>
                 {' '}
-                <button
-                  type="button"
-                  onClick={handleDownloadSample}
-                  className="text-brand-primary underline"
-                >
+                <Button variant="link" className="normal-case" onClick={handleDownloadSample}>
                   Download sample template
-                </button>
+                </Button>
               </>
             )}
           </p>
@@ -440,12 +437,9 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
                 We auto-matched {Object.values(preview.suggested_mapping).length} columns — review and adjust below.
               </p>
             </div>
-            <button
-              onClick={handleReset}
-              className="text-sm text-gray-500 underline"
-            >
+            <Button variant="link" onClick={handleReset}>
               Start over
-            </button>
+            </Button>
           </div>
 
           {missingRequired.length > 0 && (
@@ -498,13 +492,9 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
             </div>
           )}
 
-          <button
-            onClick={handleStartImport}
-            disabled={loading || missingRequired.length > 0}
-            className="px-4 py-2 bg-brand-primary text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Starting…' : `Start import (${preview.total_rows} rows)`}
-          </button>
+          <Button onClick={handleStartImport} loading={loading} disabled={missingRequired.length > 0}>
+            Start import ({preview.total_rows} rows)
+          </Button>
         </div>
       )}
 
@@ -575,12 +565,7 @@ const DataImport: React.FC<DataImportProps> = ({ entity }) => {
               )}
 
               {(job.status === 'completed' || job.status === 'failed') && (
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 bg-brand-primary text-white rounded"
-                >
-                  Import another file
-                </button>
+                <Button onClick={handleReset}>Import another file</Button>
               )}
             </>
           )}

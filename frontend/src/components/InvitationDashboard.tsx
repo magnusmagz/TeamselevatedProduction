@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface Invitation {
   id: string;
@@ -200,20 +201,20 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
       render: (invitation) =>
         invitation.status === 'pending' ? (
           <div className="flex space-x-2">
-            <button
+            <Button
+              variant="link"
               onClick={() => handleResend(invitation.id)}
               disabled={resendingId === invitation.id || cancelingId === invitation.id}
-              className="text-brand-primary hover:text-brand-primary-hover font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {resendingId === invitation.id ? 'Resending...' : 'Resend'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="danger-link"
               onClick={() => handleCancel(invitation.id)}
               disabled={cancelingId === invitation.id || resendingId === invitation.id}
-              className="text-red-600 hover:text-red-700 font-semibold uppercase disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cancelingId === invitation.id ? 'Canceling...' : 'Cancel'}
-            </button>
+            </Button>
           </div>
         ) : null,
     },
@@ -271,12 +272,9 @@ export default function InvitationDashboard({ clubId }: InvitationDashboardProps
                       Role: {formatRole(link.role)}
                     </p>
                   </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(link.url)}
-                    className="text-sm text-brand-primary hover:text-brand-primary-hover font-semibold px-3 py-1 border border-brand-secondary rounded-md hover:bg-brand-secondary uppercase"
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText(link.url)}>
                     Copy Link
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

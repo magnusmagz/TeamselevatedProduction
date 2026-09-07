@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Button from '../ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -377,13 +378,9 @@ export const RecipientSelector: React.FC<RecipientSelectorProps> = ({
       {/* Label row */}
       <div className="flex items-center justify-between mb-1">
         <label className="block text-sm font-medium text-gray-700">To</label>
-        <button
-          type="button"
-          onClick={handleGroupDropdownToggle}
-          className="text-sm font-medium text-brand-primary hover:underline focus:outline-none"
-        >
+        <Button variant="link" onClick={handleGroupDropdownToggle}>
           + Add Group
-        </button>
+        </Button>
       </div>
 
       {/* Chip container + input */}

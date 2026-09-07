@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 /**
  * Organizations — the tier above the club (GOTR G1, migration 090).
@@ -276,13 +277,14 @@ const Organizations: React.FC = () => {
                       {(clubsByUnit.get(unit.id) || []).map((club) => (
                         <span key={club.id} className="mr-2">
                           {club.name}
-                          <button
-                            type="button"
-                            className="ml-1 underline"
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="ml-1 normal-case"
                             onClick={() => post('org-unit-detach-club', { club_id: club.id })}
                           >
                             detach
-                          </button>
+                          </Button>
                         </span>
                       ))}
                     </div>
@@ -290,9 +292,9 @@ const Organizations: React.FC = () => {
                 </div>
                 <div className="flex gap-2 text-sm">
                   <Link to={`/organizations/${unit.id}/onboarding`} className="underline">Onboarding</Link>
-                  <button type="button" className="underline" onClick={() => handleRename(unit)}>Rename</button>
-                  <button type="button" className="underline" onClick={() => handleMove(unit)}>Move</button>
-                  <button type="button" className="underline text-red-700" onClick={() => handleDelete(unit)}>Delete</button>
+                  <Button variant="link" onClick={() => handleRename(unit)}>Rename</Button>
+                  <Button variant="link" onClick={() => handleMove(unit)}>Move</Button>
+                  <Button variant="danger-link" onClick={() => handleDelete(unit)}>Delete</Button>
                 </div>
               </li>
             ))}
@@ -345,7 +347,7 @@ const Organizations: React.FC = () => {
               onChange={(e) => setNewCode(e.target.value)}
             />
           </label>
-          <button type="submit" className="bg-brand-primary text-white px-3 py-1 rounded">Add unit</button>
+          <Button type="submit" size="sm">Add unit</Button>
         </form>
       </section>
 
@@ -379,7 +381,7 @@ const Organizations: React.FC = () => {
               ))}
             </select>
           </label>
-          <button type="submit" className="bg-brand-primary text-white px-3 py-1 rounded">Attach</button>
+          <Button type="submit" size="sm">Attach</Button>
         </form>
       </section>
 
@@ -420,7 +422,7 @@ const Organizations: React.FC = () => {
               ))}
             </select>
           </label>
-          <button type="submit" className="bg-brand-primary text-white px-3 py-1 rounded">Grant</button>
+          <Button type="submit" size="sm">Grant</Button>
         </form>
 
         {access.length === 0 ? (
@@ -432,9 +434,8 @@ const Organizations: React.FC = () => {
                 <span>
                   {row.first_name} {row.last_name} ({row.email}) — {row.role} on {row.org_unit_name}
                 </span>
-                <button
-                  type="button"
-                  className="underline text-red-700"
+                <Button
+                  variant="danger-link"
                   onClick={() => post('org-access-revoke', {
                     user_id: row.user_id,
                     org_unit_id: row.org_unit_id,
@@ -442,7 +443,7 @@ const Organizations: React.FC = () => {
                   })}
                 >
                   Revoke
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

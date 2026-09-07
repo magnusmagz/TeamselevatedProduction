@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
+import Button from './ui/Button';
 
 const ProfileMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -55,20 +56,23 @@ const ProfileMenu: React.FC = () => {
 
   return (
     <div className="relative" ref={menuRef}>
-      <button
+      <Button
+        variant="ghost"
         onClick={() => setIsOpen(!isOpen)}
-        className="px-4 py-2 text-brand-primary hover:text-brand-primary-hover uppercase font-medium text-sm flex items-center space-x-1"
+        aria-expanded={isOpen}
+        trailingIcon={
+          <svg
+            className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        }
       >
-        <span>{user?.name || 'Profile'}</span>
-        <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+        {user?.name || 'Profile'}
+      </Button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 max-sm:w-44 max-sm:-right-2 bg-white border border-brand-secondary rounded-md shadow-lg z-50">

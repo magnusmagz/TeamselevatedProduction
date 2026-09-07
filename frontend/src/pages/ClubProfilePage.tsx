@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { LogoColorExtractor } from '../components/LogoColorExtractor';
 import ClubUserManagement from '../components/ClubUserManagement';
 import ClubPaymentsSettings from '../components/ClubPaymentsSettings';
@@ -9,6 +8,7 @@ import { clearBrandingCache } from '../components/BrandingLogo';
 import { useTheme } from '../contexts/ThemeContext';
 import GooglePlacesAutocomplete from '../components/GooglePlacesAutocomplete';
 import PageHeader from '../components/ui/PageHeader';
+import Button, { LinkButton } from '../components/ui/Button';
 
 interface ClubProfile {
   id?: number;
@@ -424,13 +424,9 @@ const ClubProfilePage: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
+                  <Button type="submit" loading={saving}>
+                    Save Changes
+                  </Button>
                 </div>
               </form>
             )}
@@ -484,12 +480,7 @@ const ClubProfilePage: React.FC = () => {
                 <p className="text-gray-600 mb-4">
                   Documents are now managed in the Document Center.
                 </p>
-                <Link
-                  to="/club-documents"
-                  className="inline-block bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-                >
-                  Open Document Center →
-                </Link>
+                <LinkButton to="/club-documents">Open Document Center →</LinkButton>
               </div>
             )}
 

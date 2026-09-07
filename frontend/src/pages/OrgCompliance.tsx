@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
 import { formatDateOnly } from '../utils/dateFormat';
 import StatusChip from '../compliance/StatusChip';
@@ -273,14 +274,14 @@ export const OrgCompliance: React.FC = () => {
       header: sortHeader('Council', 'name'),
       render: (council) => (
         <>
-          <button
-            type="button"
+          <Button
+            variant="link"
+            className="text-left normal-case"
             onClick={() => expand(council.club_id)}
             aria-expanded={openClub === council.club_id}
-            className="text-left font-semibold text-brand-primary underline"
           >
             {council.club_name}
-          </button>
+          </Button>
           <span className="block text-xs text-gray-500">{council.org_unit_name}</span>
         </>
       ),
@@ -370,14 +371,9 @@ export const OrgCompliance: React.FC = () => {
         }
         actions={
           <>
-            <button
-              type="button"
-              onClick={download}
-              disabled={downloading || !!error}
-              className="rounded-md border border-brand-primary px-4 py-2 text-sm font-semibold uppercase text-brand-primary hover:bg-brand-secondary disabled:opacity-50"
-            >
-              {downloading ? 'Preparing…' : 'Download CSV'}
-            </button>
+            <Button variant="secondary" onClick={download} loading={downloading} disabled={!!error}>
+              Download CSV
+            </Button>
             <label className="text-sm text-gray-700">
               <span className="sr-only">Requirement</span>
               <select
@@ -556,14 +552,9 @@ const CouncilDrawer: React.FC<{
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <span className="text-sm font-semibold text-brand-primary">{council.club_name} — staff</span>
       {canOpen ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          disabled={switching}
-          className="rounded-md bg-brand-primary px-3 py-1.5 text-xs font-semibold uppercase text-white disabled:opacity-50"
-        >
-          {switching ? 'Switching…' : 'Open this council'}
-        </button>
+        <Button size="sm" onClick={onOpen} loading={switching}>
+          Open this council
+        </Button>
       ) : (
         <span className="text-xs text-gray-500">
           You hold no role at this council, so it cannot be opened from here; the rollup is read-only.
