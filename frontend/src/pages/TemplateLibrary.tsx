@@ -13,6 +13,7 @@ import {
 } from '../constants/templateCategories';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 interface EmailTemplate {
   id: number;
@@ -279,44 +280,44 @@ const TemplateLibrary: React.FC = () => {
       render: (template) => (
         <div className="flex justify-end gap-3">
           {canEditTemplate(template) && (
-            <button
+            <Button
               onClick={() => handleEditTemplate(template)}
-              className="text-xs text-brand-primary hover:underline font-medium"
+              variant="link" size="sm"
             >
               Edit
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={() => handleDuplicate(template.id)}
             disabled={duplicating === template.id}
-            className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
+            variant="link" size="sm"
           >
             {duplicating === template.id ? '...' : 'Duplicate'}
-          </button>
+          </Button>
           {canDeleteTemplate(template) && (
             <>
               {deleteConfirmId === template.id ? (
                 <div className="flex gap-2">
-                  <button
+                  <Button
                     onClick={() => handleDelete(template.id)}
-                    className="text-xs text-red-600 hover:underline font-medium"
+                    variant="danger-link" size="sm"
                   >
                     Confirm
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setDeleteConfirmId(null)}
-                    className="text-xs text-gray-400 hover:underline font-medium"
+                    variant="link" size="sm"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
                   onClick={() => setDeleteConfirmId(template.id)}
-                  className="text-xs text-red-500 hover:underline font-medium"
+                  variant="danger-link" size="sm"
                 >
                   Delete
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -331,15 +332,14 @@ const TemplateLibrary: React.FC = () => {
         title="Email Templates"
         actions={
           isAdmin ? (
-            <button
+            <Button
               onClick={() => navigate('/email-templates/new')}
-              className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Create Template
-            </button>
+            </Button>
           ) : undefined
         }
       />
@@ -348,11 +348,11 @@ const TemplateLibrary: React.FC = () => {
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex justify-between items-center">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+          <Button onClick={() => setError(null)} aria-label="Close" variant="ghost" size="icon">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -510,12 +510,11 @@ const TemplateLibrary: React.FC = () => {
               : 'You have not created any personal templates yet.'}
           </p>
           {isAdmin && activeTab === 'club' && !searchQuery && categoryFilter === 'All' && (
-            <button
+            <Button
               onClick={() => navigate('/email-templates/new')}
-              className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Create Your First Template
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -565,44 +564,44 @@ const TemplateLibrary: React.FC = () => {
                     <p className="text-xs text-gray-400 mb-3">Updated {formatDate(template.updated_at)}</p>
                     <div className="flex gap-2 border-t border-gray-100 pt-3">
                       {canEditTemplate(template) && (
-                        <button
+                        <Button
                           onClick={() => handleEditTemplate(template)}
-                          className="text-xs text-brand-primary hover:underline font-medium"
+                          variant="link" size="sm"
                         >
                           Edit
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         onClick={() => handleDuplicate(template.id)}
                         disabled={duplicating === template.id}
-                        className="text-xs text-gray-600 hover:underline font-medium disabled:opacity-50"
+                        variant="link" size="sm"
                       >
                         {duplicating === template.id ? 'Duplicating...' : 'Duplicate'}
-                      </button>
+                      </Button>
                       {canDeleteTemplate(template) && (
                         <>
                           {deleteConfirmId === template.id ? (
                             <div className="flex gap-1 ml-auto">
-                              <button
+                              <Button
                                 onClick={() => handleDelete(template.id)}
-                                className="text-xs text-red-600 hover:underline font-medium"
+                                variant="danger-link" size="sm"
                               >
                                 Confirm
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 onClick={() => setDeleteConfirmId(null)}
-                                className="text-xs text-gray-400 hover:underline font-medium"
+                                variant="link" size="sm"
                               >
                                 Cancel
-                              </button>
+                              </Button>
                             </div>
                           ) : (
-                            <button
+                            <Button
                               onClick={() => setDeleteConfirmId(template.id)}
-                              className="text-xs text-red-500 hover:underline font-medium ml-auto"
+                              variant="danger-link" size="sm" className="ml-auto"
                             >
                               Delete
-                            </button>
+                            </Button>
                           )}
                         </>
                       )}
@@ -639,18 +638,18 @@ const TemplateLibrary: React.FC = () => {
               Are you sure you want to delete this template? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button
+              <Button
                 onClick={() => setDeleteConfirmId(null)}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
+                variant="secondary"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleDelete(deleteConfirmId)}
-                className="bg-red-600 text-white border border-red-700 rounded-md px-6 py-3 hover:bg-red-700 uppercase font-semibold text-sm"
+                variant="danger"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>

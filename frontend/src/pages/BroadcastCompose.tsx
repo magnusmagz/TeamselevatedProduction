@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useOrg } from '../contexts/OrgContext';
 import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -390,14 +391,9 @@ export const BroadcastCompose: React.FC = () => {
       )}
 
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
-        >
-          {sendStatus === 'sending' ? 'Sending…' : 'Send broadcast'}
-        </button>
+        <Button onClick={handleSend} loading={sendStatus === 'sending'} disabled={!canSend}>
+          Send broadcast
+        </Button>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { fetchCategories } from '../services/helpApi';
 import { HelpCategory } from '../types/help';
 import HelpRoleBadge from '../components/help/HelpRoleBadge';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const categoryIcons: Record<string, React.ReactNode> = {
   'getting-started': (
@@ -134,14 +135,15 @@ const HelpPortal: React.FC = () => {
       <div className="flex-1 overflow-y-auto">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-200">
-          <button
+          <Button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 text-gray-600 hover:text-gray-900"
+            variant="ghost" size="icon"
+            aria-label="Open help menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-          </button>
+          </Button>
           <span className="text-sm font-medium text-gray-700">Help</span>
         </div>
 

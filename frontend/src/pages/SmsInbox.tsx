@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { SMS_SEGMENT_LENGTH, countSmsSegments } from '../utils/smsSegments';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -372,14 +373,9 @@ export const SmsInbox: React.FC = () => {
                     {draft.length} / {SMS_SEGMENT_LENGTH}
                     {countSmsSegments(draft) > 1 && ` · ${countSmsSegments(draft)} segments`}
                   </span>
-                  <button
-                    type="button"
-                    onClick={sendReply}
-                    disabled={sending || draft.trim() === ''}
-                    className="px-4 py-2 rounded-md bg-brand-primary text-white text-xs font-bold uppercase disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-primary-hover"
-                  >
-                    {sending ? 'Sending…' : 'Send text'}
-                  </button>
+                  <Button onClick={sendReply} loading={sending} disabled={draft.trim() === ''} size="sm">
+                    Send text
+                  </Button>
                 </div>
               </div>
             </>

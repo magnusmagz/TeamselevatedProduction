@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -1094,20 +1095,20 @@ export const EmailReporting: React.FC = () => {
                   Page {recentSends.page} of {recentSends.total_pages} ({recentSends.total} total)
                 </p>
                 <div className="flex gap-2">
-                  <button
+                  <Button
                     onClick={() => setSendsPage(prev => Math.max(1, prev - 1))}
                     disabled={sendsPage <= 1}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="secondary"
                   >
                     Previous
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setSendsPage(prev => Math.min(recentSends.total_pages, prev + 1))}
                     disabled={sendsPage >= recentSends.total_pages}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="secondary"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1142,12 +1143,11 @@ class EmailReportingErrorBoundary extends React.Component<
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <p className="text-red-700 font-medium mb-2">Something went wrong loading the reporting dashboard.</p>
             <p className="text-red-500 text-sm mb-4">{this.state.error}</p>
-            <button
+            <Button
               onClick={() => { this.setState({ hasError: false, error: '' }); window.location.reload(); }}
-              className="bg-brand-primary text-white px-6 py-2 rounded-md font-medium"
             >
               Reload Page
-            </button>
+            </Button>
           </div>
         </div>
       );

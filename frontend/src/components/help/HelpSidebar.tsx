@@ -3,6 +3,7 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import { fetchCategories, fetchCategoryArticles } from '../../services/helpApi';
 import { HelpCategory, HelpArticle } from '../../types/help';
 import HelpRoleBadge from './HelpRoleBadge';
+import Button from '../ui/Button';
 
 interface Props {
   isOpen: boolean;
@@ -161,11 +162,11 @@ const HelpSidebar: React.FC<Props> = ({ isOpen, onClose }) => {
           <aside className="fixed left-0 top-0 bottom-0 w-72 bg-white z-50 overflow-y-auto lg:hidden shadow-xl">
             <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200">
               <span className="font-bold text-brand-primary">Help</span>
-              <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-700">
+              <Button onClick={onClose} aria-label="Close" variant="ghost" size="icon">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
             {sidebarContent}
           </aside>

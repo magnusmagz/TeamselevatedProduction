@@ -20,6 +20,7 @@ import HelpRoleBadge from '../components/help/HelpRoleBadge';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 type Tab = 'articles' | 'categories' | 'release-notes';
 type EditorMode = null | 'article' | 'category' | 'release-note';
@@ -250,9 +251,9 @@ const HelpAdmin: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">Body (Markdown)</label>
-              <button onClick={() => setShowPreview(!showPreview)} className="text-xs text-brand-primary hover:underline">
+              <Button onClick={() => setShowPreview(!showPreview)} variant="link" size="sm">
                 {showPreview ? 'Edit' : 'Preview'}
-              </button>
+              </Button>
             </div>
             {showPreview ? (
               <div className="border border-gray-300 rounded-md p-4 prose prose-sm max-w-none min-h-[300px] bg-white">
@@ -299,13 +300,12 @@ const HelpAdmin: React.FC = () => {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button onClick={saveArticle} disabled={saving || !formTitle || !formCategoryId || !formBody}
-              className="bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {saving ? 'Saving...' : editingId ? 'Update Article' : 'Create Article'}
-            </button>
-            <button onClick={resetForm} className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button onClick={saveArticle} loading={saving} disabled={!formTitle || !formCategoryId || !formBody}>
+              {editingId ? 'Update Article' : 'Create Article'}
+            </Button>
+            <Button onClick={resetForm} variant="secondary">
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -346,13 +346,12 @@ const HelpAdmin: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-3 pt-4">
-            <button onClick={saveCategory} disabled={saving || !catName}
-              className="bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {saving ? 'Saving...' : editingId ? 'Update Category' : 'Create Category'}
-            </button>
-            <button onClick={resetForm} className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button onClick={saveCategory} loading={saving} disabled={!catName}>
+              {editingId ? 'Update Category' : 'Create Category'}
+            </Button>
+            <Button onClick={resetForm} variant="secondary">
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -399,9 +398,9 @@ const HelpAdmin: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">Body (Markdown)</label>
-              <button onClick={() => setShowPreview(!showPreview)} className="text-xs text-brand-primary hover:underline">
+              <Button onClick={() => setShowPreview(!showPreview)} variant="link" size="sm">
                 {showPreview ? 'Edit' : 'Preview'}
-              </button>
+              </Button>
             </div>
             {showPreview ? (
               <div className="border border-gray-300 rounded-md p-4 prose prose-sm max-w-none min-h-[250px] bg-white">
@@ -417,13 +416,12 @@ const HelpAdmin: React.FC = () => {
             Published
           </label>
           <div className="flex gap-3 pt-4">
-            <button onClick={saveReleaseNote} disabled={saving || !rnTitle || !rnBody}
-              className="bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {saving ? 'Saving...' : editingId ? 'Update Release Note' : 'Create Release Note'}
-            </button>
-            <button onClick={resetForm} className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button onClick={saveReleaseNote} loading={saving} disabled={!rnTitle || !rnBody}>
+              {editingId ? 'Update Release Note' : 'Create Release Note'}
+            </Button>
+            <Button onClick={resetForm} variant="secondary">
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -453,8 +451,8 @@ const HelpAdmin: React.FC = () => {
       actions: true,
       render: (a) => (
         <>
-          <button onClick={() => editArticle(a)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-          <button onClick={() => removeArticle(a.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+          <Button onClick={() => editArticle(a)} variant="link" size="sm" className="mr-3">Edit</Button>
+          <Button onClick={() => removeArticle(a.id)} variant="danger-link" size="sm">Delete</Button>
         </>
       ),
     },
@@ -475,8 +473,8 @@ const HelpAdmin: React.FC = () => {
       actions: true,
       render: (c) => (
         <>
-          <button onClick={() => editCategory(c)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-          <button onClick={() => removeCategory(c.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+          <Button onClick={() => editCategory(c)} variant="link" size="sm" className="mr-3">Edit</Button>
+          <Button onClick={() => removeCategory(c.id)} variant="danger-link" size="sm">Delete</Button>
         </>
       ),
     },
@@ -501,8 +499,8 @@ const HelpAdmin: React.FC = () => {
       actions: true,
       render: (rn) => (
         <>
-          <button onClick={() => editReleaseNote(rn)} className="text-xs text-brand-primary hover:underline mr-3">Edit</button>
-          <button onClick={() => removeReleaseNote(rn.id)} className="text-xs text-red-600 hover:underline">Delete</button>
+          <Button onClick={() => editReleaseNote(rn)} variant="link" size="sm" className="mr-3">Edit</Button>
+          <Button onClick={() => removeReleaseNote(rn.id)} variant="danger-link" size="sm">Delete</Button>
         </>
       ),
     },
@@ -534,10 +532,10 @@ const HelpAdmin: React.FC = () => {
       {/* Articles tab */}
       {tab === 'articles' && (
         <>
-          <button onClick={() => setEditorMode('article')}
-            className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
+          <Button onClick={() => setEditorMode('article')}
+            className="mb-4">
             + New Article
-          </button>
+          </Button>
           <DataTable<HelpArticle>
             columns={articleColumns}
             rows={articles}
@@ -550,10 +548,10 @@ const HelpAdmin: React.FC = () => {
       {/* Categories tab */}
       {tab === 'categories' && (
         <>
-          <button onClick={() => setEditorMode('category')}
-            className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
+          <Button onClick={() => setEditorMode('category')}
+            className="mb-4">
             + New Category
-          </button>
+          </Button>
           <DataTable<HelpCategory>
             columns={categoryColumns}
             rows={categories}
@@ -566,10 +564,10 @@ const HelpAdmin: React.FC = () => {
       {/* Release Notes tab */}
       {tab === 'release-notes' && (
         <>
-          <button onClick={() => setEditorMode('release-note')}
-            className="mb-4 bg-brand-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
+          <Button onClick={() => setEditorMode('release-note')}
+            className="mb-4">
             + New Release Note
-          </button>
+          </Button>
           <DataTable<HelpReleaseNote>
             columns={releaseNoteColumns}
             rows={releaseNotes}

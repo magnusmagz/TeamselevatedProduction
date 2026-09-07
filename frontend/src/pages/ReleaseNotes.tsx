@@ -4,6 +4,7 @@ import { HelpReleaseNote } from '../types/help';
 import ReleaseNoteCard from '../components/help/ReleaseNoteCard';
 import HelpBreadcrumb from '../components/help/HelpBreadcrumb';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const ReleaseNotes: React.FC = () => {
   const [notes, setNotes] = useState<HelpReleaseNote[]>([]);
@@ -45,13 +46,9 @@ const ReleaseNotes: React.FC = () => {
 
           {hasMore && (
             <div className="text-center mt-6">
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                className="px-4 py-2 text-sm text-brand-primary border border-brand-secondary rounded-md hover:bg-brand-secondary/20 transition-colors"
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Load more'}
-              </button>
+              <Button onClick={() => setPage((p) => p + 1)} variant="secondary" loading={loading}>
+                Load more
+              </Button>
             </div>
           )}
         </>

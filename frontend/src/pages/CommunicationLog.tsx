@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -337,18 +338,17 @@ export const CommunicationLog: React.FC = () => {
           subtitle="Track all emails and SMS sent from your organization"
           actions={
             <>
-              <button
+              <Button
                 onClick={() => setShowEmailCompose(true)}
-                className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Compose Email
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setShowSmsCompose(true)}
-                className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="secondary"
               >
                 Compose SMS
-              </button>
+              </Button>
             </>
           }
         />
@@ -422,7 +422,7 @@ export const CommunicationLog: React.FC = () => {
 
             {/* Clear filters */}
             {(channelFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo || teamFilter) && (
-              <button
+              <Button
                 onClick={() => {
                   setChannelFilter('all');
                   setStatusFilter('all');
@@ -430,10 +430,10 @@ export const CommunicationLog: React.FC = () => {
                   setDateTo('');
                   setTeamFilter('');
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
+                variant="link"
               >
                 Clear filters
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -460,18 +460,17 @@ export const CommunicationLog: React.FC = () => {
                     ),
                     action: (
                       <div className="flex justify-center gap-3">
-                        <button
+                        <Button
                           onClick={() => setShowEmailCompose(true)}
-                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Compose Email
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => setShowSmsCompose(true)}
-                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          variant="secondary"
                         >
                           Compose SMS
-                        </button>
+                        </Button>
                       </div>
                     ),
                   }
@@ -480,23 +479,9 @@ export const CommunicationLog: React.FC = () => {
           {/* Load more */}
           {!loading && hasMore && entries.length > 0 && (
             <div className="border-t border-gray-200 px-4 py-4 text-center">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="inline-flex items-center bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loadingMore ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Loading...
-                  </>
-                ) : (
-                  'Load More'
-                )}
-              </button>
+              <Button onClick={handleLoadMore} loading={loadingMore} variant="secondary">
+                Load More
+              </Button>
             </div>
           )}
         </div>
@@ -510,14 +495,14 @@ export const CommunicationLog: React.FC = () => {
             {/* Panel header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">Communication Detail</h2>
-              <button
+              <Button
                 onClick={() => setShowDetail(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Close" variant="ghost" size="icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             {/* Panel body */}

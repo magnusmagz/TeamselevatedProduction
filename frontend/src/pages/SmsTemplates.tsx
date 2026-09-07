@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 // Lazy, like the email editor loads EmailCompose — the compose modal pulls in
 // recipient search and is dead weight for anyone only browsing templates.
@@ -401,28 +402,29 @@ const SmsTemplates: React.FC = () => {
       actions: true,
       render: (t) => (
         <div className="flex justify-end gap-3">
-          <button
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => handleSendClick(t)}
             disabled={!clubProfileId}
             title="Send this template to recipients"
-            className="text-xs text-brand-primary hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
           >
             Send
-          </button>
+          </Button>
           {isAdmin && (
-            <button onClick={() => openEditModal(t)} className="text-xs text-brand-primary hover:underline font-medium">
+            <Button variant="link" size="sm" onClick={() => openEditModal(t)}>
               Edit
-            </button>
+            </Button>
           )}
           {isAdmin && (
-            <button onClick={() => handleDuplicate(t)} className="text-xs text-gray-600 hover:underline font-medium">
+            <Button variant="link" size="sm" onClick={() => handleDuplicate(t)}>
               Duplicate
-            </button>
+            </Button>
           )}
           {isAdmin && t.scope !== 'platform' && (
-            <button onClick={() => handleDelete(t)} className="text-xs text-red-600 hover:underline font-medium">
+            <Button variant="danger-link" size="sm" onClick={() => handleDelete(t)}>
               Delete
-            </button>
+            </Button>
           )}
         </div>
       ),
@@ -435,12 +437,9 @@ const SmsTemplates: React.FC = () => {
         title="SMS Templates"
         actions={
           isAdmin ? (
-            <button
-              onClick={openCreateModal}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-            >
+            <Button onClick={openCreateModal}>
               Create Template
-            </button>
+            </Button>
           ) : undefined
         }
       />
@@ -448,7 +447,7 @@ const SmsTemplates: React.FC = () => {
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
           {error}
-          <button onClick={() => setError('')} className="ml-2 text-red-500 hover:text-red-700 font-medium">Dismiss</button>
+          <Button variant="danger-link" className="ml-2" onClick={() => setError('')}>Dismiss</Button>
         </div>
       )}
 
@@ -604,24 +603,22 @@ const SmsTemplates: React.FC = () => {
             {isAdmin ? 'Create your first SMS template to get started.' : 'No templates have been created for your club yet.'}
           </p>
           {isAdmin && (
-            <button
-              onClick={openCreateModal}
-              className="mt-4 bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-            >
+            <Button className="mt-4" onClick={openCreateModal}>
               Create Template
-            </button>
+            </Button>
           )}
         </div>
       ) : filteredTemplates.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg font-medium mb-1">No matching templates</p>
           <p className="text-sm">Try adjusting your search or filter criteria.</p>
-          <button
+          <Button
+            variant="link"
+            className="mt-4"
             onClick={() => { setSearchQuery(''); setCategoryFilter('All'); }}
-            className="mt-4 text-sm font-medium text-brand-primary hover:underline"
           >
             Clear filters
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-8">
@@ -656,40 +653,32 @@ const SmsTemplates: React.FC = () => {
                       </div>
                       <p className="text-xs text-gray-400 mb-3">Updated {formatDate(t.updated_at)}</p>
                       <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                        <button
+                        <Button
+                          variant="link"
+                          size="sm"
                           onClick={() => handleSendClick(t)}
                           disabled={!clubProfileId}
                           title="Send this template to recipients"
-                          className="text-xs font-semibold text-brand-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
                         >
                           <svg className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                           </svg>
                           Send
-                        </button>
+                        </Button>
                         {isAdmin && (
-                          <button
-                            onClick={() => openEditModal(t)}
-                            className="text-xs font-medium text-brand-primary hover:underline"
-                          >
+                          <Button variant="link" size="sm" onClick={() => openEditModal(t)}>
                             Edit
-                          </button>
+                          </Button>
                         )}
                         {isAdmin && (
-                          <button
-                            onClick={() => handleDuplicate(t)}
-                            className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline"
-                          >
+                          <Button variant="link" size="sm" onClick={() => handleDuplicate(t)}>
                             Duplicate
-                          </button>
+                          </Button>
                         )}
                         {isAdmin && t.scope !== 'platform' && (
-                          <button
-                            onClick={() => handleDelete(t)}
-                            className="text-xs font-medium text-red-500 hover:text-red-700 hover:underline ml-auto"
-                          >
+                          <Button variant="danger-link" size="sm" className="ml-auto" onClick={() => handleDelete(t)}>
                             Delete
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -721,14 +710,11 @@ const SmsTemplates: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingTemplate ? 'Edit SMS Template' : 'Create SMS Template'}
               </h2>
-              <button
-                onClick={closeModal}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
+              <Button variant="ghost" size="icon" aria-label="Close" onClick={closeModal}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             {/* Modal Body */}
@@ -778,16 +764,16 @@ const SmsTemplates: React.FC = () => {
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-sm font-medium text-gray-700">Message Body</label>
                   <div className="relative">
-                    <button
-                      type="button"
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={() => setMergePickerOpen(!mergePickerOpen)}
-                      className="text-xs font-medium text-brand-primary hover:underline flex items-center gap-1"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
                       </svg>
                       Insert Merge Field
-                    </button>
+                    </Button>
                     {mergePickerOpen && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px] z-50 max-h-60 overflow-y-auto">
                         {Object.entries(
@@ -865,31 +851,16 @@ const SmsTemplates: React.FC = () => {
 
             {/* Modal Footer */}
             <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-              >
+              <Button variant="secondary" onClick={closeModal}>
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 onClick={handleSave}
-                disabled={saving || !formName.trim() || !formBody.trim()}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                loading={saving}
+                disabled={!formName.trim() || !formBody.trim()}
               >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  editingTemplate ? 'Update Template' : 'Create Template'
-                )}
-              </button>
+                {editingTemplate ? 'Update Template' : 'Create Template'}
+              </Button>
             </div>
           </div>
         </div>
