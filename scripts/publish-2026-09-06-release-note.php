@@ -30,7 +30,7 @@ $updateId = $opt('update');
 $title = 'Lineups, referee feedback, staff access and a cleaner look';
 
 $body = <<<'MD'
-A big week: coaches can build a game lineup, rate a referee, and be assigned to teams from one place; club admins manage every staff member's access from Club Settings; and every page in the staff app now shares one look.
+A big week: coaches can build a game lineup, rate a referee, and be assigned to teams from one place; club admins manage every staff member's access from Club Settings; chat gets clickable links and local times; and every page in the staff app now shares one look.
 
 ## Build a lineup for a game
 
@@ -91,10 +91,17 @@ Treasurer is now an invitable role. A treasurer reaches every payments and reven
 
 **Where:** **My Profile → Signature**. Write a formatted signature and it is added to every email you send from the platform.
 
+## Chat
+
+For everyone, in the staff chat and the parent portal:
+
+- **Links are clickable.** A web address in a message opens in a new tab.
+- **Times are yours.** Message times show in your own timezone, whether you were watching when the message arrived or opened the conversation later.
+- **Polls can allow more than one choice.** When you create a poll, tick **Let people pick more than one** for questions like "which nights suit you?"
+
 ## For families
 
 - **Lineups:** once your coach publishes one, the game on your **Schedule** shows the starting lineup with your child highlighted.
-- **Chat:** links in messages are clickable, and message times show in your own timezone.
 - If your account is not yet connected to an athlete, the portal now says so and what to do.
 
 ## One look everywhere
@@ -151,7 +158,7 @@ curl_setopt_array($ch, [
         'title'         => $title,
         'body_markdown' => $body,
         'release_date'  => '2026-09-06',
-        'tags'          => ['lineups', 'referee', 'coaches', 'staff access', 'programs', 'admin', 'coach', 'parent'],
+        'tags'          => ['lineups', 'referee', 'coaches', 'staff access', 'programs', 'chat', 'admin', 'coach', 'parent'],
         'is_published'  => true,
     ]),
 ]);
