@@ -3,10 +3,9 @@ import React, { useMemo, useState } from 'react';
 /**
  * The ONE table treatment for the staff app.
  *
- * Chosen 2026-09-06 from the most common shape already in the codebase:
- * `thead bg-gray-50`, `th px-4 py-3 text-left text-xs font-medium
- * text-brand-primary uppercase tracking-wide`, `tbody divide-y
- * divide-gray-200`, `tr hover:bg-gray-50`, `td px-4 py-3 text-sm`. The
+ * Re-skinned to the brand recipe the same day (Maggie: the gray version was
+ * off-brand): brand-secondary borders and dividers, bold brand-primary header
+ * text, brand-primary body text, brand-light hover. See DATA_TABLE_CLASSES. The
  * table sits inside an `overflow-x-auto` container so a wide table scrolls
  * itself and the page never scrolls sideways. See
  * docs/ui-consistency-inventory-2026-09.md for the tally.
@@ -81,16 +80,20 @@ const ALIGN: Record<DataTableAlign, string> = {
   right: 'text-right',
 };
 
+// Brand recipe (Maggie, 2026-09-06: the gray version read as off-brand). Borders and
+// dividers are the brand secondary (mint), header text is bold brand primary, body text
+// is brand primary, hover is the brand light tint. Palette source: the brand PDF in
+// `Teams Elevated Logo Package/`; tokens live in src/index.css as --color-*.
 export const DATA_TABLE_CLASSES = {
-  wrapper: 'overflow-x-auto rounded-lg border border-gray-200 bg-white',
+  wrapper: 'overflow-x-auto rounded-md border border-brand-secondary bg-white',
   table: 'min-w-full',
-  thead: 'bg-gray-50 sticky top-0 z-10',
-  th: 'px-4 py-3 text-xs font-medium text-brand-primary uppercase tracking-wide',
-  tbody: 'divide-y divide-gray-200',
-  tr: 'hover:bg-gray-50',
+  thead: 'bg-white sticky top-0 z-10 border-b-2 border-brand-secondary',
+  th: 'px-4 py-3 text-xs font-bold text-brand-primary uppercase tracking-wide',
+  tbody: 'divide-y divide-brand-secondary',
+  tr: 'hover:bg-brand-light/40',
   trClickable: 'cursor-pointer',
-  td: 'px-4 py-3 text-sm text-gray-900',
-  empty: 'px-4 py-12 text-center text-sm text-gray-500',
+  td: 'px-4 py-3 text-sm text-brand-primary',
+  empty: 'px-4 py-12 text-center text-sm text-brand-primary/70',
 };
 
 function defaultSortValue<Row>(row: Row, key: string): string | number | null | undefined {
@@ -238,7 +241,7 @@ function DataTable<Row>({
                   })}
                 </tr>
                 {expanded != null && expanded !== false && (
-                  <tr className="bg-gray-50" data-testid="expanded-row">
+                  <tr className="bg-brand-light/30" data-testid="expanded-row">
                     <td colSpan={columns.length} className="px-4 py-4">
                       {expanded}
                     </td>

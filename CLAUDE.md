@@ -199,6 +199,7 @@ sync"). Emails and SMS actually send in production.
 - Environment variables managed via custom `Env` class in `/config/env.php` that parses `.env` files and populates `$_ENV` / `putenv()`. Access via `Env::get('KEY', 'default')`
 
 ### UI conventions: ONE page header, ONE table — `components/ui/` (2026-09-06)
+**Design source:** `Teams Elevated Logo Package/teams Elevated_brand.pdf` (palette + Orbitron headlines); app tokens are `--color-*` in `frontend/src/index.css`, exposed as `brand-*` Tailwind colours. Prefer `brand-*` over `gray-*` for borders, dividers and text — the gray table shipped 2026-09-06 read as off-brand and was re-skinned the same day.
 Maggie: "we have different header treatments — Programs and Tournaments — let's fix it so we
 have one" and "we have different table treatments, we need one." Before this there were ~30
 h1 class strings and three table families (club pages with `border-r` gridlines, the gray

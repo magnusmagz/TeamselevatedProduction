@@ -111,7 +111,7 @@ describe('DataTable', () => {
     const wrapper = screen.getByTestId('tbl');
     expect(wrapper.className).toContain('overflow-x-auto');
     expect(wrapper.querySelector('thead')?.className).toContain('sticky');
-    expect(wrapper.querySelector('thead')?.className).toContain('bg-gray-50');
+    expect(wrapper.querySelector('thead')?.className).toContain('border-brand-secondary');
     expect(wrapper.querySelector('tbody')?.className).toContain('divide-y');
   });
 

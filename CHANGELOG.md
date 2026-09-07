@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### DataTable re-skinned to the brand (Netlify only)
+- Maggie: the gray table read as off-brand. Design source found: `Teams Elevated Logo
+  Package/teams Elevated_brand.pdf` (palette #12443e / #06e5ac / #268e63 / #fdd300 / #15bbbe /
+  #074921, headline font Orbitron; app tokens in `frontend/src/index.css` as `--color-*`).
+  `DATA_TABLE_CLASSES` now: brand-secondary borders/dividers, bold brand-primary headers,
+  brand-primary body text, brand-light hover. One edit, every staff table.
+
 ### One page header, one table (Netlify only)
 - `components/ui/PageHeader.tsx` + `components/ui/DataTable.tsx`; 54 files on the header, 56
   tables in 38 files on the table; Programs and Tournaments now identical (Tournaments' card
