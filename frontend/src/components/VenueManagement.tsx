@@ -3,6 +3,7 @@ import GooglePlacesAutocomplete from './GooglePlacesAutocomplete';
 import { FIELD_SIZES } from '../utils/fieldSize';
 import PageHeader from './ui/PageHeader';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 // VenueManagement component with address search
 
 interface Field {
@@ -392,12 +393,9 @@ const VenueManagement: React.FC<VenueManagementProps> = ({ onClose }) => {
         <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Facility Management</h3>
-            <button
-              onClick={onClose}
-              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
               ×
-            </button>
+            </Button>
           </div>
 
           <div className="p-6">
@@ -586,18 +584,12 @@ const VenueListContent: React.FC<{
       className: 'whitespace-nowrap',
       render: (venue) => (
         <div className="flex space-x-3">
-          <button
-            onClick={() => handleEditVenue(venue)}
-            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-          >
+          <Button variant="link" size="sm" onClick={() => handleEditVenue(venue)}>
             Edit
-          </button>
-          <button
-            onClick={() => venue.id && handleDeleteVenue(venue.id)}
-            className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
-          >
+          </Button>
+          <Button variant="danger-link" size="sm" onClick={() => venue.id && handleDeleteVenue(venue.id)}>
             Delete
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -609,12 +601,9 @@ const VenueListContent: React.FC<{
         title="Facilities"
         subtitle={`${venues.length} facilities total`}
         actions={
-          <button
-            onClick={handleAddVenue}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase"
-          >
+          <Button onClick={handleAddVenue}>
             + Add Facility
-          </button>
+          </Button>
         }
       />
 
@@ -1060,13 +1049,9 @@ const VenueForm: React.FC<{
       header: 'Actions',
       className: 'whitespace-nowrap',
       render: (_field, index) => (
-        <button
-          type="button"
-          onClick={() => handleRemoveField(index)}
-          className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
-        >
+        <Button variant="danger-link" size="sm" onClick={() => handleRemoveField(index)}>
           Remove
-        </button>
+        </Button>
       ),
     },
   ];
@@ -1078,12 +1063,9 @@ const VenueForm: React.FC<{
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {selectedVenue ? 'Edit Facility' : 'Create New Facility'}
           </h3>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
@@ -1305,13 +1287,9 @@ const VenueForm: React.FC<{
                   </div>
 
                   <div className="flex items-end col-span-2">
-                    <button
-                      type="button"
-                      onClick={handleAddField}
-                      className="w-full bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary uppercase text-sm"
-                    >
+                    <Button size="sm" fullWidth onClick={handleAddField}>
                       + Add Field
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1427,19 +1405,12 @@ const VenueForm: React.FC<{
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-            >
+            <Button variant="secondary" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-            >
+            </Button>
+            <Button type="submit">
               {selectedVenue ? 'Update Facility' : 'Create Facility'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

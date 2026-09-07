@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LogoColorExtractor } from './LogoColorExtractor';
 import { pageQuery, rowsFrom } from '../utils/pagination';
 import { TEAM_GENDER_OPTIONS } from '../utils/teamGender';
+import Button from './ui/Button';
 
 interface TeamFormProps {
   team: any | null;
@@ -334,12 +335,9 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
               {team ? 'Edit Team' : 'Create New Team'}
             </h3>
-            <button
-              onClick={onClose}
-              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
               ×
-            </button>
+            </Button>
           </div>
 
           {/* Tabs */}
@@ -475,13 +473,9 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                   ))}
                 </select>
                 {errors.season_id && <p className="text-red-500 text-sm mt-1">{errors.season_id}</p>}
-                <button
-                  type="button"
-                  onClick={() => setShowSeasonForm(!showSeasonForm)}
-                  className="text-brand-primary hover:underline text-sm mt-2"
-                >
+                <Button variant="link" onClick={() => setShowSeasonForm(!showSeasonForm)} className="mt-2">
                   + Create New Season
-                </button>
+                </Button>
 
                 {/* Inline Season Creation Form */}
                 {showSeasonForm && (
@@ -534,23 +528,19 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                       </div>
 
                       <div className="flex justify-end space-x-2 pt-2">
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => {
                             setShowSeasonForm(false);
                             setSeasonFormData({ name: '', start_date: '', end_date: '' });
                           }}
-                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
                         >
                           Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handleCreateSeason(e as any)}
-                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary font-semibold uppercase text-sm"
-                        >
+                        </Button>
+                        <Button size="sm" onClick={(e) => handleCreateSeason(e as any)}>
                           Save Season
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -645,15 +635,16 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                                 className="inline-flex items-center gap-2 bg-brand-light text-brand-primary border border-brand-secondary rounded-full px-3 py-1 text-sm"
                               >
                                 {s.first_name} {s.last_name}
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => unassignStaff(Number(s.user_id), role)}
                                   disabled={staffBusy}
                                   aria-label={`Remove ${s.first_name} ${s.last_name}`}
-                                  className="font-bold hover:text-red-600 disabled:opacity-50"
+                                  className="p-0 hover:bg-transparent hover:text-red-600"
                                 >
                                   ×
-                                </button>
+                                </Button>
                               </span>
                             ))}
                           </div>
@@ -674,13 +665,9 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                       );
                     })}
 
-                    <button
-                      type="button"
-                      onClick={() => setShowCoachForm(!showCoachForm)}
-                      className="text-brand-primary hover:underline text-sm"
-                    >
+                    <Button variant="link" onClick={() => setShowCoachForm(!showCoachForm)}>
                       + Create new coach
-                    </button>
+                    </Button>
 
                     {showCoachForm && (
                       <div className="border border-brand-secondary rounded-md p-4 bg-gray-50">
@@ -718,24 +705,19 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
                             <option value="team_manager">Add to this team as Team Manager</option>
                           </select>
                           <div className="flex justify-end space-x-2 pt-2">
-                            <button
-                              type="button"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => {
                                 setShowCoachForm(false);
                                 setCoachFormData({ first_name: '', last_name: '', email: '', role: 'assistant_coach' });
                               }}
-                              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm"
                             >
                               Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCreateCoach}
-                              disabled={staffBusy}
-                              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-1 hover:bg-brand-primary-hover font-semibold uppercase text-sm disabled:opacity-50"
-                            >
-                              {staffBusy ? 'Saving…' : 'Save Coach'}
-                            </button>
+                            </Button>
+                            <Button size="sm" onClick={handleCreateCoach} loading={staffBusy}>
+                              Save Coach
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -846,19 +828,12 @@ const TeamFormWithTabs: React.FC<TeamFormProps> = ({ team, onSubmit, onClose }) 
 
           {activeTab === 'info' && (
             <div className="flex justify-end space-x-4 mt-6">
-              <button
-                type="button"
-                onClick={onClose}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-              >
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-              >
+              </Button>
+              <Button type="submit">
                 {team ? 'Update Team' : 'Create Team'}
-              </button>
+              </Button>
             </div>
           )}
         </form>

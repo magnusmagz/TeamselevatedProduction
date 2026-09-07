@@ -6,6 +6,7 @@ import AthleteManagement from './AthleteManagement';
 import SeasonManagement from './SeasonManagement';
 import VenueManagement from './VenueManagement';
 import PageHeader from './ui/PageHeader';
+import Button from './ui/Button';
 
 interface Team {
   id: number;
@@ -185,12 +186,9 @@ const TeamManagement: React.FC = () => {
             </span>
           </div>
           {canManageTeams && (
-            <button
-              onClick={handleCreateTeam}
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-            >
+            <Button onClick={handleCreateTeam} className="w-full sm:w-auto">
               + Create Team
-            </button>
+            </Button>
           )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -243,12 +241,12 @@ const TeamManagement: React.FC = () => {
             ))}
           </select>
 
-          <button
+          <Button
+            variant="secondary"
             onClick={() => setFilters({ search: '', season_id: '', age_group: '', division: '', primary_coach_id: '' })}
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase"
           >
             Clear Filters
-          </button>
+          </Button>
         </div>
       </div>
 

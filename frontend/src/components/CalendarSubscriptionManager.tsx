@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Button from './ui/Button';
 
 interface Subscription {
   id: number;
@@ -240,7 +241,7 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
           <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">
             Calendar Subscriptions
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">&times;</Button>
         </div>
 
         {/* Alerts */}
@@ -248,13 +249,13 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded mb-2 text-sm flex justify-between">
               <span>{error}</span>
-              <button onClick={() => setError(null)} className="ml-2 font-bold">&times;</button>
+              <Button variant="ghost" size="icon" aria-label="Dismiss" onClick={() => setError(null)} className="ml-2 text-red-700 hover:bg-transparent">&times;</Button>
             </div>
           )}
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded mb-2 text-sm flex justify-between">
               <span>{success}</span>
-              <button onClick={() => setSuccess(null)} className="ml-2 font-bold">&times;</button>
+              <Button variant="ghost" size="icon" aria-label="Dismiss" onClick={() => setSuccess(null)} className="ml-2 text-green-700 hover:bg-transparent">&times;</Button>
             </div>
           )}
         </div>
@@ -264,18 +265,12 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
           {/* Action Buttons */}
           {!showAddForm && !showUploadForm && (
             <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => { setShowAddForm(true); setShowUploadForm(false); }}
-                className="bg-brand-primary text-white px-3 py-2 rounded text-sm font-semibold uppercase hover:opacity-90"
-              >
+              <Button onClick={() => { setShowAddForm(true); setShowUploadForm(false); }}>
                 + Add Feed
-              </button>
-              <button
-                onClick={() => { setShowUploadForm(true); setShowAddForm(false); }}
-                className="bg-white text-brand-primary border border-brand-primary px-3 py-2 rounded text-sm font-semibold uppercase hover:bg-gray-50"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => { setShowUploadForm(true); setShowAddForm(false); }}>
                 Upload .ics File
-              </button>
+              </Button>
             </div>
           )}
 
@@ -334,20 +329,12 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="bg-brand-primary text-white px-4 py-2 rounded text-sm font-semibold uppercase disabled:opacity-50"
-                >
-                  {submitting ? 'Creating...' : 'Subscribe'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="text-gray-600 px-4 py-2 rounded text-sm"
-                >
+                <Button type="submit" loading={submitting}>
+                  Subscribe
+                </Button>
+                <Button variant="ghost" onClick={() => setShowAddForm(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           )}
@@ -391,20 +378,12 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
                 </select>
               </div>
               <div className="flex gap-2 pt-1">
-                <button
-                  type="submit"
-                  disabled={submitting || !uploadFile}
-                  className="bg-brand-primary text-white px-4 py-2 rounded text-sm font-semibold uppercase disabled:opacity-50"
-                >
-                  {submitting ? 'Importing...' : 'Import'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowUploadForm(false)}
-                  className="text-gray-600 px-4 py-2 rounded text-sm"
-                >
+                <Button type="submit" disabled={!uploadFile} loading={submitting}>
+                  Import
+                </Button>
+                <Button variant="ghost" onClick={() => setShowUploadForm(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           )}
@@ -462,27 +441,17 @@ const CalendarSubscriptionManager: React.FC<CalendarSubscriptionManagerProps> = 
                   <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
                     {sub.source_type === 'feed' && (
                       <>
-                        <button
-                          onClick={() => handleSyncNow(sub.id)}
-                          disabled={syncing === sub.id}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
-                        >
+                        <Button variant="link" size="sm" onClick={() => handleSyncNow(sub.id)} disabled={syncing === sub.id}>
                           {syncing === sub.id ? 'Syncing...' : 'Sync Now'}
-                        </button>
-                        <button
-                          onClick={() => handleToggleActive(sub)}
-                          className="text-xs text-gray-600 hover:text-gray-800 font-medium"
-                        >
+                        </Button>
+                        <Button variant="link" size="sm" onClick={() => handleToggleActive(sub)}>
                           {sub.is_active ? 'Pause' : 'Resume'}
-                        </button>
+                        </Button>
                       </>
                     )}
-                    <button
-                      onClick={() => handleDelete(sub.id, sub.name)}
-                      className="text-xs text-red-600 hover:text-red-800 font-medium ml-auto"
-                    >
+                    <Button variant="danger-link" size="sm" onClick={() => handleDelete(sub.id, sub.name)} className="ml-auto">
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

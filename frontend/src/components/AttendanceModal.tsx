@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Button from './ui/Button';
 
 interface Athlete {
   athlete_id: number;
@@ -258,12 +259,9 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
               <p className="text-gray-600 mt-1">{eventName}</p>
               <p className="text-sm text-gray-500">{formatDate(eventDate)}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
               &times;
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -276,12 +274,9 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
           ) : error ? (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
               {error}
-              <button
-                onClick={fetchAttendance}
-                className="ml-4 text-red-600 underline hover:text-red-800"
-              >
+              <Button variant="danger-link" onClick={fetchAttendance} className="ml-4">
                 Retry
-              </button>
+              </Button>
             </div>
           ) : athletes.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -419,19 +414,12 @@ const AttendanceModal: React.FC<AttendanceModalProps> = ({
               {hasChanges && <span className="text-amber-600 font-medium">Unsaved changes</span>}
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-              >
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || athletes.length === 0}
-                className="px-4 py-2 bg-brand-primary text-white border border-brand-secondary rounded-md hover:bg-brand-primary-hover font-semibold uppercase disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Attendance'}
-              </button>
+              </Button>
+              <Button onClick={handleSave} disabled={athletes.length === 0} loading={saving}>
+                Save Attendance
+              </Button>
             </div>
           </div>
         </div>

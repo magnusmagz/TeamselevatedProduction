@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Button from './ui/Button';
 
 interface Team {
   id: number;
@@ -278,12 +279,9 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             Smart Scheduler (Beta) - {team.name}
           </h3>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6">
@@ -440,13 +438,14 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
                       <div key={field.id} className="flex flex-wrap gap-1">
                         <span className="text-sm font-medium text-brand-primary mr-2">{field.name}:</span>
                         {[1, 2, 3, 4, 5].map(day => (
-                          <button
+                          <Button
                             key={day}
+                            variant="secondary"
+                            size="sm"
                             onClick={() => selectPattern(day, '17:00', field.id)}
-                            className="px-2 py-1 text-xs bg-white border border-brand-primary hover:bg-brand-secondary"
                           >
                             {['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'][day]} 5pm
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     ))}
@@ -462,19 +461,12 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ team, onClose }) => {
               <span className="font-bold">{selectedSlots.size}</span> time slots selected
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={onClose}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-              >
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                onClick={publishSchedule}
-                disabled={selectedSlots.size === 0}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-bold disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={publishSchedule} disabled={selectedSlots.size === 0}>
                 Publish Schedule ({selectedSlots.size} Practices)
-              </button>
+              </Button>
             </div>
           </div>
         </div>

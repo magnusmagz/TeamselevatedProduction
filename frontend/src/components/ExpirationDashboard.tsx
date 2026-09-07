@@ -3,6 +3,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { daysUntilExpiry, formatDocumentDate } from '../utils/documentStatus';
 import PageHeader from './ui/PageHeader';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface ExpiringDocument {
   id: number;
@@ -132,12 +133,9 @@ const ExpirationDashboard: React.FC = () => {
       header: 'Action',
       align: 'left',
       render: () => (
-        <button
-          onClick={() => (window.location.href = '/club-documents')}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-3 py-1 text-sm uppercase hover:bg-brand-primary"
-        >
+        <Button size="sm" onClick={() => (window.location.href = '/club-documents')}>
           Manage →
-        </button>
+        </Button>
       ),
     },
   ];

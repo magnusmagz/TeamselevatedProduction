@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import AthletePhotoUpload from './AthletePhotoUpload';
 import RosterDownloadButton from './RosterDownloadButton';
 import PageHeader from './ui/PageHeader';
+import Button from './ui/Button';
 import { pageQuery } from '../utils/pagination';
 
 interface Team {
@@ -161,7 +162,7 @@ const AthleteDrawer: React.FC<{ athlete: Athlete; onClose: () => void; apiUrl: s
         {/* Header */}
         <div className="bg-brand-primary p-4 flex justify-between items-center">
           <h3 className="text-white font-bold uppercase tracking-wide">Athlete Info</h3>
-          <button onClick={onClose} className="text-white hover:text-brand-secondary text-xl font-bold">✕</button>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-xl text-white hover:text-brand-secondary hover:bg-transparent">✕</Button>
         </div>
 
         {/* Content */}
@@ -647,12 +648,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                   className="bg-gray-50 border border-gray-300 p-3 hover:bg-gray-100 transition-colors flex justify-between items-center cursor-grab active:cursor-grabbing"
                 >
                   <div>
-                    <button
-                      onClick={() => setSelectedAthlete(athlete)}
-                      className="font-medium text-brand-primary hover:underline text-left"
-                    >
+                    <Button variant="link" onClick={() => setSelectedAthlete(athlete)} className="normal-case text-left">
                       {athlete.first_name} {athlete.last_name}
-                    </button>
+                    </Button>
                     {athlete.date_of_birth && (
                       <div className="text-xs text-gray-500">
                         Age {calcAge(athlete.date_of_birth)}
@@ -679,17 +677,14 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                       </div>
                     )}
                   </div>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => handleAddAthlete(athlete)}
-                    disabled={addingAthleteId === athlete.id}
-                    className="bg-brand-primary text-white px-3 py-1 rounded text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1 ml-2 flex-shrink-0"
+                    loading={addingAthleteId === athlete.id}
+                    className="ml-2 flex-shrink-0"
                   >
-                    {addingAthleteId === athlete.id ? (
-                      'Adding...'
-                    ) : (
-                      <>Add <span aria-hidden="true">→</span></>
-                    )}
-                  </button>
+                    Add <span aria-hidden="true">→</span>
+                  </Button>
                 </div>
               ))}
               {visibleAthletes.length === 0 && (
@@ -726,12 +721,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <button
-                        onClick={() => setSelectedAthlete(athlete)}
-                        className="font-medium text-brand-primary hover:underline text-left"
-                      >
+                      <Button variant="link" onClick={() => setSelectedAthlete(athlete)} className="normal-case text-left">
                         {athlete.first_name} {athlete.last_name}
-                      </button>
+                      </Button>
                       {athlete.date_of_birth && (
                         <div className="text-xs text-gray-600">
                           Age {calcAge(athlete.date_of_birth)}
@@ -752,12 +744,9 @@ const RosterManagement: React.FC<RosterManagementProps> = ({ team }) => {
                       )}
                       <div className="text-sm text-gray-600">{athlete.email}</div>
                     </div>
-                    <button
-                      onClick={() => handleRemoveAthlete(athlete.id)}
-                      className="text-red-600 hover:text-red-800 text-sm uppercase ml-2 flex-shrink-0"
-                    >
+                    <Button variant="danger-link" onClick={() => handleRemoveAthlete(athlete.id)} className="ml-2 flex-shrink-0">
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

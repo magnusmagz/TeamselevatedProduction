@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Button from './ui/Button';
 
 interface Season {
   id: number;
@@ -126,24 +127,24 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
       <div className="bg-white border border-brand-secondary rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Season Management</h3>
-          <button onClick={onClose} className="text-brand-primary hover:bg-gray-100 px-2 text-2xl">
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <p className="text-gray-600">Manage your club's seasons to organize teams and track history</p>
-            <button
+            <Button
+              variant="secondary"
               onClick={() => {
                 setShowForm(true);
                 setEditingSeason(null);
                 setFormData({ name: '', start_date: '', end_date: '' });
               }}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary hover:text-white font-semibold uppercase"
             >
               + Create Season
-            </button>
+            </Button>
           </div>
 
           {/* Season Form */}
@@ -197,23 +198,19 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                 </div>
 
                 <div className="flex justify-end space-x-4">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() => {
                       setShowForm(false);
                       setEditingSeason(null);
                       setFormData({ name: '', start_date: '', end_date: '' });
                     }}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
                   >
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-                  >
+                  </Button>
+                  <Button type="submit">
                     {editingSeason ? 'Update Season' : 'Create Season'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -284,18 +281,12 @@ const SeasonManagement: React.FC<SeasonManagementProps> = ({ onClose }) => {
                   </div>
 
                   <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(season)}
-                      className="text-brand-primary hover:underline px-3 py-1 uppercase text-sm"
-                    >
+                    <Button variant="link" onClick={() => handleEdit(season)}>
                       Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(season.id)}
-                      className="text-brand-primary hover:underline px-3 py-1 uppercase text-sm"
-                    >
+                    </Button>
+                    <Button variant="danger-link" onClick={() => handleDelete(season.id)}>
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

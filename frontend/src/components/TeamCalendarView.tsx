@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import RefereeFeedbackModal from './referee/RefereeFeedbackModal';
 import { toDateOnlyString } from '../utils/dateFormat';
 import PageHeader from './ui/PageHeader';
+import Button from './ui/Button';
 
 interface Event {
   id?: number;
@@ -878,27 +879,21 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
           !readOnly ? (
             <>
               {showAddEvent && (
-                <button
+                <Button
                   onClick={() => handleDateClick(new Date().toISOString().split('T')[0])}
-                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
+                  className="w-full sm:w-auto"
                 >
                   + Add Event
-                </button>
+                </Button>
               )}
               {showAddEvent && (
-                <button
-                  onClick={handleSchedulePractices}
-                  className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
-                >
+                <Button variant="secondary" onClick={handleSchedulePractices} className="w-full sm:w-auto">
                   Schedule Practices
-                </button>
+                </Button>
               )}
-              <button
-                onClick={() => setShowSubscriptionManager(true)}
-                className="bg-white text-brand-primary border border-brand-primary rounded-md px-4 py-2 hover:bg-gray-50 font-semibold uppercase w-full sm:w-auto text-sm"
-              >
+              <Button variant="secondary" onClick={() => setShowSubscriptionManager(true)} className="w-full sm:w-auto">
                 Subscriptions
-              </button>
+              </Button>
             </>
           ) : undefined
         }
@@ -940,35 +935,26 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
           <div className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto">
             {viewMode !== 'schedule' && (
               <>
-                <button
-                  onClick={handlePreviousPeriod}
-                  className="text-brand-primary hover:bg-gray-100 p-2 flex-shrink-0"
-                >
+                <Button variant="ghost" size="icon" aria-label="Previous" onClick={handlePreviousPeriod} className="flex-shrink-0">
                   &larr;
-                </button>
+                </Button>
                 <h2 className="text-base sm:text-xl font-bold text-brand-primary whitespace-nowrap">
                   {viewMode === 'week'
                     ? `Week of ${weekDays[0]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekDays[6]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
                     : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
                   }
                 </h2>
-                <button
-                  onClick={handleNextPeriod}
-                  className="text-brand-primary hover:bg-gray-100 p-2 flex-shrink-0"
-                >
+                <Button variant="ghost" size="icon" aria-label="Next" onClick={handleNextPeriod} className="flex-shrink-0">
                   &rarr;
-                </button>
+                </Button>
               </>
             )}
             {viewMode === 'schedule' && (
               <h2 className="text-base sm:text-xl font-bold text-brand-primary uppercase">All Scheduled Practices</h2>
             )}
-            <button
-              onClick={handleToday}
-              className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-1 hover:bg-gray-100 uppercase text-sm flex-shrink-0"
-            >
+            <Button variant="secondary" size="sm" onClick={handleToday} className="flex-shrink-0">
               Today
-            </button>
+            </Button>
           </div>
 
           {showTeamFilter && (
@@ -1470,25 +1456,24 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                   </label>
                   {!teamId && (
                     <div className="mb-2 flex gap-2">
-                      <button
-                        type="button"
+                      <Button
+                        size="sm"
                         onClick={() => {
                           const allTeamIds = allTeams.map(team => team.id);
                           setEventFormData({ ...eventFormData, team_ids: allTeamIds });
                         }}
-                        className="px-3 py-1 text-xs bg-brand-primary text-white hover:bg-brand-primary uppercase font-medium"
                       >
                         Choose All
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => {
                           setEventFormData({ ...eventFormData, team_ids: [] });
                         }}
-                        className="px-3 py-1 text-xs border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 uppercase font-medium"
                       >
                         Clear All
-                      </button>
+                      </Button>
                     </div>
                   )}
                   <select
@@ -1641,30 +1626,25 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
               <div className="flex flex-col gap-3">
                 {selectedEvent && (
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
                       onClick={() => {
                         setAttendanceEventId(selectedEvent.id!);
                         setShowAttendanceModal(true);
                         setShowEventForm(false);
                       }}
-                      className="px-4 py-2 border border-green-200 rounded-md text-green-600 hover:bg-green-50 font-semibold uppercase"
                     >
                       Take Attendance
-                    </button>
+                    </Button>
                     {rsvpSummary && (() => {
                       const missing = rsvpSummary.total - rsvpSummary.responded;
                       const allResponded = missing <= 0 || rsvpSummary.total === 0;
                       return (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
                           onClick={handleSendReminders}
-                          disabled={allResponded || sendingReminders}
-                          className={`px-4 py-2 border rounded-md font-semibold uppercase ${
-                            allResponded
-                              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'border-blue-200 text-blue-600 hover:bg-blue-50'
-                          } ${sendingReminders ? 'opacity-60 cursor-wait' : ''}`}
+                          disabled={allResponded}
+                          loading={sendingReminders}
                           title={
                             rsvpSummary.total === 0
                               ? 'No athletes on this event'
@@ -1673,36 +1653,29 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                               : `${missing} of ${rsvpSummary.total} have not RSVPed`
                           }
                         >
-                          {sendingReminders
-                            ? 'Sending…'
-                            : allResponded
+                          {allResponded
                             ? `RSVP: ${rsvpSummary.responded}/${rsvpSummary.total} ✓`
                             : `Remind ${missing} (${rsvpSummary.responded}/${rsvpSummary.total} responded)`}
-                        </button>
+                        </Button>
                       );
                     })()}
                     {rsvpSummary && rsvpSummary.total > 0 && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
                         onClick={() => setShowRsvpBreakdown((v) => !v)}
-                        className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
                         title="Show who has and hasn't responded"
                       >
                         {showRsvpBreakdown ? 'Hide' : 'View'} RSVPs ({rsvpSummary.responded}/{rsvpSummary.total})
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                   <div>
                     {selectedEvent && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEvent(selectedEvent.id!)}
-                        className="px-4 py-2 border border-red-200 rounded-md text-red-600 hover:bg-red-50 font-semibold uppercase"
-                      >
+                      <Button variant="danger" onClick={() => handleDeleteEvent(selectedEvent.id!)}>
                         Delete
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <div className="flex gap-2 items-center">
@@ -1730,13 +1703,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         via new Date(event_date). */}
                     {selectedEvent?.id && selectedEvent.type === 'game'
                       && selectedEvent.event_date.slice(0, 10) <= toDateOnlyString(new Date()) && (
-                      <button
-                        type="button"
-                        onClick={() => setRefereeFeedbackEventId(selectedEvent.id!)}
-                        className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-                      >
+                      <Button variant="secondary" onClick={() => setRefereeFeedbackEventId(selectedEvent.id!)}>
                         Referee feedback
-                      </button>
+                      </Button>
                     )}
                     {selectedEvent?.id && user?.activeRole?.scope_id && (
                       <CanvaGraphicActions
@@ -1747,8 +1716,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         apiUrl={API_URL}
                       />
                     )}
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
                       onClick={() => {
                         setShowEventForm(false);
                         setEventFormData({
@@ -1759,16 +1728,12 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                           status: 'scheduled'
                         });
                       }}
-                      className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-brand-primary text-white border border-brand-secondary rounded-md hover:bg-brand-primary font-semibold uppercase"
-                    >
+                    </Button>
+                    <Button type="submit">
                       {selectedEvent ? 'Update' : 'Create'} Event
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1878,13 +1843,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 ))}
               </select>
               <div className="flex justify-end mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowSchedulePicker(false)}
-                  className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-                >
+                <Button variant="secondary" onClick={() => setShowSchedulePicker(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { formatDateOnly, toDateOnlyString } from '../utils/dateFormat';
 import { generatePracticeDates } from '../utils/practiceDates';
 import { TeamFieldsResponse, TeamField, fitHint, mismatchWarning } from '../utils/fieldSize';
+import Button from './ui/Button';
 
 interface Team {
   id: number;
@@ -403,12 +404,9 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
           <p className="text-gray-600 mb-6">
             {generatedPractices.filter(p => !p.skip).length} practices have been added to your calendar.
           </p>
-          <button
-            onClick={onClose}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase"
-          >
+          <Button onClick={onClose}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -421,12 +419,9 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             Practice Schedule Builder - {team.name}
           </h3>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6">
@@ -578,13 +573,13 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 </div>
 
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     onClick={handleGenerateSchedule}
-                    disabled={loading || selectedDays.length === 0 || !selectedField}
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase disabled:opacity-50"
+                    disabled={selectedDays.length === 0 || !selectedField}
+                    loading={loading}
                   >
-                    {loading ? 'Generating...' : 'Generate Schedule →'}
-                  </button>
+                    Generate Schedule →
+                  </Button>
                 </div>
               </div>
             </div>
@@ -677,24 +672,17 @@ const PracticeScheduler: React.FC<PracticeSchedulerProps> = ({ team, onClose }) 
                 </div>
 
                 <div className="flex justify-between items-center mt-6">
-                  <button
-                    onClick={() => setStep('pattern')}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-                  >
+                  <Button variant="secondary" onClick={() => setStep('pattern')}>
                     Edit Pattern
-                  </button>
+                  </Button>
 
                   <div className="flex space-x-4">
                     <div className="text-brand-primary">
                       {generatedPractices.filter(p => !p.skip).length} practices selected
                     </div>
-                    <button
-                      onClick={handlePublishSchedule}
-                      disabled={saving}
-                      className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold"
-                    >
-                      {saving ? 'Publishing...' : 'Publish Schedule'}
-                    </button>
+                    <Button onClick={handlePublishSchedule} loading={saving}>
+                      Publish Schedule
+                    </Button>
                   </div>
                 </div>
               </div>

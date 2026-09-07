@@ -5,6 +5,7 @@ import TeamFormWithTabs from '../components/TeamFormWithTabs';
 import RosterDownloadButton from '../components/RosterDownloadButton';
 import TeamLineupsCard from '../components/lineup/TeamLineupsCard';
 import PageHeader from '../components/ui/PageHeader';
+import Button, { LinkButton } from '../components/ui/Button';
 
 interface Team {
   id: number;
@@ -148,12 +149,9 @@ const TeamVolunteersSection: React.FC<{ teamId: number }> = ({ teamId }) => {
                 <div className="text-sm text-gray-500">{vol.email}</div>
               </div>
               <div className="mr-4">{bgBadge(vol.background_check_status)}</div>
-              <button
-                onClick={() => handleRemove(vol.id)}
-                className="text-red-500 hover:text-red-700 text-sm font-medium"
-              >
+              <Button variant="danger-link" onClick={() => handleRemove(vol.id)}>
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -296,23 +294,19 @@ export const TeamDetailPage: React.FC = () => {
           <p className="text-red-600 mb-4">{error || 'The team you are looking for does not exist.'}</p>
           <div className="flex justify-center gap-4">
             {isAuthError ? (
-              <Link
-                to="/login"
-                className="bg-brand-primary text-white px-6 py-2 rounded font-medium hover:opacity-90"
-              >
+              <LinkButton to="/login">
                 Log In Again
-              </Link>
+              </LinkButton>
             ) : (
-              <button
+              <Button
                 onClick={() => {
                   hasFetched.current = false;
                   setLoading(true);
                   setError(null);
                 }}
-                className="bg-brand-primary text-white px-6 py-2 rounded font-medium hover:opacity-90"
               >
                 Try Again
-              </button>
+              </Button>
             )}
             <Link to="/teams" className="text-brand-primary hover:underline px-6 py-2">
               Back to Teams
@@ -353,15 +347,17 @@ export const TeamDetailPage: React.FC = () => {
               </svg>
               Manage Roster
             </Link>
-            <button
+            <Button
+              variant="link"
               onClick={() => setShowEditModal(true)}
-              className="inline-flex items-center text-brand-primary hover:underline text-sm uppercase font-medium"
+              leadingIcon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              }
             >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
               Edit Team
-            </button>
+            </Button>
           </>
         }
       />
@@ -432,12 +428,9 @@ export const TeamDetailPage: React.FC = () => {
             <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Home Field</div>
             <div className="text-brand-primary font-semibold">
               {team.home_field_name || (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="text-gray-400 hover:text-brand-primary hover:underline"
-                >
+                <Button variant="link" onClick={() => setShowEditModal(true)}>
                   Not set - Click to add
-                </button>
+                </Button>
               )}
             </div>
           </div>

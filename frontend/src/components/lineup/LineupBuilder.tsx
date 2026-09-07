@@ -4,6 +4,7 @@ import {
 } from '../../utils/lineupFormations';
 import { formatDateOnly } from '../../utils/dateFormat';
 import LineupPitch from './LineupPitch';
+import Button from '../ui/Button';
 import { LineupRow, LineupStaffResponse, PitchPlayer, RosterPlayer } from './types';
 
 /**
@@ -338,11 +339,11 @@ const LineupBuilder: React.FC<Props> = ({ teamId, eventId, apiUrl, printHref }) 
           )}
         </button>
         {onSheet ? (
-          <button type="button" onClick={() => removeFromBench(p.athlete_id)} aria-label={`Leave ${p.name} off the sheet`}
-            className="min-h-[44px] px-2 text-gray-400 hover:text-red-600">×</button>
+          <Button variant="ghost" size="icon" onClick={() => removeFromBench(p.athlete_id)} aria-label={`Leave ${p.name} off the sheet`}
+            className="min-h-[44px]">×</Button>
         ) : (
-          <button type="button" onClick={() => { toBench(p.athlete_id); setDirty(true); }} aria-label={`Add ${p.name} to the bench`}
-            className="min-h-[44px] px-2 text-gray-400 hover:text-brand-primary">+</button>
+          <Button variant="ghost" size="icon" onClick={() => { toBench(p.athlete_id); setDirty(true); }} aria-label={`Add ${p.name} to the bench`}
+            className="min-h-[44px]">+</Button>
         )}
       </div>
     );
@@ -386,9 +387,10 @@ const LineupBuilder: React.FC<Props> = ({ teamId, eventId, apiUrl, printHref }) 
       {selectedSlot !== null && selectedOccupant !== undefined && (
         <div className="mt-2 flex flex-wrap items-center gap-2 px-4 text-sm">
           <span className="text-gray-700">{byId[selectedOccupant]?.name}</span>
-          <button type="button" onClick={() => { setCaptain(captain === selectedOccupant ? null : selectedOccupant); setDirty(true); }}
-            className="rounded border border-gray-300 px-2 py-1">{captain === selectedOccupant ? 'Remove captain' : 'Make captain'}</button>
-          <button type="button" onClick={() => clearSlot(selectedSlot)} className="rounded border border-red-300 px-2 py-1 text-red-700">Remove from pitch</button>
+          <Button variant="secondary" size="sm" onClick={() => { setCaptain(captain === selectedOccupant ? null : selectedOccupant); setDirty(true); }}>
+            {captain === selectedOccupant ? 'Remove captain' : 'Make captain'}
+          </Button>
+          <Button variant="danger-link" size="sm" onClick={() => clearSlot(selectedSlot)}>Remove from pitch</Button>
         </div>
       )}
 
@@ -421,23 +423,21 @@ const LineupBuilder: React.FC<Props> = ({ teamId, eventId, apiUrl, printHref }) 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white p-3">
         <div className="mx-auto flex max-w-lg flex-wrap gap-2">
           {eventId && data.last_game && (
-            <button type="button" disabled={busy} onClick={() => copyFrom('last')} className="rounded border border-gray-300 px-3 py-2 text-sm">Use last game</button>
+            <Button variant="secondary" disabled={busy} onClick={() => copyFrom('last')}>Use last game</Button>
           )}
           {eventId && data.has_template && (
-            <button type="button" disabled={busy} onClick={() => copyFrom('template')} className="rounded border border-gray-300 px-3 py-2 text-sm">Use default</button>
+            <Button variant="secondary" disabled={busy} onClick={() => copyFrom('template')}>Use default</Button>
           )}
-          <button type="button" disabled={busy} onClick={() => save(true)} className="rounded border border-gray-300 px-3 py-2 text-sm">Save as default</button>
+          <Button variant="secondary" disabled={busy} onClick={() => save(true)}>Save as default</Button>
           {eventId && (
-            <button type="button" disabled={busy} onClick={() => save(false)}
-              className="rounded bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <Button disabled={busy} onClick={() => save(false)}>
               {dirty ? 'Save' : 'Saved'}
-            </button>
+            </Button>
           )}
           {savedForGame && (
-            <button type="button" disabled={busy} onClick={() => publish(!published)}
-              className={`rounded px-3 py-2 text-sm font-semibold ${published ? 'border border-gray-300' : 'bg-green-700 text-white'}`}>
+            <Button variant={published ? 'secondary' : 'primary'} disabled={busy} onClick={() => publish(!published)}>
               {published ? 'Unpublish' : 'Publish to crew'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -4,6 +4,7 @@ import PracticeScheduler from './PracticeScheduler';
 import { teamGenderLabel } from '../utils/teamGender';
 import SmartScheduler from './SmartScheduler';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface Team {
   id: number;
@@ -121,33 +122,22 @@ const TeamList: React.FC<TeamListProps> = ({ teams, onEdit, onDelete, canDelete 
       className: 'font-medium',
       render: (team) => (
         <>
-          <button
-            onClick={() => onEdit(team)}
-            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+          <Button variant="link" size="sm" onClick={() => onEdit(team)} className="mr-3">
             Edit
-          </button>
-          <button
-            onClick={() => window.location.href = `/teams/${team.id}/roster`}
-            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => window.location.href = `/teams/${team.id}/roster`} className="mr-3">
             Roster
-          </button>
-          <button
-            onClick={() => handleSchedulePractice(team)}
-            className="text-brand-primary hover:underline mr-3 uppercase text-xs">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => handleSchedulePractice(team)} className="mr-3">
             Schedule
-          </button>
-          <button
-            onClick={() => handleSmartSchedule(team)}
-            className="text-blue-600 hover:underline mr-3 uppercase text-xs font-bold">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => handleSmartSchedule(team)} className="mr-3">
             Smart
-          </button>
+          </Button>
           {canDelete && (
-            <button
-              onClick={() => onDelete(team.id)}
-              className="text-brand-primary hover:underline uppercase text-xs"
-            >
+            <Button variant="link" size="sm" onClick={() => onDelete(team.id)}>
               Archive
-            </button>
+            </Button>
           )}
         </>
       ),

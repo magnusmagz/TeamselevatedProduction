@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
+import Button from './ui/Button';
 
 /**
  * Download a team's roster as CSV, in one of two flavours.
@@ -107,19 +108,20 @@ const RosterDownloadButton: React.FC<Props> = ({ teamId }) => {
 
   return (
     <div className="relative inline-block text-left" ref={menuRef}>
-      <button
-        type="button"
+      <Button
+        variant="link"
         onClick={() => setOpen((o) => !o)}
         disabled={busy !== null}
-        className="inline-flex items-center text-sm text-brand-primary hover:underline uppercase font-medium disabled:opacity-50"
         aria-haspopup="menu"
         aria-expanded={open}
+        leadingIcon={
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        }
       >
-        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
         {busy ? 'Preparing…' : 'Download'}
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -150,13 +152,9 @@ const RosterDownloadButton: React.FC<Props> = ({ teamId }) => {
       {error && (
         <div className="absolute right-0 z-20 mt-2 w-72 bg-amber-50 border border-amber-200 rounded-lg p-3 text-left">
           <p className="text-xs text-amber-900">{error}</p>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="mt-2 text-xs text-amber-900 underline"
-          >
+          <Button variant="link" size="sm" onClick={() => setError(null)} className="mt-2">
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
     </div>
