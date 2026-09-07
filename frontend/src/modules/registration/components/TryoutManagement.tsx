@@ -10,6 +10,7 @@ import {
   CoachInviteStatus
 } from '../types';
 import EvaluationModal from './EvaluationModal';
+import Button from '../../../components/ui/Button';
 import { useOrg } from '../../../contexts/OrgContext';
 import { ageGroup } from '../../../utils/ageGroup';
 import DataTable, { DataTableColumn } from '../../../components/ui/DataTable';
@@ -375,12 +376,9 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
             </h2>
             <p className="text-gray-600">{programName}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             &times;
-          </button>
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -464,25 +462,25 @@ const TryoutManagement: React.FC<TryoutManagementProps> = ({
                       {narrowedAgeGroups.length > 0
                         ? `${narrowedAgeGroups.join(', ')} only — the age groups you coach.`
                         : 'nothing: you are not assigned to a team, so no age group matches.'}{' '}
-                      <button
-                        type="button"
-                        className="underline text-brand-primary"
+                      <Button
+                        variant="link"
+                        className="normal-case tracking-normal font-normal underline"
                         onClick={() => setShowAllAgeGroups(true)}
                       >
                         Show all age groups
-                      </button>
+                      </Button>
                     </div>
                   )}
                   {!narrowed && showAllAgeGroups && (
                     <div className="mt-3 text-sm text-gray-700">
                       Showing every age group in this tryout.{' '}
-                      <button
-                        type="button"
-                        className="underline text-brand-primary"
+                      <Button
+                        variant="link"
+                        className="normal-case tracking-normal font-normal underline"
                         onClick={() => setShowAllAgeGroups(false)}
                       >
                         Back to my age groups
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -704,12 +702,9 @@ const RegistrationsTable: React.FC<RegistrationsTableProps> = ({
       render: (reg) => (
         <div className="flex items-center gap-3">
           {(!reg.tryout_status || reg.tryout_status === 'registered') && (
-            <button
-              onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}
-              className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-            >
+            <Button variant="link" onClick={() => onCheckIn(reg.id, tryoutNumbers[reg.id])}>
               Check In
-            </button>
+            </Button>
           )}
           <CoachInviteButton
             registrationId={reg.id}
@@ -1024,12 +1019,9 @@ const EvaluationsTable: React.FC<EvaluationsTableProps> = ({
             header: 'Actions',
             render: (reg) => (
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => onEvaluate(reg)}
-                  className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                >
+                <Button variant="link" onClick={() => onEvaluate(reg)}>
                   {evaluationCountOf(reg) > 0 ? 'View/Edit' : 'Evaluate'}
-                </button>
+                </Button>
                 <CoachInviteButton
                   registrationId={reg.id}
                   coachInvites={coachInvites}
@@ -1175,7 +1167,7 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
                 </option>
               ))}
             </select>
-            <button
+            <Button
               onClick={() => {
                 if (!selectedTeamId) {
                   alert('Please select a team for roster offers');
@@ -1184,28 +1176,27 @@ const RankingsTable: React.FC<RankingsTableProps> = ({
                 onSendOffers(selectedIds, 'roster', selectedTeamId);
                 setSelectedIds([]);
               }}
-              className="px-3 py-2 bg-brand-primary text-white rounded-md text-sm font-semibold uppercase hover:bg-brand-primary-hover"
             >
               Send Roster Offer
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => {
                 onSendOffers(selectedIds, 'waitlist');
                 setSelectedIds([]);
               }}
-              className="px-3 py-2 bg-yellow-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-yellow-700"
             >
               Waitlist
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => {
                 onSendOffers(selectedIds, 'not_selected');
                 setSelectedIds([]);
               }}
-              className="px-3 py-2 bg-gray-600 text-white rounded-md text-sm font-semibold uppercase hover:bg-gray-700"
             >
               Not Selected
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1386,27 +1377,18 @@ const OffersTable: React.FC<OffersTableProps> = ({
             <>
               {offer.offer_type === 'roster' && !offer.response && (
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => onUpdateOffer(offer.id!, 'accepted')}
-                    className="text-green-600 hover:text-green-700 text-sm font-semibold uppercase"
-                  >
+                  <Button variant="link" onClick={() => onUpdateOffer(offer.id!, 'accepted')}>
                     Accept
-                  </button>
-                  <button
-                    onClick={() => onUpdateOffer(offer.id!, 'declined')}
-                    className="text-red-600 hover:text-red-700 text-sm font-semibold uppercase"
-                  >
+                  </Button>
+                  <Button variant="danger-link" onClick={() => onUpdateOffer(offer.id!, 'declined')}>
                     Decline
-                  </button>
+                  </Button>
                 </div>
               )}
               {offer.response === 'accepted' && offer.team_id && (
-                <button
-                  onClick={() => onAddToRoster(offer.registration_id, offer.team_id!)}
-                  className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                >
+                <Button variant="link" onClick={() => onAddToRoster(offer.registration_id, offer.team_id!)}>
                   Add to Roster
-                </button>
+                </Button>
               )}
             </>
           ),
@@ -1543,20 +1525,14 @@ const CoachInvitesTable: React.FC<CoachInvitesTableProps> = ({
             render: (invite) => (
               <div className="flex items-center gap-3">
                 {invite.status !== 'declined' && (
-                  <button
-                    onClick={() => onSetStatus(invite.id, 'declined')}
-                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                  >
+                  <Button variant="link" onClick={() => onSetStatus(invite.id, 'declined')}>
                     Declined
-                  </button>
+                  </Button>
                 )}
                 {invite.status !== 'withdrawn' && (
-                  <button
-                    onClick={() => onSetStatus(invite.id, 'withdrawn')}
-                    className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                  >
+                  <Button variant="link" onClick={() => onSetStatus(invite.id, 'withdrawn')}>
                     Withdraw
-                  </button>
+                  </Button>
                 )}
               </div>
             ),

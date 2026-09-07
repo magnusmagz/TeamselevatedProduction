@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationCriterion, TryoutSession, Program } from '../types';
 import EvaluationCriteriaBuilder from './EvaluationCriteriaBuilder';
+import Button from '../../../components/ui/Button';
 
 const tryoutAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -307,12 +308,9 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
           <h2 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {isEditing ? 'Edit Tryout' : 'Create Tryout'}
           </h2>
-          <button
-            onClick={onCancel}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onCancel} className="text-2xl">
             &times;
-          </button>
+          </Button>
         </div>
 
         {/* Step Indicator */}
@@ -474,16 +472,18 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                           setWhatToBring(updated);
                         }}
                       />
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger-link"
+                        size="icon"
                         onClick={() => setWhatToBring(whatToBring.filter((_, i) => i !== index))}
-                        className="text-red-600 hover:text-red-500 p-2"
+                        className="p-2"
                         title="Remove item"
+                        aria-label="Remove item"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -503,18 +503,16 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                       }
                     }}
                   />
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => {
                       if (newItem.trim()) {
                         setWhatToBring([...whatToBring, newItem.trim()]);
                         setNewItem('');
                       }
                     }}
-                    className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover"
                   >
                     Add
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -528,13 +526,9 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                   <h3 className="text-brand-primary font-semibold uppercase">Tryout Sessions</h3>
                   <p className="text-sm text-gray-600">Add dates and times for your tryout sessions</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddSession}
-                  className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                >
+                <Button variant="link" onClick={handleAddSession}>
                   + Add Session
-                </button>
+                </Button>
               </div>
 
               {sessions.length === 0 && (
@@ -561,13 +555,9 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
                         <span className="text-yellow-700 font-medium">Rain/Backup Date</span>
                       </label>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSession(index)}
-                      className="text-red-600 hover:text-red-500 text-xs font-semibold uppercase"
-                    >
+                    <Button variant="danger-link" size="sm" onClick={() => handleRemoveSession(index)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
 
                   <div>
@@ -738,31 +728,16 @@ const TryoutCreationWizard: React.FC<TryoutCreationWizardProps> = ({
 
         {/* Footer */}
         <div className="border-t border-brand-secondary px-6 py-4 flex justify-between">
-          <button
-            type="button"
-            onClick={step === 1 ? onCancel : handleBack}
-            className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-          >
+          <Button variant="secondary" onClick={step === 1 ? onCancel : handleBack}>
             {step === 1 ? 'Cancel' : 'Back'}
-          </button>
+          </Button>
 
           {step < 3 ? (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase"
-            >
-              Next
-            </button>
+            <Button onClick={handleNext}>Next</Button>
           ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase disabled:opacity-50"
-            >
-              {saving ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Tryout')}
-            </button>
+            <Button onClick={handleSubmit} loading={saving}>
+              {isEditing ? 'Save Changes' : 'Create Tryout'}
+            </Button>
           )}
         </div>
       </div>

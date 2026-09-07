@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EvaluationCriterion } from '../types';
+import Button from '../../../components/ui/Button';
 
 interface EvaluationCriteriaBuilderProps {
   criteria: EvaluationCriterion[];
@@ -99,13 +100,9 @@ const EvaluationCriteriaBuilder: React.FC<EvaluationCriteriaBuilderProps> = ({
       <div className="flex justify-between items-center">
         <h3 className="text-brand-primary font-semibold uppercase">Evaluation Criteria</h3>
         {!readOnly && (
-          <button
-            type="button"
-            onClick={handleAddCriterion}
-            className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-          >
+          <Button variant="link" onClick={handleAddCriterion}>
             + Add Criterion
-          </button>
+          </Button>
         )}
       </div>
 
@@ -157,20 +154,12 @@ const EvaluationCriteriaBuilder: React.FC<EvaluationCriteriaBuilderProps> = ({
                   </div>
                   {!readOnly && (
                     <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEditCriterion(criterion)}
-                        className="text-brand-primary hover:text-brand-primary-hover text-xs font-semibold uppercase"
-                      >
+                      <Button variant="link" size="sm" onClick={() => handleEditCriterion(criterion)}>
                         Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCriterion(index)}
-                        className="text-red-600 hover:text-red-500 text-xs font-semibold uppercase"
-                      >
+                      </Button>
+                      <Button variant="danger-link" size="sm" onClick={() => handleDeleteCriterion(index)}>
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -282,20 +271,10 @@ const CriterionEditor: React.FC<CriterionEditorProps> = ({ criterion, onSave, on
         </div>
 
         <div className="flex justify-end space-x-3 mt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover"
-          >
-            Save
-          </button>
+          </Button>
+          <Button onClick={handleSave}>Save</Button>
         </div>
       </div>
     </div>

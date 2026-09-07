@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { pageQuery, rowsFrom } from '../../../utils/pagination';
+import Button from '../../../components/ui/Button';
 
 /**
  * Who runs this program.
@@ -150,14 +151,9 @@ const ProgramStaffModal: React.FC<Props> = ({ programId, programName, onClose })
             <h2 className="text-lg font-semibold text-gray-900">Staff</h2>
             <p className="text-sm text-gray-500">{programName}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close" className="text-xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -190,14 +186,14 @@ const ProgramStaffModal: React.FC<Props> = ({ programId, programName, onClose })
                     <div className="text-sm font-medium text-gray-900">{fullName(s)}</div>
                     <div className="text-xs text-gray-500">{s.email}</div>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="danger-link"
+                    size="sm"
                     disabled={busy}
                     onClick={() => post('remove-staff', s.user_id)}
-                    className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
                   >
                     Remove
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -221,14 +217,13 @@ const ProgramStaffModal: React.FC<Props> = ({ programId, programName, onClose })
                 </option>
               ))}
             </select>
-            <button
-              type="button"
+            <Button
+              size="sm"
               disabled={busy || !selectedId || !available}
               onClick={() => post('assign-staff', Number(selectedId))}
-              className="px-3 py-1 text-sm rounded bg-brand-primary text-white disabled:opacity-50"
             >
               Add
-            </button>
+            </Button>
           </div>
         </div>
       </div>

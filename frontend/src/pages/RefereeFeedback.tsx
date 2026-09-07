@@ -5,6 +5,7 @@ import { refereeCategoryLabel } from '../constants/refereeFeedbackCategories';
 import { RefereeFeedbackRow, RefereeSummaryRow } from '../components/referee/types';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 /**
  * Club admin review of referee feedback (CKU R68, slice 8.6).
@@ -207,14 +208,13 @@ const RefereeFeedback: React.FC = () => {
         subtitle="What your coaches recorded about the referees of their games. Coaches see only their own; this page is club-admin only."
         actions={
           <div className="text-right">
-            <button
-              type="button"
+            <Button
               onClick={download}
-              disabled={downloading || !available || rows.length === 0}
-              className="inline-flex items-center px-4 py-2 bg-brand-primary text-white rounded-md font-semibold uppercase text-sm disabled:opacity-50"
+              disabled={!available || rows.length === 0}
+              loading={downloading}
             >
-              {downloading ? 'Preparing…' : 'Download CSV'}
-            </button>
+              Download CSV
+            </Button>
             {downloadNote && (
               <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded p-2 max-w-xs">{downloadNote}</p>
             )}
@@ -266,14 +266,10 @@ const RefereeFeedback: React.FC = () => {
           Incidents only
         </label>
         <div className="flex gap-2">
-          <button type="submit" className="px-4 py-2 bg-brand-primary text-white rounded-md text-sm font-semibold uppercase">Apply</button>
-          <button
-            type="button"
-            onClick={() => { setDraft(emptyFilters); setApplied(emptyFilters); }}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700"
-          >
+          <Button type="submit">Apply</Button>
+          <Button variant="secondary" onClick={() => { setDraft(emptyFilters); setApplied(emptyFilters); }}>
             Clear
-          </button>
+          </Button>
         </div>
       </form>
 

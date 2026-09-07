@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FormField, FieldType, DragDropField } from '../types';
 import { JERSEY_SIZE_OPTIONS } from '../../../utils/jerseySize';
+import Button from '../../../components/ui/Button';
 
 interface FormFieldBuilderProps {
   programId?: number;
@@ -376,18 +377,12 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
                 </div>
 
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleFieldEdit(field)}
-                    className="text-brand-primary hover:text-brand-primary-hover px-2 uppercase text-xs font-semibold"
-                  >
+                  <Button variant="link" size="sm" onClick={() => handleFieldEdit(field)}>
                     Edit
-                  </button>
-                  <button
-                    onClick={() => handleFieldDelete(field.tempId!)}
-                    className="text-red-600 hover:text-red-500 px-2 uppercase text-xs font-semibold"
-                  >
+                  </Button>
+                  <Button variant="danger-link" size="sm" onClick={() => handleFieldDelete(field.tempId!)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -400,12 +395,7 @@ const FormFieldBuilder: React.FC<FormFieldBuilderProps> = ({ programId, onSave }
 
         {programId && (
           <div className="mt-6 flex justify-end">
-            <button
-              onClick={handleSaveFields}
-              className="bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary uppercase font-semibold"
-            >
-              Save Form Configuration
-            </button>
+            <Button onClick={handleSaveFields}>Save Form Configuration</Button>
           </div>
         )}
       </div>
@@ -505,18 +495,10 @@ const FieldEditor: React.FC<{
         </div>
 
         <div className="flex justify-end space-x-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary"
-          >
-            Save
-          </button>
+          </Button>
+          <Button onClick={handleSave}>Save</Button>
         </div>
       </div>
     </div>

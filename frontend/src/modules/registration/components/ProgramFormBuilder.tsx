@@ -3,6 +3,7 @@ import { Program, Venue } from '../types';
 import FormFieldBuilder from './FormFieldBuilder';
 import VenuePicker from './VenuePicker';
 import ProgramScheduleBuilder from './ProgramScheduleBuilder';
+import Button from '../../../components/ui/Button';
 
 interface ProgramFormBuilderProps {
   program: Program | null;
@@ -102,12 +103,9 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
               {program ? 'Edit Program' : 'Create New Program'}
             </h3>
-            <button
-              onClick={onClose}
-              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
               ×
-            </button>
+            </Button>
           </div>
 
           {/* Tabs */}
@@ -383,19 +381,12 @@ const ProgramFormBuilder: React.FC<ProgramFormBuilderProps> = ({ program, onClos
         </div>
 
         <div className="border-t border-brand-secondary px-6 py-4 flex justify-end space-x-4">
-          <button
-            onClick={onClose}
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !formData.name}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : (savedProgramId ? 'Update Program' : 'Create Program')}
-          </button>
+          </Button>
+          <Button onClick={handleSave} disabled={!formData.name} loading={saving}>
+            {savedProgramId ? 'Update Program' : 'Create Program'}
+          </Button>
         </div>
       </div>
     </div>

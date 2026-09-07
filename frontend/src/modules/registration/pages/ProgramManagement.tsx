@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import Button, { LinkButton } from '../../../components/ui/Button';
 import { Program, ProgramType, ProgramStatus } from '../types';
 import { formatDateOnly } from '../../../utils/dateFormat';
 import ProgramFormBuilder from '../components/ProgramFormBuilder';
@@ -354,24 +354,26 @@ const ProgramManagement: React.FC = () => {
 
   const reorderControls = (type: string, index: number, count: number) => (
     <div className="flex flex-col leading-none">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         aria-label="Move up"
         disabled={index === 0}
         onClick={() => handleMove(type, index, -1)}
-        className="px-1 text-brand-primary disabled:text-gray-300"
+        className="text-xs"
       >
         ▲
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         aria-label="Move down"
         disabled={index === count - 1}
         onClick={() => handleMove(type, index, 1)}
-        className="px-1 text-brand-primary disabled:text-gray-300"
+        className="text-xs"
       >
         ▼
-      </button>
+      </Button>
     </div>
   );
 
@@ -385,26 +387,11 @@ const ProgramManagement: React.FC = () => {
           subtitle="Create and manage registration programs"
           actions={
             <>
-              <button
-                onClick={handleCreateProgram}
-                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm"
-              >
-                + Program
-              </button>
+              <Button onClick={handleCreateProgram}>+ Program</Button>
               {isClubAdmin && (
-                <button
-                  onClick={() => setShowTryoutWizard(true)}
-                  className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm"
-                >
-                  + Tryout
-                </button>
+                <Button onClick={() => setShowTryoutWizard(true)}>+ Tryout</Button>
               )}
-              <Link
-                to="/tournaments/create"
-                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary-hover uppercase font-semibold text-sm text-center"
-              >
-                + Tournament
-              </Link>
+              <LinkButton to="/tournaments/create">+ Tournament</LinkButton>
             </>
           }
         />
@@ -558,12 +545,13 @@ const ProgramManagement: React.FC = () => {
                             header: 'Registrations',
                             render: (program) => (
                               <>
-                                <button
+                                <Button
+                                  variant="link"
                                   onClick={() => setRegistrationsProgram(program)}
-                                  className="text-brand-primary hover:text-brand-primary-dark underline"
+                                  className="normal-case tracking-normal font-normal underline"
                                 >
                                   {program.registration_count || 0} registrations
-                                </button>
+                                </Button>
                                 {(program.pending_count ?? 0) > 0 && (
                                   <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                                     {program.pending_count} pending
@@ -590,64 +578,55 @@ const ProgramManagement: React.FC = () => {
                             actions: true,
                             render: (program) => (
                               <div className="flex justify-end space-x-3">
-                                <button
-                                  onClick={() => handleEditProgram(program)}
-                                  className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                                >
+                                <Button variant="link" size="sm" onClick={() => handleEditProgram(program)}>
                                   Edit
-                                </button>
+                                </Button>
                                 {program.type === 'tryout' && (
-                                  <button
-                                    onClick={() => setManageTryoutProgram(program)}
-                                    className="text-green-600 hover:text-green-500 uppercase text-xs font-semibold"
-                                  >
+                                  <Button variant="link" size="sm" onClick={() => setManageTryoutProgram(program)}>
                                     Manage
-                                  </button>
+                                  </Button>
                                 )}
                                 {program.status === 'published' && (
                                   <>
-                                    <button
-                                      onClick={() => setEmbedProgram(program)}
-                                      className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
-                                    >
+                                    <Button variant="link" size="sm" onClick={() => setEmbedProgram(program)}>
                                       Embed
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
                                       onClick={() => {
                                         navigator.clipboard.writeText(
                                           `${window.location.origin}/register/${program.embed_code}`
                                         );
                                         alert('Registration link copied to clipboard!');
                                       }}
-                                      className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
                                     >
                                       Link
-                                    </button>
+                                    </Button>
                                   </>
                                 )}
                                 {isClubAdmin && (
-                                  <button
-                                    onClick={() => setStaffProgram(program)}
-                                    className="text-brand-primary hover:text-brand-primary-dark uppercase text-xs font-semibold"
-                                  >
+                                  <Button variant="link" size="sm" onClick={() => setStaffProgram(program)}>
                                     Staff
-                                  </button>
+                                  </Button>
                                 )}
                                 {isClubAdmin && (
-                                  <button
+                                  <Button
+                                    variant="link"
+                                    size="sm"
                                     onClick={() => handleArchiveToggle(program)}
                                     disabled={busyProgramId === program.id}
-                                    className="text-gray-600 hover:text-gray-500 uppercase text-xs font-semibold disabled:opacity-50"
                                   >
                                     {isArchived(program) ? 'Unarchive' : 'Archive'}
-                                  </button>
+                                  </Button>
                                 )}
-                                <button
+                                <Button
+                                  variant="danger-link"
+                                  size="sm"
                                   onClick={() => program.id && handleDeleteProgram(program.id)}
-                                  className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
                                 >
                                   Delete
-                                </button>
+                                </Button>
                               </div>
                             ),
                           },
@@ -701,12 +680,13 @@ const ProgramManagement: React.FC = () => {
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 text-sm font-semibold uppercase">Registrations:</span>
                                 <div className="flex items-center">
-                                  <button
+                                  <Button
+                                    variant="link"
                                     onClick={() => setRegistrationsProgram(program)}
-                                    className="text-brand-primary text-sm hover:text-brand-primary-dark underline"
+                                    className="normal-case tracking-normal font-normal underline"
                                   >
                                     {program.registration_count || 0} registrations
-                                  </button>
+                                  </Button>
                                   {(program.pending_count ?? 0) > 0 && (
                                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                                       {program.pending_count} pending
@@ -727,64 +707,55 @@ const ProgramManagement: React.FC = () => {
 
                             {/* Action Buttons */}
                             <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => handleEditProgram(program)}
-                                className="border border-brand-secondary rounded-md text-brand-primary hover:bg-brand-secondary py-2 uppercase text-xs font-semibold"
-                              >
+                              <Button variant="secondary" size="sm" onClick={() => handleEditProgram(program)}>
                                 Edit
-                              </button>
+                              </Button>
                               {program.type === 'tryout' && (
-                                <button
-                                  onClick={() => setManageTryoutProgram(program)}
-                                  className="border border-green-200 rounded-md text-green-600 hover:bg-green-50 py-2 uppercase text-xs font-semibold"
-                                >
+                                <Button variant="secondary" size="sm" onClick={() => setManageTryoutProgram(program)}>
                                   Manage
-                                </button>
+                                </Button>
                               )}
                               {program.status === 'published' && (
                                 <>
-                                  <button
-                                    onClick={() => setEmbedProgram(program)}
-                                    className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
-                                  >
+                                  <Button variant="secondary" size="sm" onClick={() => setEmbedProgram(program)}>
                                     Embed
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
                                     onClick={() => {
                                       navigator.clipboard.writeText(
                                         `${window.location.origin}/register/${program.embed_code}`
                                       );
                                       alert('Registration link copied to clipboard!');
                                     }}
-                                    className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
                                   >
                                     Link
-                                  </button>
+                                  </Button>
                                 </>
                               )}
                               {isClubAdmin && (
-                                <button
-                                  onClick={() => setStaffProgram(program)}
-                                  className="border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
-                                >
+                                <Button variant="secondary" size="sm" onClick={() => setStaffProgram(program)}>
                                   Staff
-                                </button>
+                                </Button>
                               )}
                               {isClubAdmin && (
-                                <button
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
                                   onClick={() => handleArchiveToggle(program)}
                                   disabled={busyProgramId === program.id}
-                                  className="border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 py-2 uppercase text-xs font-semibold disabled:opacity-50"
                                 >
                                   {isArchived(program) ? 'Unarchive' : 'Archive'}
-                                </button>
+                                </Button>
                               )}
-                              <button
+                              <Button
+                                variant="danger"
+                                size="sm"
                                 onClick={() => program.id && handleDeleteProgram(program.id)}
-                                className="border border-red-200 rounded-md text-red-600 hover:bg-red-50 py-2 uppercase text-xs font-semibold"
                               >
                                 Delete
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -860,12 +831,9 @@ const ProgramManagement: React.FC = () => {
                       header: 'Actions',
                       actions: true,
                       render: (t) => (
-                        <Link
-                          to={`/tournaments/${t.id}`}
-                          className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold"
-                        >
+                        <LinkButton variant="link" size="sm" to={`/tournaments/${t.id}`}>
                           Manage
-                        </Link>
+                        </LinkButton>
                       ),
                     },
                   ]}
@@ -909,12 +877,9 @@ const ProgramManagement: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      <Link
-                        to={`/tournaments/${t.id}`}
-                        className="block w-full text-center border border-brand-primary/30 rounded-md text-brand-primary hover:bg-brand-light py-2 uppercase text-xs font-semibold"
-                      >
+                      <LinkButton variant="secondary" size="sm" fullWidth to={`/tournaments/${t.id}`}>
                         Manage
-                      </Link>
+                      </LinkButton>
                     </div>
                   ))}
                 </div>

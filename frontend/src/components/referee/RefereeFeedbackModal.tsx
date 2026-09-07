@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { REFEREE_FEEDBACK_CATEGORIES } from '../../constants/refereeFeedbackCategories';
 import { formatDateOnly } from '../../utils/dateFormat';
 import { RefereeFeedbackRow } from './types';
+import Button from '../ui/Button';
 
 /**
  * Record or edit a coach's feedback about the referee(s) of a game (CKU R68).
@@ -195,11 +196,11 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
             <h2 className="text-lg font-semibold text-brand-primary">Referee feedback</h2>
             <p className="text-sm text-gray-600">{heading}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -235,21 +236,17 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
                       {row.comments && <div className="text-xs text-gray-600 mt-1">{row.comments}</div>}
                     </div>
                     {canSubmit && (
-                      <button
-                        type="button"
-                        onClick={() => startEdit(row)}
-                        className="text-sm text-brand-primary hover:underline shrink-0"
-                      >
+                      <Button variant="link" onClick={() => startEdit(row)} className="shrink-0">
                         Edit
-                      </button>
+                      </Button>
                     )}
                   </li>
                 ))}
               </ul>
               {canSubmit && form === null && (
-                <button type="button" onClick={startNew} className="mt-2 text-sm text-brand-primary hover:underline">
+                <Button variant="link" onClick={startNew} className="mt-2">
                   + Another referee
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -365,20 +362,12 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
               )}
 
               <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => (existing.length > 0 ? setForm(null) : onClose())}
-                  className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase text-sm"
-                >
+                <Button variant="secondary" onClick={() => (existing.length > 0 ? setForm(null) : onClose())}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-brand-primary text-white rounded-md font-semibold uppercase text-sm disabled:opacity-50"
-                >
-                  {saving ? 'Saving…' : 'Save feedback'}
-                </button>
+                </Button>
+                <Button type="submit" loading={saving}>
+                  Save feedback
+                </Button>
               </div>
             </form>
           )}

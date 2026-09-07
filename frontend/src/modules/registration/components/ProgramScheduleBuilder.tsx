@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TryoutSession, Venue } from '../types';
 import VenuePicker from './VenuePicker';
+import Button from '../../../components/ui/Button';
 
 interface ProgramScheduleBuilderProps {
   programId: number;
@@ -130,12 +131,7 @@ const ProgramScheduleBuilder: React.FC<ProgramScheduleBuilderProps> = ({ program
           Add each date this program meets. Times and location are optional; a session with no
           facility uses the program's facility.
         </p>
-        <button
-          onClick={addRow}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 text-sm uppercase font-semibold whitespace-nowrap"
-        >
-          + Add Session
-        </button>
+        <Button onClick={addRow}>+ Add Session</Button>
       </div>
 
       {sessions.length === 0 ? (
@@ -213,12 +209,9 @@ const ProgramScheduleBuilder: React.FC<ProgramScheduleBuilderProps> = ({ program
                   />
                   Rain date
                 </label>
-                <button
-                  onClick={() => removeRow(idx)}
-                  className="text-red-600 hover:underline text-xs uppercase"
-                >
+                <Button variant="danger-link" size="sm" onClick={() => removeRow(idx)}>
                   Remove
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -226,13 +219,9 @@ const ProgramScheduleBuilder: React.FC<ProgramScheduleBuilderProps> = ({ program
       )}
 
       <div className="flex justify-end pt-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 font-semibold uppercase disabled:opacity-50"
-        >
-          {saving ? 'Saving…' : 'Save Schedule'}
-        </button>
+        <Button onClick={save} loading={saving}>
+          Save Schedule
+        </Button>
       </div>
     </div>
   );

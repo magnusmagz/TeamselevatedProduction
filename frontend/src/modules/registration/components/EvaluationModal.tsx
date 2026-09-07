@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationCriterion, TryoutRegistration, TryoutEvaluation } from '../types';
+import Button from '../../../components/ui/Button';
 import {
   CriterionScoreList,
   ScoringCriterion,
@@ -157,12 +158,9 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
               {registration.first_name} {registration.last_name}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             &times;
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -208,21 +206,12 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({
 
         {/* Footer */}
         <div className="border-t border-brand-secondary px-6 py-4 flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : existingEvaluation ? 'Update Evaluation' : 'Submit Evaluation'}
-          </button>
+          </Button>
+          <Button onClick={handleSubmit} loading={saving}>
+            {existingEvaluation ? 'Update Evaluation' : 'Submit Evaluation'}
+          </Button>
         </div>
       </div>
     </div>

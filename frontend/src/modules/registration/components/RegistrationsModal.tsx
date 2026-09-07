@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Program } from '../types';
+import Button from '../../../components/ui/Button';
 
 interface Registration {
   id: number;
@@ -159,12 +160,9 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
               <h2 className="text-xl font-bold">Registrations</h2>
               <p className="text-blue-100 mt-1">{program.name}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl leading-none"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl text-white hover:bg-white/20">
               &times;
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -296,48 +294,44 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
                     {/* Action Buttons */}
                     {reg.status === 'pending' && (
                       <div className="flex gap-2 ml-4">
-                        <button
+                        <Button
                           onClick={() => handleUpdateStatus(reg.id, 'approved')}
-                          disabled={processing === reg.id}
-                          className="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
+                          loading={processing === reg.id}
                         >
-                          {processing === reg.id ? 'Processing...' : 'Approve'}
-                        </button>
-                        <button
+                          Approve
+                        </Button>
+                        <Button
+                          variant="danger"
                           onClick={() => handleUpdateStatus(reg.id, 'rejected')}
                           disabled={processing === reg.id}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
                         >
                           Reject
-                        </button>
+                        </Button>
                       </div>
                     )}
 
                     {reg.status === 'approved' && (
                       <div className="ml-4 text-right space-y-2">
-                        <button
-                          onClick={() => handleInviteToPortal(reg)}
-                          disabled={inviting === reg.id}
-                          className="bg-brand-primary hover:bg-brand-primary-hover text-white px-4 py-2 rounded font-medium text-sm disabled:opacity-50"
-                        >
-                          {inviting === reg.id ? 'Sending...' : 'Invite to parent portal'}
-                        </button>
+                        <Button onClick={() => handleInviteToPortal(reg)} loading={inviting === reg.id}>
+                          Invite to parent portal
+                        </Button>
                         {reg.invoice_id ? (
                           <div className="space-y-1">
                             <div className="text-sm text-gray-500">
                               {reg.invoice_number} • ${Number(reg.total_amount).toFixed(2)}
                             </div>
                             <div className="flex gap-2 justify-end">
-                              <button
+                              <Button
+                                variant="link"
+                                size="sm"
                                 onClick={() => {
                                   const paymentUrl = `${window.location.origin}/pay/${reg.invoice_id}`;
                                   navigator.clipboard.writeText(paymentUrl);
                                   alert('Payment link copied to clipboard!');
                                 }}
-                                className="text-xs text-brand-primary hover:text-brand-primary-dark underline"
                               >
                                 Copy Payment Link
-                              </button>
+                              </Button>
                               <a
                                 href={`/pay/${reg.invoice_id}`}
                                 target="_blank"
@@ -369,12 +363,9 @@ const RegistrationsModal: React.FC<RegistrationsModalProps> = ({ program, onClos
 
         {/* Footer */}
         <div className="border-t px-6 py-4 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 font-medium"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

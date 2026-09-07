@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -371,17 +372,14 @@ export const VolunteerSignupRequests: React.FC = () => {
         return signup.status === 'pending' ? (
           <div className="flex items-center justify-end gap-2">
             <div className="relative group">
-              <button
+              <Button
+                size="sm"
                 onClick={() => handleApprove(signup.id)}
-                disabled={!bgCleared || isActioning}
-                className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase transition-colors ${
-                  bgCleared
-                    ? 'bg-brand-primary text-white hover:opacity-90'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
+                disabled={!bgCleared}
+                loading={isActioning}
               >
-                {isActioning ? 'Processing...' : 'Approve'}
-              </button>
+                Approve
+              </Button>
               {!bgCleared && (
                 <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10">
                   <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
@@ -390,16 +388,17 @@ export const VolunteerSignupRequests: React.FC = () => {
                 </div>
               )}
             </div>
-            <button
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => {
                 setRejectingId(isRejecting ? null : signup.id);
                 setRejectNotes('');
               }}
               disabled={isActioning}
-              className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
             >
               Reject
-            </button>
+            </Button>
           </div>
         ) : (
           <span
@@ -522,27 +521,15 @@ export const VolunteerSignupRequests: React.FC = () => {
           <span className="text-sm font-medium text-brand-primary">
             {selectedIds.size} selected
           </span>
-          <button
-            onClick={() => handleBulk('approved')}
-            disabled={bulkLoading}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-brand-primary text-white hover:opacity-90 transition-colors disabled:opacity-50"
-          >
-            {bulkLoading ? 'Processing...' : 'Approve Selected'}
-          </button>
-          <button
-            onClick={() => handleBulk('rejected')}
-            disabled={bulkLoading}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-          >
-            {bulkLoading ? 'Processing...' : 'Reject Selected'}
-          </button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            disabled={bulkLoading}
-            className="ml-auto text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
-          >
+          <Button size="sm" onClick={() => handleBulk('approved')} loading={bulkLoading}>
+            Approve Selected
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => handleBulk('rejected')} loading={bulkLoading}>
+            Reject Selected
+          </Button>
+          <Button variant="link" size="sm" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading} className="ml-auto">
             Clear
-          </button>
+          </Button>
         </div>
       )}
 
@@ -597,22 +584,19 @@ export const VolunteerSignupRequests: React.FC = () => {
                     placeholder="Enter a reason for rejection..."
                     className="flex-1 rounded-md border border-brand-secondary text-brand-primary shadow-sm focus:outline-none focus:border-brand-accent text-sm"
                   />
-                  <button
-                    onClick={() => handleReject(signup.id)}
-                    disabled={isActioning}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {isActioning ? 'Processing...' : 'Confirm Reject'}
-                  </button>
-                  <button
+                  <Button variant="danger" size="sm" onClick={() => handleReject(signup.id)} loading={isActioning}>
+                    Confirm Reject
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setRejectingId(null);
                       setRejectNotes('');
                     }}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold uppercase bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               );
             }}

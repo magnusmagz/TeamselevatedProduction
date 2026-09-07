@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Program } from '../types';
 import { useTheme } from '../../../contexts/ThemeContext';
+import Button from '../../../components/ui/Button';
 
 interface EmbedCodeModalProps {
   program: Program;
@@ -52,12 +53,9 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
           <h3 className="text-xl font-semibold text-brand-primary uppercase">
             Embed Registration Form
           </h3>
-          <button
-            onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-          >
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-2xl">
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 overflow-y-auto">
@@ -76,12 +74,7 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
                 value={registrationUrl}
                 className="flex-1 bg-gray-100 border border-brand-secondary rounded-md px-3 py-2 text-sm"
               />
-              <button
-                onClick={copyLink}
-                className="bg-brand-primary text-white px-4 py-2 rounded-md hover:bg-brand-primary uppercase text-sm font-semibold"
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
+              <Button onClick={copyLink}>{copied ? 'Copied!' : 'Copy'}</Button>
             </div>
           </div>
 
@@ -120,12 +113,9 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
               value={getEmbedCode()}
               className="w-full h-32 bg-gray-100 border border-brand-secondary rounded-md px-3 py-2 text-sm font-mono"
             />
-            <button
-              onClick={copyToClipboard}
-              className="mt-2 bg-brand-primary text-white px-6 py-2 rounded-md hover:bg-brand-primary uppercase font-semibold"
-            >
+            <Button onClick={copyToClipboard} className="mt-2">
               {copied ? 'Copied!' : 'Copy Code'}
-            </button>
+            </Button>
           </div>
 
           {/* Preview */}
@@ -170,12 +160,9 @@ const EmbedCodeModal: React.FC<EmbedCodeModalProps> = ({ program, onClose }) => 
 
         {/* Footer with Cancel */}
         <div className="border-t border-brand-secondary px-6 py-4 flex justify-end shrink-0">
-          <button
-            onClick={onClose}
-            className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase font-semibold"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useOrg } from '../contexts/OrgContext';
 import LoadMore from '../components/LoadMore';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
@@ -493,18 +494,12 @@ export const VolunteerManagement: React.FC = () => {
       actions: true,
       render: (vol) => (
         <>
-          <button
-            onClick={() => handleEdit(vol)}
-            className="text-brand-primary hover:underline text-sm font-medium mr-3"
-          >
+          <Button variant="link" size="sm" onClick={() => handleEdit(vol)} className="mr-3">
             Edit
-          </button>
-          <button
-            onClick={() => setRemovingId(vol.id)}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
-          >
+          </Button>
+          <Button variant="danger-link" size="sm" onClick={() => setRemovingId(vol.id)}>
             Remove
-          </button>
+          </Button>
         </>
       ),
     },
@@ -524,18 +519,19 @@ export const VolunteerManagement: React.FC = () => {
         title="Volunteer Management"
         subtitle="Manage volunteers, track background checks, and monitor compliance."
         actions={
-          <button
+          <Button
             onClick={() => {
               resetAddForm();
               setShowAddModal(true);
             }}
-            className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-semibold uppercase rounded-md hover:opacity-90 transition-colors"
+            leadingIcon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
             Add Volunteer
-          </button>
+          </Button>
         }
       />
 
@@ -742,19 +738,12 @@ export const VolunteerManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setEditingVolunteer(null)}
-                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
-              >
+              <Button variant="secondary" onClick={() => setEditingVolunteer(null)}>
                 Cancel
-              </button>
-              <button
-                onClick={handleEditSave}
-                disabled={editSaving}
-                className="px-4 py-2 text-sm font-semibold uppercase text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 transition-colors"
-              >
-                {editSaving ? 'Saving...' : 'Save Changes'}
-              </button>
+              </Button>
+              <Button onClick={handleEditSave} loading={editSaving}>
+                Save Changes
+              </Button>
             </div>
           </div>
         </div>
@@ -769,18 +758,12 @@ export const VolunteerManagement: React.FC = () => {
               Are you sure you want to remove this volunteer? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setRemovingId(null)}
-                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
-              >
+              <Button variant="secondary" onClick={() => setRemovingId(null)}>
                 Cancel
-              </button>
-              <button
-                onClick={() => handleRemove(removingId)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-              >
+              </Button>
+              <Button variant="danger" onClick={() => handleRemove(removingId)}>
                 Remove
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -876,17 +859,19 @@ export const VolunteerManagement: React.FC = () => {
                       </p>
                       <p className="text-xs text-gray-500">{selectedUser.email}</p>
                     </div>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Clear selected user"
                       onClick={() => {
                         setSelectedUser(null);
                         setUserSearch('');
                       }}
-                      className="text-gray-400 hover:text-gray-600"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="relative">
@@ -1008,27 +993,26 @@ export const VolunteerManagement: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowAddModal(false);
                   resetAddForm();
                 }}
-                className="px-4 py-2 text-sm font-semibold uppercase bg-white text-brand-primary border border-brand-secondary rounded-md hover:bg-gray-100 transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleAddSubmit}
+                loading={addSaving}
                 disabled={
-                  addSaving ||
                   !addForm.team_id ||
                   (addMode === 'existing' && !selectedUser) ||
                   (addMode === 'new' && (!newVolunteerForm.first_name || !newVolunteerForm.last_name || !newVolunteerForm.email))
                 }
-                className="px-4 py-2 text-sm font-semibold uppercase text-white bg-brand-primary rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {addSaving ? 'Adding...' : 'Add Volunteer'}
-              </button>
+                Add Volunteer
+              </Button>
             </div>
           </div>
         </div>
