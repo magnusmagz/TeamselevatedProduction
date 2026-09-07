@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Button from '../ui/Button';
 import {
   collectDeviceInfo,
   describeDevice,
@@ -127,13 +128,9 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
           <h2 id="support-title" className="text-lg font-semibold text-brand-primary">
             {ticketId ? 'Thanks — we got it' : 'Report an issue'}
           </h2>
-          <button
-            onClick={close}
-            className="text-gray-500 hover:text-gray-800 text-xl px-2"
-            aria-label="Close"
-          >
+          <Button variant="ghost" size="icon" onClick={close} aria-label="Close" className="text-xl">
             ✕
-          </button>
+          </Button>
         </div>
 
         {ticketId ? (
@@ -145,12 +142,9 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
             <p className="text-sm text-gray-600 mt-2">
               If we need more detail, someone will get in touch.
             </p>
-            <button
-              onClick={close}
-              className="mt-5 bg-brand-primary text-white rounded-md px-6 py-3 uppercase font-semibold text-sm"
-            >
+            <Button onClick={close} className="mt-5">
               Done
-            </button>
+            </Button>
           </div>
         ) : (
           <form onSubmit={submit} className="px-5 py-4">
@@ -184,13 +178,14 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
                   alt="Screenshot preview"
                   className="max-h-40 rounded border border-brand-secondary"
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="danger-link"
+                  size="sm"
                   onClick={() => { setScreenshot(null); setScreenshotName(''); }}
-                  className="text-sm text-red-600 hover:underline mt-1"
+                  className="mt-1"
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             )}
 
@@ -222,20 +217,12 @@ export const SupportDialog: React.FC<Props> = ({ open, onClose }) => {
             )}
 
             <div className="mt-5 flex gap-2">
-              <button
-                type="submit"
-                disabled={busy || !description.trim()}
-                className="bg-brand-primary text-white rounded-md px-6 py-3 uppercase font-semibold text-sm disabled:opacity-50"
-              >
-                {busy ? 'Sending…' : 'Send report'}
-              </button>
-              <button
-                type="button"
-                onClick={close}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 uppercase font-semibold text-sm"
-              >
+              <Button type="submit" disabled={!description.trim()} loading={busy}>
+                Send report
+              </Button>
+              <Button type="button" variant="secondary" onClick={close}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         )}

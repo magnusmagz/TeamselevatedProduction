@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import Button from '../ui/Button';
 
 /**
  * Report a message to the club's moderation queue.
@@ -58,12 +59,13 @@ export default function ReportMessageButton({ messageId, reported, onReport }: P
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => setOpen(o => !o)}
         aria-label="Report this message"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="p-1 text-gray-300 hover:text-brand-primary focus:text-brand-primary transition-colors"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -73,7 +75,7 @@ export default function ReportMessageButton({ messageId, reported, onReport }: P
             d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z"
           />
         </svg>
-      </button>
+      </Button>
 
       {open && (
         <div

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DataTable, { DataTableColumn } from '../ui/DataTable';
+import Button from '../ui/Button';
 
 interface ClubRole {
   access_id: number;
@@ -176,19 +177,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={handleSaveUser}
-                      disabled={saving}
-                      className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-                    >
+                    <Button onClick={handleSaveUser} loading={saving}>
+                      Save Changes
+                    </Button>
+                    <Button variant="secondary" onClick={() => setIsEditing(false)}>
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -208,32 +202,34 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                           <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm">
                             Super Admin
                           </span>
-                          <button
+                          <Button
+                            variant="danger-link"
+                            size="sm"
                             onClick={() => {
                               if (window.confirm('Remove super admin access?')) {
                                 onToggleSuperAdmin(user.id, false);
                               }
                             }}
-                            className="text-red-600 hover:underline text-sm"
                           >
                             Revoke
-                          </button>
+                          </Button>
                         </>
                       ) : (
                         <>
                           <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm">
                             User
                           </span>
-                          <button
+                          <Button
+                            variant="link"
+                            size="sm"
                             onClick={() => {
                               if (window.confirm('Grant super admin access?')) {
                                 onToggleSuperAdmin(user.id, true);
                               }
                             }}
-                            className="text-green-600 hover:underline text-sm"
                           >
                             Make Super Admin
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -282,13 +278,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                         <option value="coach">Coach</option>
                         <option value="parent">Parent</option>
                       </select>
-                      <button
-                        onClick={handleAssignToClub}
-                        disabled={!assignClubId || assigning}
-                        className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-                      >
-                        {assigning ? 'Assigning...' : 'Assign'}
-                      </button>
+                      <Button onClick={handleAssignToClub} disabled={!assignClubId} loading={assigning}>
+                        Assign
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -333,16 +325,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                       header: 'Actions',
                       align: 'center',
                       render: (cr) => (
-                        <button
+                        <Button
+                          variant="danger-link"
+                          size="sm"
                           onClick={() => {
                             if (window.confirm(`Remove user from ${cr.club_name}?`)) {
                               onRemoveFromClub(user.id, cr.club_id);
                             }
                           }}
-                          className="text-red-600 hover:underline text-sm"
                         >
                           Remove
-                        </button>
+                        </Button>
                       ),
                     },
                   ] as DataTableColumn<ClubRole>[]}

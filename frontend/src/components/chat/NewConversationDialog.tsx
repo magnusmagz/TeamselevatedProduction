@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrg } from '../../contexts/OrgContext';
+import Button from '../ui/Button';
 
 interface Props {
   onClose: () => void;
@@ -386,12 +387,9 @@ export default function NewConversationDialog({ onClose, onCreate }: Props) {
       {/* Footer */}
       {totalSelected > 0 && (
         <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-          <button
-            onClick={handleStartChat}
-            className="w-full py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-primary/90 transition-colors"
-          >
+          <Button fullWidth onClick={handleStartChat}>
             Start Chat ({totalSelected} {totalSelected === 1 ? 'selection' : 'selections'})
-          </button>
+          </Button>
         </div>
       )}
     </div>

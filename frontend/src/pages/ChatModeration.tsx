@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -350,20 +351,12 @@ export default function ChatModeration() {
 
                 {r.status === 'open' && (
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => close(r.id, 'dismiss')}
-                      disabled={busyId === r.id}
-                      className="px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => close(r.id, 'dismiss')} disabled={busyId === r.id}>
                       No action needed
-                    </button>
-                    <button
-                      onClick={() => close(r.id, 'actioned')}
-                      disabled={busyId === r.id}
-                      className="px-3 py-1.5 text-sm bg-brand-primary text-white rounded-md hover:bg-brand-primary/90 disabled:opacity-50"
-                    >
+                    </Button>
+                    <Button size="sm" onClick={() => close(r.id, 'actioned')} disabled={busyId === r.id}>
                       Mark handled
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>

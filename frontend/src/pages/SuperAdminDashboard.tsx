@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { LinkButton } from '../components/ui/Button';
 import PlatformStats from '../components/superadmin/PlatformStats';
 import ClubsList from '../components/superadmin/ClubsList';
 import ClubDetails from '../components/superadmin/ClubDetails';
@@ -694,12 +695,9 @@ const SuperAdminDashboard: React.FC = () => {
               <h2 className="text-xl font-bold text-brand-primary uppercase tracking-wide">Platform Email Templates</h2>
               <p className="text-sm text-gray-600 mt-1">Create templates that are available to all clubs. Clubs get their own copy when they edit.</p>
             </div>
-            <Link
-              to="/email-templates/new"
-              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-            >
+            <LinkButton to="/email-templates/new">
               Create Platform Template
-            </Link>
+            </LinkButton>
           </div>
           <div className="border-t border-brand-secondary pt-4">
             <Link

@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
+import Button from './ui/Button';
 
 interface Props {
   children: ReactNode;
@@ -59,12 +60,9 @@ export const ProtectedFinancialRoute: React.FC<Props> = ({
             You don't have permission to view this financial data.
             Please contact your club administrator if you need access.
           </p>
-          <button
-            onClick={() => window.history.back()}
-            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-primary"
-          >
+          <Button onClick={() => window.history.back()} className="mt-4">
             Go Back
-          </button>
+          </Button>
         </div>
       </div>
     );

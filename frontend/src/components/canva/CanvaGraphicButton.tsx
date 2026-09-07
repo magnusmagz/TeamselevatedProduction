@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Button, { LinkButton } from '../ui/Button';
 
 /**
  * "Make a graphic" — one button for every Canva graphic type.
@@ -26,6 +27,7 @@ interface Props {
   apiUrl: string;
   /** Optional override; defaults to "Make a graphic". */
   label?: string;
+  /** Layout classes only (margins, flex); the look is Button's `link` variant. */
   className?: string;
   /**
    * Skip this button's own availability check. Set by CanvaGraphicActions, which
@@ -42,9 +44,6 @@ interface Asset {
   file_size: number | null;
 }
 
-const DEFAULT_CLASS =
-  'text-brand-primary hover:text-brand-primary uppercase text-xs font-semibold disabled:opacity-50';
-
 const CanvaGraphicButton: React.FC<Props> = ({
   clubId,
   graphicType,
@@ -52,7 +51,7 @@ const CanvaGraphicButton: React.FC<Props> = ({
   subjectName,
   apiUrl,
   label = 'Make a graphic',
-  className = DEFAULT_CLASS,
+  className,
   skipCheck = false,
 }) => {
   const [available, setAvailable] = useState(skipCheck);
@@ -150,13 +149,9 @@ const CanvaGraphicButton: React.FC<Props> = ({
 
   return (
     <>
-      <button
-        onClick={generate}
-        disabled={busy}
-        className={className}
-      >
-        {busy ? 'Making…' : label}
-      </button>
+      <Button variant="link" size="sm" onClick={generate} loading={busy} className={className}>
+        {label}
+      </Button>
 
       {(imageUrl || error) && (
         <div
@@ -189,25 +184,27 @@ const CanvaGraphicButton: React.FC<Props> = ({
                     {asset.width} × {asset.height}
                   </p>
                 )}
-                <a
+                <LinkButton
                   href={imageUrl as string}
                   download={`${subjectName.replace(/[^\w-]+/g, '-').toLowerCase() || 'graphic'}.png`}
-                  className="inline-block mt-4 bg-brand-primary text-white px-4 py-2 rounded text-sm"
+                  className="mt-4"
                 >
                   Download
-                </a>
+                </LinkButton>
               </>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 releaseImage();
                 setImageUrl(null);
                 setError(null);
               }}
-              className="ml-3 mt-4 text-sm text-gray-600"
+              className="ml-3 mt-4"
             >
               Close
-            </button>
+            </Button>
           </div>
         </div>
       )}

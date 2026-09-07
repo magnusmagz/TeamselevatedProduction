@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from './ui/Button';
 
 interface Props {
   children: React.ReactNode;
@@ -34,12 +35,9 @@ class ErrorBoundary extends React.Component<Props, State> {
               An unexpected error occurred. Your data is safe — reload the page to continue.
             </p>
             <p className="text-xs text-gray-400 mb-4 break-words">{this.state.error.message}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-brand-primary text-white rounded-md text-sm uppercase font-semibold hover:opacity-90"
-            >
+            <Button onClick={() => window.location.reload()}>
               Reload
-            </button>
+            </Button>
           </div>
         </div>
       );

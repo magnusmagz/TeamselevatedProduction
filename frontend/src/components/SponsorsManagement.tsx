@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import CanvaGraphicActions from './canva/CanvaGraphicActions';
 import PageHeader from './ui/PageHeader';
+import Button from './ui/Button';
 
 interface Sponsor {
   id?: number;
@@ -205,12 +206,9 @@ const SponsorsManagement: React.FC = () => {
         subtitle="Manage your club's sponsors and promotional links"
         meta={<span className="text-gray-600">{sponsors.length} sponsor{sponsors.length !== 1 ? 's' : ''} total</span>}
         actions={
-          <button
-            onClick={handleAddSponsor}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
-          >
+          <Button onClick={handleAddSponsor}>
             + Add Sponsor
-          </button>
+          </Button>
         }
       />
 
@@ -312,18 +310,12 @@ const SponsorsManagement: React.FC = () => {
                       apiUrl={API_URL}
                     />
                   )}
-                  <button
-                    onClick={() => handleEditSponsor(sponsor)}
-                    className="text-brand-primary hover:text-brand-primary uppercase text-xs font-semibold"
-                  >
+                  <Button variant="link" size="sm" onClick={() => handleEditSponsor(sponsor)}>
                     Edit
-                  </button>
-                  <button
-                    onClick={() => sponsor.id && handleDeleteSponsor(sponsor.id)}
-                    className="text-red-600 hover:text-red-500 uppercase text-xs font-semibold"
-                  >
+                  </Button>
+                  <Button variant="danger-link" size="sm" onClick={() => sponsor.id && handleDeleteSponsor(sponsor.id)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -339,12 +331,9 @@ const SponsorsManagement: React.FC = () => {
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 {selectedSponsor ? 'Edit Sponsor' : 'Add Sponsor'}
               </h3>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-              >
+              <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} aria-label="Close" className="text-2xl">
                 ×
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6">
@@ -449,13 +438,9 @@ const SponsorsManagement: React.FC = () => {
                         />
                         <div>
                           <p className="text-sm text-gray-600">{formData.logo_filename}</p>
-                          <button
-                            type="button"
-                            onClick={handleRemoveLogo}
-                            className="text-red-600 hover:text-red-500 text-sm mt-1"
-                          >
+                          <Button variant="danger-link" size="sm" onClick={handleRemoveLogo} className="mt-1">
                             Remove Logo
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -568,20 +553,12 @@ const SponsorsManagement: React.FC = () => {
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-4 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-                >
+                <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : selectedSponsor ? 'Update Sponsor' : 'Add Sponsor'}
-                </button>
+                </Button>
+                <Button type="submit" loading={saving}>
+                  {selectedSponsor ? 'Update Sponsor' : 'Add Sponsor'}
+                </Button>
               </div>
             </form>
           </div>

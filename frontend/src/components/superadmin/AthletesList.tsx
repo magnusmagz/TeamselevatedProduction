@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DataTable, { DataTableColumn } from '../ui/DataTable';
+import Button from '../ui/Button';
 
 interface Athlete {
   id: number;
@@ -115,12 +116,7 @@ const AthletesList: React.FC<AthletesListProps> = ({ athletes, loading, onSearch
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-primary"
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-dark"
-          >
-            Search
-          </button>
+          <Button type="submit">Search</Button>
         </div>
       </form>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from './ui/Button';
 
 /**
  * Demo Mode Banner
@@ -30,13 +31,9 @@ export const DemoModeBanner: React.FC = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="text-yellow-700 hover:text-yellow-900 text-xl font-bold px-2"
-          aria-label="Dismiss banner"
-        >
+        <Button variant="ghost" size="icon" onClick={() => setDismissed(true)} aria-label="Dismiss banner" className="text-xl">
           ✕
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '../ui/Button';
 
 interface Props {
   onCreate: (input: {
@@ -64,9 +65,9 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
     <div className="p-3 border-t border-brand-secondary bg-white">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-brand-primary">New poll</h3>
-        <button type="button" onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-700">
+        <Button variant="link" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
 
       <input
@@ -88,14 +89,14 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
               className="flex-1 border border-brand-secondary rounded-md px-2.5 py-1.5 text-sm"
             />
             {options.length > 2 && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setOptions((prev) => prev.filter((_, idx) => idx !== i))}
                 aria-label={`Remove option ${i + 1}`}
-                className="text-gray-400 hover:text-gray-600 px-1"
               >
                 ✕
-              </button>
+              </Button>
             )}
           </div>
         ))}
@@ -103,17 +104,13 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
 
       <div className="flex flex-wrap gap-2 mb-3 text-sm">
         {options.length < MAX_OPTIONS && (
-          <button
-            type="button"
-            onClick={() => setOptions((prev) => [...prev, ''])}
-            className="text-brand-primary hover:underline"
-          >
+          <Button variant="link" size="sm" onClick={() => setOptions((prev) => [...prev, ''])}>
             Add option
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={useYesNo} className="text-brand-primary hover:underline">
+        <Button variant="link" size="sm" onClick={useYesNo}>
           Use Yes / No
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-col gap-1.5 mb-3 text-sm">
@@ -156,13 +153,9 @@ export const PollComposer: React.FC<Props> = ({ onCreate, onCancel }) => {
 
       {error && <p className="text-sm text-red-700 mb-2" role="alert">{error}</p>}
 
-      <button
-        type="button"
-        onClick={submit}
-        className="w-full bg-brand-primary text-white rounded-md py-2 text-sm font-semibold"
-      >
+      <Button fullWidth onClick={submit}>
         Post poll
-      </button>
+      </Button>
     </div>
   );
 };

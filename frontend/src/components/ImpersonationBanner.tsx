@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import Button from './ui/Button';
 
 /**
  * Persistent marker that the current session is a super admin acting as someone
@@ -68,13 +69,9 @@ export const ImpersonationBanner: React.FC = () => {
               ? `Ends in ${minutes}:${String(seconds).padStart(2, '0')}`
               : 'Session ended'}
           </span>
-          <button
-            onClick={handleExit}
-            disabled={exiting}
-            className="bg-white text-amber-900 border border-amber-800 rounded-md px-4 py-2 text-sm font-semibold uppercase hover:bg-amber-50 disabled:opacity-50"
-          >
-            {exiting ? 'Exiting…' : 'Exit'}
-          </button>
+          <Button variant="secondary" onClick={handleExit} loading={exiting}>
+            Exit
+          </Button>
         </div>
       </div>
     </div>

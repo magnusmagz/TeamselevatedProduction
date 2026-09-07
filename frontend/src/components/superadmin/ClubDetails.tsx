@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DataTable, { DataTableColumn } from '../ui/DataTable';
+import Button from '../ui/Button';
 
 interface Team {
   id: number;
@@ -216,37 +217,29 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({
       render: (user) =>
         editingUserId === user.id ? (
           <div className="flex justify-center gap-2">
-            <button
-              onClick={() => handleRoleChange(user.id)}
-              className="text-green-600 hover:text-green-800 text-sm"
-            >
+            <Button variant="link" size="sm" onClick={() => handleRoleChange(user.id)}>
               Save
-            </button>
-            <button
-              onClick={() => setEditingUserId(null)}
-              className="text-gray-600 hover:text-gray-800 text-sm"
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditingUserId(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex justify-center gap-2">
-            <button
-              onClick={() => startEditing(user)}
-              className="text-brand-primary hover:underline text-sm"
-            >
+            <Button variant="link" size="sm" onClick={() => startEditing(user)}>
               Edit
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="danger-link"
+              size="sm"
               onClick={() => {
                 if (window.confirm(`Remove ${user.first_name} ${user.last_name} from this club?`)) {
                   onRemoveUser(user.id, club!.id);
                 }
               }}
-              className="text-red-600 hover:underline text-sm"
             >
               Remove
-            </button>
+            </Button>
           </div>
         ),
     },
@@ -274,12 +267,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({
           </div>
           <div className="flex items-center gap-3">
             {club && onDeleteClub && (
-              <button
-                onClick={handleDeleteClub}
-                className="bg-red-600 text-white border border-red-700 rounded-md px-4 py-2 hover:bg-red-700 uppercase font-semibold text-sm"
-              >
+              <Button variant="danger" onClick={handleDeleteClub}>
                 Delete Club
-              </button>
+              </Button>
             )}
             <button
               onClick={onClose}
@@ -358,19 +348,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={handleSaveClub}
-                      disabled={saving}
-                      className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                    <button
-                      onClick={() => setIsEditingClub(false)}
-                      className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-                    >
+                    <Button onClick={handleSaveClub} loading={saving}>
+                      Save Changes
+                    </Button>
+                    <Button variant="secondary" onClick={() => setIsEditingClub(false)}>
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -427,13 +410,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({
                         <option value="coach">Coach</option>
                         <option value="parent">Parent</option>
                       </select>
-                      <button
-                        onClick={handleAssignUser}
-                        disabled={!assignUserId || assigning}
-                        className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-                      >
-                        {assigning ? 'Assigning...' : 'Assign'}
-                      </button>
+                      <Button onClick={handleAssignUser} disabled={!assignUserId} loading={assigning}>
+                        Assign
+                      </Button>
                     </div>
                   </div>
                 </div>

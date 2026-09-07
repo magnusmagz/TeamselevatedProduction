@@ -6,6 +6,7 @@ import ConversationList from './ConversationList';
 import NewConversationDialog from './NewConversationDialog';
 import ChatMessageList from './ChatMessageList';
 import ChatInput from './ChatInput';
+import Button from '../ui/Button';
 import PollComposer from './PollComposer';
 import { canCreatePoll, canPinMessage } from './pollTypes';
 import PinnedBanner from './PinnedBanner';
@@ -282,7 +283,7 @@ export default function ChatWidget() {
               {chatError && (
                 <div className="mx-3 mb-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800 flex items-start justify-between gap-2" role="alert">
                   <span>{chatError}</span>
-                  <button type="button" onClick={clearChatError} aria-label="Dismiss" className="text-red-600">✕</button>
+                  <Button variant="danger-link" size="icon" onClick={clearChatError} aria-label="Dismiss">✕</Button>
                 </div>
               )}
 
@@ -298,13 +299,9 @@ export default function ChatWidget() {
                 <>
                   {canCreatePoll(chatUser?.role) && (
                     <div className="px-3 pt-2 pb-2">
-                      <button
-                        type="button"
-                        onClick={() => setPollComposerOpen(true)}
-                        className="text-xs font-medium text-brand-primary hover:underline"
-                      >
+                      <Button variant="link" size="sm" onClick={() => setPollComposerOpen(true)}>
                         + Create a poll
-                      </button>
+                      </Button>
                     </div>
                   )}
                   <ChatInput

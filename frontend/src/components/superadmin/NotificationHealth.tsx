@@ -1,5 +1,6 @@
 import React from 'react';
 import DataTable from '../ui/DataTable';
+import Button from '../ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -104,9 +105,9 @@ export const NotificationHealth: React.FC = () => {
     return (
       <div className="p-6">
         <p className="text-red-700">{error}</p>
-        <button onClick={load} className="mt-3 px-4 py-2 rounded-md bg-brand-primary text-white text-sm">
+        <Button onClick={load} className="mt-3">
           Try again
-        </button>
+        </Button>
       </div>
     );
   }

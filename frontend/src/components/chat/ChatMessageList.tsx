@@ -5,6 +5,7 @@ import MessageReactions from './MessageReactions';
 import type { MessageReaction } from './reactionEmoji';
 import PollMessage from './PollMessage';
 import type { PollView } from './pollTypes';
+import Button from '../ui/Button';
 
 interface Message {
   id: string;
@@ -127,15 +128,16 @@ export default function ChatMessageList({ messages, currentUser, typingUsers, on
                 your own — the useful thing to pin is often the practice details
                 the coach just posted. */}
             {onPin && String(msg.id) !== String(pinnedMessageId) && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => onPin(msg.id)}
                 aria-label="Pin this message"
                 title="Pin this message"
-                className="order-3 pt-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-gray-400 hover:text-brand-primary text-sm"
+                className="order-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-sm"
               >
                 📌
-              </button>
+              </Button>
             )}
 
             {/* Reporting is offered only on other people's messages. */}

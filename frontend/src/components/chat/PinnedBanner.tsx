@@ -1,5 +1,6 @@
 import React from 'react';
 import { PinnedMessage } from './pollTypes';
+import Button from '../ui/Button';
 
 interface Props {
   pinned: PinnedMessage | null;
@@ -41,13 +42,9 @@ export const PinnedBanner: React.FC<Props> = ({ pinned, canPin, onUnpin }) => {
       </div>
 
       {canPin && (
-        <button
-          type="button"
-          onClick={() => onUnpin(pinned.messageId)}
-          className="shrink-0 text-xs font-medium text-brand-primary hover:underline"
-        >
+        <Button variant="link" size="sm" onClick={() => onUnpin(pinned.messageId)} className="shrink-0">
           Unpin
-        </button>
+        </Button>
       )}
     </div>
   );

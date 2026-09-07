@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Conversation } from './types';
+import Button from '../ui/Button';
 
 interface Props {
   conversations: Conversation[];
@@ -203,7 +204,9 @@ export default function ConversationList({
             {/* Archive / restore. Always rendered rather than hover-revealed —
                 this is a PWA and touch devices have no hover state. */}
             {action && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => action(conv.id)}
                 aria-label={
                   showArchived
@@ -215,10 +218,10 @@ export default function ConversationList({
                     ? 'Restore to your chats'
                     : 'Hide from your chats. Nothing is deleted, and a new message brings it back.'
                 }
-                className="flex-shrink-0 px-3 py-3 text-gray-300 hover:text-brand-primary focus:text-brand-primary transition-colors"
+                className="flex-shrink-0 mr-1"
               >
                 <ArchiveIcon restore={showArchived} />
-              </button>
+              </Button>
             )}
           </div>
         );

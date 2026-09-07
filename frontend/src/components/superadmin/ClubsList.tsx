@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DataTable, { DataTableColumn } from '../ui/DataTable';
+import Button from '../ui/Button';
 
 interface Club {
   id: number;
@@ -65,12 +66,9 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
       header: 'Actions',
       align: 'center',
       render: (club) => (
-        <button
-          onClick={() => onViewDetails(club.id)}
-          className="text-brand-primary hover:underline text-sm"
-        >
+        <Button variant="link" size="sm" onClick={() => onViewDetails(club.id)}>
           View Details
-        </button>
+        </Button>
       ),
     },
   ];
@@ -79,12 +77,9 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
     <div>
       {/* Create Club Button & Form */}
       <div className="mb-4">
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-        >
+        <Button onClick={() => setShowCreateForm(!showCreateForm)}>
           {showCreateForm ? 'Cancel' : 'Create Club'}
-        </button>
+        </Button>
 
         {showCreateForm && (
           <form onSubmit={handleCreateClub} className="mt-4 bg-gray-50 border border-brand-secondary rounded-lg p-4">
@@ -149,20 +144,12 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <button
-                type="submit"
-                disabled={creating}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50"
-              >
-                {creating ? 'Creating...' : 'Save Club'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-              >
+              <Button type="submit" loading={creating}>
+                Save Club
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setShowCreateForm(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -178,12 +165,7 @@ const ClubsList: React.FC<ClubsListProps> = ({ clubs, loading, onViewDetails, on
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border border-brand-secondary rounded-md focus:outline-none focus:border-brand-primary"
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-dark"
-          >
-            Search
-          </button>
+          <Button type="submit">Search</Button>
         </div>
       </form>
 
