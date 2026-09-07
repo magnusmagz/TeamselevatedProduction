@@ -20,6 +20,7 @@ describe('Button', () => {
     ['danger', ['bg-red-600', 'hover:bg-red-700', 'text-white']],
     ['ghost', ['bg-transparent', 'text-brand-primary', 'hover:bg-brand-light/40']],
     ['link', ['hover:underline', 'text-brand-primary', 'p-0']],
+    ['danger-link', ['hover:underline', 'text-red-600', 'p-0']],
   ] as const)('renders the %s variant classes', (variant, classes) => {
     render(<Button variant={variant}>X</Button>);
     const b = screen.getByRole('button', { name: 'X' });

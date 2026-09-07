@@ -19,7 +19,8 @@ import { Link, LinkProps } from 'react-router-dom';
  * reason rather than hand-rolling a button.
  */
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
+/** `danger-link` is the red text action in a table row (Delete / Remove) — link weight, destructive colour. */
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'link' | 'danger-link';
 /** `icon` is a square ghost/secondary control for a lone glyph (close ×, chevron, kebab). */
 export type ButtonSize = 'sm' | 'md' | 'icon';
 
@@ -36,17 +37,18 @@ export const BUTTON_CLASSES = {
     danger: 'border border-transparent bg-red-600 text-white hover:bg-red-700',
     ghost: 'border border-transparent bg-transparent text-brand-primary hover:bg-brand-light/40',
     link: 'border-0 bg-transparent text-brand-primary hover:underline',
+    'danger-link': 'border-0 bg-transparent text-red-600 hover:text-red-700 hover:underline',
   } as Record<ButtonVariant, string>,
   size: {
     sm: 'px-3 py-1.5 text-xs',
     md: 'px-6 py-2 text-sm',
-    icon: 'p-2 text-base leading-none',
+    icon: 'p-2 leading-none',
   } as Record<ButtonSize, string>,
   /** `link` carries no box: no padding at any size. */
   linkSize: {
     sm: 'p-0 text-xs',
     md: 'p-0 text-sm',
-    icon: 'p-0 text-base leading-none',
+    icon: 'p-0 leading-none',
   } as Record<ButtonSize, string>,
   fullWidth: 'w-full',
 };
@@ -59,7 +61,8 @@ export function buttonClassName(opts: {
 }): string {
   const variant = opts.variant ?? 'primary';
   const size = opts.size ?? 'md';
-  const sizeClass = variant === 'link' ? BUTTON_CLASSES.linkSize[size] : BUTTON_CLASSES.size[size];
+  const sizeClass =
+    variant === 'link' || variant === 'danger-link' ? BUTTON_CLASSES.linkSize[size] : BUTTON_CLASSES.size[size];
   return [
     BUTTON_CLASSES.base,
     BUTTON_CLASSES.variant[variant],
@@ -121,16 +124,25 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       className={buttonClassName({ variant, size, fullWidth, className: `${loading ? 'relative' : ''} ${className ?? ''}`.trim() })}
       {...rest}
     >
-      {loading && (
-        <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-          <Spinner />
-        </span>
+      {loading ? (
+        <>
+          <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+            <Spinner />
+          </span>
+          <span className="inline-flex items-center justify-center gap-2 invisible">
+            {leadingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{leadingIcon}</span>}
+            {children}
+            {trailingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{trailingIcon}</span>}
+          </span>
+        </>
+      ) : (
+        // No wrapper when nothing needs one: the label is the button's own text node.
+        <>
+          {leadingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{leadingIcon}</span>}
+          {children}
+          {trailingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{trailingIcon}</span>}
+        </>
       )}
-      <span className={`inline-flex items-center justify-center gap-2 ${loading ? 'invisible' : ''}`.trim()}>
-        {leadingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{leadingIcon}</span>}
-        {children}
-        {trailingIcon && <span className="inline-flex shrink-0" aria-hidden="true">{trailingIcon}</span>}
-      </span>
     </button>
   );
 });
