@@ -32,6 +32,12 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### In-platform release note + six help articles published (Heroku v623 scripts)
+- Release note id 9 "Lineups, referee feedback, staff access and a cleaner look" (features only,
+  nothing dark, no bugs/security — Maggie's rule). Articles 42–47: lineup (coach, parent),
+  referee feedback (coach, admin), staff access on Club Settings → Users, assigning coaches
+  to teams. `scripts/publish-2026-09-06-*.php`, re-runnable (update by title).
+
 ### Coach phone on the Add/Edit Coach modal (Heroku, then Netlify)
 - `legacy/coaches-gateway.php` list returns `u.phone`; update writes it, normalized through
   `te_normalize_sms_phone` (E.164), blank clears, unreadable → 422. Both modals show a Phone
