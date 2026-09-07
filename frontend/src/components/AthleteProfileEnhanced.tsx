@@ -14,6 +14,7 @@ import PageHeader from './ui/PageHeader';
 import DocumentManager from './DocumentManager';
 import { AthletePaymentsDashboard } from '../pages/AthletePaymentsDashboard';
 import AthleteEvaluationsPanel from './evaluations/AthleteEvaluationsPanel';
+import Button from './ui/Button';
 
 interface Guardian {
   id: number;
@@ -178,10 +179,16 @@ const AthleteProfileEnhanced: React.FC = () => {
     if (st === 'active') return null;
     const busy = invitingGuardian === guardian.id;
     const label = busy ? 'Sending…' : st === 'invited' ? 'Resend invite' : 'Invite to portal';
-    const cls = st === 'invited'
-      ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
-      : 'bg-brand-primary text-white rounded-md px-2.5 py-1 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50';
-    return <button onClick={() => handleInviteGuardian(guardian)} disabled={busy} className={cls}>{label}</button>;
+    return (
+      <Button
+        variant={st === 'invited' ? 'link' : 'primary'}
+        size="sm"
+        onClick={() => handleInviteGuardian(guardian)}
+        disabled={busy}
+      >
+        {label}
+      </Button>
+    );
   };
   const [editingField, setEditingField] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -320,18 +327,12 @@ const AthleteProfileEnhanced: React.FC = () => {
           title={`${athlete.preferred_name || athlete.first_name} ${athlete.last_name}`}
           actions={
             <>
-              <button
-                onClick={() => setShowEditForm(true)}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-              >
+              <Button onClick={() => setShowEditForm(true)}>
                 Edit Profile
-              </button>
-              <button
-                onClick={() => setShowPlayerCard(true)}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-3 hover:bg-gray-50 uppercase font-semibold text-sm"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setShowPlayerCard(true)}>
                 Player Card
-              </button>
+              </Button>
             </>
           }
         />
@@ -514,15 +515,16 @@ const AthleteProfileEnhanced: React.FC = () => {
               crew.map((guardian) => (
                 <div key={guardian.id} className="mb-4">
                   <div>{guardian.first_name} {guardian.last_name} ({guardian.relationship_type})</div>
-                  <button
+                  <Button
+                    variant="link"
+                    className="normal-case text-lg"
                     onClick={() => {
                       setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
                       setShowSmsCompose(true);
                     }}
-                    className="text-lg font-bold text-brand-primary hover:underline"
                   >
                     {formatPhoneForDisplay(guardian.mobile_phone)}
-                  </button>
+                  </Button>
                 </div>
               ))
             )}
@@ -659,24 +661,26 @@ const AthleteProfileEnhanced: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
-                      <button
+                      <Button
+                        variant="link"
+                        className="normal-case flex"
                         onClick={() => {
                           setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
                           setShowSmsCompose(true);
                         }}
-                        className="text-brand-primary hover:underline cursor-pointer block"
                       >
                         {formatPhoneForDisplay(guardian.mobile_phone)}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="link"
+                        className="normal-case flex"
                         onClick={() => {
                           setComposeRecipient({ id: guardian.id, type: 'guardian', first_name: guardian.first_name, last_name: guardian.last_name, phone: guardian.mobile_phone, email: guardian.email });
                           setShowEmailCompose(true);
                         }}
-                        className="text-brand-primary hover:underline cursor-pointer block"
                       >
                         {guardian.email}
-                      </button>
+                      </Button>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
                       {guardian.can_authorize_medical ? '✓ Medical' : '✗ Medical'} |
@@ -932,9 +936,9 @@ const AthleteProfileEnhanced: React.FC = () => {
           {activeTab === 'medical' && (!medical || !medical.exists) && (
             <div className="text-center py-8">
               <div className="text-gray-600">No medical information on file</div>
-              <button className="mt-4 px-6 py-2 bg-brand-primary text-white hover:bg-brand-primary">
+              <Button className="mt-4">
                 Add Medical Information
-              </button>
+              </Button>
             </div>
           )}
 
@@ -969,12 +973,15 @@ const AthleteProfileEnhanced: React.FC = () => {
             <div className="relative bg-white rounded-md shadow-xl w-full max-w-3xl">
               <div className="flex items-center justify-between px-6 py-4 border-b border-brand-secondary">
                 <h2 className="text-lg font-bold text-brand-primary uppercase tracking-wide">Edit Athlete</h2>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close"
+                  className="text-xl"
                   onClick={() => setShowEditForm(false)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
                 >
                   ✕
-                </button>
+                </Button>
               </div>
               <div className="p-6">
                 <AthleteForm
@@ -1016,12 +1023,15 @@ const AthleteProfileEnhanced: React.FC = () => {
         <>
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setShowPlayerCard(false)}>
             <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Close"
+                className="absolute -top-3 -right-3 rounded-full w-8 h-8 shadow-md z-10"
                 onClick={() => setShowPlayerCard(false)}
-                className="absolute -top-3 -right-3 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md text-brand-primary font-bold hover:bg-gray-100 z-10"
               >
                 X
-              </button>
+              </Button>
               <PlayerCard
                 player={{
                   id: athlete.id,

@@ -7,6 +7,7 @@ import { PageMeta, pageQuery, readPage, rowsFrom } from '../utils/pagination';
 import { useOrg } from '../contexts/OrgContext';
 import PageHeader from './ui/PageHeader';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 /** One of the coach's teams, from api/coach-teams.php?action=list. */
 export interface CoachTeamRole {
@@ -459,18 +460,18 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
       // Settings -> Users, not here. Assign to Team added 2026-09-06 (Maggie).
       render: (coach) => (
         <>
-          <button onClick={() => handleEditCoach(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+          <Button variant="link" size="sm" onClick={() => handleEditCoach(coach)} className="mr-4">
             Edit
-          </button>
-          <button onClick={() => handleViewSchedule(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => handleViewSchedule(coach)} className="mr-4">
             View Schedule
-          </button>
-          <button onClick={() => handleViewTeams(coach)} className="text-brand-primary hover:underline mr-4 uppercase text-xs">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => handleViewTeams(coach)} className="mr-4">
             View Teams
-          </button>
-          <button onClick={() => handleOpenAssign(coach)} className="text-brand-primary hover:underline uppercase text-xs">
+          </Button>
+          <Button variant="link" size="sm" onClick={() => handleOpenAssign(coach)}>
             Assign to Team
-          </button>
+          </Button>
         </>
       ),
     },
@@ -482,12 +483,10 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Coach Management</h3>
-            <button
-              onClick={onClose}
-              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-            >
-              ×
-            </button>
+            <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
+              onClick={onClose}>
+                ×
+              </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -504,12 +503,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   {filteredCoaches.length} coach{filteredCoaches.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
-              <button
-                onClick={handleAddCoach}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary uppercase font-semibold w-full sm:w-auto"
-              >
+              <Button onClick={handleAddCoach} className="w-full sm:w-auto">
                 + Add Coach
-              </button>
+              </Button>
             </div>
 
             {showForm && (
@@ -519,15 +515,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     <h4 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">
                       {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
                     </h4>
-                    <button
+                    <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
                       onClick={() => {
                         setShowForm(false);
                         setSelectedCoach(null);
-                      }}
-                      className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-                    >
-                      ×
-                    </button>
+                      }}>
+                ×
+              </Button>
                   </div>
                   <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-2 gap-4">
@@ -580,19 +574,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       )}
 
                       <div className="col-span-2 flex justify-end space-x-4 mt-4">
-                        <button
-                          type="button"
-                          onClick={() => setShowForm(false)}
-                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-                        >
+                        <Button variant="secondary" onClick={() => setShowForm(false)}>
                           Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-                        >
+                        </Button>
+                        <Button type="submit">
                           {selectedCoach ? 'Update Coach' : 'Create Coach'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </form>
@@ -608,12 +595,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   {searchTerm ? 'No coaches found matching your search.' : 'No coaches registered yet.'}
                 </p>
                 {!searchTerm && (
-                  <button
-                    onClick={handleAddCoach}
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold"
-                  >
+                  <Button onClick={handleAddCoach}>
                     Add Your First Coach
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
@@ -643,15 +627,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                 <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                   Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
                 </h3>
-                <button
+                <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
                   onClick={() => {
                     setShowScheduler(false);
                     setSchedulerCoach(null);
-                  }}
-                  className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-                >
-                  ×
-                </button>
+                  }}>
+                ×
+              </Button>
               </div>
               <div className="p-6">
                 {schedulerTeam && (
@@ -679,12 +661,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
         title="Coach Management"
         subtitle="Manage all coaches in the system"
         actions={
-          <button
-            onClick={handleAddCoach}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary-hover uppercase font-semibold w-full sm:w-auto"
-          >
+          <Button onClick={handleAddCoach} className="w-full sm:w-auto">
             + Add Coach
-          </button>
+          </Button>
         }
       />
 
@@ -712,15 +691,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                     <h4 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">
                       {selectedCoach ? 'Edit Coach' : 'Add New Coach'}
                     </h4>
-                    <button
+                    <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
                       onClick={() => {
                         setShowForm(false);
                         setSelectedCoach(null);
-                      }}
-                      className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-                    >
-                      ×
-                    </button>
+                      }}>
+                ×
+              </Button>
                   </div>
                   <form onSubmit={handleSubmit} className="p-6">
                     <div className="grid grid-cols-2 gap-4">
@@ -773,19 +750,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                       )}
 
                       <div className="col-span-2 flex justify-end space-x-4 mt-4">
-                        <button
-                          type="button"
-                          onClick={() => setShowForm(false)}
-                          className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-                        >
+                        <Button variant="secondary" onClick={() => setShowForm(false)}>
                           Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-                        >
+                        </Button>
+                        <Button type="submit">
                           {selectedCoach ? 'Update Coach' : 'Create Coach'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </form>
@@ -801,12 +771,9 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                   {searchTerm ? 'No coaches found matching your search.' : 'No coaches registered yet.'}
                 </p>
                 {!searchTerm && (
-                  <button
-                    onClick={handleAddCoach}
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-8 py-3 hover:bg-brand-primary uppercase font-semibold text-lg"
-                  >
+                  <Button onClick={handleAddCoach}>
                     Add Your First Coach
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
@@ -836,15 +803,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Practice Schedule for {schedulerCoach.first_name} {schedulerCoach.last_name}
               </h3>
-              <button
+              <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
                 onClick={() => {
                   setShowScheduler(false);
                   setSchedulerCoach(null);
-                }}
-                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-              >
+                }}>
                 ×
-              </button>
+              </Button>
             </div>
             <div className="p-6">
               {schedulerTeam && (
@@ -870,15 +835,13 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Teams for {viewingTeamsCoach.first_name} {viewingTeamsCoach.last_name}
               </h3>
-              <button
+              <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
                 onClick={() => {
                   setViewingTeamsCoach(null);
                   setCoachTeams([]);
-                }}
-                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-              >
+                }}>
                 ×
-              </button>
+              </Button>
             </div>
             <div className="p-6">
               {coachTeamsError && (
@@ -897,40 +860,40 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           {team.program_name ? ` · ${team.program_name}` : ''}
                         </div>
                       </div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger-link"
+                        size="sm"
                         onClick={() => handleUnassign(viewingTeamsCoach, team)}
-                        className="text-red-700 hover:underline uppercase text-xs whitespace-nowrap"
                       >
                         Unassign
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
             <div className="border-t border-brand-secondary px-6 py-4 flex justify-between items-center">
-              <button
-                type="button"
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => {
                   const coach = viewingTeamsCoach;
                   setViewingTeamsCoach(null);
                   setCoachTeams([]);
                   if (coach) handleOpenAssign(coach);
                 }}
-                className="text-brand-primary hover:underline uppercase text-xs"
               >
                 Assign to Team
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setViewingTeamsCoach(null);
                   setCoachTeams([]);
                 }}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -944,14 +907,10 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Assign {assignCoach.first_name} {assignCoach.last_name} to a Team
               </h3>
-              <button
-                type="button"
-                onClick={closeAssign}
-                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
-                aria-label="Close"
-              >
+              <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl"
+                onClick={closeAssign}>
                 ×
-              </button>
+              </Button>
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -1012,21 +971,12 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
               )}
             </div>
             <div className="border-t border-brand-secondary px-6 py-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={closeAssign}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 uppercase"
-              >
+              <Button variant="secondary" onClick={closeAssign}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAssign}
-                disabled={!assignTeamId || assignBusy}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary uppercase font-semibold disabled:opacity-50"
-              >
-                {assignBusy ? 'Assigning…' : 'Assign'}
-              </button>
+              </Button>
+              <Button onClick={handleAssign} disabled={!assignTeamId} loading={assignBusy}>
+                Assign
+              </Button>
             </div>
           </div>
         </div>

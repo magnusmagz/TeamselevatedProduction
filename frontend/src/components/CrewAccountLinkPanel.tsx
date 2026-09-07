@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Button from './ui/Button';
 
 /**
  * Accounts not connected to a family — the club-admin repair for the case the
@@ -261,16 +262,16 @@ const CrewAccountLinkPanel: React.FC<Props> = ({ clubProfileId, isClubAdmin, sea
                         </div>
                       )}
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
+                      className="shrink-0"
                       disabled={busy === c.user_id}
                       onClick={() =>
                         connect(c.user_id, s.guardian_id, `${s.first_name} ${s.last_name}`)
                       }
-                      className="shrink-0 px-3 py-1.5 rounded-md bg-brand-primary text-white text-xs font-semibold uppercase disabled:opacity-50"
                     >
                       Connect to {s.first_name} {s.last_name}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -300,38 +301,31 @@ const CrewAccountLinkPanel: React.FC<Props> = ({ clubProfileId, isClubAdmin, sea
                           <span className="text-gray-500">{m.email}</span>
                           {m.athletes && <span className="text-xs text-gray-500"> · {m.athletes}</span>}
                         </span>
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="shrink-0"
                           disabled={busy === c.user_id}
                           onClick={() =>
                             connect(c.user_id, m.guardian_id, `${m.first_name} ${m.last_name}`)
                           }
-                          className="shrink-0 px-3 py-1 rounded-md border border-brand-primary text-brand-primary text-xs font-semibold uppercase disabled:opacity-50"
                         >
                           Connect
-                        </button>
+                        </Button>
                       </li>
                     ))}
                     {query.trim() !== '' && matches.length === 0 && (
                       <li className="text-xs text-gray-500">No crew member matches that.</li>
                     )}
                   </ul>
-                  <button
-                    type="button"
-                    onClick={() => { setSearchFor(null); setQuery(''); }}
-                    className="mt-1 text-xs text-gray-500 underline"
-                  >
+                  <Button variant="link" size="sm" className="mt-1" onClick={() => { setSearchFor(null); setQuery(''); }}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => { setSearchFor(c.user_id); setQuery(''); }}
-                  className="text-xs font-semibold uppercase text-brand-primary"
-                >
+                <Button variant="link" size="sm" onClick={() => { setSearchFor(c.user_id); setQuery(''); }}>
                   Search all crew
-                </button>
+                </Button>
               )}
             </div>
           </li>

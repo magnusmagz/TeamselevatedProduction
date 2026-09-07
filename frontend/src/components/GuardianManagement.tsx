@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
+import Button from './ui/Button';
 // Updated layout for guardian actions
 
 interface Guardian {
@@ -110,17 +111,15 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
     if (st === 'active') return null;
     if (st === 'invited') {
       return (
-        <button onClick={() => handleInvite(guardian)} disabled={busy}
-          className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase disabled:opacity-50">
+        <Button variant="link" onClick={() => handleInvite(guardian)} disabled={busy}>
           {busy ? 'Sending…' : 'Resend invite'}
-        </button>
+        </Button>
       );
     }
     return (
-      <button onClick={() => handleInvite(guardian)} disabled={busy}
-        className="bg-brand-primary text-white border border-brand-primary rounded-md px-3 py-1.5 text-sm font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50">
+      <Button size="sm" onClick={() => handleInvite(guardian)} disabled={busy}>
         {busy ? 'Sending…' : 'Invite to portal'}
-      </button>
+      </Button>
     );
   };
   const [formData, setFormData] = useState<Guardian>({
@@ -239,9 +238,9 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {athleteName ? `${athleteName}'s Crew` : 'Crew'}
           </h3>
-          <button onClick={onClose} className="text-brand-primary hover:bg-gray-100 px-2 text-2xl">
+          <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl" onClick={onClose}>
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6">
@@ -252,12 +251,9 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                 <h4 className="text-lg font-semibold text-brand-primary">Crew</h4>
                 <p className="text-xs text-gray-500">Crew &amp; family</p>
               </div>
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase"
-              >
+              <Button onClick={() => setShowAddForm(true)}>
                 + Add to Crew
-              </button>
+              </Button>
             </div>
 
             {guardians.length === 0 ? (
@@ -299,18 +295,12 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
 
                           {editingGuardian?.id !== guardian.id && (
                             <div className="flex space-x-3">
-                              <button
-                                onClick={() => setEditingGuardian(guardian)}
-                                className="text-brand-primary hover:text-brand-primary-hover text-sm font-semibold uppercase"
-                              >
+                              <Button variant="link" onClick={() => setEditingGuardian(guardian)}>
                                 Edit
-                              </button>
-                              <button
-                                onClick={() => handleRemoveGuardian(guardian.id!)}
-                                className="text-red-600 hover:text-red-700 text-sm font-semibold uppercase"
-                              >
+                              </Button>
+                              <Button variant="danger-link" onClick={() => handleRemoveGuardian(guardian.id!)}>
                                 Delete
-                              </button>
+                              </Button>
                               {renderInviteAction(guardian)}
                             </div>
                           )}
@@ -406,18 +396,12 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                               Financially Responsible
                             </label>
                             <div className="flex space-x-2 mt-4">
-                              <button
-                                onClick={() => handleUpdatePermissions(editingGuardian)}
-                                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-3 py-1 text-sm hover:bg-brand-primary font-semibold uppercase"
-                              >
+                              <Button size="sm" onClick={() => handleUpdatePermissions(editingGuardian)}>
                                 Save
-                              </button>
-                              <button
-                                onClick={() => setEditingGuardian(null)}
-                                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-1 text-sm hover:bg-gray-100 font-semibold uppercase"
-                              >
+                              </Button>
+                              <Button variant="secondary" size="sm" onClick={() => setEditingGuardian(null)}>
                                 Cancel
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ) : (
@@ -588,19 +572,12 @@ const GuardianManagement: React.FC<GuardianManagementProps> = ({
                 </div>
 
                 <div className="flex justify-end space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-6 py-2 hover:bg-gray-100 font-semibold uppercase"
-                  >
+                  <Button variant="secondary" onClick={() => setShowAddForm(false)}>
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:bg-brand-primary font-semibold uppercase"
-                  >
+                  </Button>
+                  <Button type="submit">
                     Add Crew Member
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

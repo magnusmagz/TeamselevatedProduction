@@ -17,6 +17,7 @@ import LoadMore from './LoadMore';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 import PageHeader from './ui/PageHeader';
 import DataTable, { DataTableColumn } from './ui/DataTable';
+import Button from './ui/Button';
 
 interface Athlete {
   id: number;
@@ -290,12 +291,15 @@ const AthleteManagement: React.FC<AthleteManagementProps> = ({ onClose }) => {
         <div className="bg-white border border-brand-secondary rounded-md w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="border-b border-brand-secondary px-6 py-4 flex justify-between items-center">
             <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">Athlete Management</h3>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Close"
+              className="text-2xl"
               onClick={onClose}
-              className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             >
               ×
-            </button>
+            </Button>
           </div>
 
           <div className="p-6">
@@ -683,13 +687,16 @@ export const AthleteListContent: React.FC<{
           )}
         </div>
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Add to team"
+          className="text-lg flex-shrink-0"
           onClick={() => setShowTeamSelector(athlete.id)}
-          className="text-brand-primary hover:text-brand-primary-hover font-bold text-lg flex-shrink-0"
           title="Add to team"
         >
           +
-        </button>
+        </Button>
       </div>
     ),
     // The whole family, stacked. Two names fit the row; beyond that the count
@@ -719,7 +726,9 @@ export const AthleteListContent: React.FC<{
           <div key={g.guardian_id}>
             {g.email && (
               <div className="text-xs">
-                <button
+                <Button
+                  variant="link"
+                  className="normal-case"
                   onClick={() => {
                     setComposeRecipient({
                       id: g.guardian_id,
@@ -732,15 +741,16 @@ export const AthleteListContent: React.FC<{
                     });
                     setShowEmailCompose(true);
                   }}
-                  className="text-brand-primary hover:underline cursor-pointer"
                 >
                   {g.email}
-                </button>
+                </Button>
               </div>
             )}
             {g.mobile_phone && (
               <div className="text-xs">
-                <button
+                <Button
+                  variant="link"
+                  className="normal-case"
                   onClick={() => {
                     setComposeRecipient({
                       id: g.guardian_id,
@@ -753,10 +763,9 @@ export const AthleteListContent: React.FC<{
                     });
                     setShowSmsCompose(true);
                   }}
-                  className="text-brand-primary hover:underline cursor-pointer"
                 >
                   {g.mobile_phone}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -809,24 +818,15 @@ export const AthleteListContent: React.FC<{
       className: 'align-top whitespace-nowrap',
       render: (athlete) => (
         <div className="flex flex-col space-y-1">
-          <button
-            onClick={() => handleManageGuardians(athlete)}
-            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-          >
+          <Button variant="link" size="sm" className="justify-start" onClick={() => handleManageGuardians(athlete)}>
             Guardians
-          </button>
-          <button
-            onClick={() => handleEditAthlete(athlete)}
-            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-          >
+          </Button>
+          <Button variant="link" size="sm" className="justify-start" onClick={() => handleEditAthlete(athlete)}>
             Edit
-          </button>
-          <button
-            onClick={() => handleArchiveAthlete(athlete)}
-            className="text-brand-primary hover:text-brand-primary-hover uppercase text-xs font-semibold text-left"
-          >
+          </Button>
+          <Button variant="link" size="sm" className="justify-start" onClick={() => handleArchiveAthlete(athlete)}>
             Archive
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -840,12 +840,9 @@ export const AthleteListContent: React.FC<{
           {displayedAthletes.length !== athletes.length ? ` of ${athletes.length}` : ''} athlete
           {displayedAthletes.length !== 1 ? 's' : ''}
         </span>
-        <button
-          onClick={handleAddAthlete}
-          className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary font-semibold uppercase w-full sm:w-auto"
-        >
+        <Button onClick={handleAddAthlete} className="w-full sm:w-auto">
           + Add New Athlete
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -876,12 +873,15 @@ export const AthleteListContent: React.FC<{
               <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
                 Add to Team
               </h3>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close"
+                className="text-2xl"
                 onClick={() => setShowTeamSelector(null)}
-                className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
               >
                 ×
-              </button>
+              </Button>
             </div>
 
             <div className="p-6">

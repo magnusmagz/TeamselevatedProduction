@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import Button from './ui/Button';
 
 interface CoachNotesProps {
   athleteId: number;
@@ -175,12 +176,9 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-800">Coach Notes</h3>
         {!showForm && (
-          <button
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm"
-          >
+          <Button onClick={() => { resetForm(); setShowForm(true); }}>
             + Add Note
-          </button>
+          </Button>
         )}
       </div>
 
@@ -191,12 +189,9 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
             <h4 className="font-medium text-gray-700">
               {editingNote ? 'Edit Note' : 'New Note'}
             </h4>
-            <button
-              onClick={resetForm}
-              className="text-gray-400 hover:text-gray-600 text-lg font-bold"
-            >
+            <Button variant="ghost" size="icon" aria-label="Close" className="text-lg" onClick={resetForm}>
               &times;
-            </button>
+            </Button>
           </div>
 
           {/* Category */}
@@ -258,20 +253,12 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={resetForm}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <Button variant="secondary" onClick={resetForm}>
               Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !content.trim()}
-              className="px-4 py-2 text-sm text-white rounded-md font-medium hover:opacity-90 transition disabled:opacity-50"
-              style={{ backgroundColor: '#12443e' }}
-            >
-              {saving ? 'Saving...' : editingNote ? 'Update Note' : 'Save Note'}
-            </button>
+            </Button>
+            <Button onClick={handleSave} disabled={!content.trim()} loading={saving}>
+              {editingNote ? 'Update Note' : 'Save Note'}
+            </Button>
           </div>
         </div>
       )}
@@ -311,20 +298,12 @@ const CoachNotes: React.FC<CoachNotesProps> = ({ athleteId, clubProfileId }) => 
                 {/* Edit / Delete (only for author) */}
                 {user && user.id === note.coach_user_id && (
                   <div className="flex gap-1 ml-2 flex-shrink-0">
-                    <button
-                      onClick={() => startEdit(note)}
-                      className="text-gray-400 hover:text-blue-600 text-sm px-1"
-                      title="Edit"
-                    >
+                    <Button variant="link" size="sm" onClick={() => startEdit(note)} title="Edit">
                       Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(note.id)}
-                      className="text-gray-400 hover:text-red-600 text-sm px-1"
-                      title="Delete"
-                    >
+                    </Button>
+                    <Button variant="danger-link" size="sm" onClick={() => handleDelete(note.id)} title="Delete">
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>

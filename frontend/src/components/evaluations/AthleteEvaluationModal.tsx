@@ -5,6 +5,7 @@ import {
   computeWeightedOverall,
 } from './ScoringForm';
 import { AthleteEvaluation, EvaluationCriterionOption, IdpGoal } from './types';
+import Button from '../ui/Button';
 
 /**
  * Record or edit a mid-year evaluation, and its IDP goals (CKU R76/R77).
@@ -238,13 +239,15 @@ export const AthleteEvaluationModal: React.FC<AthleteEvaluationModalProps> = ({
             </h2>
             <p className="text-gray-600 mt-1">{athleteName}</p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-2xl"
             onClick={onClose}
             aria-label="Close"
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
           >
             &times;
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -378,46 +381,37 @@ export const AthleteEvaluationModal: React.FC<AthleteEvaluationModalProps> = ({
                     value={goal.target_date ?? ''}
                     onChange={(e) => updateGoal(index, { target_date: e.target.value || null })}
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     aria-label={`Remove goal ${index + 1}`}
-                    className="px-2 py-2 text-brand-primary hover:bg-gray-100 rounded-md"
                     onClick={() => setGoals((prev) => prev.filter((_, i) => i !== index))}
                   >
                     &times;
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
 
             {goals.length < MAX_GOALS && (
-              <button
-                type="button"
-                className="mt-3 text-sm text-brand-primary underline"
+              <Button
+                variant="link"
+                className="mt-3"
                 onClick={() => setGoals((prev) => [...prev, { goal: '', target_date: null }])}
               >
                 Add a goal
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         <div className="border-t border-brand-secondary px-6 py-4 flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-brand-secondary rounded-md text-brand-primary hover:bg-gray-100 font-semibold uppercase"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : existing ? 'Update evaluation' : 'Save evaluation'}
-          </button>
+          </Button>
+          <Button onClick={handleSubmit} loading={saving}>
+            {existing ? 'Update evaluation' : 'Save evaluation'}
+          </Button>
         </div>
       </div>
     </div>

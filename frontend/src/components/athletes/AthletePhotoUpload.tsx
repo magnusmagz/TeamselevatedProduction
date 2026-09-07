@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import Button from '../ui/Button';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
 
@@ -87,14 +88,13 @@ const AthletePhotoUpload: React.FC<Props> = ({ athleteId, currentPhotoUrl, onUpl
       </div>
 
       <div>
-        <button
-          type="button"
+        <Button
+          variant="link"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="text-sm text-brand-primary hover:underline disabled:opacity-50"
         >
           {uploading ? 'Uploading...' : preview ? 'Change Photo' : 'Upload Photo'}
-        </button>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"

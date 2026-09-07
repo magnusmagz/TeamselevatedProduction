@@ -3,6 +3,7 @@ import { useOrg } from '../contexts/OrgContext';
 import CrewAccountLinkPanel from '../components/CrewAccountLinkPanel';
 import PageHeader from '../components/ui/PageHeader';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import Button from '../components/ui/Button';
 import {
   PortalStatus,
   PORTAL_STATUS_META,
@@ -321,7 +322,9 @@ const CrewRoster: React.FC = () => {
            existing account, and there was no other button. */
         if (m.status === 'no_email') return null;
         return (
-          <button
+          <Button
+            variant={m.status === 'invited' || m.status === 'active' ? 'link' : 'primary'}
+            size="sm"
             // The row opens the panel, so this must not also trigger it.
             onClick={(e) => {
               e.stopPropagation();
@@ -332,11 +335,6 @@ const CrewRoster: React.FC = () => {
               }
             }}
             disabled={busy || bulk.running}
-            className={
-              m.status === 'invited' || m.status === 'active'
-                ? 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
-                : 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
-            }
           >
             {busy
               ? 'Sending…'
@@ -345,7 +343,7 @@ const CrewRoster: React.FC = () => {
               : m.status === 'invited' || m.status === 'invite_expired'
               ? 'Resend'
               : 'Invite to portal'}
-          </button>
+          </Button>
         );
       },
     },
@@ -358,10 +356,9 @@ const CrewRoster: React.FC = () => {
         subtitle={<>Crew &amp; family across your club</>}
         className="mb-2"
         actions={
-          <button
+          <Button
             onClick={inviteAll}
             disabled={bulk.running || counts.not_invited + counts.invite_expired === 0}
-            className="inline-flex items-center bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-3 hover:bg-brand-primary uppercase font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {bulk.running
               ? `Inviting ${bulk.done} of ${bulk.total}…`
@@ -370,7 +367,7 @@ const CrewRoster: React.FC = () => {
                     (m) => m.status === 'not_invited' || m.status === 'invite_expired'
                   ).length
                 })`}
-          </button>
+          </Button>
         }
       />
 
@@ -385,9 +382,9 @@ const CrewRoster: React.FC = () => {
               />
             </div>
           </div>
-          <button onClick={() => { cancelRef.current = true; }} className="text-sm font-semibold uppercase text-brand-primary">
+          <Button variant="link" onClick={() => { cancelRef.current = true; }}>
             Stop
-          </button>
+          </Button>
         </div>
       )}
 
@@ -473,13 +470,15 @@ const CrewRoster: React.FC = () => {
                   Crew for {selected.athletes || '—'}
                 </p>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={closePanel}
                 aria-label="Close"
-                className="ml-auto text-gray-400 hover:text-gray-600 text-xl leading-none px-1"
+                className="ml-auto text-xl"
               >
                 ×
-              </button>
+              </Button>
             </header>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -525,12 +524,9 @@ const CrewRoster: React.FC = () => {
                     </div>
                   </dl>
 
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="w-full bg-brand-primary text-white rounded-md px-4 py-2.5 text-sm font-bold uppercase hover:bg-brand-primary-hover"
-                  >
+                  <Button fullWidth onClick={() => setEditing(true)}>
                     Edit details
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <form
@@ -585,21 +581,16 @@ const CrewRoster: React.FC = () => {
                   </label>
 
                   <div className="flex gap-2 pt-1">
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="flex-1 bg-brand-primary text-white rounded-md px-4 py-2.5 text-sm font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50"
-                    >
-                      {saving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button
-                      type="button"
+                    <Button type="submit" loading={saving} className="flex-1">
+                      Save
+                    </Button>
+                    <Button
+                      variant="secondary"
                       disabled={saving}
                       onClick={() => { setEditing(false); setPanelError(null); }}
-                      className="px-4 py-2.5 border border-gray-300 rounded-md text-sm font-semibold uppercase text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </form>
               )}

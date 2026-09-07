@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
 import PlayerCard from '../components/PlayerCard';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 interface TeamMember {
   id: number;
@@ -118,19 +119,12 @@ const PlayerCards: React.FC = () => {
             className="border-b border-brand-secondary pb-6"
             actions={
               <>
-                <button
-                  onClick={() => window.print()}
-                  className="bg-brand-primary text-white border border-brand-secondary rounded-md px-6 py-2 hover:opacity-90 uppercase font-semibold text-sm"
-                >
+                <Button onClick={() => window.print()}>
                   Print Cards
-                </button>
-                <button
-                  disabled
-                  title="Coming soon"
-                  className="bg-gray-200 text-gray-500 border border-gray-300 rounded-md px-4 py-2 uppercase font-semibold text-sm cursor-not-allowed"
-                >
+                </Button>
+                <Button variant="secondary" disabled title="Coming soon">
                   Game Day
-                </button>
+                </Button>
               </>
             }
           />

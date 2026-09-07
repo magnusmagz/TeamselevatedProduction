@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from './ui/Button';
 import {
   COACH_ACCESS_ENDPOINT,
   COACH_ACCESS_LABEL,
@@ -83,30 +84,22 @@ const CoachAccessControl: React.FC<Props> = ({ coach, clubId, onChanged, onSetPa
   return (
     <span className="inline-flex items-center gap-3 whitespace-nowrap">
       {action ? (
-        <button
-          type="button"
+        <Button
+          variant={action === 'invite' ? 'primary' : 'link'}
+          size="sm"
           onClick={run}
           disabled={busy}
-          className={
-            action === 'invite'
-              ? 'bg-brand-primary text-white rounded-md px-3 py-1.5 text-xs font-bold uppercase hover:bg-brand-primary-hover disabled:opacity-50'
-              : 'text-brand-primary hover:underline text-xs font-semibold uppercase disabled:opacity-50'
-          }
         >
           {busy ? 'Sending…' : COACH_ACCESS_LABEL[action]}
-        </button>
+        </Button>
       ) : (
         <span className="text-xs text-gray-500" title="Add an email address to invite or send a link.">
           No email on file
         </span>
       )}
-      <button
-        type="button"
-        onClick={() => onSetPassword(coach)}
-        className="text-brand-primary hover:underline text-xs uppercase"
-      >
+      <Button variant="link" size="sm" onClick={() => onSetPassword(coach)}>
         Set password
-      </button>
+      </Button>
     </span>
   );
 };

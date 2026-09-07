@@ -3,6 +3,7 @@ import { AthleteEvaluation, EvaluationListResponse } from './types';
 import EvaluationTrendChart from './EvaluationTrendChart';
 import AthleteEvaluationModal from './AthleteEvaluationModal';
 import { formatDateOnly } from '../../utils/dateFormat';
+import Button from '../ui/Button';
 
 /**
  * Mid-year evaluations and IDP goals for one athlete (CKU R76/R77).
@@ -122,16 +123,14 @@ export const AthleteEvaluationsPanel: React.FC<AthleteEvaluationsPanelProps> = (
           </p>
         </div>
         {canEvaluate && available && (
-          <button
-            type="button"
+          <Button
             onClick={() => {
               setEditing(null);
               setShowModal(true);
             }}
-            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold uppercase text-sm"
           >
             New evaluation
-          </button>
+          </Button>
         )}
       </div>
 
@@ -243,25 +242,20 @@ export const AthleteEvaluationsPanel: React.FC<AthleteEvaluationsPanelProps> = (
                       {(canDelete || (canEvaluate && isAuthor)) && (
                         <div className="flex gap-3 pt-2">
                           {canEvaluate && isAuthor && (
-                            <button
-                              type="button"
-                              className="text-sm text-brand-primary underline"
+                            <Button
+                              variant="link"
                               onClick={() => {
                                 setEditing(evaluation);
                                 setShowModal(true);
                               }}
                             >
                               Edit
-                            </button>
+                            </Button>
                           )}
                           {canDelete && (
-                            <button
-                              type="button"
-                              className="text-sm text-red-700 underline"
-                              onClick={() => handleDelete(evaluation)}
-                            >
+                            <Button variant="danger-link" onClick={() => handleDelete(evaluation)}>
                               Delete
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}

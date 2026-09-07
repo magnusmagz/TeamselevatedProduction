@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Button from './ui/Button';
 
 interface PlayerFormProps {
   team: { id: number; name: string };
@@ -124,12 +125,15 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
           <h3 className="text-xl font-semibold text-white">
             {player ? 'Edit Player' : 'Add Player to Roster'}
           </h3>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Close"
+            className="text-2xl !text-white hover:!bg-white/10"
             onClick={onClose}
-            className="text-brand-light hover:text-white text-2xl"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
@@ -305,19 +309,12 @@ const PlayerForm: React.FC<PlayerFormProps> = ({ team, player, onSubmit, onClose
           </div>
 
           <div className="flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
-            >
+            <Button variant="secondary" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
-            >
+            </Button>
+            <Button type="submit">
               {player ? 'Update Player' : 'Add Player'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

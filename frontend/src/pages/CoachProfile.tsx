@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import CoachProfileEdit from '../components/CoachProfileEdit';
 import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
 
 interface CoachProfileData {
   id: number;
@@ -147,12 +148,9 @@ const CoachProfile: React.FC = () => {
               Send Message
             </a>
             {(isAdmin() || user?.id === coach.id) && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="bg-white text-brand-primary border-2 border-brand-primary px-6 py-2 rounded-md hover:bg-brand-secondary font-semibold uppercase"
-              >
+              <Button variant="secondary" onClick={() => setShowEditModal(true)}>
                 Edit Profile
-              </button>
+              </Button>
             )}
           </>
         }
@@ -234,12 +232,9 @@ const CoachProfile: React.FC = () => {
                   Background
                 </h3>
                 {(isAdmin() || user?.id === coach.id) && !coach.coaching_background && (
-                  <button
-                    onClick={() => setShowEditModal(true)}
-                    className="text-blue-600 hover:underline font-medium uppercase text-sm"
-                  >
+                  <Button variant="link" onClick={() => setShowEditModal(true)}>
                     Add
-                  </button>
+                  </Button>
                 )}
               </div>
               {coach.coaching_background ? (
@@ -344,12 +339,9 @@ const CoachProfile: React.FC = () => {
       {/* Archive Button - Admin Only */}
       {isAdmin() && (
         <div className="flex justify-end">
-          <button
-            onClick={() => setShowArchiveModal(true)}
-            className="text-red-600 border-2 border-red-600 px-6 py-2 rounded-md hover:bg-red-50 font-semibold uppercase flex items-center gap-2"
-          >
-            <span>✕</span> Archive Coach
-          </button>
+          <Button variant="danger" leadingIcon={<span>✕</span>} onClick={() => setShowArchiveModal(true)}>
+            Archive Coach
+          </Button>
         </div>
       )}
 
@@ -370,18 +362,12 @@ const CoachProfile: React.FC = () => {
               </ul>
             </p>
             <div className="flex gap-4 justify-end">
-              <button
-                onClick={() => setShowArchiveModal(false)}
-                className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 font-semibold uppercase"
-              >
+              <Button variant="secondary" onClick={() => setShowArchiveModal(false)}>
                 Cancel
-              </button>
-              <button
-                onClick={handleArchiveCoach}
-                className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold uppercase"
-              >
+              </Button>
+              <Button variant="danger" onClick={handleArchiveCoach}>
                 Archive Coach
-              </button>
+              </Button>
             </div>
           </div>
         </div>

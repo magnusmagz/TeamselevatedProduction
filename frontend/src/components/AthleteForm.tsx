@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import { GRADE_OPTIONS } from '../utils/grade';
 import { JERSEY_SIZE_GROUPS, jerseySizesInGroup } from '../utils/jerseySize';
+import Button from './ui/Button';
 
 /**
  * ⚠️ THERE IS NO PRIMARY CREW MEMBER. Crew members are equal (product rule,
@@ -516,9 +517,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
           <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
             {athlete ? 'Edit Athlete' : 'Create New Athlete'}
           </h3>
-          <button onClick={onClose} className="text-brand-primary hover:bg-gray-100 px-2 text-2xl">
+          <Button variant="ghost" size="icon" aria-label="Close" className="text-2xl" onClick={onClose}>
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="p-6">
@@ -786,13 +787,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                         {`Crew Member ${gi + 1}`}
                       </span>
                       {(formData.guardians?.length || 0) > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeGuardian(gi)}
-                          className="text-red-600 text-sm font-medium hover:underline"
-                        >
+                        <Button variant="danger-link" onClick={() => removeGuardian(gi)}>
                           Remove
-                        </button>
+                        </Button>
                       )}
                     </div>
 
@@ -884,13 +881,9 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                   </div>
                 ))}
 
-                <button
-                  type="button"
-                  onClick={addGuardian}
-                  className="w-full border-2 border-dashed border-brand-secondary text-brand-primary rounded-lg px-4 py-3 text-sm font-medium hover:border-brand-accent hover:bg-brand-secondary/10 transition-colors"
-                >
+                <Button variant="secondary" fullWidth onClick={addGuardian}>
                   + Add another crew member
-                </button>
+                </Button>
               </div>
             )}
 
@@ -957,24 +950,16 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
                       </div>
 
                       {formData.emergency_contacts!.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeEmergencyContact(index)}
-                          className="mt-2 text-red-400 hover:text-red-300"
-                        >
+                        <Button variant="danger-link" className="mt-2" onClick={() => removeEmergencyContact(index)}>
                           Remove Contact
-                        </button>
+                        </Button>
                       )}
                     </div>
                   ))}
 
-                  <button
-                    type="button"
-                    onClick={addEmergencyContact}
-                    className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100"
-                  >
+                  <Button variant="secondary" onClick={addEmergencyContact}>
                     + Add Emergency Contact
-                  </button>
+                  </Button>
                 </div>
 
                 <div>
@@ -1300,40 +1285,25 @@ const AthleteForm: React.FC<AthleteFormProps> = ({ athlete, onSubmit, onClose })
             <div className="flex justify-between mt-8">
               <div>
                 {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(currentStep - 1)}
-                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
-                  >
+                  <Button variant="secondary" onClick={() => setCurrentStep(currentStep - 1)}>
                     Previous
-                  </button>
+                  </Button>
                 )}
               </div>
 
               <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover"
-                >
+                <Button variant="secondary" onClick={onClose}>
                   Cancel
-                </button>
+                </Button>
 
                 {currentStep < 3 ? (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(currentStep + 1)}
-                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
-                  >
+                  <Button onClick={() => setCurrentStep(currentStep + 1)}>
                     Next
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    type="submit"
-                    className="bg-brand-primary text-white px-6 py-2 hover:bg-brand-primary-hover font-semibold"
-                  >
+                  <Button type="submit">
                     {athlete ? 'Update Athlete' : 'Create Athlete'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

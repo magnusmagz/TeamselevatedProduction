@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TEMP_PASSWORD_MIN_LENGTH, generateTemporaryPassword } from '../utils/coachAccess';
+import Button from './ui/Button';
 
 /**
  * "Set password" for a coach — a club admin types (or generates) a temporary
@@ -99,14 +100,15 @@ const CoachSetPasswordModal: React.FC<Props> = ({ coach, clubId, onClose, onSave
           <h4 className="text-lg font-semibold text-brand-primary uppercase tracking-wide">
             Set password for {name}
           </h4>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-2xl"
             onClick={onClose}
-            className="text-brand-primary hover:bg-gray-100 px-2 text-2xl"
             aria-label="Close"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {revealed === null ? (
@@ -130,13 +132,9 @@ const CoachSetPasswordModal: React.FC<Props> = ({ coach, clubId, onClose, onSave
                   onChange={(e) => setPassword(e.target.value)}
                   minLength={TEMP_PASSWORD_MIN_LENGTH}
                 />
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  className="bg-white text-brand-primary border border-brand-secondary rounded-md px-3 py-2 hover:bg-gray-100 uppercase text-xs font-semibold"
-                >
+                <Button variant="secondary" size="sm" onClick={handleGenerate}>
                   Generate
-                </button>
+                </Button>
               </div>
               <p className="text-xs text-gray-500 mt-1">At least {TEMP_PASSWORD_MIN_LENGTH} characters.</p>
             </div>
@@ -160,20 +158,12 @@ const CoachSetPasswordModal: React.FC<Props> = ({ coach, clubId, onClose, onSave
               </p>
             )}
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase text-sm"
-              >
+              <Button variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 font-semibold uppercase text-sm disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : 'Set password'}
-              </button>
+              </Button>
+              <Button type="submit" loading={saving}>
+                Set password
+              </Button>
             </div>
           </form>
         ) : (
@@ -189,23 +179,15 @@ const CoachSetPasswordModal: React.FC<Props> = ({ coach, clubId, onClose, onSave
               >
                 {revealed}
               </code>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="bg-brand-primary text-white rounded-md px-3 py-2 text-xs font-semibold uppercase"
-              >
+              <Button size="sm" onClick={handleCopy}>
                 {copied ? 'Copied' : 'Copy'}
-              </button>
+              </Button>
             </div>
             <p className="text-sm text-gray-700">Ask them to change it after signing in.</p>
             <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 hover:bg-gray-100 uppercase text-sm"
-              >
+              <Button variant="secondary" onClick={onClose}>
                 Done
-              </button>
+              </Button>
             </div>
           </div>
         )}

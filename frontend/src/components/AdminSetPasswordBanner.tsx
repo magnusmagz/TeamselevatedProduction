@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Button from './ui/Button';
 
 /**
  * One line on the staff dashboard for a user whose password was set by a club
@@ -72,14 +73,14 @@ export const AdminSetPasswordBanner: React.FC = () => {
         </Link>
         .
       </span>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={dismiss}
-        className="text-amber-900 hover:text-amber-700 font-bold px-2"
         aria-label="Dismiss"
       >
         ✕
-      </button>
+      </Button>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from './ui/Button';
 
 interface CoachProfileData {
   id: number;
@@ -289,21 +290,12 @@ const CoachProfileEdit: React.FC<CoachProfileEditProps> = ({ coach, onClose, onS
 
           {/* Action Buttons */}
           <div className="flex gap-4 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-semibold uppercase disabled:opacity-50"
-            >
+            <Button variant="secondary" onClick={onClose} disabled={saving}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || uploading}
-              className="px-6 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary font-semibold uppercase disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            </Button>
+            <Button type="submit" disabled={uploading} loading={saving}>
+              Save Changes
+            </Button>
           </div>
         </form>
       </div>
