@@ -32,6 +32,13 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Shared Button (Netlify only)
+- `components/ui/Button.tsx` (+ `LinkButton`): primary / secondary / danger / danger-link /
+  ghost / link, sizes sm / md / icon, `loading`. 628 buttons across 130 files migrated; ~40
+  primaries gained a working hover; every icon-only control has an aria-label. 148 stateful
+  controls (tabs, chips, option rows) allowlisted per file in `uiConsistency.test.ts`.
+  Inventory: 504 distinct class strings before, recorded in the UI inventory doc.
+
 ### DataTable re-skinned to the brand (Netlify only)
 - Maggie: the gray table read as off-brand. Design source found: `Teams Elevated Logo
   Package/teams Elevated_brand.pdf` (palette #12443e / #06e5ac / #268e63 / #fdd300 / #15bbbe /
