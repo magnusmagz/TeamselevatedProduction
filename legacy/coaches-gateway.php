@@ -73,7 +73,7 @@ try {
             require_once __DIR__ . '/../lib/portal_status.php';
 
             $sql = "
-                SELECT u.id, u.first_name, u.last_name, u.email,
+                SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
                        COUNT(DISTINCT t.id) AS team_count,
                        " . te_portal_status_columns('u.email', 'u', 'coach_invite') . "
                 FROM users u
@@ -350,12 +350,29 @@ try {
                 }
             }
 
+            // Phone (2026-09-06, Maggie: show and edit it on the coach modal).
+            // Stored normalized (E.164) through the one phone normalizer so the
+            // SMS paths can use it as-is; blank clears it; an unreadable number
+            // is refused rather than stored as garbage.
+            require_once __DIR__ . '/../lib/suppression.php';
+            $phoneRaw = trim((string) ($data['phone'] ?? ''));
+            $phone = null;
+            if ($phoneRaw !== '') {
+                $phone = te_normalize_sms_phone($phoneRaw);
+                if ($phone === null) {
+                    http_response_code(422);
+                    echo json_encode(['error' => 'That phone number is not recognised. Use 10 digits, e.g. 316-555-0100.', 'field' => 'phone']);
+                    exit();
+                }
+            }
+
             // Update coach information
             $stmt = $connection->prepare("
                 UPDATE users
                 SET first_name = ?,
                     last_name = ?,
-                    email = ?
+                    email = ?,
+                    phone = ?
                 WHERE id = ?
             ");
 
@@ -363,6 +380,7 @@ try {
                 $data['first_name'],
                 $data['last_name'],
                 $data['email'],
+                $phone,
                 $coachId
             ]);
 

@@ -564,6 +564,20 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                         />
                       </div>
 
+                      <div className="col-span-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Phone
+                        </label>
+                        <input
+                          type="tel"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="316-555-0100"
+                          autoComplete="tel"
+                        />
+                      </div>
+
                       {!selectedCoach && (
                         <div className="col-span-2">
                           <p className="text-gray-600 text-sm">
@@ -737,6 +751,20 @@ const CoachManagement: React.FC<CoachManagementProps> = ({ onClose }) => {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
+                        />
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                          Phone
+                        </label>
+                        <input
+                          type="tel"
+                          className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="316-555-0100"
+                          autoComplete="tel"
                         />
                       </div>
 

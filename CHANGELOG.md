@@ -32,6 +32,12 @@ Newest first. Times are Pacific.
 
 ## 2026-09-06
 
+### Coach phone on the Add/Edit Coach modal (Heroku, then Netlify)
+- `legacy/coaches-gateway.php` list returns `u.phone`; update writes it, normalized through
+  `te_normalize_sms_phone` (E.164), blank clears, unreadable → 422. Both modals show a Phone
+  field, pre-filled when the account has one. `CoachPhoneOnModalTest`. Also closes the
+  "staff phone number on profile" P0 for coaches.
+
 ### Chat: clickable links, viewer-timezone times; lineup selected-slot ring (Netlify only)
 - `components/chat/linkify.tsx`: http(s) and www. addresses in a message become new-tab links;
   everything else stays text nodes, so nothing typed can become markup. Staff chat + portal.
