@@ -248,3 +248,92 @@ describe('Referees on the calendar (2026-09-08)', () => {
     expect((screen.getByLabelText(/Minimum referee grade/) as HTMLSelectElement).value).toBe('Regional');
   });
 });
+
+
+describe('A game on a field (migration 100)', () => {
+  const venues = [{ id: 7, name: 'North Park' }, { id: 8, name: 'South Park' }];
+  const clubFields = [
+    { id: 70, name: 'North Park - Field 1', field_name: 'Field 1', venue_id: 7, venue_name: 'North Park', field_size: '9v9', active: true },
+    { id: 71, name: 'North Park - Field 2', field_name: 'Field 2', venue_id: 7, venue_name: 'North Park', field_size: '7v7', active: true },
+    { id: 72, name: 'North Park - Field 3', field_name: 'Field 3', venue_id: 7, venue_name: 'North Park', field_size: null, active: true },
+    { id: 80, name: 'South Park - Pitch A', field_name: 'Pitch A', venue_id: 8, venue_name: 'South Park', field_size: '9v9', active: true },
+  ];
+  const teamFields = {
+    team_id: 10, age_group: 'U12', age_group_label: 'U12', recommended_size: '9v9', sizing_available: true,
+    fields: [
+      { id: 70, name: 'Field 1', venue_id: 7, venue_name: 'North Park', display_name: 'North Park - Field 1', field_size: '9v9', size_match: true },
+      { id: 80, name: 'Pitch A', venue_id: 8, venue_name: 'South Park', display_name: 'South Park - Pitch A', field_size: '9v9', size_match: true },
+      { id: 72, name: 'Field 3', venue_id: 7, venue_name: 'North Park', display_name: 'North Park - Field 3', field_size: null, size_match: null },
+      { id: 71, name: 'Field 2', venue_id: 7, venue_name: 'North Park', display_name: 'North Park - Field 2', field_size: '7v7', size_match: false },
+    ],
+  };
+  const game = {
+    id: 21, name: 'Derby', type: 'game', event_date: dateStr(12), status: 'scheduled',
+    teams: [{ id: 10, name: 'U12 Blue' }], venue_id: 7, venue_name: 'North Park', field_id: 70, field_name: 'Field 1', field_size: '9v9',
+  };
+
+  beforeEach(() => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('events-gateway.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [game] }) });
+      }
+      if (url.includes('venues-gateway.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(venues) });
+      }
+      if (url.includes('fields-gateway.php?action=for-team')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(teamFields) });
+      }
+      if (url.includes('fields-gateway.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(clubFields) });
+      }
+      if (url.includes('/api/referees.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, available: true, referees: [], roles: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [], teams: [] }) });
+    });
+  });
+
+  const openGame = async () => {
+    render(<TeamCalendarView />);
+    await waitFor(() => expect(screen.getAllByText('Derby').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByText('Derby')[0]);
+    await screen.findByRole('heading', { name: /Edit Event/ });
+    return (await screen.findByLabelText(/^Field$/)) as HTMLSelectElement;
+  };
+
+  it('shows "Venue · Field" on the card and in the modal header', async () => {
+    await openGame();
+    expect(eventTile('Derby')).toHaveTextContent('North Park · Field 1');
+    expect(screen.getByRole('heading', { name: /Edit Event/ })).toHaveTextContent('North Park · Field 1');
+  });
+
+  it('lists only the chosen facility\'s fields, labelled with size and fit, unsized included', async () => {
+    const select = await openGame();
+    expect(select.value).toBe('70');
+    const labels = Array.from(select.options).map((o) => o.textContent);
+    expect(labels).toEqual(expect.arrayContaining([expect.stringContaining('Field 1'), expect.stringContaining('Field 2'), expect.stringContaining('Field 3')]));
+    expect(labels.join('|')).not.toContain('Pitch A');
+    expect(labels.find((l) => l?.includes('Field 1'))).toMatch(/9v9.*fits/);
+    expect(labels.find((l) => l?.includes('Field 2'))).toMatch(/7v7.*size mismatch/);
+    expect(labels.find((l) => l?.includes('Field 3'))).not.toMatch(/mismatch/);
+  });
+
+  it('warns on a size mismatch but never blocks it', async () => {
+    const select = await openGame();
+    fireEvent.change(select, { target: { value: '71' } });
+    expect(select.value).toBe('71');
+    expect(await screen.findByTestId('field-size-warning')).toHaveTextContent('Field 2 is 7v7. U12 normally plays 9v9. You can still schedule here.');
+    expect(Array.from(select.options).every((o) => !o.disabled)).toBe(true);
+  });
+
+  it('changing the facility clears the field', async () => {
+    const select = await openGame();
+    const facility = screen.getByLabelText(/^Facility$/) as HTMLSelectElement;
+    fireEvent.change(facility, { target: { value: '8' } });
+    await waitFor(() => expect((screen.getByLabelText(/^Field$/) as HTMLSelectElement).value).toBe(''));
+    const labels = Array.from((screen.getByLabelText(/^Field$/) as HTMLSelectElement).options).map((o) => o.textContent).join('|');
+    expect(labels).toContain('Pitch A');
+    expect(labels).not.toContain('Field 1');
+    expect(select).not.toBeUndefined();
+  });
+});

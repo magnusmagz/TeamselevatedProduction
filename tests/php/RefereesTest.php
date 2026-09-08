@@ -80,8 +80,9 @@ class RefereesTest extends TestCase
             CREATE TABLE team_members (id INTEGER PRIMARY KEY, team_id INTEGER, user_id INTEGER,
                 athlete_id INTEGER, role TEXT, status TEXT);
             CREATE TABLE venues (id INTEGER PRIMARY KEY, name TEXT, address TEXT, city TEXT);
+            CREATE TABLE fields (id INTEGER PRIMARY KEY, venue_id INTEGER, name TEXT, active INTEGER DEFAULT 1, field_size TEXT);
             CREATE TABLE calendar_events (id INTEGER PRIMARY KEY, club_id INTEGER, name TEXT, type TEXT,
-                event_date TEXT, start_time TEXT, end_time TEXT, venue_id INTEGER, location TEXT,
+                event_date TEXT, start_time TEXT, end_time TEXT, venue_id INTEGER, field_id INTEGER, location TEXT,
                 opponent_name TEXT, status TEXT, min_referee_grade TEXT,
                 allow_referee_self_assign INTEGER NOT NULL DEFAULT 1);
             CREATE TABLE calendar_event_teams (id INTEGER PRIMARY KEY, event_id INTEGER, team_id INTEGER);
@@ -128,6 +129,7 @@ class RefereesTest extends TestCase
         $pdo->exec("INSERT INTO teams (id, name, club_id, primary_coach_id, primary_color) VALUES
             (10, 'U12 Blue', 100, 50, '#0000ff'), (11, 'U14 Red', 100, NULL, '#ff0000'), (20, 'Other U12', 200, 91, NULL)");
         $pdo->exec("INSERT INTO venues (id, name, address, city) VALUES (7, 'North Park', '1 Park Rd', 'Wichita')");
+        $pdo->exec("INSERT INTO fields (id, venue_id, name, active, field_size) VALUES (70, 7, 'Field 2', 1, '9v9')");
         $pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, venue_id, opponent_name, status, min_referee_grade) VALUES
             (500, 100, 'League match', 'game', '2026-09-20', '10:00', 7, 'Rivals FC', 'scheduled', NULL),
             (501, 100, 'Played match', 'game', '2026-09-01', '10:00', 7, 'Old FC', 'scheduled', NULL),
@@ -135,6 +137,8 @@ class RefereesTest extends TestCase
             (503, 200, 'Other league', 'game', '2026-09-15', '09:00', NULL, 'Elsewhere', 'scheduled', NULL),
             (504, 100, 'Cup final', 'game', '2026-09-25', '14:00', 7, 'Cup FC', 'scheduled', 'National'),
             (505, 100, 'Covered match', 'game', '2026-09-22', '12:00', 7, 'Done FC', 'scheduled', NULL)");
+        // 500 is on a named field (migration 100); the rest have a venue only, or nothing.
+        $pdo->exec("UPDATE calendar_events SET field_id = 70 WHERE id = 500");
         $pdo->exec("INSERT INTO calendar_event_teams (event_id, team_id) VALUES (500, 10), (501, 10), (502, 10), (503, 20), (504, 11), (505, 10)");
         $pdo->exec("INSERT INTO referees (id, club_id, user_id, first_name, last_name, email, phone, grade, created_at, updated_at) VALUES
             (1, 100, 300, 'Ray', 'Whistle', 'ref@whistle.test', '+13165550100', 'Regional', 'x', 'x'),
@@ -486,6 +490,8 @@ class RefereesTest extends TestCase
         $game = $r['body']['upcoming'][1];
         $this->assertSame('2026-09-20', $game['event_date'], 'date-only string, never parsed');
         $this->assertSame('North Park', $game['venue_name']);
+        $this->assertSame('Field 2', $game['field_name'], 'the referee sees which pitch (migration 100)');
+        $this->assertNull($r['body']['upcoming'][0]['field_name'], '503 has no venue and no field');
         $this->assertSame('Rivals FC', $game['opponent_name']);
         $this->assertSame('center', $game['role']);
         $this->assertSame(['U12 Blue'], array_column($game['teams'], 'name'));
@@ -519,6 +525,8 @@ class RefereesTest extends TestCase
         $this->assertSame([503, 500], array_column($r['body']['games'], 'id'));
         $this->assertSame('Away United', $r['body']['games'][0]['club_name']);
         $this->assertContains('center', $r['body']['games'][1]['open_roles']);
+        $this->assertSame('Field 2', $r['body']['games'][1]['field_name'], 'open games name the pitch too');
+        $this->assertNull($r['body']['games'][0]['field_name']);
 
         // Promote Ray to National in club 100 → 504 opens up (the grade is per club).
         referees_update($this->pdo, $this->admin(), ['id' => 1, 'grade' => 'National']);

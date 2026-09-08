@@ -1,4 +1,5 @@
 import React from 'react';
+import { eventWhere } from '../../utils/eventWhere';
 import { Link } from 'react-router-dom';
 
 interface DashboardCardProps {
@@ -168,6 +169,8 @@ interface EventItemProps {
     start_time?: string;
     type?: string;
     location?: string;
+    venue_name?: string | null;
+    field_name?: string | null;
   };
 }
 
@@ -207,10 +210,10 @@ export const EventItem: React.FC<EventItemProps> = ({ event }) => {
         <p className="font-medium text-gray-900 truncate">{event.title}</p>
         <div className="flex items-center gap-2 text-sm text-gray-500">
           {(event.start_time || event.time) && <span>{formatEventTime(event.start_time || event.time)}</span>}
-          {event.location && (
+          {eventWhere(event) && (
             <>
               <span>·</span>
-              <span className="truncate">{event.location}</span>
+              <span className="truncate">{eventWhere(event)}</span>
             </>
           )}
         </div>

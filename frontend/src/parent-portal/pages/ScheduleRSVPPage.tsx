@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { eventWhere } from '../../utils/eventWhere';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
@@ -12,6 +13,8 @@ interface EventDetails {
   start_time?: string;
   end_time?: string;
   location?: string;
+  venue_name?: string | null;
+  field_name?: string | null;
   address?: string;
   type: 'practice' | 'game' | 'meeting' | 'tournament' | 'other';
   team_id?: number;
@@ -229,7 +232,7 @@ export const ScheduleRSVPPage: React.FC = () => {
           </div>
 
           {/* Location */}
-          {(event.location || event.address) && (
+          {(eventWhere(event) || event.address) && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-brand-secondary flex items-center justify-center">
@@ -254,7 +257,7 @@ export const ScheduleRSVPPage: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{event.location}</p>
+                  <p className="font-medium text-gray-900">{eventWhere(event)}</p>
                   {event.address && <p className="text-gray-600">{event.address}</p>}
                 </div>
               </div>

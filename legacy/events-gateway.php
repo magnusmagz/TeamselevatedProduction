@@ -11,6 +11,7 @@ require_once __DIR__ . '/../lib/event_recurrence.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
 require_once __DIR__ . '/../lib/referees.php';
+require_once __DIR__ . '/../lib/event_field.php';
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
@@ -98,16 +99,22 @@ try {
         case 'GET':
             if (isset($_GET['id'])) {
                 // Get specific event
+                // The game's field (migration 100) rides on the same query — one
+                // LEFT JOIN, NULL literals until the column is applied.
+                $fieldSelect = te_event_field_select($pdo, 'e');
+                $fieldJoin = te_event_field_join($pdo, 'e');
                 $stmt = $pdo->prepare("
                     SELECT e.*,
                            t.name as team_name,
                            p.name as program_name,
                            v.name as venue_name,
                            v.address as venue_address
+                           $fieldSelect
                     FROM calendar_events e
                     LEFT JOIN teams t ON e.team_id = t.id
                     LEFT JOIN programs p ON e.program_id = p.id
                     LEFT JOIN venues v ON e.venue_id = v.id
+                    $fieldJoin
                     WHERE e.id = ?
                 ");
                 $stmt->execute([$_GET['id']]);
@@ -181,15 +188,19 @@ try {
                 // simply absent and the chip does not render.
                 $refereeStatusColumns = te_game_referee_status_columns($pdo, 'e');
                 $todayStr = date('Y-m-d');
+                $fieldSelect = te_event_field_select($pdo, 'e');
+                $fieldJoin = te_event_field_join($pdo, 'e');
 
                 $stmt = $pdo->prepare("
                     SELECT DISTINCT e.*,
                            p.name as program_name,
                            v.name as venue_name
+                           $fieldSelect
                            $refereeStatusColumns
                     FROM calendar_events e
                     LEFT JOIN programs p ON e.program_id = p.id
                     LEFT JOIN venues v ON e.venue_id = v.id
+                    $fieldJoin
                     LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                     LEFT JOIN teams t ON et.team_id = t.id
                     $whereClause
@@ -273,6 +284,17 @@ try {
             // Self-assign toggle: default TRUE (the norm); absent means the default.
             $selfAssign = te_game_self_assign_flag($data['allow_referee_self_assign'] ?? null);
 
+            // The field (migration 100): optional, must be at the chosen venue and
+            // active — a foreign or retired field is a 422 before anything is
+            // written. Size mismatch is deliberately NOT refused (lib/field_size.php).
+            $field = te_event_field_validate($pdo, $data['field_id'] ?? null, $data['venue_id'] ?? null);
+            if ($field['error'] !== null) {
+                http_response_code(422);
+                echo json_encode(['error' => $field['error']]);
+                exit;
+            }
+            $fieldLive = te_event_field_available($pdo);
+
             $pdo->beginTransaction();
 
             try {
@@ -281,14 +303,14 @@ try {
                         club_id, name, type, event_date, start_time, end_time,
                         program_id, venue_id, location, description, status, opponent_name,
                         recurrence_group_id, recurrence_rule, series_original_date, series_original_time,
-                        min_referee_grade, allow_referee_self_assign
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_referee_grade, allow_referee_self_assign" . ($fieldLive ? ', field_id' : '') . "
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" . ($fieldLive ? ', ?' : '') . ")
                 " : "
                     INSERT INTO calendar_events (
                         club_id, name, type, event_date, start_time, end_time,
                         program_id, venue_id, location, description, status, opponent_name,
-                        recurrence_group_id, recurrence_rule, series_original_date, series_original_time
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        recurrence_group_id, recurrence_rule, series_original_date, series_original_time" . ($fieldLive ? ', field_id' : '') . "
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" . ($fieldLive ? ', ?' : '') . ")
                 ");
                 $teamStmt = $pdo->prepare("INSERT INTO calendar_event_teams (event_id, team_id) VALUES (?, ?)");
 
@@ -320,6 +342,9 @@ try {
                     if ($minGradeLive) {
                         $insertParams[] = $minGrade['value'];
                         $insertParams[] = ($selfAssign ?? true) ? 'true' : 'false';
+                    }
+                    if ($fieldLive) {
+                        $insertParams[] = $field['value'];
                     }
                     $stmt->execute($insertParams);
 
@@ -381,12 +406,14 @@ try {
                             $eventStmt = $pdo->prepare("
                                 SELECT e.*, v.name as venue_name, v.address as venue_address,
                                        STRING_AGG(t.name, ', ') as team_names
+                                       \" . te_event_field_select($pdo, 'e') . \"
                                 FROM calendar_events e
                                 LEFT JOIN venues v ON e.venue_id = v.id
+                                \" . te_event_field_join($pdo, 'e') . \"
                                 LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                                 LEFT JOIN teams t ON et.team_id = t.id
                                 WHERE e.id = ?
-                                GROUP BY e.id, v.id
+                                GROUP BY e.id, v.id" . (te_event_field_available($pdo) ? ', ef.id' : '') . "
                             ");
                             $eventStmt->execute([$eventId]);
                             $firstEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);
@@ -426,12 +453,14 @@ try {
                         $eventStmt = $pdo->prepare("
                             SELECT e.*, v.name as venue_name, v.address as venue_address,
                                    STRING_AGG(t.name, ', ') as team_names
+                                   \" . te_event_field_select($pdo, 'e') . \"
                             FROM calendar_events e
                             LEFT JOIN venues v ON e.venue_id = v.id
+                            \" . te_event_field_join($pdo, 'e') . \"
                             LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                             LEFT JOIN teams t ON et.team_id = t.id
                             WHERE e.id = ?
-                            GROUP BY e.id, v.id
+                            GROUP BY e.id, v.id" . (te_event_field_available($pdo) ? ', ef.id' : '') . "
                         ");
                         $eventStmt->execute([$eventId]);
                         $fullEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);
@@ -532,6 +561,26 @@ try {
                 ? te_game_self_assign_flag($data['allow_referee_self_assign']) : null;
             $selfAssignLive = $selfAssign !== null && te_min_referee_grade_column_present($pdo);
 
+            // The field (migration 100). Sent → validated against the venue in
+            // THIS request. Absent (an older bundle) → kept only while the venue
+            // is unchanged; a venue change with no field_id clears it, because a
+            // field from the previous venue is never right for the new one.
+            $fieldSent = array_key_exists('field_id', $data);
+            $newVenueId = ($data['venue_id'] ?? null) === '' ? null : ($data['venue_id'] ?? null);
+            if ($fieldSent) {
+                $field = te_event_field_validate($pdo, $data['field_id'], $newVenueId);
+                if ($field['error'] !== null) {
+                    http_response_code(422);
+                    echo json_encode(['error' => $field['error']]);
+                    exit;
+                }
+            } else {
+                $venueUnchanged = $originalEvent && (int) ($originalEvent['venue_id'] ?? 0) === (int) ($newVenueId ?? 0);
+                $keep = $venueUnchanged ? ($originalEvent['field_id'] ?? null) : null;
+                $field = ['value' => $keep === null ? null : (int) $keep, 'error' => null];
+            }
+            $fieldLive = te_event_field_available($pdo);
+
             $pdo->beginTransaction();
 
             try {
@@ -550,6 +599,7 @@ try {
                         opponent_name = ?
                         " . ($minGradeLive ? ', min_referee_grade = ?' : '') . "
                         " . ($selfAssignLive ? ', allow_referee_self_assign = ?' : '') . "
+                        " . ($fieldLive ? ', field_id = ?' : '') . "
                     WHERE id = ?
                 ");
 
@@ -571,6 +621,9 @@ try {
                 }
                 if ($selfAssignLive) {
                     $updateParams[] = $selfAssign ? 'true' : 'false';
+                }
+                if ($fieldLive) {
+                    $updateParams[] = $field['value'];
                 }
                 $updateParams[] = $_GET['id'];
                 $stmt->execute($updateParams);
@@ -607,6 +660,7 @@ try {
                         $originalEvent['start_time'] != $data['start_time'] ||
                         $originalEvent['end_time'] != $data['end_time'] ||
                         $originalEvent['venue_id'] != ($data['venue_id'] ?? null) ||
+                        ($fieldLive && ($originalEvent['field_id'] ?? null) != $field['value']) ||
                         $originalEvent['location'] != ($data['location'] ?? null) ||
                         $originalEvent['status'] != ($data['status'] ?? 'scheduled')
                     );
@@ -658,12 +712,14 @@ try {
                                     $eventStmt = $pdo->prepare("
                                         SELECT e.*, v.name as venue_name, v.address as venue_address,
                                                STRING_AGG(t.name, ', ') as team_names
+                                               \" . te_event_field_select($pdo, 'e') . \"
                                         FROM calendar_events e
                                         LEFT JOIN venues v ON e.venue_id = v.id
+                                        \" . te_event_field_join($pdo, 'e') . \"
                                         LEFT JOIN calendar_event_teams et ON e.id = et.event_id
                                         LEFT JOIN teams t ON et.team_id = t.id
                                         WHERE e.id = ?
-                                        GROUP BY e.id, v.id
+                                        GROUP BY e.id, v.id" . (te_event_field_available($pdo) ? ', ef.id' : '') . "
                                     ");
                                     $eventStmt->execute([$_GET['id']]);
                                     $updatedEvent = $eventStmt->fetch(PDO::FETCH_ASSOC);

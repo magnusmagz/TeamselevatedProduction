@@ -92,6 +92,7 @@ try {
     $stmt = $connection->prepare("
         SELECT f.id,
                CONCAT(v.name, ' - ', f.name) as name,
+               f.name as field_name,
                f.venue_id,
                v.name as venue_name,
                f.field_type,

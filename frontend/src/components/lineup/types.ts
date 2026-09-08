@@ -44,6 +44,10 @@ export interface LineupEvent {
   start_time: string | null;
   opponent_name: string | null;
   status: string | null;
+  location?: string | null;
+  venue_name?: string | null;
+  /** The pitch (migration 100). */
+  field_name?: string | null;
 }
 
 export interface LineupStaffResponse {

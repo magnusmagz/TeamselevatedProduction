@@ -19,6 +19,7 @@ require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
 require_once __DIR__ . '/../lib/program_scope.php';
 require_once __DIR__ . '/../lib/scope_sql.php';
+require_once __DIR__ . '/../lib/event_field.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -41,15 +42,19 @@ function handleSendCalendarInvite($conn, $input) {
 
     try {
         // Get event details
-        $stmt = $conn->prepare('
+        $fieldSelect = te_event_field_select($conn, 'e');
+        $fieldJoin = te_event_field_join($conn, 'e');
+        $stmt = $conn->prepare("
             SELECT
                 e.*,
                 v.name as venue_name,
                 v.address as venue_address
+                $fieldSelect
             FROM calendar_events e
             LEFT JOIN venues v ON e.venue_id = v.id
+            $fieldJoin
             WHERE e.id = :event_id
-        ');
+        ");
         $stmt->execute(['event_id' => $eventId]);
         $event = $stmt->fetch();
 
@@ -120,7 +125,8 @@ function handleSendCalendarInvite($conn, $input) {
         $endDateTime = $event['event_date'] . ' ' . ($event['end_time'] ?? '23:59:59');
 
         // Build location string
-        $location = $event['venue_name'] ?? $event['location'] ?? 'TBD';
+        // "Venue · Field" when a pitch is chosen (migration 100), else as before.
+        $location = te_event_place_label($event['venue_name'] ?? null, $event['field_name'] ?? null, $event['location'] ?? null) ?: 'TBD';
         if (!empty($event['venue_address'])) {
             $location .= ', ' . $event['venue_address'];
         }
@@ -194,6 +200,9 @@ try {
         }
 
         $params = [];
+        // Venue and field (migration 100) on every row the portal cards read.
+        $ceFieldSelect = te_event_field_select($conn, 'ce');
+        $ceFieldJoin = te_event_field_join($conn, 'ce');
 
         if ($athlete_id) {
             // Get events for teams this athlete belongs to
@@ -201,9 +210,10 @@ try {
                 SELECT DISTINCT
                     ce.id, ce.name AS title, ce.type, ce.event_date AS date,
                     ce.start_time, ce.end_time, ce.location, ce.description,
-                    ce.status,
+                    ce.status, v.name AS venue_name {$ceFieldSelect},
                     t.id AS team_id, t.name AS team_name
                 FROM calendar_events ce
+                LEFT JOIN venues v ON v.id = ce.venue_id {$ceFieldJoin}
                 JOIN calendar_event_teams cet ON ce.id = cet.event_id
                 JOIN teams t ON cet.team_id = t.id
                 JOIN team_members tm ON t.id = tm.team_id
@@ -220,9 +230,10 @@ try {
                 SELECT DISTINCT
                     ce.id, ce.name AS title, ce.type, ce.event_date AS date,
                     ce.start_time, ce.end_time, ce.location, ce.description,
-                    ce.status,
+                    ce.status, v.name AS venue_name {$ceFieldSelect},
                     t.id AS team_id, t.name AS team_name
                 FROM calendar_events ce
+                LEFT JOIN venues v ON v.id = ce.venue_id {$ceFieldJoin}
                 JOIN calendar_event_teams cet ON ce.id = cet.event_id
                 JOIN teams t ON cet.team_id = t.id
                 WHERE ce.event_date >= CURRENT_DATE
@@ -236,9 +247,10 @@ try {
                 SELECT DISTINCT
                     ce.id, ce.name AS title, ce.type, ce.event_date AS date,
                     ce.start_time, ce.end_time, ce.location, ce.description,
-                    ce.status,
+                    ce.status, v.name AS venue_name {$ceFieldSelect},
                     t.id AS team_id, t.name AS team_name
                 FROM calendar_events ce
+                LEFT JOIN venues v ON v.id = ce.venue_id {$ceFieldJoin}
                 JOIN calendar_event_teams cet ON ce.id = cet.event_id
                 JOIN teams t ON cet.team_id = t.id
                 JOIN team_members tm ON tm.team_id = t.id AND tm.athlete_id IS NOT NULL
@@ -290,9 +302,10 @@ try {
                     SELECT DISTINCT
                         ce.id, ce.name AS title, ce.type, ce.event_date AS date,
                         ce.start_time, ce.end_time, ce.location, ce.description,
-                        ce.status,
+                        ce.status, v.name AS venue_name {$ceFieldSelect},
                         t.id AS team_id, t.name AS team_name
                     FROM calendar_events ce
+                    LEFT JOIN venues v ON v.id = ce.venue_id {$ceFieldJoin}
                     LEFT JOIN calendar_event_teams cet ON ce.id = cet.event_id
                     LEFT JOIN teams t ON cet.team_id = t.id
                     WHERE ce.program_id IN ({$programScope['sql']})
@@ -339,12 +352,16 @@ try {
         }
 
         // Get event details
+        $ceFieldSelect = te_event_field_select($conn, 'ce');
+        $ceFieldJoin = te_event_field_join($conn, 'ce');
         $stmt = $conn->prepare("
             SELECT
                 ce.id, ce.name AS title, ce.type, ce.event_date AS date,
                 ce.start_time, ce.end_time, ce.location, ce.description,
-                ce.status
+                ce.status, v.name AS venue_name {$ceFieldSelect}
             FROM calendar_events ce
+            LEFT JOIN venues v ON v.id = ce.venue_id
+            {$ceFieldJoin}
             WHERE ce.id = :event_id
         ");
         $stmt->execute(['event_id' => $event_id]);

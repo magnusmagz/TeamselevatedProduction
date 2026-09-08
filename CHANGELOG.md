@@ -40,6 +40,18 @@ Newest first. Times are Pacific.
 - Reported by Maggie: creating a referee returned 500. `users.role` CHECK rejected `'referee'`.
   Invite INSERT now maps club roles the legacy column does not know to `'user'`
   (`te_coach_invite_legacy_user_role`). No referee rows were created by the failed attempts.
+### Game field — `calendar_events.field_id` (branch `feature/game-field`, NOT deployed)
+- Migration **100** `100_calendar_event_field.sql` written, NOT applied: `calendar_events.field_id`
+  → `fields(id)` ON DELETE SET NULL, index `idx_calendar_events_field_id`. Additive.
+  `SchemaConformanceTest::PENDING_MIGRATION` carries `calendar_events.field_id` until the
+  fixture refresh.
+- Deploy order: backend (degrades to "no field" via the `information_schema` probe) → apply 100
+  with `scripts/apply-migration.php` → refresh `tests/fixtures/production-schema.json` and delete
+  the PENDING entry in the same commit → frontend.
+- Surfaces: game form Field select (fit-labelled, mismatch warned never blocked), calendar cards,
+  event modal header, team schedule row, lineup builder header + print sheet, parent portal
+  (upcoming, RSVP detail, dashboard card), referee page my-games/open-games, ICS location,
+  `{{event_location}}` ("Venue, Field") + new `{{event_field_name}}`.
 
 ### Referees release note + help articles published (Heroku v628 script)
 - Release note id 10; articles 48 (admins), 49 (coaches), 50 (Your referee account, Getting Started). `scripts/publish-2026-09-08-referees-help.php`.

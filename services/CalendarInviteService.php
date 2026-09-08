@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../lib/event_field.php';
 require_once __DIR__ . '/../lib/email_sender.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -362,7 +363,7 @@ HTML;
             }
         }
 
-        $location = $event['venue_name'] ?? $event['location'] ?? '';
+        $location = te_event_place_label($event['venue_name'] ?? null, $event['field_name'] ?? null, $event['location'] ?? null);
 
         $dates = $series['dates'];
         $shown = array_slice($dates, 0, 8);
@@ -530,8 +531,8 @@ HTML;
         $dtend = $this->formatDateTimeForICal($event['event_date'], $event['end_time'], $timezone);
         $now = gmdate('Ymd\THis\Z');
 
-        // Build location string
-        $location = $event['venue_name'] ?? '';
+        // Build location string — "Venue · Field" when a pitch is chosen (migration 100).
+        $location = te_event_place_label($event['venue_name'] ?? null, $event['field_name'] ?? null, null);
         if (!empty($event['venue_address'])) {
             $location .= ', ' . $event['venue_address'];
         } elseif (!empty($event['location'])) {
@@ -949,10 +950,13 @@ HTML;
     }
 
     private function getEventDetails($eventId) {
+        $fieldSelect = te_event_field_select($this->pdo, 'e');
+        $fieldJoin = te_event_field_join($this->pdo, 'e');
         $stmt = $this->pdo->prepare("
-            SELECT e.*, v.name as venue_name, v.address as venue_address
+            SELECT e.*, v.name as venue_name, v.address as venue_address $fieldSelect
             FROM calendar_events e
             LEFT JOIN venues v ON e.venue_id = v.id
+            $fieldJoin
             WHERE e.id = ?
         ");
         $stmt->execute([$eventId]);

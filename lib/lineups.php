@@ -160,9 +160,16 @@ function te_lineup_resolve_field_size(?array $team, $requested): string
 /** @return array{id:int, club_id:?int, name:string, type:string, event_date:string, start_time:?string, opponent_name:?string, team_ids:int[]}|null */
 function te_lineup_event(PDO $pdo, int $eventId): ?array
 {
+    require_once __DIR__ . '/event_field.php';
+    $fieldSelect = te_event_field_select($pdo, 'ce');
+    $fieldJoin = te_event_field_join($pdo, 'ce');
     $stmt = $pdo->prepare(
-        'SELECT id, club_id, name, type, event_date, start_time, opponent_name, status
-           FROM calendar_events WHERE id = ?'
+        "SELECT ce.id, ce.club_id, ce.name, ce.type, ce.event_date, ce.start_time, ce.opponent_name, ce.status,
+                ce.location, v.name AS venue_name {$fieldSelect}
+           FROM calendar_events ce
+           LEFT JOIN venues v ON v.id = ce.venue_id
+           {$fieldJoin}
+          WHERE ce.id = ?"
     );
     $stmt->execute([$eventId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -180,6 +187,9 @@ function te_lineup_event(PDO $pdo, int $eventId): ?array
         'start_time'    => $row['start_time'],
         'opponent_name' => $row['opponent_name'],
         'status'        => $row['status'],
+        'location'      => $row['location'] ?? null,
+        'venue_name'    => $row['venue_name'] ?? null,
+        'field_name'    => $row['field_name'] ?? null,
         'team_ids'      => array_map('intval', $teams->fetchAll(PDO::FETCH_COLUMN)),
     ];
 }
@@ -194,6 +204,9 @@ function te_lineup_event_public(array $event): array
         'start_time'    => $event['start_time'],
         'opponent_name' => $event['opponent_name'],
         'status'        => $event['status'],
+        'location'      => $event['location'] ?? null,
+        'venue_name'    => $event['venue_name'] ?? null,
+        'field_name'    => $event['field_name'] ?? null,
     ];
 }
 

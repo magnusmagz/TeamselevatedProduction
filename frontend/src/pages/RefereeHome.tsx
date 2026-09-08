@@ -3,6 +3,7 @@ import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDateOnly } from '../utils/dateFormat';
+import { eventWhere } from '../utils/eventWhere';
 import { RefereeClub, RefereeGame, GAME_REFEREE_ROLE_LABEL, GameRefereeRole, GAME_REFEREE_ROLES } from '../components/referee/refereeTypes';
 
 /**
@@ -27,8 +28,11 @@ interface Profile {
   phone: string;
 }
 
+// "Venue · Field" when the game has a pitch, then the free-text location —
+// a referee reads directions here, so both are kept.
 function whereLine(g: RefereeGame): string {
-  const parts = [g.venue_name, g.location].filter((p) => p && p.trim() !== '');
+  const place = eventWhere({ venue_name: g.venue_name, field_name: g.field_name });
+  const parts = [place, g.location].filter((p) => p && p.trim() !== '');
   return parts.length ? parts.join(' · ') : 'Location to be confirmed';
 }
 

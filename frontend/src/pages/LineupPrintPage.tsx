@@ -4,6 +4,7 @@ import LineupPitch from '../components/lineup/LineupPitch';
 import { LineupStaffResponse, PitchPlayer } from '../components/lineup/types';
 import { BENCH } from '../utils/lineupFormations';
 import { formatDateOnly } from '../utils/dateFormat';
+import { eventWhere } from '../utils/eventWhere';
 
 /**
  * /teams/:teamId/lineup/print?event=:eventId — plain HTML sized for a phone
@@ -53,8 +54,9 @@ const LineupPrintPage: React.FC = () => {
     if (s.slot === BENCH) bench.push({ id: s.athlete_id, name: p.name, jersey: p.jersey_number, note: s.note });
     else players[s.slot] = { athlete_id: s.athlete_id, name: p.name, last_name: p.last_name, jersey_number: p.jersey_number, captain: s.captain };
   }
+  const where = data.event ? eventWhere(data.event) : null;
   const title = data.event
-    ? `${data.event.opponent_name ? `vs ${data.event.opponent_name}` : data.event.name} — ${formatDateOnly(data.event.event_date, { weekday: 'short', month: 'short', day: 'numeric' })}${data.event.start_time ? ` ${data.event.start_time.slice(0, 5)}` : ''}`
+    ? `${data.event.opponent_name ? `vs ${data.event.opponent_name}` : data.event.name} — ${formatDateOnly(data.event.event_date, { weekday: 'short', month: 'short', day: 'numeric' })}${data.event.start_time ? ` ${data.event.start_time.slice(0, 5)}` : ''}${where ? ` — ${where}` : ''}`
     : 'Default lineup';
 
   return (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TeamFieldsResponse, TeamField, fitHint, ageGroupLabel } from '../utils/fieldSize';
+import { TeamFieldsResponse, TeamField, fitHint, ageGroupLabel, mismatchWarning } from '../utils/fieldSize';
+import { eventWhere } from '../utils/eventWhere';
 import AttendanceModal from './AttendanceModal';
 import CalendarSubscriptionManager from './CalendarSubscriptionManager';
 import PracticeScheduler from './PracticeScheduler';
@@ -28,6 +29,10 @@ interface Event {
   program_id?: number;
   venue_id?: number;
   venue_name?: string;
+  /** The pitch under venue_id (migration 100). null clears it; absent leaves it alone. */
+  field_id?: number | null;
+  field_name?: string | null;
+  field_size?: string | null;
   location?: string;
   opponent_name?: string;
   description?: string;
@@ -44,6 +49,16 @@ interface Event {
   allow_referee_self_assign?: boolean | null;
   /** CREATE only: sent with the game so it is saved with its referees in one request. */
   referees?: { referee_id: number; role: string }[];
+}
+
+/** One row of legacy/fields-gateway.php's list: every active field the caller can see. */
+interface ClubField {
+  id: number;
+  name: string;
+  field_name?: string;
+  venue_id: number;
+  venue_name?: string;
+  field_size?: string | null;
 }
 
 // Add Event "Repeat" choices → backend recurrence config (frequency/interval).
@@ -109,6 +124,10 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   // worse than saying nothing. Null means no opinion and the Facility select
   // renders exactly as it did before this feature.
   const [teamFields, setTeamFields] = useState<TeamFieldsResponse | null>(null);
+  // Every active field the caller can see, keyed later by venue — the Field
+  // select on a game lists the chosen facility's pitches from this. Loaded once;
+  // the fit verdict per field comes from `teamFields` when a team is known.
+  const [clubFields, setClubFields] = useState<ClubField[]>([]);
   const [allTeams, setAllTeams] = useState<any[]>([]);
   // Teams the current user coaches (or has any team-scoped role on). Powers
   // the "My Teams" dropdown option and the coach default-view behavior.
@@ -330,6 +349,8 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       }
       if (eventFormData.venue_id !== selectedEvent.venue_id) {
         changes.push('Location changed');
+      } else if ((eventFormData.field_id ?? null) !== (selectedEvent.field_id ?? null)) {
+        changes.push('Field changed');
       }
       if (eventFormData.status !== selectedEvent.status) {
         changes.push(`Status changed to ${eventFormData.status}`);
@@ -341,6 +362,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   useEffect(() => {
     fetchEvents();
     fetchVenues();
+    fetchClubFields();
     fetchTeams();
 
     // Reload when window gets focus (in case practices were added in another tab/component)
@@ -406,6 +428,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
   // have a pitch of the right size? The named fields are shown underneath so
   // whoever books it knows which one to use.
   const venueFitHint = fitHint(teamFields);
+  const sizeById = new Map<number, TeamField>((teamFields?.fields ?? []).map(f => [f.id, f]));
   const fieldsByVenue = new Map<number, TeamField[]>();
   (teamFields?.fields ?? []).forEach(f => {
     const list = fieldsByVenue.get(f.venue_id) ?? [];
@@ -439,6 +462,40 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     }
     return null;
   })();
+
+  const fetchClubFields = async () => {
+    try {
+      const response = await fetch(`${API_URL}/legacy/fields-gateway.php`, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (Array.isArray(data)) setClubFields(data);
+    } catch (error) {
+      // The Field select simply stays empty — advisory data, never an error state.
+    }
+  };
+
+  // The Field select (games only): the chosen facility's active fields, each
+  // labelled with its size and — when the team's age group is known — whether
+  // it fits. Unsized fields are always listed; a mismatch is offered with a
+  // warning, never disabled (lib/field_size.php's rule, same as the practice
+  // scheduler). Ordered fits, then unsized, then the wrong sizes.
+  const venueFieldOptions: { id: number; label: string; match: boolean | null }[] = (() => {
+    const venueId = Number(eventFormData.venue_id);
+    if (!venueId) return [];
+    const rank = (m: boolean | null) => (m === true ? 0 : m === null ? 1 : 2);
+    return clubFields
+      .filter(f => Number(f.venue_id) === venueId)
+      .map(f => {
+        const fit = sizeById.get(Number(f.id));
+        const size = fit?.field_size ?? f.field_size ?? null;
+        const match = fit ? fit.size_match : null;
+        const name = f.field_name ?? f.name;
+        const suffix = match === true ? ' — fits' : match === false ? ' — size mismatch' : '';
+        return { id: Number(f.id), label: `${name}${size ? ` (${size})` : ''}${suffix}`, match };
+      })
+      .sort((a, b) => rank(a.match) - rank(b.match));
+  })();
+  const fieldSizeWarning = mismatchWarning(teamFields, eventFormData.field_id ?? null);
 
   const fetchVenues = async () => {
     try {
@@ -1050,6 +1107,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         <div className="font-medium truncate">{event.name}</div>
                         {event.opponent_name && <div className="text-xs truncate">vs {event.opponent_name}</div>}
                         {event.start_time && <div className="text-xs">{event.start_time}</div>}
+                        {event.type === 'game' && eventWhere(event) && <div className="text-xs truncate opacity-75">{eventWhere(event)}</div>}
                         {isStaffViewer && event.type === 'game' && <NeedsRefChip status={event.referee_status} className="mt-0.5" />}
                       </div>
                     ))}
@@ -1106,7 +1164,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                               {event.subscription_id && <span className="ml-1 text-xs text-teal-600 font-normal">(imported)</span>}
                             </div>
                             {event.opponent_name && <div className="text-xs opacity-75">vs {event.opponent_name}</div>}
-                            {event.venue_name && <div className="text-xs opacity-75">{event.venue_name}</div>}
+                            {eventWhere(event) && <div className="text-xs opacity-75">{eventWhere(event)}</div>}
                             {isStaffViewer && event.type === 'game' && <NeedsRefChip status={event.referee_status} className="mt-1" />}
                           </div>
                         ))}
@@ -1188,7 +1246,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                           </div>
                           <div className="col-span-4">
                             <div className="text-gray-600 truncate">
-                              {practice.venue_name || practice.location || '—'}
+                              {eventWhere(practice) || '—'}
                             </div>
                           </div>
                           <div className="col-span-1">
@@ -1279,6 +1337,9 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 )}
                 {isStaffViewer && selectedEvent?.type === 'game' && selectedEvent.min_referee_grade && (
                   <span className="text-xs font-normal normal-case tracking-normal text-gray-600">Min grade: {selectedEvent.min_referee_grade}</span>
+                )}
+                {selectedEvent && eventWhere(selectedEvent) && (
+                  <span className="text-xs font-normal normal-case tracking-normal text-gray-600" data-testid="event-where">{eventWhere(selectedEvent)}</span>
                 )}
               </h3>
             </div>
@@ -1537,12 +1598,15 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                  <label htmlFor="event-venue-select" className="block text-brand-primary text-sm font-medium mb-2 uppercase">
                     Facility
                   </label>
                   <select
+                    id="event-venue-select"
                     value={eventFormData.venue_id || ''}
-                    onChange={(e) => setEventFormData({ ...eventFormData, venue_id: e.target.value ? Number(e.target.value) : undefined })}
+                    // A field belongs to ONE venue, so a new venue clears it — sent as
+                    // null, not omitted, so the server clears the stored one too.
+                    onChange={(e) => setEventFormData({ ...eventFormData, venue_id: e.target.value ? Number(e.target.value) : undefined, field_id: null })}
                     className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
                   >
                     <option value="">No Facility</option>
@@ -1575,6 +1639,31 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                     </p>
                   )}
                 </div>
+
+                {eventFormData.type === 'game' && eventFormData.venue_id && (
+                  <div className="col-span-2">
+                    <label htmlFor="event-field-select" className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      Field
+                    </label>
+                    <select
+                      id="event-field-select"
+                      value={eventFormData.field_id || ''}
+                      onChange={(e) => setEventFormData({ ...eventFormData, field_id: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                    >
+                      <option value="">No specific field</option>
+                      {venueFieldOptions.map(f => (
+                        <option key={f.id} value={f.id}>{f.label}</option>
+                      ))}
+                    </select>
+                    {venueFieldOptions.length === 0 && (
+                      <p className="text-sm mt-1 text-gray-500">No fields are recorded for this facility yet — add them under Facilities.</p>
+                    )}
+                    {fieldSizeWarning && (
+                      <p className="text-sm mt-1 text-amber-700" data-testid="field-size-warning">{fieldSizeWarning}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="col-span-2">
                   <label className="block text-brand-primary text-sm font-medium mb-2 uppercase">

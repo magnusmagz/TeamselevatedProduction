@@ -48,6 +48,13 @@ afterEach(() => {
 });
 
 describe('RefereeHome — the referee\'s own page', () => {
+  it('names the pitch: "Venue · Field" when the game has one, venue and directions otherwise', async () => {
+    mockApi({ upcoming: [game({ field_name: 'Field 2' }), game({ id: 501, name: 'Away tie', field_name: null, location: 'Behind the school' })] });
+    render(<RefereeHome />);
+    expect(await screen.findByText('North Park · Field 2')).toBeInTheDocument();
+    expect(screen.getByText('North Park · Behind the school')).toBeInTheDocument();
+  });
+
   it('shows the empty state when no games are assigned, and the contact card', async () => {
     mockApi({ upcoming: [], past: [] });
     render(<RefereeHome />);

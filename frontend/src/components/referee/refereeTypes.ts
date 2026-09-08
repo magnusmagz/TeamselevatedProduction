@@ -85,6 +85,9 @@ export interface RefereeGame {
   location: string | null;
   status: string | null;
   venue_name: string | null;
+  /** The pitch (migration 100); null before it is applied or when none is chosen. */
+  field_id?: number | null;
+  field_name?: string | null;
   venue_address: string | null;
   venue_city: string | null;
   teams: { id: number; name: string; primary_color: string | null }[];
