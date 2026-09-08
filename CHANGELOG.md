@@ -32,6 +32,11 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Referee create 500 — fixed (Heroku)
+- Reported by Maggie: creating a referee returned 500. `users.role` CHECK rejected `'referee'`.
+  Invite INSERT now maps club roles the legacy column does not know to `'user'`
+  (`te_coach_invite_legacy_user_role`). No referee rows were created by the failed attempts.
+
 ### Referees release note + help articles published (Heroku v628 script)
 - Release note id 10; articles 48 (admins), 49 (coaches), 50 (Your referee account, Getting Started). `scripts/publish-2026-09-08-referees-help.php`.
 

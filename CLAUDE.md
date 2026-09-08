@@ -1539,6 +1539,15 @@ string match. The cheap interim is to key `active` off an **accepted** invite
 (`magic_link_tokens.used_at IS NOT NULL`) instead of off `password_hash`. Do not "fix" this by
 adding more email-matching.
 
+### ⚠️ `users.role` has its own CHECK, and it predates the club roles (2026-09-08)
+`users_role_check` allows admin / coach / parent / athlete / player / user / super_admin. It
+is NOT authorization (`user_club_access` is) but it still bites: the first referee invite
+wrote `'referee'` into it and the create 500'd with 23514. Every INSERT into `users` that
+carries a club-access role name must pass it through `te_coach_invite_legacy_user_role()`,
+which writes the generic `'user'` for anything the legacy column does not know.
+`CoachInviteLegacyRoleTest` pins the mapper on the invite INSERT. Adding a value to the
+CHECK would be a constraint change; the column is legacy, so the mapper is the right fix.
+
 ### ⚠️ `users.email` is UNIQUE, so one address = one account, forever
 `users_email_key` means an email can only ever belong to ONE row. That is the constraint the whole
 identity model breaks against: when a child's auto-created shell took the parent's email (see the

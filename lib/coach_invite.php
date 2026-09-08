@@ -133,6 +133,21 @@ function te_coach_invite_freshest_token(PDO $pdo, string $email): ?array
 }
 
 /**
+ * The value written to the LEGACY users.role column for an invited person.
+ *
+ * users.role is not authorization (user_club_access is) but it carries a CHECK
+ * constraint from the MySQL era: admin / coach / parent / athlete / player /
+ * user / super_admin. Writing a club-access role name that is not in that list
+ * raises 23514 and 500s the create — which is exactly what the first referee
+ * invite did on 2026-09-08 (`users_role_check`). Anything the legacy column
+ * does not know is written as the generic 'user'.
+ */
+function te_coach_invite_legacy_user_role(string $role): string
+{
+    return in_array($role, ['admin', 'coach', 'parent', 'athlete', 'player', 'user', 'super_admin'], true) ? $role : 'user';
+}
+
+/**
  * Make sure a coach account and club access exist for a person, and mint an
  * invite token unless they can already sign in.
  *
@@ -189,7 +204,7 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
                  VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                  RETURNING id'
             );
-            $stmt->execute([$first, $last, $email, $phone !== '' ? $phone : null, $role, 'invitation']);
+            $stmt->execute([$first, $last, $email, $phone !== '' ? $phone : null, te_coach_invite_legacy_user_role($role), 'invitation']);
             $userId = (int) $stmt->fetchColumn();
             $user = ['id' => $userId, 'password_hash' => null, 'first_name' => $first, 'last_name' => $last];
             $created = true;
