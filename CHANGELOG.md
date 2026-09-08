@@ -32,6 +32,9 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Referees release note + help articles published (Heroku v628 script)
+- Release note id 10; articles 48 (admins), 49 (coaches), 50 (Your referee account, Getting Started). `scripts/publish-2026-09-08-referees-help.php`.
+
 ### Referees shipped (Heroku v626, migration 099 applied, then Netlify)
 - 099 applied via `scripts/apply-migration.php`; the `user_club_access` role CHECK now includes
   `referee` (approved non-additive step); fixture +32 lines; five PENDING entries removed.
