@@ -57,9 +57,6 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
-        'referee_feedback.referee_id'        => '099_referees.sql',
-        'calendar_events.min_referee_grade'  => '099_referees.sql',
-        'calendar_events.allow_referee_self_assign' => '099_referees.sql',
     ];
 
     /**
@@ -71,8 +68,6 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
-        'referees'      => '099_referees.sql',
-        'game_referees' => '099_referees.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */

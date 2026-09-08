@@ -32,6 +32,10 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Referees shipped (Heroku v626, migration 099 applied, then Netlify)
+- 099 applied via `scripts/apply-migration.php`; the `user_club_access` role CHECK now includes
+  `referee` (approved non-additive step); fixture +32 lines; five PENDING entries removed.
+
 ### Referees — directory, `referee` role, game assignments (branch `feature/referees`, NOT deployed)
 - Migration **099** `099_referees.sql` written, NOT applied: `referees`, `game_referees`,
   `referee_feedback.referee_id`, `calendar_events.min_referee_grade`, and the approved

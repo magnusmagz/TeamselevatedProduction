@@ -388,7 +388,9 @@
     "recurrence_group_id",
     "recurrence_rule",
     "series_original_date",
-    "series_original_time"
+    "series_original_time",
+    "min_referee_grade",
+    "allow_referee_self_assign"
   ],
   "calendar_subscriptions": [
     "id",
@@ -1049,6 +1051,17 @@
     "image_filename",
     "allow_exceed_goal"
   ],
+  "game_referees": [
+    "id",
+    "calendar_event_id",
+    "referee_id",
+    "role",
+    "assigned_by",
+    "assigned_at",
+    "self_assigned",
+    "grade_override",
+    "conflict_override"
+  ],
   "guardians": [
     "id",
     "first_name",
@@ -1541,6 +1554,24 @@
     "categories",
     "comments",
     "incident",
+    "created_at",
+    "updated_at",
+    "referee_id"
+  ],
+  "referees": [
+    "id",
+    "club_id",
+    "user_id",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "grade",
+    "certification_level",
+    "notes",
+    "active",
+    "archived_at",
+    "created_by",
     "created_at",
     "updated_at"
   ],
