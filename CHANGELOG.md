@@ -32,6 +32,11 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### "Needs ref" over a covered game — fixed (Heroku)
+- The one live assignment carried the generic role `referee` (the column default), and coverage
+  counted only `center`. `TE_GAME_CENTER_ROLES = center + referee` now drives the status query,
+  open-games and the assistant-grade rule. No data change needed.
+
 ### Referee page: grade editable; calendar modal refreshes referee status (Heroku, then Netlify)
 - Maggie: "Needs ref" stayed on the open modal after assigning a center — the modal's copy of the
   event was stale; `fetchEvents` now refreshes the selected event. Referees can set their own grade

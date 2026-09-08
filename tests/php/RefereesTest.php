@@ -514,6 +514,17 @@ class RefereesTest extends TestCase
         $this->assertSame([500], array_column($r['body']['upcoming'], 'id'));
     }
 
+    // ---------------------------------------------------------------- coverage
+
+    /** A row with the generic 'referee' role (the column default) covers the game. */
+    public function testTheGenericRefereeRoleCoversAGameLikeCenterDoes(): void
+    {
+        referees_assign($this->pdo, $this->admin(), ['event_id' => 500, 'referee_id' => 1, 'role' => 'referee']);
+        $row = $this->pdo->query("SELECT e.id, e.type, e.event_date" . te_game_referee_status_columns($this->pdo, 'e') . " FROM calendar_events e WHERE e.id = 500")->fetch(PDO::FETCH_ASSOC);
+        $ev = te_game_referee_status_apply($row, self::TODAY);
+        $this->assertSame('covered', $ev['referee_status']);
+    }
+
     // ---------------------------------------------------------------- set my grade
 
     public function testARefereeSetsTheirOwnGradeAcrossEveryClubRow(): void
@@ -603,7 +614,7 @@ class RefereesTest extends TestCase
         $this->assertContains('assistant', $g500['open_roles']);
         // 504 needs National: an NAR meets that for assistant, and still no center.
         $g504 = array_values(array_filter($open, fn($g) => $g['id'] === 504))[0];
-        $this->assertSame(['referee', 'assistant', 'fourth'], $g504['open_roles']);
+        $this->assertSame(['assistant', 'fourth'], $g504['open_roles'], 'the generic referee role is center, so an AR grade is not offered it either');
 
         $c = referees_claim($this->pdo, $ref, ['event_id' => 500, 'role' => 'center'], self::TODAY);
         $this->assertSame(422, $c['status']);

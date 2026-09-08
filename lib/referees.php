@@ -66,6 +66,19 @@ require_once __DIR__ . '/AuditLogger.php';
 const TE_GAME_REFEREE_ROLES = ['referee', 'center', 'assistant', 'fourth'];
 
 /**
+ * The roles that COVER a game. 'referee' is the generic role (and the column
+ * default) — a referee assigned without picking a specific role is the match
+ * referee, i.e. the center. Counting only 'center' left a covered game showing
+ * "Needs ref" (Maggie, 2026-09-08). Use this list, never the literal 'center'.
+ */
+const TE_GAME_CENTER_ROLES = ['center', 'referee'];
+
+function te_game_role_is_center(string $role): bool
+{
+    return in_array($role, TE_GAME_CENTER_ROLES, true);
+}
+
+/**
  * US Soccer grades offered as a select. Mirrored in
  * frontend/src/constants/refereeGrades.ts. Free text is also accepted ("Other").
  */
@@ -284,7 +297,7 @@ function te_referee_grade_is_assistant_only(?string $grade): bool
  */
 function te_referee_grade_qualifies(?string $grade, ?string $minimum, string $role): bool
 {
-    if ($role === 'center' && te_referee_grade_is_assistant_only($grade)) {
+    if (te_game_role_is_center($role) && te_referee_grade_is_assistant_only($grade)) {
         return false;
     }
     return te_referee_grade_meets($grade, $minimum);
@@ -971,7 +984,7 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
             {$selfAssignFilter}
             AND NOT EXISTS (
                 SELECT 1 FROM game_referees gr
-                 WHERE gr.calendar_event_id = ce.id AND gr.role = 'center'
+                 WHERE gr.calendar_event_id = ce.id AND gr.role IN ('center', 'referee')
             )
           ORDER BY ce.event_date, ce.start_time, ce.id"
     );
@@ -1080,7 +1093,7 @@ function te_referee_claim_refusal(PDO $pdo, int $userId, array $event, string $r
     if (array_key_exists('allow_referee_self_assign', $event) && !$event['allow_referee_self_assign']) {
         return [422, 'This game is not open for referees to claim — the club assigns it.'];
     }
-    if ($role === 'center' && te_referee_grade_is_assistant_only($mine['grade'] ?? null)) {
+    if (te_game_role_is_center($role) && te_referee_grade_is_assistant_only($mine['grade'] ?? null)) {
         return [422, sprintf('Your grade with this club (%s) is an assistant referee grade, so you cannot take the center on this game.', (string) $mine['grade'])];
     }
     if (!te_referee_grade_meets($mine['grade'] ?? null, $event['min_referee_grade'] ?? null)) {
@@ -1166,7 +1179,7 @@ function te_game_referee_status_columns(PDO $pdo, string $alias = 'e'): string
     }
     return ",
         (SELECT COUNT(*) FROM game_referees gr_all WHERE gr_all.calendar_event_id = {$alias}.id) AS referee_count,
-        (SELECT COUNT(*) FROM game_referees gr_c WHERE gr_c.calendar_event_id = {$alias}.id AND gr_c.role = 'center') AS center_referee_count";
+        (SELECT COUNT(*) FROM game_referees gr_c WHERE gr_c.calendar_event_id = {$alias}.id AND gr_c.role IN ('center', 'referee')) AS center_referee_count";
 }
 
 /**
