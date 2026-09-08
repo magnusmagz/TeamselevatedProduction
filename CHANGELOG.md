@@ -32,6 +32,9 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Field on games shipped (Heroku v632, migration 100 applied, then Netlify)
+- Fixture +1 column; PENDING entry removed.
+
 ### Invite redeem 500 — fixed (Heroku)
 - Reported by Maggie: accepting a referee invite 500'd. `magic_link_tokens.id` is a UUID and the
   redeem cast it to int. Transaction rolled back, so the link stays valid; retry works.

@@ -390,7 +390,8 @@
     "series_original_date",
     "series_original_time",
     "min_referee_grade",
-    "allow_referee_self_assign"
+    "allow_referee_self_assign",
+    "field_id"
   ],
   "calendar_subscriptions": [
     "id",
