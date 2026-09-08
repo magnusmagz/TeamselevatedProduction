@@ -851,7 +851,8 @@ function te_referee_my_games(PDO $pdo, int $userId, string $today): array
                 ce.opponent_name, ce.location, ce.status,
                 gr.role, gr.self_assigned, r.id AS referee_id,
                 cp.name AS club_name, cp.primary_color,
-                v.name AS venue_name, v.address AS venue_address, v.city AS venue_city
+                v.name AS venue_name, v.address AS venue_address, v.city AS venue_city,
+                v.state AS venue_state, v.zip_code AS venue_zip, v.map_url AS venue_map_url
                 {$fieldSelect}
            FROM game_referees gr
            JOIN referees r ON r.id = gr.referee_id
@@ -904,6 +905,9 @@ function te_referee_my_games(PDO $pdo, int $userId, string $today): array
             'venue_name'    => $r['venue_name'] ?? null,
             'venue_address' => $r['venue_address'] ?? null,
             'venue_city'    => $r['venue_city'] ?? null,
+            'venue_state'   => $r['venue_state'] ?? null,
+            'venue_zip'     => $r['venue_zip'] ?? null,
+            'venue_map_url' => $r['venue_map_url'] ?? null,
             'field_id'      => isset($r['field_id']) ? (int) $r['field_id'] : null,
             'field_name'    => $r['field_name'] ?? null,
             'role'          => (string) $r['role'],
@@ -972,7 +976,8 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
         "SELECT ce.id, ce.club_id, ce.name, ce.event_date, ce.start_time, ce.end_time,
                 ce.opponent_name, ce.location, ce.status, {$minGrade},
                 cp.name AS club_name, cp.primary_color,
-                v.name AS venue_name, v.address AS venue_address, v.city AS venue_city
+                v.name AS venue_name, v.address AS venue_address, v.city AS venue_city,
+                v.state AS venue_state, v.zip_code AS venue_zip, v.map_url AS venue_map_url
                 {$fieldSelect}
            FROM calendar_events ce
            LEFT JOIN club_profile cp ON cp.id = ce.club_id
@@ -1036,6 +1041,9 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
             'field_name'        => $r['field_name'] ?? null,
             'venue_address'     => $r['venue_address'] ?? null,
             'venue_city'        => $r['venue_city'] ?? null,
+            'venue_state'       => $r['venue_state'] ?? null,
+            'venue_zip'         => $r['venue_zip'] ?? null,
+            'venue_map_url'     => $r['venue_map_url'] ?? null,
             'teams'             => te_game_teams($pdo, (int) $r['id']),
             'referees'          => array_map(fn($a) => [
                 'id' => $a['id'], 'name' => $a['name'], 'role' => $a['role'], 'grade' => $a['grade'],

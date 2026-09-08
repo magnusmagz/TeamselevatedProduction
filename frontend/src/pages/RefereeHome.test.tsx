@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import RefereeHome from './RefereeHome';
 
@@ -14,7 +14,7 @@ const clubs = [
 const game = (over: Record<string, unknown>) => ({
   id: 500, club_id: 100, club_name: 'Home FC', primary_color: '#112233', name: 'League match', event_date: '2026-09-20',
   start_time: '10:00', end_time: null, opponent_name: 'Rivals FC', location: null, status: 'scheduled',
-  venue_name: 'North Park', venue_address: '1 Park Rd', venue_city: 'Wichita',
+  venue_name: 'North Park', venue_address: '1 Park Rd', venue_city: 'Wichita', venue_state: 'KS', venue_zip: '67202', venue_map_url: null,
   teams: [{ id: 10, name: 'U12 Blue', primary_color: null }], role: 'center', self_assigned: false, referee_id: 1, ...over,
 });
 
@@ -51,6 +51,17 @@ afterEach(() => {
 });
 
 describe('RefereeHome — the referee\'s own page', () => {
+  it('shows the facility address and a Directions link on each game', async () => {
+    mockApi({ upcoming: [game({ id: 500, venue_name: 'North Park' })] });
+    render(<RefereeHome />);
+    const addr = await screen.findByTestId('game-address');
+    expect(addr).toHaveTextContent('1 Park Rd, Wichita, KS 67202');
+    const link = within(addr).getByRole('link', { name: 'Directions' }) as HTMLAnchorElement;
+    expect(link.href).toContain('google.com/maps/search/');
+    expect(decodeURIComponent(link.href)).toContain('1 Park Rd, Wichita, KS 67202');
+    expect(link.target).toBe('_blank');
+  });
+
   it('names the pitch: "Venue · Field" when the game has one, venue and directions otherwise', async () => {
     mockApi({ upcoming: [game({ field_name: 'Field 2' }), game({ id: 501, name: 'Away tie', field_name: null, location: 'Behind the school' })] });
     render(<RefereeHome />);

@@ -32,6 +32,10 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Referee page shows the facility address + Directions (Heroku, then Netlify)
+- my-games / open-games carry venue street, city, state, zip and the venue's map link; each game
+  card shows the address and a Directions link (venue map_url, else a Google Maps search).
+
 ### "Needs ref" over a covered game — fixed (Heroku)
 - The one live assignment carried the generic role `referee` (the column default), and coverage
   counted only `center`. `TE_GAME_CENTER_ROLES = center + referee` now drives the status query,

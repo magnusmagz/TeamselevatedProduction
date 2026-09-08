@@ -90,6 +90,10 @@ export interface RefereeGame {
   field_name?: string | null;
   venue_address: string | null;
   venue_city: string | null;
+  venue_state?: string | null;
+  venue_zip?: string | null;
+  /** The venue's own map link when the club set one; otherwise the page builds a Maps search. */
+  venue_map_url?: string | null;
   teams: { id: number; name: string; primary_color: string | null }[];
   /** my-games only */
   role?: string;

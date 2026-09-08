@@ -79,7 +79,7 @@ class RefereesTest extends TestCase
                 primary_color TEXT, deleted_at TEXT);
             CREATE TABLE team_members (id INTEGER PRIMARY KEY, team_id INTEGER, user_id INTEGER,
                 athlete_id INTEGER, role TEXT, status TEXT);
-            CREATE TABLE venues (id INTEGER PRIMARY KEY, name TEXT, address TEXT, city TEXT);
+            CREATE TABLE venues (id INTEGER PRIMARY KEY, name TEXT, address TEXT, city TEXT, state TEXT, zip_code TEXT, map_url TEXT);
             CREATE TABLE fields (id INTEGER PRIMARY KEY, venue_id INTEGER, name TEXT, active INTEGER DEFAULT 1, field_size TEXT);
             CREATE TABLE calendar_events (id INTEGER PRIMARY KEY, club_id INTEGER, name TEXT, type TEXT,
                 event_date TEXT, start_time TEXT, end_time TEXT, venue_id INTEGER, field_id INTEGER, location TEXT,
@@ -128,7 +128,7 @@ class RefereesTest extends TestCase
             (300, 100, 'referee'), (300, 200, 'referee')");
         $pdo->exec("INSERT INTO teams (id, name, club_id, primary_coach_id, primary_color) VALUES
             (10, 'U12 Blue', 100, 50, '#0000ff'), (11, 'U14 Red', 100, NULL, '#ff0000'), (20, 'Other U12', 200, 91, NULL)");
-        $pdo->exec("INSERT INTO venues (id, name, address, city) VALUES (7, 'North Park', '1 Park Rd', 'Wichita')");
+        $pdo->exec("INSERT INTO venues (id, name, address, city, state, zip_code, map_url) VALUES (7, 'North Park', '1 Park Rd', 'Wichita', 'KS', '67202', NULL)");
         $pdo->exec("INSERT INTO fields (id, venue_id, name, active, field_size) VALUES (70, 7, 'Field 2', 1, '9v9')");
         $pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, venue_id, opponent_name, status, min_referee_grade) VALUES
             (500, 100, 'League match', 'game', '2026-09-20', '10:00', 7, 'Rivals FC', 'scheduled', NULL),
@@ -487,6 +487,10 @@ class RefereesTest extends TestCase
         $this->assertSame([503, 500], array_column($r['body']['upcoming'], 'id'), 'soonest first, across clubs');
         $this->assertSame(['Away United', 'Home FC'], array_column($r['body']['upcoming'], 'club_name'));
         $this->assertSame([501], array_column($r['body']['past'], 'id'));
+        // The facility address rides along so a referee can be there on time (2026-09-08).
+        $g500 = array_values(array_filter($r['body']['upcoming'], fn($g) => $g['id'] === 500))[0];
+        $this->assertSame(['1 Park Rd', 'Wichita', 'KS', '67202'], [$g500['venue_address'], $g500['venue_city'], $g500['venue_state'], $g500['venue_zip']]);
+        $this->assertArrayHasKey('venue_map_url', $g500);
         $game = $r['body']['upcoming'][1];
         $this->assertSame('2026-09-20', $game['event_date'], 'date-only string, never parsed');
         $this->assertSame('North Park', $game['venue_name']);

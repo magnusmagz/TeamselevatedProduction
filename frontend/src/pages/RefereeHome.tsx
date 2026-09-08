@@ -37,6 +37,23 @@ function whereLine(g: RefereeGame): string {
   return parts.length ? parts.join(' · ') : 'Location to be confirmed';
 }
 
+// The full street address, so a referee can be there on time (Maggie,
+// 2026-09-08). Returns null when the venue has no address on file.
+export function addressLine(g: RefereeGame): string | null {
+  const street = (g.venue_address || '').trim();
+  const cityState = [g.venue_city, g.venue_state].filter((p) => p && p.trim() !== '').join(', ');
+  const tail = [cityState, g.venue_zip].filter((p) => p && String(p).trim() !== '').join(' ');
+  const line = [street, tail].filter((p) => p !== '').join(', ');
+  return line !== '' ? line : null;
+}
+
+export function directionsUrl(g: RefereeGame): string | null {
+  if (g.venue_map_url && g.venue_map_url.trim() !== '') return g.venue_map_url;
+  const addr = addressLine(g);
+  const q = addr ?? (g.venue_name || '');
+  return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null;
+}
+
 function timeLine(g: RefereeGame): string {
   if (g.start_time && g.end_time) return `${g.start_time} – ${g.end_time}`;
   return g.start_time || 'Time to be confirmed';
@@ -220,6 +237,17 @@ const RefereeHome: React.FC = () => {
           <div className="font-semibold text-brand-primary">{g.name}</div>
           <div className="text-sm text-gray-800">{formatDateOnly(g.event_date)} · {timeLine(g)}</div>
           <div className="text-sm text-gray-600">{whereLine(g)}</div>
+          {(addressLine(g) || directionsUrl(g)) && (
+            <div className="text-sm text-gray-600" data-testid="game-address">
+              {addressLine(g) ?? 'Address not on file'}
+              {directionsUrl(g) && (
+                <>
+                  {' · '}
+                  <a href={directionsUrl(g)!} target="_blank" rel="noopener noreferrer" className="underline text-brand-primary" onClick={(e) => e.stopPropagation()}>Directions</a>
+                </>
+              )}
+            </div>
+          )}
           {teamsLine(g) && <div className="text-sm text-gray-600">{teamsLine(g)}</div>}
           {kind !== 'open' && g.role && (
             <div className="text-xs text-gray-500 mt-1">
