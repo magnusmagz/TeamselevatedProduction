@@ -389,7 +389,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         // saying "Needs ref" over a game that had just been covered (2026-09-08).
         setSelectedEvent((prev) => {
           if (!prev) return prev;
-          const fresh = (data.events as CalendarEvent[]).find((e) => e.id === prev.id);
+          const fresh = (data.events as Event[]).find((e) => e.id === prev.id);
           return fresh ? { ...prev, ...fresh } : prev;
         });
       }
