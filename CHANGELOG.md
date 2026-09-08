@@ -32,6 +32,10 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Invite redeem 500 — fixed (Heroku)
+- Reported by Maggie: accepting a referee invite 500'd. `magic_link_tokens.id` is a UUID and the
+  redeem cast it to int. Transaction rolled back, so the link stays valid; retry works.
+
 ### Referee create 500 — fixed (Heroku)
 - Reported by Maggie: creating a referee returned 500. `users.role` CHECK rejected `'referee'`.
   Invite INSERT now maps club roles the legacy column does not know to `'user'`

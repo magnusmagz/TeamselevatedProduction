@@ -412,8 +412,10 @@ function te_coach_invite_redeem(PDO $pdo, string $token, string $password): arra
         if ($stmt->rowCount() !== 1) {
             throw new RuntimeException('password update affected ' . $stmt->rowCount() . ' rows');
         }
+        // magic_link_tokens.id is a UUID, not an integer. Casting it truncated the
+        // id to its leading digits and 22P02'd the whole redeem (2026-09-08).
         $stmt = $pdo->prepare('UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?');
-        $stmt->execute([(int) $row['id']]);
+        $stmt->execute([(string) $row['id']]);
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
@@ -425,7 +427,7 @@ function te_coach_invite_redeem(PDO $pdo, string $token, string $password): arra
     }
 
     AuditLogger::log($pdo, (int) $user['id'], 'coach_invite_accepted', 'users', (int) $user['id'], [
-        'email' => $email, 'token_id' => (int) $row['id'],
+        'email' => $email, 'token_id' => (string) $row['id'],
     ]);
 
     return ['success' => true, 'user_id' => (int) $user['id'], 'email' => (string) $user['email'],

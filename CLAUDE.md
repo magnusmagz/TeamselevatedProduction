@@ -1539,6 +1539,13 @@ string match. The cheap interim is to key `active` off an **accepted** invite
 (`magic_link_tokens.used_at IS NOT NULL`) instead of off `password_hash`. Do not "fix" this by
 adding more email-matching.
 
+### ⚠️ `magic_link_tokens.id` is a UUID — never `(int)` it (2026-09-08)
+The coach/referee invite redeem cast the token row's id to int before spending it, which
+truncated a UUID to its leading digits and 22P02'd inside the transaction, so the password
+never saved and the link could never be finished. Bind it as a string. The SQLite fixtures
+use integer ids, which is why unit tests were green; `MagicLinkTokenIdIsUuidTest` scans the
+invite/magic-link files for the cast.
+
 ### ⚠️ `users.role` has its own CHECK, and it predates the club roles (2026-09-08)
 `users_role_check` allows admin / coach / parent / athlete / player / user / super_admin. It
 is NOT authorization (`user_club_access` is) but it still bites: the first referee invite
