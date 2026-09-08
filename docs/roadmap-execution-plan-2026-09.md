@@ -1,3 +1,5 @@
+> **Superseded for forward planning on 2026-09-08** by `docs/roadmap-2026-09-08.md` (the holistic roadmap). The Completed table below stays the shipped log.
+
 # Roadmap Execution Plan — September 2026
 
 Source: `Teams Elevated Roadmap - Untitled.csv` (91 rows, exported 2026-09-02), cross-checked
