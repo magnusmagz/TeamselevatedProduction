@@ -1,3 +1,4 @@
+import { REFEREE_GRADE_OPTIONS } from '../constants/refereeGrades';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
@@ -17,7 +18,7 @@ import { RefereeClub, RefereeGame, GAME_REFEREE_ROLE_LABEL, GameRefereeRole, GAM
  * anything else: a referee-only account never sees the staff app or the parent
  * portal (App.tsx hides the chrome on this route).
  *
- * Grade is read-only here — the club sets it, per club.
+ * Grade is editable here (Maggie, 2026-09-08) and applies to every club's row.
  */
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -71,6 +72,7 @@ const RefereeHome: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Profile | null>(null);
+  const [gradeDraft, setGradeDraft] = useState<string>('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -180,6 +182,18 @@ const RefereeHome: React.FC = () => {
       if (!res.ok || !data?.success) {
         setProfileError(data?.error || `Could not save (${res.status})`);
         return;
+      }
+      const currentGrade = clubs.find((c) => c.grade)?.grade ?? '';
+      if (clubs.length > 0 && gradeDraft !== currentGrade) {
+        const gr = await fetch(`${API_URL}/api/referees.php?action=set-my-grade`, {
+          method: 'POST', headers, body: JSON.stringify({ grade: gradeDraft }),
+        });
+        const gdata = await gr.json().catch(() => ({}));
+        if (!gr.ok || !gdata?.success) {
+          setProfileError(gdata?.error || `Could not save grade (${gr.status})`);
+          return;
+        }
+        setClubs((prev) => prev.map((c) => ({ ...c, grade: gradeDraft || null })));
       }
       setProfile(draft);
       setEditing(false);
@@ -339,7 +353,7 @@ const RefereeHome: React.FC = () => {
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold text-brand-primary uppercase tracking-wide">Your details</h2>
           {profile && !editing && (
-            <Button variant="link" size="sm" onClick={() => { setDraft(profile); setProfileError(null); setEditing(true); }}>Edit</Button>
+            <Button variant="link" size="sm" onClick={() => { setDraft(profile); setGradeDraft(clubs.find((c) => c.grade)?.grade ?? ''); setProfileError(null); setEditing(true); }}>Edit</Button>
           )}
         </div>
         {!editing && (
@@ -376,6 +390,26 @@ const RefereeHome: React.FC = () => {
               <input id="me-phone" type="tel" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
                 className="mt-1 block w-full border border-brand-secondary rounded-md px-3 py-2 text-sm" />
             </div>
+            {clubs.length > 0 && (
+              <div>
+                <label htmlFor="me-grade" className="block text-xs text-gray-600">Grade</label>
+                <select id="me-grade" value={gradeDraft} onChange={(e) => setGradeDraft(e.target.value)}
+                  className="mt-1 block w-full border border-brand-secondary rounded-md px-3 py-2 text-sm bg-white">
+                  <option value="">Not set</option>
+                  <optgroup label="US Soccer">
+                    {REFEREE_GRADE_OPTIONS.filter((o) => o.group === 'current').map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Older scale">
+                    {REFEREE_GRADE_OPTIONS.filter((o) => o.group !== 'current').map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </optgroup>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Applies to every club you referee for. Games with a minimum grade use it.</p>
+              </div>
+            )}
             {profileError && <p className="text-sm text-red-700" role="alert">{profileError}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>Cancel</Button>

@@ -32,6 +32,11 @@ Newest first. Times are Pacific.
 
 ## 2026-09-08
 
+### Referee page: grade editable; calendar modal refreshes referee status (Heroku, then Netlify)
+- Maggie: "Needs ref" stayed on the open modal after assigning a center — the modal's copy of the
+  event was stale; `fetchEvents` now refreshes the selected event. Referees can set their own grade
+  from their details card (`referees.php?action=set-my-grade`, applied to every club row, audited).
+
 ### Field on games shipped (Heroku v632, migration 100 applied, then Netlify)
 - Fixture +1 column; PENDING entry removed.
 

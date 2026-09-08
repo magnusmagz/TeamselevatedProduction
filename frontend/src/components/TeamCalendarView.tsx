@@ -384,6 +384,14 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       const data = await response.json();
       if (data.events) {
         setEvents(data.events);
+        // The open modal holds its own copy of the event. Assigning a referee
+        // refetches the list but left that copy stale, so the header kept
+        // saying "Needs ref" over a game that had just been covered (2026-09-08).
+        setSelectedEvent((prev) => {
+          if (!prev) return prev;
+          const fresh = (data.events as CalendarEvent[]).find((e) => e.id === prev.id);
+          return fresh ? { ...prev, ...fresh } : prev;
+        });
       }
     } catch (error) {
       console.error('Error fetching events:', error);

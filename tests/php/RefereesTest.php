@@ -514,6 +514,26 @@ class RefereesTest extends TestCase
         $this->assertSame([500], array_column($r['body']['upcoming'], 'id'));
     }
 
+    // ---------------------------------------------------------------- set my grade
+
+    public function testARefereeSetsTheirOwnGradeAcrossEveryClubRow(): void
+    {
+        $r = referees_set_my_grade($this->pdo, $this->referee(), ['grade' => 'National Assistant Referee']);
+        $this->assertSame(200, $r['status'], json_encode($r['body']));
+        $this->assertSame(2, $r['body']['clubs_updated']);
+        $grades = $this->pdo->query('SELECT DISTINCT grade FROM referees WHERE user_id = 300 AND archived_at IS NULL')->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertSame(['National Assistant Referee'], $grades);
+        $n = (int) $this->pdo->query("SELECT COUNT(*) FROM audit_log WHERE action = 'referee_self_set_grade'")->fetchColumn();
+        $this->assertSame(2, $n, 'one audit row per club row');
+    }
+
+    public function testSetMyGradeRefusesAnonymousAndNonReferees(): void
+    {
+        $this->assertSame(401, referees_set_my_grade($this->pdo, referees_test_auth(0, []), ['grade' => 'Regional'])['status']);
+        $this->assertSame(404, referees_set_my_grade($this->pdo, $this->parent(), ['grade' => 'Regional'])['status']);
+        $this->assertSame(422, referees_set_my_grade($this->pdo, $this->referee(), ['grade' => str_repeat('x', 61)])['status']);
+    }
+
     // ---------------------------------------------------------------- open games / claim / release
 
     public function testOpenGamesExcludesCoveredGamesOtherClubsPastGamesAndGradeMismatches(): void

@@ -482,6 +482,43 @@ function referees_unassign(PDO $pdo, $auth, array $body): array
  * empty answer, not a 403: "the club has not connected you yet" is the message
  * the page shows, and it is a real state.
  */
+/**
+ * A referee sets their OWN grade (Maggie, 2026-09-08: "allow the ref to edit
+ * their grade in their portal"). One person, one grade: it is written to every
+ * club's directory row for this user, and audited per row so a club can see
+ * the referee changed it rather than the club.
+ */
+function referees_set_my_grade(PDO $pdo, $auth, array $input): array
+{
+    $userId = referees_actor($auth);
+    if ($userId === null) {
+        return referees_fail(401, 'Not signed in');
+    }
+    if (!te_referees_table_present($pdo)) {
+        return referees_fail(503, te_referees_unavailable_message());
+    }
+    $grade = trim((string) ($input['grade'] ?? ''));
+    if ($grade === '') {
+        $grade = null;
+    } elseif (mb_strlen($grade) > 60) {
+        return referees_fail(422, 'That grade is too long.');
+    }
+    $stmt = $pdo->prepare('SELECT id, club_id, grade FROM referees WHERE user_id = ? AND archived_at IS NULL');
+    $stmt->execute([$userId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        return referees_fail(404, 'You are not on any club\'s referee list yet.');
+    }
+    $upd = $pdo->prepare('UPDATE referees SET grade = ?, updated_at = ' . te_referees_now_sql($pdo) . ' WHERE id = ?');
+    foreach ($rows as $r) {
+        $upd->execute([$grade, (int) $r['id']]);
+        AuditLogger::log($pdo, $userId, 'referee_self_set_grade', 'referee', (int) $r['id'], [
+            'club_id' => (int) $r['club_id'], 'from' => $r['grade'], 'to' => $grade,
+        ]);
+    }
+    return ['status' => 200, 'body' => ['success' => true, 'grade' => $grade, 'clubs_updated' => count($rows)]];
+}
+
 function referees_my_games(PDO $pdo, $auth, string $today): array
 {
     $userId = referees_actor($auth);
@@ -635,6 +672,9 @@ switch ($action) {
         break;
     case 'my-games':
         $result = referees_my_games($pdo, $auth, $today);
+        break;
+    case 'set-my-grade':
+        $result = $method === 'POST' ? referees_set_my_grade($pdo, $auth, $input) : referees_fail(405, 'Method not allowed');
         break;
     case 'open-games':
         $result = referees_open_games($pdo, $auth, $today);

@@ -26,6 +26,9 @@ function mockApi(opts: { clubs?: unknown[]; upcoming?: unknown[]; past?: unknown
     if (url.includes('action=open-games')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, available: true, games: opts.open ?? [], roles: ['referee', 'center', 'assistant', 'fourth'] }) });
     }
+    if (url.includes('action=set-my-grade')) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, grade: JSON.parse(String(init?.body ?? '{}')).grade, clubs_updated: 1 }) });
+    }
     if (url.includes('action=claim') || url.includes('action=release')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, referees: [] }) });
     }
@@ -154,5 +157,20 @@ describe('RefereeHome — the referee\'s own page', () => {
       expect(JSON.parse(call![1].body)).toEqual({ first_name: 'Ray', last_name: 'Whistle', email: 'ref@whistle.test', phone: '316-555-0101' });
     });
     expect(await screen.findByText('316-555-0101')).toBeInTheDocument();
+  });
+
+  it('lets the referee change their own grade, posted to set-my-grade and applied to every club', async () => {
+    mockApi({});
+    render(<RefereeHome />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }));
+    fireEvent.change(screen.getByLabelText(/^Grade/), { target: { value: 'National Assistant Referee' } });
+    fireEvent.submit(screen.getByRole('button', { name: /^Save$/ }).closest('form') as HTMLFormElement);
+
+    await waitFor(() => {
+      const call = (global.fetch as jest.Mock).mock.calls.find(([u]) => String(u).includes('action=set-my-grade'));
+      expect(call).toBeTruthy();
+      expect(JSON.parse(call![1].body)).toEqual({ grade: 'National Assistant Referee' });
+    });
+    expect(screen.getByTestId('contact-card')).toHaveTextContent('Grade at Home FC: National Assistant Referee');
   });
 });
