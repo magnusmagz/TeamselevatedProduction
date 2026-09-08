@@ -57,6 +57,7 @@ class MergeFieldServiceTest extends TestCase
                 start_time TEXT,
                 end_time TEXT,
                 venue_id INTEGER,
+                field_id INTEGER,
                 location TEXT
             );
             CREATE TABLE calendar_event_teams (
@@ -79,8 +80,11 @@ class MergeFieldServiceTest extends TestCase
             );
             CREATE TABLE fields (
                 id INTEGER PRIMARY KEY,
+                venue_id INTEGER,
                 name TEXT,
-                address TEXT
+                address TEXT,
+                active INTEGER DEFAULT 1,
+                field_size TEXT
             );
         ");
     }
@@ -92,8 +96,11 @@ class MergeFieldServiceTest extends TestCase
             VALUES (1, 10, 55, 'active')");
         $this->pdo->exec("INSERT INTO venues (id, name, address, city, state)
             VALUES (5, 'Main Stadium', '123 Main St', 'Springfield', 'IL')");
-        $this->pdo->exec("INSERT INTO fields (id, name, address)
-            VALUES (7, 'Field A', NULL)");
+        $this->pdo->exec("INSERT INTO fields (id, venue_id, name, address, field_size)
+            VALUES (7, 5, 'Field A', NULL, '9v9')");
+        // Event 3 is at venue 5 ON Field A (migration 100).
+        $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, venue_id, field_id, location)
+            VALUES (3, 100, 'League Game', 'game', '2026-04-04', '09:00:00', 5, 7, NULL)");
         // Event 1 is at venue 5; calendar_events has no team_id — the link is the
         // calendar_event_teams join table.
         $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, venue_id, location)
@@ -139,6 +146,24 @@ class MergeFieldServiceTest extends TestCase
             $context
         );
         $this->assertSame('Venue: Main Stadium | Address: 123 Main St, Springfield IL', $out);
+    }
+
+    /** A game on a named field: {{event_location}} says "Venue, Field", and the field has its own tag. */
+    public function testEventLocationPrefersVenueAndField(): void
+    {
+        $context = ['event_id' => 3, 'club_profile_id' => 100];
+        $out = $this->svc->resolveVariables(
+            '{{event_location}} | {{event_venue_name}} | {{event_field_name}} | {{event_address}}',
+            $context
+        );
+        $this->assertSame(
+            'Main Stadium, Field A, 123 Main St, Springfield, IL | Main Stadium | Field A | 123 Main St, Springfield IL',
+            $out
+        );
+        // Without a field the tag is empty, not a leftover {{event_field_name}}.
+        $out = $this->svc->resolveVariables('[{{event_field_name}}]', ['event_id' => 1, 'club_profile_id' => 100]);
+        $this->assertSame('[]', $out);
+        $this->assertContains('event_field_name', array_column($this->svc->getAvailableFields(), 'key'));
     }
 
     /** An event booked without a venue record falls back to the free-text column. */

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { eventWhere } from '../../utils/eventWhere';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useParentAthletes } from '../hooks/useParentAthletes';
 import { ParentHeader } from '../components/ParentHeader';
@@ -13,6 +14,8 @@ interface Event {
   start_time?: string;
   end_time?: string;
   location?: string;
+  venue_name?: string | null;
+  field_name?: string | null;
   type: 'practice' | 'game' | 'meeting' | 'tournament' | 'other';
   team_id?: number;
   team_name?: string;
@@ -294,7 +297,7 @@ export const UpcomingEventsPage: React.FC = () => {
                               For {teamIdToAthleteFirstNames[event.team_id].join(' & ')}
                             </p>
                           )}
-                          {event.location && (
+                          {eventWhere(event) && (
                             <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                               <svg
                                 className="w-4 h-4"
@@ -315,7 +318,7 @@ export const UpcomingEventsPage: React.FC = () => {
                                   d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                 />
                               </svg>
-                              <span className="truncate">{event.location}</span>
+                              <span className="truncate">{eventWhere(event)}</span>
                             </div>
                           )}
                         </div>

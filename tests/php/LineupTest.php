@@ -80,8 +80,11 @@ class LineupTest extends TestCase
             CREATE TABLE athlete_guardians (id INTEGER PRIMARY KEY, athlete_id INTEGER, guardian_id INTEGER,
                 relationship TEXT, is_primary INTEGER);
             CREATE TABLE user_guardians (id INTEGER PRIMARY KEY, user_id INTEGER, guardian_id INTEGER);
+            CREATE TABLE venues (id INTEGER PRIMARY KEY, name TEXT);
+            CREATE TABLE fields (id INTEGER PRIMARY KEY, venue_id INTEGER, name TEXT, active INTEGER DEFAULT 1, field_size TEXT);
             CREATE TABLE calendar_events (id INTEGER PRIMARY KEY, club_id INTEGER, name TEXT,
-                type TEXT, event_date TEXT, start_time TEXT, opponent_name TEXT, status TEXT);
+                type TEXT, event_date TEXT, start_time TEXT, opponent_name TEXT, status TEXT,
+                venue_id INTEGER, field_id INTEGER, location TEXT);
             CREATE TABLE calendar_event_teams (id INTEGER PRIMARY KEY, event_id INTEGER, team_id INTEGER);
             CREATE TABLE event_attendance (id INTEGER PRIMARY KEY, event_id INTEGER, athlete_id INTEGER,
                 status TEXT, marked_by INTEGER, marked_at TEXT, notes TEXT);

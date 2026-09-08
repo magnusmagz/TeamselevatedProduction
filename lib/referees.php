@@ -57,6 +57,7 @@
  */
 
 require_once __DIR__ . '/suppression.php';
+require_once __DIR__ . '/event_field.php';
 require_once __DIR__ . '/club_standing.php';
 require_once __DIR__ . '/event_standing.php';
 require_once __DIR__ . '/AuditLogger.php';
@@ -829,19 +830,24 @@ function te_referee_clubs_for_user(PDO $pdo, int $userId): array
  */
 function te_referee_my_games(PDO $pdo, int $userId, string $today): array
 {
+    // The pitch (migration 100) — NULL literals until the column is applied.
+    $fieldSelect = te_event_field_select($pdo, 'ce');
+    $fieldJoin = te_event_field_join($pdo, 'ce');
     $stmt = $pdo->prepare(
-        'SELECT ce.id, ce.club_id, ce.name, ce.event_date, ce.start_time, ce.end_time,
+        "SELECT ce.id, ce.club_id, ce.name, ce.event_date, ce.start_time, ce.end_time,
                 ce.opponent_name, ce.location, ce.status,
                 gr.role, gr.self_assigned, r.id AS referee_id,
                 cp.name AS club_name, cp.primary_color,
                 v.name AS venue_name, v.address AS venue_address, v.city AS venue_city
+                {$fieldSelect}
            FROM game_referees gr
            JOIN referees r ON r.id = gr.referee_id
            JOIN calendar_events ce ON ce.id = gr.calendar_event_id
            LEFT JOIN club_profile cp ON cp.id = ce.club_id
            LEFT JOIN venues v ON v.id = ce.venue_id
+           {$fieldJoin}
           WHERE r.user_id = ? AND r.archived_at IS NULL
-          ORDER BY ce.event_date, ce.start_time, ce.id'
+          ORDER BY ce.event_date, ce.start_time, ce.id"
     );
     $stmt->execute([$userId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -885,6 +891,8 @@ function te_referee_my_games(PDO $pdo, int $userId, string $today): array
             'venue_name'    => $r['venue_name'] ?? null,
             'venue_address' => $r['venue_address'] ?? null,
             'venue_city'    => $r['venue_city'] ?? null,
+            'field_id'      => isset($r['field_id']) ? (int) $r['field_id'] : null,
+            'field_name'    => $r['field_name'] ?? null,
             'role'          => (string) $r['role'],
             'self_assigned' => te_referee_is_true($r['self_assigned'] ?? false),
             'referee_id'    => (int) $r['referee_id'],
@@ -944,15 +952,19 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
     // Closed games never appear; the toggle is per game, default on.
     $selfAssignFilter = $live ? 'AND ce.allow_referee_self_assign = ' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '1' : 'TRUE') : '';
     $myRowIds = array_values($myRefereeIdByClub);
+    $fieldSelect = te_event_field_select($pdo, 'ce');
+    $fieldJoin = te_event_field_join($pdo, 'ce');
 
     $stmt = $pdo->prepare(
         "SELECT ce.id, ce.club_id, ce.name, ce.event_date, ce.start_time, ce.end_time,
                 ce.opponent_name, ce.location, ce.status, {$minGrade},
                 cp.name AS club_name, cp.primary_color,
                 v.name AS venue_name, v.address AS venue_address, v.city AS venue_city
+                {$fieldSelect}
            FROM calendar_events ce
            LEFT JOIN club_profile cp ON cp.id = ce.club_id
            LEFT JOIN venues v ON v.id = ce.venue_id
+           {$fieldJoin}
           WHERE ce.type = 'game'
             AND ce.event_date >= ?
             AND ce.club_id IN ($marks)
@@ -1007,6 +1019,8 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
             'status'            => $r['status'],
             'min_referee_grade' => $r['min_referee_grade'] ?? null,
             'venue_name'        => $r['venue_name'] ?? null,
+            'field_id'          => isset($r['field_id']) ? (int) $r['field_id'] : null,
+            'field_name'        => $r['field_name'] ?? null,
             'venue_address'     => $r['venue_address'] ?? null,
             'venue_city'        => $r['venue_city'] ?? null,
             'teams'             => te_game_teams($pdo, (int) $r['id']),

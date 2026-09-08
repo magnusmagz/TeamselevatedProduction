@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). **099** (`referees`, `game_referees`, `calendar_events.min_referee_grade` / `allow_referee_self_assign`, `referee_feedback.referee_id`; includes the approved non-additive `user_club_access` role CHECK swap adding `referee`) applied 2026-09-08 (Heroku v626). Next free number is **100**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). **099** (`referees`, `game_referees`, `calendar_events.min_referee_grade` / `allow_referee_self_assign`, `referee_feedback.referee_id`; includes the approved non-additive `user_club_access` role CHECK swap adding `referee`) applied 2026-09-08 (Heroku v626). **100** (`calendar_event_field` — `calendar_events.field_id` → `fields(id)` ON DELETE SET NULL + index) is written on `feature/game-field` and **NOT yet applied**; `SchemaConformanceTest::PENDING_MIGRATION` carries the entry until the fixture refresh. Next free number is **101**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -315,6 +315,23 @@ disagreed by a whole U-group.
   those answers since 2026-09-02. The TS test builds its `now` from the date parts as a
   LOCAL date; `new Date('2026-08-01')` is UTC midnight and lands on 31 Jul in Chicago,
   which is the wrong side of the boundary and would silently pass nothing.
+- **A game links to a FIELD under its venue — `calendar_events.field_id` (migration 100,
+  `lib/event_field.php`, 2026-09-08).** `te_event_field_validate()` is the one write rule:
+  the field must exist, be active and belong to the venue in the SAME request (422
+  otherwise — a foreign field is never silently re-pointed); a size mismatch is NOT refused,
+  because the picker's rule above is "warn, never block". Every read that shows a game takes
+  `field_id` / `field_name` / `field_size` from `te_event_field_select()` +
+  `te_event_field_join()` — one LEFT JOIN, NULL literals until the column is applied (the
+  probe is `information_schema` on Postgres, a SELECT on the SQLite fixtures). Nothing writes
+  composed text into `location`: "Venue · Field" is composed at display time by
+  `frontend/src/utils/eventWhere.ts` (calendar cards, event modal header, schedule row,
+  lineup header + print sheet, parent portal, referee page) and its PHP twin
+  `te_event_place_label()` (ICS location, `{{event_location}}` as "Venue, Field";
+  `{{event_field_name}}` is its own tag). On the game form the Field select lists the chosen
+  facility's active fields from `legacy/fields-gateway.php` (which now also returns the bare
+  `field_name`), labelled with size and fits / size mismatch from the `for-team` verdicts;
+  changing the facility sends `field_id: null`, and a PUT from an older bundle that omits
+  `field_id` keeps the stored field only while the venue is unchanged.
 - **`te_normalize_age_group()` is the only comparison of a U-label.** `teams.age_group` is
   free text and prod holds `U12`, `U-12` and `12U`; `Open` / `U10/U11` normalise to null
   rather than to one of their halves. Comparing raw matches nothing, and an empty list reads

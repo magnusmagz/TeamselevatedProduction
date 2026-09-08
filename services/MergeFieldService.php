@@ -155,6 +155,7 @@ class MergeFieldService {
             ['key' => 'event_time', 'label' => 'Event Time', 'group' => 'Event'],
             ['key' => 'event_location', 'label' => 'Event Location', 'group' => 'Event'],
             ['key' => 'event_venue_name', 'label' => 'Event Venue', 'group' => 'Event'],
+            ['key' => 'event_field_name', 'label' => 'Event Field (pitch)', 'group' => 'Event'],
             ['key' => 'event_address', 'label' => 'Event Address', 'group' => 'Event'],
             ['key' => 'event_type', 'label' => 'Event Type', 'group' => 'Event'],
             ['key' => 'sender_first_name', 'label' => 'Sender First Name', 'group' => 'Sender'],
@@ -291,6 +292,10 @@ class MergeFieldService {
         // resolved to nothing (or threw). The shape differs: `name` not `title`,
         // `event_date` + `start_time` as separate columns not `start_datetime`,
         // `type` not `event_type`, plus a free-text `location` fallback.
+        // The field (migration 100) rides on the same query; NULL until applied.
+        require_once __DIR__ . '/../lib/event_field.php';
+        $fieldSelect = te_event_field_select($this->pdo, 'e');
+        $fieldJoin = te_event_field_join($this->pdo, 'e');
         $stmt = $this->pdo->prepare("
             SELECT
                 e.name,
@@ -302,8 +307,10 @@ class MergeFieldService {
                 v.address AS venue_address,
                 v.city AS venue_city,
                 v.state AS venue_state
+                $fieldSelect
             FROM calendar_events e
             LEFT JOIN venues v ON e.venue_id = v.id
+            $fieldJoin
             WHERE e.id = ?
         ");
 
@@ -346,6 +353,7 @@ class MergeFieldService {
             'event_type' => ucfirst((string) ($row['type'] ?? '')),
             'event_location' => $location,
             'event_venue_name' => $row['venue_name'] ?: (string) ($row['location'] ?? ''),
+            'event_field_name' => (string) ($row['field_name'] ?? ''),
             'event_address' => $addressParts ? implode(', ', $addressParts) : (string) ($row['location'] ?? ''),
         ];
 
@@ -364,13 +372,9 @@ class MergeFieldService {
             $parts[] = $row['venue_name'];
         }
 
-        // Append field name if present (e.g. "Main Stadium - Field A")
+        // Then the field (migration 100): "Main Stadium, Field A, <address>".
         if (!empty($row['field_name'])) {
-            if (!empty($parts)) {
-                $parts[0] .= ' - ' . $row['field_name'];
-            } else {
-                $parts[] = $row['field_name'];
-            }
+            $parts[] = $row['field_name'];
         }
 
         // Append address

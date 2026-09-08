@@ -3,6 +3,7 @@ import {
   BENCH, FIELD_PLAYERS, FIELD_SIZES, FieldSize, FormationSlot, defaultFormation, formationsFor, isFieldSize, slotsFor,
 } from '../../utils/lineupFormations';
 import { formatDateOnly } from '../../utils/dateFormat';
+import { eventWhere } from '../../utils/eventWhere';
 import LineupPitch from './LineupPitch';
 import Button from '../ui/Button';
 import { LineupRow, LineupStaffResponse, PitchPlayer, RosterPlayer } from './types';
@@ -307,8 +308,9 @@ const LineupBuilder: React.FC<Props> = ({ teamId, eventId, apiUrl, printHref }) 
 
   const savedForGame = Boolean(eventId && data.lineup && !data.is_template);
   const published = savedForGame && Boolean(data.lineup?.published_at);
+  const where = data.event ? eventWhere(data.event) : null;
   const title = data.event
-    ? `${data.event.opponent_name ? `vs ${data.event.opponent_name}` : data.event.name} · ${formatDateOnly(data.event.event_date, { month: 'short', day: 'numeric' })}`
+    ? `${data.event.opponent_name ? `vs ${data.event.opponent_name}` : data.event.name} · ${formatDateOnly(data.event.event_date, { month: 'short', day: 'numeric' })}${where ? ` · ${where}` : ''}`
     : 'Default lineup';
 
   const playerChip = (p: RosterPlayer, onSheet: boolean) => {
