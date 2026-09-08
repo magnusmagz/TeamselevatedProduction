@@ -10,6 +10,7 @@ require_once __DIR__ . '/../services/RecipientService.php';
 require_once __DIR__ . '/../lib/event_recurrence.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
 require_once __DIR__ . '/../lib/AthleteScope.php';
+require_once __DIR__ . '/../lib/referees.php';
 
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
@@ -174,10 +175,18 @@ try {
                 $whereClause .= ' ' . $clubScope['where'];
                 $params = array_merge($params, $clubScope['params']);
 
+                // "Needs ref": two correlated subselects over game_referees in the
+                // SAME query, folded into referee_status per row below. Empty
+                // string until migration 099 is applied — the fields are then
+                // simply absent and the chip does not render.
+                $refereeStatusColumns = te_game_referee_status_columns($pdo, 'e');
+                $todayStr = date('Y-m-d');
+
                 $stmt = $pdo->prepare("
                     SELECT DISTINCT e.*,
                            p.name as program_name,
                            v.name as venue_name
+                           $refereeStatusColumns
                     FROM calendar_events e
                     LEFT JOIN programs p ON e.program_id = p.id
                     LEFT JOIN venues v ON e.venue_id = v.id
@@ -204,7 +213,9 @@ try {
                     $teamNames = array_column($event['teams'], 'name');
                     $event['team_name'] = implode(', ', $teamNames);
                     $event['team_color'] = !empty($event['teams']) ? $event['teams'][0]['primary_color'] : null;
+                    $event = te_game_referee_status_apply($event, $todayStr);
                 }
+                unset($event);
 
                 echo json_encode(['success' => true, 'events' => $events]);
             }
@@ -233,10 +244,44 @@ try {
                 }
             }
 
+            // Referees on a game, in the same request (Maggie, 2026-09-08): an
+            // optional `referees: [{referee_id, role}]` list, and an optional
+            // `min_referee_grade`. Both are ignored when absent so an older bundle
+            // keeps creating games exactly as before. Validated BEFORE the
+            // transaction so a bad entry is a clean 422, not a half-written game.
+            $refereeList = null;
+            if (array_key_exists('referees', $data) && $data['referees'] !== null) {
+                if (!is_array($data['referees'])) {
+                    http_response_code(422);
+                    echo json_encode(['error' => 'referees must be a list of {referee_id, role}']);
+                    exit;
+                }
+                $refereeList = $data['referees'];
+                if (!empty($refereeList) && !te_referees_table_present($pdo)) {
+                    http_response_code(503);
+                    echo json_encode(['error' => te_referees_unavailable_message()]);
+                    exit;
+                }
+            }
+            $minGrade = te_game_min_grade($data['min_referee_grade'] ?? null);
+            if ($minGrade['error'] !== null) {
+                http_response_code(422);
+                echo json_encode(['error' => $minGrade['error']]);
+                exit;
+            }
+            $minGradeLive = te_min_referee_grade_column_present($pdo);
+
             $pdo->beginTransaction();
 
             try {
-                $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare($minGradeLive ? "
+                    INSERT INTO calendar_events (
+                        club_id, name, type, event_date, start_time, end_time,
+                        program_id, venue_id, location, description, status, opponent_name,
+                        recurrence_group_id, recurrence_rule, series_original_date, series_original_time,
+                        min_referee_grade
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                " : "
                     INSERT INTO calendar_events (
                         club_id, name, type, event_date, start_time, end_time,
                         program_id, venue_id, location, description, status, opponent_name,
@@ -249,7 +294,7 @@ try {
 
                 $eventId = null; // first occurrence id (kept for invites + response)
                 foreach ($occurrenceDates as $occurrenceDate) {
-                    $stmt->execute([
+                    $insertParams = [
                         $eventClubId,
                         $data['name'],
                         $data['type'] ?? 'event',
@@ -269,7 +314,11 @@ try {
                         // RECURRENCE-ID exceptions reference it).
                         $recurrenceGroupId !== null ? $occurrenceDate : null,
                         $recurrenceGroupId !== null ? ($data['start_time'] ?? null) : null
-                    ]);
+                    ];
+                    if ($minGradeLive) {
+                        $insertParams[] = $minGrade['value'];
+                    }
+                    $stmt->execute($insertParams);
 
                     $occurrenceId = $pdo->lastInsertId();
                     if ($eventId === null) {
@@ -282,6 +331,16 @@ try {
                             if ($teamId) {
                                 $teamStmt->execute([$occurrenceId, $teamId]);
                             }
+                        }
+                    }
+
+                    // Referees, every occurrence. A bad entry throws
+                    // InvalidArgumentException and rolls the whole create back.
+                    if (!empty($refereeList)) {
+                        $gameRow = te_game_for_assignment($pdo, (int) $occurrenceId);
+                        if ($gameRow !== null) {
+                            $gameRow['type'] = $data['type'] ?? 'event';
+                            te_game_referees_apply($pdo, $gameRow, $refereeList, (int) $auth->getUserId() ?: null, false);
                         }
                     }
                 }
@@ -413,6 +472,13 @@ try {
                 }
 
                 echo json_encode($response);
+            } catch (InvalidArgumentException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollback();
+                }
+                http_response_code(422);
+                echo json_encode(['error' => $e->getMessage()]);
+                exit;
             } catch (Exception $e) {
                 $pdo->rollback();
                 throw $e;
@@ -435,6 +501,31 @@ try {
             $originalStmt->execute([$_GET['id']]);
             $originalEvent = $originalStmt->fetch(PDO::FETCH_ASSOC);
 
+            // Same optional referee fields as POST. `referees` present REPLACES the
+            // assignments; absent leaves them alone (older bundles never send it).
+            $refereeList = null;
+            if (array_key_exists('referees', $data) && $data['referees'] !== null) {
+                if (!is_array($data['referees'])) {
+                    http_response_code(422);
+                    echo json_encode(['error' => 'referees must be a list of {referee_id, role}']);
+                    exit;
+                }
+                $refereeList = $data['referees'];
+                if (!te_referees_table_present($pdo)) {
+                    http_response_code(503);
+                    echo json_encode(['error' => te_referees_unavailable_message()]);
+                    exit;
+                }
+            }
+            $minGradeSent = array_key_exists('min_referee_grade', $data);
+            $minGrade = te_game_min_grade($data['min_referee_grade'] ?? null);
+            if ($minGradeSent && $minGrade['error'] !== null) {
+                http_response_code(422);
+                echo json_encode(['error' => $minGrade['error']]);
+                exit;
+            }
+            $minGradeLive = $minGradeSent && te_min_referee_grade_column_present($pdo);
+
             $pdo->beginTransaction();
 
             try {
@@ -451,10 +542,11 @@ try {
                         description = ?,
                         status = ?,
                         opponent_name = ?
+                        " . ($minGradeLive ? ', min_referee_grade = ?' : '') . "
                     WHERE id = ?
                 ");
 
-                $stmt->execute([
+                $updateParams = [
                     $data['name'],
                     $data['type'] ?? 'event',
                     $data['event_date'],
@@ -466,8 +558,19 @@ try {
                     $data['description'] ?? null,
                     $data['status'] ?? 'scheduled',
                     $data['opponent_name'] ?? null,
-                    $_GET['id']
-                ]);
+                ];
+                if ($minGradeLive) {
+                    $updateParams[] = $minGrade['value'];
+                }
+                $updateParams[] = $_GET['id'];
+                $stmt->execute($updateParams);
+
+                if ($refereeList !== null) {
+                    $gameRow = te_game_for_assignment($pdo, (int) $_GET['id']);
+                    if ($gameRow !== null) {
+                        te_game_referees_apply($pdo, $gameRow, $refereeList, (int) $auth->getUserId() ?: null, true);
+                    }
+                }
 
                 // Delete existing team associations
                 $deleteTeamStmt = $pdo->prepare("DELETE FROM calendar_event_teams WHERE event_id = ?");
@@ -593,6 +696,13 @@ try {
                 }
 
                 echo json_encode($response);
+            } catch (InvalidArgumentException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollback();
+                }
+                http_response_code(422);
+                echo json_encode(['error' => $e->getMessage()]);
+                exit;
             } catch (Exception $e) {
                 $pdo->rollback();
                 throw $e;

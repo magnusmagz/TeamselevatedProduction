@@ -36,7 +36,7 @@ $method = $_SERVER['REQUEST_METHOD'];
  * database. `player` and `volunteer` are deliberately absent: nothing invites into
  * them today, and a whitelist that lists everything is not one.
  */
-const TE_INVITABLE_ROLES = ['coach', 'club_admin', 'parent', 'treasurer'];
+const TE_INVITABLE_ROLES = ['coach', 'club_admin', 'parent', 'treasurer', 'referee'];
 
 /**
  * How many athletes will this person actually see when they accept?
@@ -694,6 +694,20 @@ function handleAcceptInvitation($conn, $input) {
         $linkedAthletes = te_linked_athlete_count($conn, $invitationEmail);
     }
 
+    // A referee invite links the club's directory row(s) on this address to the
+    // account (referees.user_id), so /referee lists their games. After the
+    // transaction and never fatal — the same shape as the guardian link above.
+    // Zero is a real answer: the club has not added them to the directory yet.
+    $linkedReferees = null;
+    if ($role === 'referee') {
+        try {
+            require_once __DIR__ . '/../lib/referees.php';
+            $linkedReferees = te_referee_link_user_by_email($conn, (int) $userId, $invitationEmail);
+        } catch (Throwable $e) {
+            error_log('referee link on invite accept failed: ' . $e->getMessage());
+        }
+    }
+
     return [
         'success' => true,
         'message' => 'Invitation accepted successfully',
@@ -701,6 +715,7 @@ function handleAcceptInvitation($conn, $input) {
         'userId' => $userId,
         'role' => $role,
         'linked_athletes' => $linkedAthletes,
+        'linked_referees' => $linkedReferees,
         // Null on a staff invite, on a household that needs a human, and on a family
         // whose guardian row does not exist yet. `guardian_link` says which.
         'linked_guardian_id' => $linkedGuardianId,

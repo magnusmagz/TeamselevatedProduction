@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). Next free number is **099**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). **099** (`referees` — directory, `referee` role, game assignments; written 2026-09-08 on `feature/referees`, NOT yet applied; contains the one approved non-additive step, the `user_club_access.role` CHECK swap). Next free number is **100**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -559,7 +559,7 @@ Set via Heroku config vars in production. Locally, loaded from `.env` file via c
 - Enforce permissions server-side on all send and reporting endpoints — never trust the frontend
 - When a coach selects recipients, the backend must validate every recipient is within their
   scope before sending
-- Roles are stored in `user_club_access` table (user_id, club_profile_id, role). Role values per the live CHECK constraint: `club_admin`, `coach`, `parent`, `player`, `volunteer`, `treasurer` — the last two were undocumented here until 2026-07-29, and `volunteer` is in active use (2 rows). This table is authoritative — NOT `users.role`. Coaches are scoped to teams via `team_members` table.
+- Roles are stored in `user_club_access` table (user_id, club_profile_id, role). Role values per the live CHECK constraint: `club_admin`, `coach`, `parent`, `player`, `volunteer`, `treasurer` — the last two were undocumented here until 2026-07-29, and `volunteer` is in active use (2 rows). Migration 099 (written 2026-09-08, not yet applied) adds `referee` — see the Referees section. This table is authoritative — NOT `users.role`. Coaches are scoped to teams via `team_members` table.
 
 ### Impersonation: the token IS the target — `lib/impersonation.php` (2026-08-14)
 Super admin only. `super-admin-gateway.php?action=impersonate` mints a token whose
@@ -1156,6 +1156,78 @@ changes access for one user, correctly.
 
 ⚠️ **Already-issued tokens keep the revoked role until they expire.** The filter applies at
 mint time only.
+
+### Referees: a directory, a role, game assignments — `lib/referees.php` (2026-09-08, `feature/referees`, migration 099 NOT yet applied)
+Maggie, 2026-09-08. People → Referees (`/referees`, admin) is the club's directory —
+first/last/email/phone/**grade**/certification/notes, archive never delete — and
+`referee` is a `user_club_access` role so a referee can hold an account. **One person,
+many clubs:** referees work with different clubs, so each club keeps its own `referees`
+row (its grade and notes about them) and the PERSON is the `users` row; `referees.user_id`
+links the club's row to it. Creating a referee whose email already has an account links
+rather than duplicates (`users.email` is UNIQUE); inviting adds the `referee` role in THIS
+club to the existing account (`te_coach_invite_ensure_user_and_token(..., role:
+'referee')` — the coach-invite lib took a `$role` parameter, same `:coach_invite` token,
+label "Referee"). Accepting a `referee` invitation on `invitations-gateway` links every
+unlinked directory row on that address (`te_referee_link_user_by_email`, after the
+transaction, never fatal; `linked_referees` on the response).
+
+- **A referee is NOT club staff.** `te_is_club_staff`, `AthleteScope`, roster / document /
+  event standing, `TE_COMPLIANCE_STAFF_ROLES` and `te_is_financial_admin` all refuse the
+  role; `RefereeScopeTest` (modelled on `TreasurerScopeTest`) scans those files for the
+  word AND executes the predicates with a referee token. Directory list/search is
+  `te_is_club_staff` (a coach picks a referee on the feedback modal and on the game form);
+  create/update/archive/restore/invite is `te_is_club_admin`; a club admin of A cannot
+  see, edit or assign B's referees — every handler resolves the club from the ROW or the
+  EVENT. Phone through `te_normalize_sms_phone` (422 on unreadable, blank clears); email
+  lowercased; duplicate in the club → 409 naming the existing referee.
+- **`/referee` (`RefereeHome`, `ProtectedRefereeRoute`) is the referee's whole app** — no
+  staff nav, chat bubble or support button (App.tsx hides the chrome there as it does on
+  `/parent`). Open games they can take, My games (upcoming; past collapsed), a Clubs strip
+  that filters across every club they referee for, and their contact card (writes through
+  `api/user-profile.php`). Built off the USER ID (`action=my-games` / `open-games`),
+  never `active_context`. Landing is ONE rule, `utils/landingRoute.ts`: super admin →
+  `/super-admin`, **referee-only → `/referee`**, any parent → `/parent`, else
+  `/dashboard`; `Login`, `VerifyMagicLink` and `ParentRedirect` all read it.
+- **Game assignments (`game_referees`)** carry `role` (referee / center / assistant /
+  fourth), `self_assigned` and `grade_override`. Assign / unassign / for-event gate on
+  `te_event_staff_standing()` — club admin of the game's club or a coach of a team ON it,
+  the same people who can edit the game. The game modal has a Referees block
+  (`GameRefereesBlock`) in both modes: CREATE holds the picks locally and the calendar
+  sends them as `referees: [{referee_id, role}]` with the game — `legacy/events-gateway.php`
+  applies them in the same transaction, validated whole before it opens, 422 on a bad
+  entry; absent means ignored so older bundles keep working. EDIT assigns live; `referees`
+  present on a PUT REPLACES the list. A referee may **claim** an upcoming game in a club
+  they referee for when the role is unfilled (`self_assigned`), and **release** only a row
+  they claimed while the game is upcoming — a staff-placed row is the club's to change
+  (403, "ask the club"). Staff unassign any row.
+- **Grades are one ordered scale**, `TE_REFEREE_GRADE_RANK` ↔
+  `frontend/src/constants/refereeGrades.ts` (`RefereeGradesConsistencyTest`): Grassroots <
+  Regional < National < Professional; legacy 9–7 ≈ Grassroots, 6–5 ≈ Regional, 4–3 ≈
+  National, 2–1 ≈ Professional; blank / "Other" never qualifies for a minimum.
+  `calendar_events.min_referee_grade` (NULL = any) is set on the game form; `open-games`
+  filters on the caller's grade IN THAT CLUB and `claim` re-checks it (422 with a
+  sentence — the list is never trusted). Staff may place someone below it; the picker
+  warns and the row + audit row record `grade_override`.
+- **"Needs ref"** — `legacy/events-gateway.php`'s list gains `referee_status`
+  (`covered` / `needs_ref`) + `referee_count` from two correlated subselects in the SAME
+  query (`te_game_referee_status_columns`), absent until 099 is applied; only an
+  UPCOMING GAME with no `center` gets `needs_ref`. `NeedsRefChip` renders on the month
+  and week tiles and the modal header for staff viewers only (parents never). The staff
+  Home overview has no games tile, so no count was added there.
+- Feedback: `referee_feedback.referee_id` (nullable) — the coach's modal is a typeahead
+  over the directory that still accepts a free-typed name; the admin summary groups by
+  id when present, else by name. `lib/referee_feedback.php` probes for the column.
+- **Everything probes.** `lib/referees.php` answers 503-with-a-sentence (writes) or
+  `available:false` (reads) until 099 lands; `referees` / `game_referees` sit in
+  `PENDING_MIGRATION_TABLES` and the two columns in `PENDING_MIGRATION` — delete those
+  entries in the same commit as the fixture refresh.
+- Deploy order: backend → apply 099 (the CHECK swap is the one non-additive step) →
+  fixture refresh + delete PENDING entries → frontend. Tests: `RefereesTest` (32),
+  `RefereeScopeTest`, `RefereeGradesConsistencyTest`, `EventsGatewayRefereesTest`,
+  additions to `ActiveRolePrecedenceTest` / `CrewInvitationRoleTest` /
+  `RefereeFeedbackTest` / `CoachAccessTest`; jest `Referees.test`, `RefereeHome.test`,
+  `GameRefereesBlock.test`, `Login.test`, `landingRoute.test`, and cases in
+  `TeamCalendarView.test` / `RefereeFeedbackModal.test`.
 
 ### Treasurer is the MONEY-ONLY role — `lib/financial_scope.php` (2026-09-03)
 Maggie asked whether to retire `treasurer` and make it a club admin. Kept, deliberately:
@@ -1946,15 +2018,25 @@ interface, the mock, and `overviewAggregate()` together or that test fails.
   `feature/g2-token-diet`, behind `TE_FEATURE_SLIM_TOKEN` / `TE_FEATURE_ROLE_CACHE`, frontend
   first. `api/auth-gateway.php` stays off-limits; the decision-13 one-liner (guardian link on
   parent-invite redemption in `handleSetParentPassword`, approved 2026-09-03, pinned by
-  `ParentInviteRedemptionLinkTest`) is the only edit made to it.
+  `ParentInviteRedemptionLinkTest`) is the only edit made to it. **Second approved exception
+  (Maggie, 2026-09-08, Referees):** `lib/JWT.php` gained the single word `referee` in the
+  role-precedence `ORDER BY` (rank 5, after `volunteer`, before `parent`), so
+  `ActiveRolePrecedenceTest` keeps every CHECK value ordered. Nothing else in that file
+  changed; `lib/AuthMiddleware.php` and `api/auth-gateway.php` are untouched
+  (`RefereeScopeTest` scans both for the word).
 - Do not alter existing table structures — add new tables/columns only.
-  **One approved exception exists**: migration 063 dropped `NOT NULL` from
+  **Two approved exceptions exist.** (1) Migration 063 dropped `NOT NULL` from
   `consent_records.guardian_id`, because that column is an FK to `users(id)` and a parent
   filling in the public registration form has no account yet — requiring one meant consent
   could only be recorded from people who already had accounts, i.e. never at sign-up. Agreed
   with Maggie 2026-07-31; the table held 0 rows at the time. The FK is intact, so a non-null
-  value is still guaranteed to be a real user. Do not treat this as a precedent for relaxing
-  other constraints.
+  value is still guaranteed to be a real user. (2) **Migration 099 re-creates the
+  `user_club_access.role` CHECK with `referee` added** (Maggie, 2026-09-08). It finds the
+  constraint by DEFINITION in `pg_constraint` (the one CHECK on that table mentioning
+  `club_admin`), raises unless exactly one matches, and re-adds it under the same name —
+  it cannot silently create a second constraint. Postgres will have named it
+  `user_club_access_role_check`; the header carries the reverse SQL. Do not treat either
+  as a precedent for relaxing other constraints.
 - Do not change the existing API routing pattern in `index.php` beyond adding new routes
 - The existing Redis/push notification reminder system must continue to work unchanged
 - Existing tests should continue to pass

@@ -41,6 +41,26 @@ require_once __DIR__ . '/event_standing.php';
 require_once __DIR__ . '/club_standing.php';
 
 /**
+ * Is referee_feedback.referee_id (migration 099, the Referees directory) live?
+ * `main` is shared and deploys are by push, so this code reaches production
+ * before the column does; naming a missing column is 42703. Memoised per PDO.
+ */
+function te_referee_feedback_referee_column_present(PDO $pdo): bool
+{
+    static $memo = null;
+    $memo ??= new WeakMap();
+    if (isset($memo[$pdo])) {
+        return $memo[$pdo];
+    }
+    try {
+        $pdo->query('SELECT referee_id FROM referee_feedback LIMIT 1');
+        return $memo[$pdo] = true;
+    } catch (Throwable $e) {
+        return $memo[$pdo] = false;
+    }
+}
+
+/**
  * The one category list. Mirrored in
  * frontend/src/constants/refereeFeedbackCategories.ts and pinned together by
  * RefereeFeedbackCategoriesTest. Order is canonical: stored rows carry their
@@ -277,10 +297,22 @@ function te_referee_feedback_validate(array $body): array
         return $fail('incident must be true or false');
     }
 
+    // A directory pick (Referees, migration 099). Optional: a free-typed name
+    // stays a free-typed name with referee_id NULL.
+    $refereeIdRaw = $body['referee_id'] ?? null;
+    $refereeId = null;
+    if ($refereeIdRaw !== null && $refereeIdRaw !== '') {
+        if (!is_numeric($refereeIdRaw) || (int) $refereeIdRaw <= 0) {
+            return $fail('referee_id must be a positive whole number');
+        }
+        $refereeId = (int) $refereeIdRaw;
+    }
+
     return [
         'error'  => null,
         'values' => [
             'referee_name' => $name,
+            'referee_id'   => $refereeId,
             'rating'       => $rating,
             'categories'   => $categories,
             'comments'     => $comments !== '' ? $comments : null,
@@ -303,13 +335,8 @@ function te_referee_feedback_bool_param(PDO $pdo, bool $v)
 /** Insert one row. The UNIQUE constraint surfaces as a PDOException (23505). */
 function te_referee_feedback_create(PDO $pdo, array $event, int $teamId, int $userId, array $values): int
 {
-    $stmt = $pdo->prepare(
-        'INSERT INTO referee_feedback
-            (club_id, calendar_event_id, team_id, submitted_by, referee_name, rating,
-             categories, comments, incident, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ' . te_referee_feedback_now_sql($pdo) . ')'
-    );
-    $stmt->execute([
+    $now = te_referee_feedback_now_sql($pdo);
+    $params = [
         (int) $event['club_id'],
         (int) $event['id'],
         $teamId,
@@ -319,27 +346,56 @@ function te_referee_feedback_create(PDO $pdo, array $event, int $teamId, int $us
         json_encode($values['categories']),
         $values['comments'],
         te_referee_feedback_bool_param($pdo, (bool) $values['incident']),
-    ]);
+    ];
+    if (te_referee_feedback_referee_column_present($pdo)) {
+        $stmt = $pdo->prepare(
+            'INSERT INTO referee_feedback
+                (club_id, calendar_event_id, team_id, submitted_by, referee_name, rating,
+                 categories, comments, incident, referee_id, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ' . $now . ')'
+        );
+        $params[] = $values['referee_id'] ?? null;
+    } else {
+        $stmt = $pdo->prepare(
+            'INSERT INTO referee_feedback
+                (club_id, calendar_event_id, team_id, submitted_by, referee_name, rating,
+                 categories, comments, incident, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ' . $now . ')'
+        );
+    }
+    $stmt->execute($params);
     return (int) $pdo->lastInsertId();
 }
 
 /** Rewrite the feedback fields of one row. Author, event and team never change. */
 function te_referee_feedback_update(PDO $pdo, int $id, array $values): void
 {
-    $stmt = $pdo->prepare(
-        'UPDATE referee_feedback
-            SET referee_name = ?, rating = ?, categories = ?, comments = ?, incident = ?,
-                updated_at = ' . te_referee_feedback_now_sql($pdo) . '
-          WHERE id = ?'
-    );
-    $stmt->execute([
+    $now = te_referee_feedback_now_sql($pdo);
+    $params = [
         $values['referee_name'],
         $values['rating'],
         json_encode($values['categories']),
         $values['comments'],
         te_referee_feedback_bool_param($pdo, (bool) $values['incident']),
-        $id,
-    ]);
+    ];
+    if (te_referee_feedback_referee_column_present($pdo)) {
+        $stmt = $pdo->prepare(
+            'UPDATE referee_feedback
+                SET referee_name = ?, rating = ?, categories = ?, comments = ?, incident = ?,
+                    referee_id = ?, updated_at = ' . $now . '
+              WHERE id = ?'
+        );
+        $params[] = $values['referee_id'] ?? null;
+    } else {
+        $stmt = $pdo->prepare(
+            'UPDATE referee_feedback
+                SET referee_name = ?, rating = ?, categories = ?, comments = ?, incident = ?,
+                    updated_at = ' . $now . '
+              WHERE id = ?'
+        );
+    }
+    $params[] = $id;
+    $stmt->execute($params);
 }
 
 // ---------------------------------------------------------------------------
@@ -358,13 +414,14 @@ function te_referee_feedback_hydrate(array $row): array
             $row[$k] = (int) $row[$k];
         }
     }
+    $row['referee_id'] = isset($row['referee_id']) && $row['referee_id'] !== '' ? (int) $row['referee_id'] : null;
     return $row;
 }
 
 const TE_REFEREE_FEEDBACK_SELECT = '
     SELECT rf.id, rf.club_id, rf.calendar_event_id, rf.team_id, rf.submitted_by,
            rf.referee_name, rf.rating, rf.categories, rf.comments, rf.incident,
-           rf.created_at, rf.updated_at,
+           rf.created_at, rf.updated_at, %s
            ce.name AS event_name, ce.event_date, ce.start_time, ce.opponent_name,
            t.name AS team_name,
            u.first_name AS submitted_by_first_name, u.last_name AS submitted_by_last_name
@@ -373,9 +430,18 @@ const TE_REFEREE_FEEDBACK_SELECT = '
       LEFT JOIN teams t ON t.id = rf.team_id
       LEFT JOIN users u ON u.id = rf.submitted_by';
 
+/** The SELECT with or without the migration-099 column, decided once per connection. */
+function te_referee_feedback_select_sql(PDO $pdo): string
+{
+    return sprintf(
+        TE_REFEREE_FEEDBACK_SELECT,
+        te_referee_feedback_referee_column_present($pdo) ? 'rf.referee_id,' : 'NULL AS referee_id,'
+    );
+}
+
 function te_referee_feedback_rows(PDO $pdo, string $where, array $params, string $order): array
 {
-    $stmt = $pdo->prepare(TE_REFEREE_FEEDBACK_SELECT . ' WHERE ' . $where . ' ORDER BY ' . $order);
+    $stmt = $pdo->prepare(te_referee_feedback_select_sql($pdo) . ' WHERE ' . $where . ' ORDER BY ' . $order);
     $stmt->execute($params);
     $out = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -447,17 +513,21 @@ function te_referee_feedback_list(PDO $pdo, int $clubId, array $filters): array
 }
 
 /**
- * Per-referee-name roll-up of a list: count, average rating, incident count.
- * Grouped on the trimmed name as entered — there is no referee registry, so
- * this claims nothing about two spellings being one person.
+ * Per-referee roll-up of a list: count, average rating, incident count.
+ * Grouped by referee_id when the row was a directory pick (Referees,
+ * migration 099) — so two spellings of one person in the directory are one
+ * line — and otherwise on the trimmed name as entered, which claims nothing
+ * about two spellings being one person.
  */
 function te_referee_feedback_summary(array $rows): array
 {
     $by = [];
     foreach ($rows as $r) {
-        $key = trim((string) $r['referee_name']);
+        $name = trim((string) $r['referee_name']);
+        $refereeId = isset($r['referee_id']) && $r['referee_id'] !== null && $r['referee_id'] !== '' ? (int) $r['referee_id'] : null;
+        $key = $refereeId !== null ? 'id:' . $refereeId : 'name:' . mb_strtolower($name);
         if (!isset($by[$key])) {
-            $by[$key] = ['referee_name' => $key, 'count' => 0, 'rating_total' => 0, 'incident_count' => 0];
+            $by[$key] = ['referee_name' => $name, 'referee_id' => $refereeId, 'count' => 0, 'rating_total' => 0, 'incident_count' => 0];
         }
         $by[$key]['count']++;
         $by[$key]['rating_total'] += (int) $r['rating'];
@@ -469,6 +539,7 @@ function te_referee_feedback_summary(array $rows): array
     foreach ($by as $s) {
         $out[] = [
             'referee_name'   => $s['referee_name'],
+            'referee_id'     => $s['referee_id'],
             'count'          => $s['count'],
             'average_rating' => round($s['rating_total'] / $s['count'], 2),
             'incident_count' => $s['incident_count'],

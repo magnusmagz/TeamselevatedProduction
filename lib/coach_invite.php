@@ -51,7 +51,7 @@ const TE_COACH_INVITE_TTL_SECONDS = 7 * 24 * 3600;
  * The token suffix stays `:coach_invite` for every one of these — the
  * portal-status evidence and the status->action map key on it.
  */
-const TE_STAFF_INVITE_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer'];
+const TE_STAFF_INVITE_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer', 'referee'];
 
 /** The label the invite email uses for a role. */
 function te_coach_invite_role_label(?string $role): string
@@ -63,6 +63,8 @@ function te_coach_invite_role_label(?string $role): string
             return 'Treasurer';
         case 'volunteer':
             return 'Volunteer';
+        case 'referee':
+            return 'Referee';
         default:
             return 'Coach';
     }
@@ -137,7 +139,11 @@ function te_coach_invite_freshest_token(PDO $pdo, string $email): ?array
  * @param array $person  first_name, last_name, email, phone (phone optional)
  * @param int   $clubId  the club granting the coach role
  * @param int|null $actorId who asked (granted_by / audit); null for a system path
- * @param string $source 'coaches_page' | 'import' — audit detail only
+ * @param string $source 'coaches_page' | 'import' | 'referees_page' — audit detail only
+ * @param string $role   the user_club_access role granted: 'coach' (default) or
+ *                       'referee' (Referees directory, 2026-09-08). Same token
+ *                       suffix, same ladder; only the row written differs. Must
+ *                       be in TE_STAFF_INVITE_ROLES.
  *
  * @return array One of:
  *   ['status' => 'error', 'message' => ...]
@@ -145,8 +151,11 @@ function te_coach_invite_freshest_token(PDO $pdo, string $email): ?array
  *   ['status' => 'already_active', 'user_id' => int, 'email' => string, 'access' => 'granted'|'existing', 'created' => false]
  *   ['status' => 'invited', 'user_id' => int, 'email' => string, 'name' => string, 'access' => ..., 'created' => bool]
  */
-function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clubId, ?int $actorId = null, string $source = 'coaches_page'): array
+function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clubId, ?int $actorId = null, string $source = 'coaches_page', string $role = 'coach'): array
 {
+    if (!in_array($role, TE_STAFF_INVITE_ROLES, true)) {
+        return ['status' => 'error', 'message' => "'{$role}' is not a role this invite can grant"];
+    }
     $email = strtolower(trim((string) ($person['email'] ?? '')));
     $first = trim((string) ($person['first_name'] ?? ''));
     $last  = trim((string) ($person['last_name'] ?? ''));
@@ -180,7 +189,7 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
                  VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                  RETURNING id'
             );
-            $stmt->execute([$first, $last, $email, $phone !== '' ? $phone : null, 'coach', 'invitation']);
+            $stmt->execute([$first, $last, $email, $phone !== '' ? $phone : null, $role, 'invitation']);
             $userId = (int) $stmt->fetchColumn();
             $user = ['id' => $userId, 'password_hash' => null, 'first_name' => $first, 'last_name' => $last];
             $created = true;
@@ -190,9 +199,9 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
         // Club access. A row that exists is left alone — including a revoked one.
         $stmt = $pdo->prepare(
             "SELECT id, active, revoked_at FROM user_club_access
-              WHERE user_id = ? AND club_profile_id = ? AND role = 'coach' LIMIT 1"
+              WHERE user_id = ? AND club_profile_id = ? AND role = ? LIMIT 1"
         );
-        $stmt->execute([$userId, $clubId]);
+        $stmt->execute([$userId, $clubId, $role]);
         $accessRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($accessRow) {
@@ -208,9 +217,9 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
         } else {
             $stmt = $pdo->prepare(
                 "INSERT INTO user_club_access (user_id, club_profile_id, role, granted_by, active, granted_at)
-                 VALUES (?, ?, 'coach', ?, TRUE, CURRENT_TIMESTAMP)"
+                 VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP)"
             );
-            $stmt->execute([$userId, $clubId, $actorId ?: null]);
+            $stmt->execute([$userId, $clubId, $role, $actorId ?: null]);
             // A coach who cannot see their own club for five minutes is a support ticket.
             te_role_cache_invalidate($userId);
             $access = 'granted';
@@ -237,7 +246,7 @@ function te_coach_invite_ensure_user_and_token(PDO $pdo, array $person, int $clu
     }
 
     AuditLogger::log($pdo, $actorId, 'coach_invite_created', 'users', $userId, [
-        'club_id' => $clubId, 'email' => $email, 'source' => $source,
+        'club_id' => $clubId, 'email' => $email, 'source' => $source, 'role' => $role,
         'user_created' => $created, 'access' => $access,
     ]);
 

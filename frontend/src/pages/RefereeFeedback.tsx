@@ -288,7 +288,7 @@ const RefereeFeedback: React.FC = () => {
               <DataTable<RefereeSummaryRow>
                 columns={summaryColumns}
                 rows={summary}
-                rowKey={(s) => s.referee_name}
+                rowKey={(s) => (s.referee_id != null ? `id-${s.referee_id}` : `name-${s.referee_name}`)}
               />
             </section>
           )}

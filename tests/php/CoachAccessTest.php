@@ -261,8 +261,10 @@ class CoachAccessTest extends TestCase
         $this->assertSame('Coach', te_coach_invite_role_label('coach'));
         $this->assertSame('Treasurer', te_coach_invite_role_label('treasurer'));
         $this->assertSame('Volunteer', te_coach_invite_role_label('volunteer'));
+        $this->assertSame('Referee', te_coach_invite_role_label('referee'));
         $this->assertSame('Coach', te_coach_invite_role_label(null));
-        $this->assertSame(['club_admin', 'coach', 'treasurer', 'volunteer'], TE_STAFF_INVITE_ROLES);
+        // referee joined 2026-09-08 (Referees directory): same :coach_invite token, its own role row.
+        $this->assertSame(['club_admin', 'coach', 'treasurer', 'volunteer', 'referee'], TE_STAFF_INVITE_ROLES);
 
         // The template takes the label and uses it in the heading; the subject
         // no longer says "coach". Parse-based: Email::send() is private.

@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useRef, useCallb
 import { useAuth } from './AuthContext';
 
 interface RoleContext {
-  role: 'club_admin' | 'coach' | 'parent' | 'player';
+  role: 'club_admin' | 'coach' | 'parent' | 'player' | 'treasurer' | 'volunteer' | 'referee';
   scope_type: 'club' | 'team';
   scope_id: number;
   /**

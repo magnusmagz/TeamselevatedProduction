@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { landingRouteFor } from '../utils/landingRoute';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -53,20 +54,12 @@ export default function VerifyMagicLink() {
         // Refresh auth context
         await refreshAuth();
 
-        // Check where to redirect
-        const isSuperAdmin = data.user?.system_role === 'super_admin';
-        const userRoles = data.user?.roles || [];
-        const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
+        // Where to land is ONE rule (utils/landingRoute.ts), shared with Login.
+        const landing = landingRouteFor(data.user);
 
         // Redirect after a short delay
         setTimeout(() => {
-          if (isSuperAdmin) {
-            navigate('/super-admin');
-          } else if (isParent) {
-            navigate('/parent');
-          } else {
-            navigate('/dashboard');
-          }
+          navigate(landing);
         }, 1500);
       } else {
         setStatus('error');

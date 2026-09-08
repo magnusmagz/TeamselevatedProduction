@@ -30,6 +30,28 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-08
+
+### Referees — directory, `referee` role, game assignments (branch `feature/referees`, NOT deployed)
+- Migration **099** `099_referees.sql` written, NOT applied: `referees`, `game_referees`,
+  `referee_feedback.referee_id`, `calendar_events.min_referee_grade`, and the approved
+  non-additive step — the `user_club_access.role` CHECK re-created with `referee`
+  (found by definition in `pg_constraint`; raises unless exactly one matches; expected name
+  `user_club_access_role_check`). Reverse SQL in the header.
+- Backend: `lib/referees.php` + `api/referees.php` (list / search / create / update /
+  archive / restore / invite / for-event / assign / unassign / my-games / open-games /
+  claim / release), `lib/coach_invite.php` takes a `$role`, `invitations-gateway` links
+  directory rows on accept, `legacy/events-gateway.php` accepts `referees` +
+  `min_referee_grade` on POST/PUT and emits `referee_status` on the list, `lib/JWT.php`
+  ranks `referee` (the one approved word). Audit: `referee_created` / `_updated` /
+  `_archived` / `_restored` / `_invite_attached`, `referee_assigned_to_game` /
+  `_unassigned_from_game`, `referee_self_assigned` / `referee_released`.
+- Frontend: `/referees` (People, admin), `/referee` (the referee's page), Referees block +
+  minimum-grade select on the game modal, "Needs ref" chip on staff game tiles, feedback
+  typeahead. Referee is invitable (Invite form) and manageable on Club Settings → Users.
+- Deploy order when it ships: backend → `apply-migration.php 099_referees.sql` → fixture
+  refresh + delete the PENDING entries → frontend.
+
 ## 2026-09-06
 
 ### In-platform release note + six help articles published (Heroku v623 scripts)

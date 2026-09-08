@@ -203,3 +203,48 @@ describe('TeamCalendarView practice counts', () => {
     expect(tileValue(/Practices This Month/i)).toBe('0');
   });
 });
+
+
+describe('Referees on the calendar (2026-09-08)', () => {
+  const gameNeedingRef = {
+    id: 11, name: 'Cup tie', type: 'game', event_date: dateStr(9), status: 'scheduled', teams: [],
+    referee_status: 'needs_ref', referee_count: 0, min_referee_grade: 'Regional',
+  };
+  const coveredGame = {
+    id: 12, name: 'Covered tie', type: 'game', event_date: dateStr(10), status: 'scheduled', teams: [],
+    referee_status: 'covered', referee_count: 1,
+  };
+
+  beforeEach(() => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('events-gateway.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [gameNeedingRef, coveredGame] }) });
+      }
+      if (url.includes('/api/referees.php')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, available: true, referees: [], roles: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [], venues: [], teams: [] }) });
+    });
+  });
+
+  it('shows the "Needs ref" chip on an upcoming game with no center referee, and not on a covered one', async () => {
+    render(<TeamCalendarView />);
+    await waitFor(() => expect(screen.getAllByText('Cup tie').length).toBeGreaterThan(0));
+    const chips = screen.getAllByTestId('needs-ref-chip');
+    expect(chips.length).toBeGreaterThan(0);
+    expect(eventTile('Cup tie')).toContainElement(chips[0]);
+    expect(eventTile('Covered tie').querySelector('[data-testid="needs-ref-chip"]')).toBeNull();
+  });
+
+  it('shows the chip and the minimum grade in the game modal header, with the Referees block', async () => {
+    render(<TeamCalendarView />);
+    await waitFor(() => expect(screen.getAllByText('Cup tie').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByText('Cup tie')[0]);
+
+    const heading = await screen.findByRole('heading', { name: /Edit Event/ });
+    expect(within(heading).getByTestId('needs-ref-chip')).toBeInTheDocument();
+    expect(heading).toHaveTextContent('Min grade: Regional');
+    expect(screen.getByTestId('game-referees-block')).toBeInTheDocument();
+    expect((screen.getByLabelText(/Minimum referee grade/) as HTMLSelectElement).value).toBe('Regional');
+  });
+});

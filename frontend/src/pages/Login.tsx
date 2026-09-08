@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { landingRouteFor } from '../utils/landingRoute';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
@@ -40,25 +41,12 @@ export default function Login() {
       localStorage.setItem('auth_token', data.token);
       login(data.token, data.user);
 
-      // Check where to redirect after login
-      const isSuperAdmin = data.user?.system_role === 'super_admin';
-      const userRoles = data.user?.roles || [];
-      const isParent = userRoles.some((r: { role: string }) => r.role === 'parent');
-
+      // Where to land is ONE rule (utils/landingRoute.ts): super admin,
+      // referee-only → /referee, any parent → /parent, else the staff dashboard.
+      const landing = landingRouteFor(data.user);
       console.log('Login response:', data);
-      console.log('User roles:', userRoles);
-      console.log('Is parent:', isParent, 'Is super_admin:', isSuperAdmin);
-
-      if (isSuperAdmin) {
-        console.log('Redirecting to /super-admin (super_admin)');
-        navigate('/super-admin');
-      } else if (isParent) {
-        console.log('Redirecting to /parent');
-        navigate('/parent');
-      } else {
-        console.log('Redirecting to /dashboard');
-        navigate('/dashboard');
-      }
+      console.log('Redirecting to', landing);
+      navigate(landing);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

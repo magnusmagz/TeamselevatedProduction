@@ -60,6 +60,7 @@ class RefereeFeedbackTest extends TestCase
                 incident INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT,
                 updated_at TEXT,
+                referee_id INTEGER,
                 UNIQUE (calendar_event_id, submitted_by, referee_name)
             );
         ");
@@ -379,6 +380,59 @@ class RefereeFeedbackTest extends TestCase
         $this->assertSame(1, $byName['M. Flag']['count']);
         $this->assertSame(5.0, $byName['M. Flag']['average_rating']);
         $this->assertSame(0, $byName['M. Flag']['incident_count']);
+    }
+
+    /** Referees directory (migration 099): a directory pick stores referee_id and the summary groups on it. */
+    public function testADirectoryPickStoresRefereeIdAndTheSummaryGroupsOnIt(): void
+    {
+        $e500 = te_referee_feedback_event($this->pdo, 500);
+        $e503 = te_referee_feedback_event($this->pdo, 503);
+
+        $v = te_referee_feedback_validate(['referee_name' => 'John Whistle', 'referee_id' => '7', 'rating' => 4]);
+        $this->assertNull($v['error']);
+        $this->assertSame(7, $v['values']['referee_id']);
+        $id = te_referee_feedback_create($this->pdo, $e500, 10, 50, $v['values']);
+        $this->assertSame(7, te_referee_feedback_find($this->pdo, $id)['referee_id']);
+
+        // Two spellings of the same directory referee are ONE summary line …
+        te_referee_feedback_create($this->pdo, $e503, 10, 50, $this->values(['referee_name' => 'J. Whistle', 'referee_id' => 7, 'rating' => 2]));
+        // … and a free-typed name with no id stays its own line, even if it matches a spelling.
+        te_referee_feedback_create($this->pdo, $e500, 11, 51, $this->values(['referee_name' => 'J. Whistle', 'rating' => 5]));
+
+        $summary = te_referee_feedback_summary(te_referee_feedback_list($this->pdo, 100, []));
+        $picked = array_values(array_filter($summary, fn($s) => $s['referee_id'] === 7));
+        $this->assertCount(1, $picked);
+        $this->assertSame(2, $picked[0]['count']);
+        $this->assertSame(3.0, $picked[0]['average_rating']);
+        $free = array_values(array_filter($summary, fn($s) => $s['referee_id'] === null));
+        $this->assertCount(1, $free);
+        $this->assertSame('J. Whistle', $free[0]['referee_name']);
+
+        // A free-typed name validates with referee_id NULL; a bad id is refused.
+        $this->assertNull(te_referee_feedback_validate(['referee_name' => 'X', 'rating' => 3])['values']['referee_id']);
+        $this->assertNotNull(te_referee_feedback_validate(['referee_name' => 'X', 'rating' => 3, 'referee_id' => 'abc'])['error']);
+
+        // Edit can change the pick.
+        $v2 = te_referee_feedback_validate(['referee_name' => 'John Whistle', 'referee_id' => 8, 'rating' => 4]);
+        te_referee_feedback_update($this->pdo, $id, $v2['values']);
+        $this->assertSame(8, te_referee_feedback_find($this->pdo, $id)['referee_id']);
+    }
+
+    /** Before 099 the column is absent: the INSERT must not name it. */
+    public function testWithoutTheRefereeIdColumnRowsStillWriteAndReadAsNull(): void
+    {
+        $pdo = $this->basePdo();
+        $pdo->exec("CREATE TABLE referee_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, club_id INTEGER, calendar_event_id INTEGER, team_id INTEGER,
+            submitted_by INTEGER, referee_name TEXT, rating INTEGER, categories TEXT, comments TEXT,
+            incident INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT)");
+        $this->assertFalse(te_referee_feedback_referee_column_present($pdo));
+        $event = te_referee_feedback_event($pdo, 500);
+        $id = te_referee_feedback_create($pdo, $event, 10, 50, $this->values(['referee_id' => 7]));
+        $row = te_referee_feedback_find($pdo, $id);
+        $this->assertNull($row['referee_id']);
+        te_referee_feedback_update($pdo, $id, $this->values(['rating' => 2, 'referee_id' => 7]));
+        $this->assertSame(2, te_referee_feedback_find($pdo, $id)['rating']);
     }
 
     public function testMineIsTheCallersRowsOnly(): void

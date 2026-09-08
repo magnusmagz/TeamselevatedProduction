@@ -32,7 +32,7 @@ interface ClubUser {
  * the Crew page invites them with a `:parent_invite`, and api/coach-access.php
  * refuses them with a 422 that says so. Mirrors TE_STAFF_INVITE_ROLES.
  */
-const STAFF_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer'];
+const STAFF_ROLES = ['club_admin', 'coach', 'treasurer', 'volunteer', 'referee'];
 
 const ClubUserManagement: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';

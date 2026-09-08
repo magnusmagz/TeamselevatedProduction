@@ -118,6 +118,7 @@ if ($action === 'event') {
         'available'  => $available,
         'event'      => [
             'id'            => $event['id'],
+            'club_id'       => $event['club_id'],
             'name'          => $event['name'],
             'event_date'    => substr($event['event_date'], 0, 10),
             'opponent_name' => $event['opponent_name'],
@@ -249,7 +250,8 @@ if ($action === 'create') {
 
     // One row per (game, coach, referee): a second submission is an edit.
     foreach (te_referee_feedback_for_event($pdo, $event['id'], $userId) as $existing) {
-        if (mb_strtolower($existing['referee_name']) === mb_strtolower($values['referee_name'])) {
+        $sameDirectoryPick = !empty($values['referee_id']) && (int) ($existing['referee_id'] ?? 0) === (int) $values['referee_id'];
+        if ($sameDirectoryPick || mb_strtolower($existing['referee_name']) === mb_strtolower($values['referee_name'])) {
             te_ref_fail(409, 'You have already recorded feedback about this referee for this game — edit that instead', [
                 'id' => $existing['id'],
             ]);
@@ -267,6 +269,7 @@ if ($action === 'create') {
         'feedback_id'  => $id,
         'team_id'      => $teamId,
         'referee_name' => $values['referee_name'],
+        'referee_id'   => $values['referee_id'] ?? null,
         'rating'       => $values['rating'],
         'incident'     => $values['incident'],
     ]);

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
 interface RoleContext {
-  role: 'club_admin' | 'coach' | 'parent' | 'player';
+  role: 'club_admin' | 'coach' | 'parent' | 'player' | 'treasurer' | 'volunteer' | 'referee';
   scope_type: 'club' | 'team';
   scope_id: number;
   /**

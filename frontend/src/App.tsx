@@ -109,6 +109,9 @@ import ComplianceDashboard from './pages/ComplianceDashboard';
 // TE_FEATURE_COMPLIANCE is on: the gateway answers 503 and every page says so.
 import ClubCompliance from './pages/ClubCompliance';
 import RefereeFeedback from './pages/RefereeFeedback';
+import Referees from './pages/Referees';
+import RefereeHome from './pages/RefereeHome';
+import ProtectedRefereeRoute from './components/ProtectedRefereeRoute';
 import ComplianceRequirements from './pages/ComplianceRequirements';
 // GOTR G5 — the rollup for the tier above the club. Read-only; the server
 // decides standing per request, the nav entry is a convenience.
@@ -283,8 +286,12 @@ function AppContent() {
   const moderationCount = useModerationOpenCount(isAdmin, currentClubId);
   const openReports = moderationCount?.openTotal ?? 0;
 
-  // Hide floating chat widget on parent portal (has its own chat in bottom nav)
-  const isParentPortal = location.pathname.startsWith('/parent');
+  // Hide floating chat widget on parent portal (has its own chat in bottom nav).
+  // The referee page (/referee, Referees 2026-09-08) is the same shape: a
+  // referee-only account never sees the staff nav, the chat bubble or the
+  // support button — their games are the whole page.
+  const isRefereePage = location.pathname === '/referee' || location.pathname.startsWith('/referee/');
+  const isParentPortal = location.pathname.startsWith('/parent') || isRefereePage;
 
   // Close mobile menu on route change
   React.useEffect(() => {
@@ -323,6 +330,7 @@ function AppContent() {
         { to: '/athletes', label: 'Athletes' },
         { to: '/crew', label: 'Crew' },
         { to: '/coaches', label: 'Coaches' },
+        { to: '/referees', label: 'Referees' },
         { to: '/volunteers', label: 'Volunteers' },
         { to: '/compliance', label: 'Compliance' },
       ]
@@ -1069,6 +1077,20 @@ function AppContent() {
             <ProtectedClubAdminRoute>
               <RefereeFeedback />
             </ProtectedClubAdminRoute>
+          } />
+          {/* People → Referees: the club's referee directory. Admin only; the
+              backend gates every write on te_is_club_admin. */}
+          <Route path="/referees" element={
+            <ProtectedClubAdminRoute>
+              <Referees />
+            </ProtectedClubAdminRoute>
+          } />
+          {/* The referee's own page: their games and contact card, no staff
+              chrome (see isRefereePage above). Requires the referee role. */}
+          <Route path="/referee" element={
+            <ProtectedRefereeRoute>
+              <RefereeHome />
+            </ProtectedRefereeRoute>
           } />
           <Route path="/compliance/requirements" element={
             <ProtectedClubAdminRoute>

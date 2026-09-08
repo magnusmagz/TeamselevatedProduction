@@ -88,6 +88,7 @@ describe('RefereeFeedbackModal', () => {
       event_id: 500,
       team_id: 10,
       referee_name: 'M. Flag',
+      referee_id: null,
       rating: 4,
       categories: ['control', 'safety'],
       comments: 'Fine.',
@@ -170,5 +171,55 @@ describe('RefereeFeedbackModal', () => {
 
     const select = (await screen.findByLabelText(/Your team/i)) as HTMLSelectElement;
     expect(select.options.length).toBe(3); // placeholder + 2
+  });
+});
+
+
+describe('RefereeFeedbackModal — directory typeahead (2026-09-08)', () => {
+  it('picking a referee from the directory stores referee_id; retyping drops it', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('action=event')) return Promise.resolve(eventResponse({ event: { id: 500, club_id: 100, name: 'League match', event_date: '2026-09-01', opponent_name: 'Rivals FC' } }));
+      if (url.includes('/api/referees.php?action=search')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, available: true, referees: [
+          { id: 7, name: 'John Whistle', first_name: 'John', last_name: 'Whistle', email: 'jw@ref.test', grade: 'Regional', certification_level: null, user_id: null },
+        ] }) });
+      }
+      if (url.includes('action=create')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, id: 9, feedback: { ...existing, id: 9 } }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    const onSaved = jest.fn();
+    render(<RefereeFeedbackModal eventId={500} apiUrl={API} onClose={() => {}} onSaved={onSaved} />);
+    await screen.findByText(/Rivals FC/);
+
+    const input = screen.getByLabelText(/Referee name/i);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'john' } });
+    fireEvent.click(await screen.findByRole('option', { name: /John Whistle/ }));
+    expect((input as HTMLInputElement).value).toBe('John Whistle');
+    expect(screen.getByTestId('referee-picked')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: /4/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Save feedback/i }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const call = (global.fetch as jest.Mock).mock.calls.find(([u]) => String(u).includes('action=create'));
+    expect(JSON.parse(call![1].body)).toMatchObject({ referee_name: 'John Whistle', referee_id: 7 });
+  });
+
+  it('a free-typed name still submits, with referee_id null', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('action=event')) return Promise.resolve(eventResponse({ event: { id: 500, club_id: 100, name: 'League match', event_date: '2026-09-01', opponent_name: 'Rivals FC' } }));
+      if (url.includes('action=search')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, available: true, referees: [] }) });
+      if (url.includes('action=create')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, id: 9, feedback: { ...existing, id: 9 } }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    const onSaved = jest.fn();
+    render(<RefereeFeedbackModal eventId={500} apiUrl={API} onClose={() => {}} onSaved={onSaved} />);
+    await screen.findByText(/Rivals FC/);
+    fireEvent.change(screen.getByLabelText(/Referee name/i), { target: { value: 'Someone New' } });
+    fireEvent.click(screen.getByRole('radio', { name: /3/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Save feedback/i }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const call = (global.fetch as jest.Mock).mock.calls.find(([u]) => String(u).includes('action=create'));
+    expect(JSON.parse(call![1].body)).toMatchObject({ referee_name: 'Someone New', referee_id: null });
   });
 });

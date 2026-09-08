@@ -6,6 +6,10 @@ import PracticeScheduler from './PracticeScheduler';
 import CanvaGraphicActions from './canva/CanvaGraphicActions';
 import { useAuth } from '../contexts/AuthContext';
 import RefereeFeedbackModal from './referee/RefereeFeedbackModal';
+import GameRefereesBlock from './referee/GameRefereesBlock';
+import NeedsRefChip from './referee/NeedsRefChip';
+import { PendingRefereeAssignment } from './referee/refereeTypes';
+import { GAME_MIN_GRADES } from '../constants/refereeGrades';
 import { toDateOnlyString } from '../utils/dateFormat';
 import PageHeader from './ui/PageHeader';
 import Button from './ui/Button';
@@ -31,6 +35,13 @@ interface Event {
   subscription_id?: number | null;
   recurrence_group_id?: string | null;
   recurrence_rule?: string | null;
+  /** Referees (2026-09-08): 'covered' | 'needs_ref' for an upcoming game; absent before migration 099. */
+  referee_status?: 'covered' | 'needs_ref' | null;
+  referee_count?: number;
+  /** Lowest referee grade for this game; null / absent = any. */
+  min_referee_grade?: string | null;
+  /** CREATE only: sent with the game so it is saved with its referees in one request. */
+  referees?: { referee_id: number; role: string }[];
 }
 
 // Add Event "Repeat" choices → backend recurrence config (frequency/interval).
@@ -125,6 +136,16 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
     status: 'scheduled',
     opponent_name: ''
   });
+  // Referees picked on the CREATE form, sent as `referees` with the game.
+  // The edit form is server-backed (GameRefereesBlock in edit mode).
+  const [pendingReferees, setPendingReferees] = useState<PendingRefereeAssignment[]>([]);
+  // Staff see the "Needs ref" chip and the Referees block; a parent on a
+  // read-only calendar never does. The server re-derives standing on every
+  // assign, so this only decides what is drawn.
+  const isStaffViewer = !readOnly && (
+    user?.system_role === 'super_admin' || user?.activeRole?.role === 'club_admin' || user?.activeRole?.role === 'coach'
+  );
+  const viewerClubId: number | null = user?.activeRole?.scope_id ?? null;
   // Recurrence controls for the Add Event form (new events only — occurrences
   // are materialized server-side, so edits always target one occurrence).
   const [repeatOption, setRepeatOption] = useState('none');
@@ -707,6 +728,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       opponent_name: ''
     });
     setSelectedEvent(null);
+    setPendingReferees([]);
     resetRecurrence();
     setShowEventForm(true);
   };
@@ -742,6 +764,11 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
       // Include invite/update flags in the request
       const requestData = {
         ...eventFormData,
+        // A new GAME carries its referees in the same request (additive field;
+        // the gateway ignores it when absent). Edits assign live from the block.
+        referees: !selectedEvent && eventFormData.type === 'game' && pendingReferees.length > 0
+          ? pendingReferees.map((p) => ({ referee_id: p.referee_id, role: p.role }))
+          : undefined,
         send_invites: !selectedEvent && sendInvites,  // Send invites only for new events
         send_updates: selectedEvent && sendUpdates,    // Send updates only when editing
         // Recurrence applies to new events only; the backend expands it into
@@ -790,6 +817,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
 
         setShowEventForm(false);
         fetchEvents();
+        setPendingReferees([]);
         setEventFormData({
           name: '',
           type: 'event',
@@ -1020,6 +1048,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         <div className="font-medium truncate">{event.name}</div>
                         {event.opponent_name && <div className="text-xs truncate">vs {event.opponent_name}</div>}
                         {event.start_time && <div className="text-xs">{event.start_time}</div>}
+                        {isStaffViewer && event.type === 'game' && <NeedsRefChip status={event.referee_status} className="mt-0.5" />}
                       </div>
                     ))}
                     {day.events.length > 4 && (
@@ -1076,6 +1105,7 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                             </div>
                             {event.opponent_name && <div className="text-xs opacity-75">vs {event.opponent_name}</div>}
                             {event.venue_name && <div className="text-xs opacity-75">{event.venue_name}</div>}
+                            {isStaffViewer && event.type === 'game' && <NeedsRefChip status={event.referee_status} className="mt-1" />}
                           </div>
                         ))}
                       </div>
@@ -1240,8 +1270,14 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-brand-secondary rounded-md max-w-2xl w-full my-8">
             <div className="border-b border-brand-secondary px-6 py-4">
-              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide">
+              <h3 className="text-xl font-semibold text-brand-primary uppercase tracking-wide flex items-center gap-3">
                 {selectedEvent ? 'Edit Event' : 'Add New Event'}
+                {isStaffViewer && selectedEvent?.type === 'game' && (
+                  <NeedsRefChip status={selectedEvent.referee_status} className="normal-case tracking-normal" />
+                )}
+                {isStaffViewer && selectedEvent?.type === 'game' && selectedEvent.min_referee_grade && (
+                  <span className="text-xs font-normal normal-case tracking-normal text-gray-600">Min grade: {selectedEvent.min_referee_grade}</span>
+                )}
               </h3>
             </div>
 
@@ -1564,6 +1600,41 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                       placeholder="e.g., Springfield FC"
                     />
                   </div>
+                )}
+
+                {eventFormData.type === 'game' && isStaffViewer && (
+                  <div className="col-span-2">
+                    <label htmlFor="min-referee-grade" className="block text-brand-primary text-sm font-medium mb-2 uppercase">
+                      Minimum referee grade
+                    </label>
+                    <select
+                      id="min-referee-grade"
+                      value={eventFormData.min_referee_grade || ''}
+                      onChange={(e) => setEventFormData({ ...eventFormData, min_referee_grade: e.target.value || null })}
+                      className="w-full bg-white text-brand-primary border border-brand-secondary rounded-md px-4 py-2 focus:outline-none focus:border-brand-accent"
+                    >
+                      <option value="">Any</option>
+                      {GAME_MIN_GRADES.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Referees on the game (2026-09-08). Create: picks are held
+                    locally and sent with the game. Edit: assign / unassign live.
+                    Coaches of a team on the event may assign; the server checks. */}
+                {eventFormData.type === 'game' && isStaffViewer && (
+                  <GameRefereesBlock
+                    apiUrl={API_URL}
+                    clubId={viewerClubId}
+                    eventId={selectedEvent?.id ?? null}
+                    canEdit
+                    minGrade={eventFormData.min_referee_grade || null}
+                    pending={pendingReferees}
+                    onPendingChange={setPendingReferees}
+                    onChanged={fetchEvents}
+                  />
                 )}
               </div>
 

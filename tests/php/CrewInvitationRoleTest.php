@@ -40,6 +40,22 @@ class CrewInvitationRoleTest extends TestCase
         );
     }
 
+    /** Referees (2026-09-08) are invited here too, and the form offers the role in both selectors. */
+    public function testRefereeIsInvitable(): void
+    {
+        preg_match('/const\s+TE_INVITABLE_ROLES\s*=\s*\[([^\]]*)\]/', $this->gateway(), $m);
+        $this->assertNotEmpty($m);
+        $this->assertStringContainsString("'referee'", $m[1]);
+
+        $form = file_get_contents(self::FORM);
+        $this->assertSame(2, substr_count($form, '<option value="referee">Referee</option>'),
+            'Both the email-invite and shareable-link role selectors must offer Referee.');
+
+        // Accepting a referee invite links the club's directory row to the account.
+        $this->assertStringContainsString('te_referee_link_user_by_email', $this->gateway());
+        $this->assertStringContainsString("'linked_referees'", $this->gateway());
+    }
+
     /**
      * A whitelist that lists every CHECK value is not a whitelist. Nothing invites
      * into these, and `player` in particular should never be invitable — migration 067

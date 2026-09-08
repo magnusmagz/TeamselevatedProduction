@@ -3,6 +3,7 @@ import { REFEREE_FEEDBACK_CATEGORIES } from '../../constants/refereeFeedbackCate
 import { formatDateOnly } from '../../utils/dateFormat';
 import { RefereeFeedbackRow } from './types';
 import Button from '../ui/Button';
+import RefereeTypeahead from './RefereeTypeahead';
 
 /**
  * Record or edit a coach's feedback about the referee(s) of a game (CKU R68).
@@ -26,6 +27,7 @@ interface Props {
 
 interface EventInfo {
   id: number;
+  club_id?: number | null;
   name: string;
   event_date: string;
   opponent_name: string | null;
@@ -35,6 +37,8 @@ interface FormState {
   id: number | null;
   team_id: number | '';
   referee_name: string;
+  /** A directory pick (Referees, 2026-09-08). Null for a free-typed name. */
+  referee_id: number | null;
   rating: number | null;
   categories: string[];
   comments: string;
@@ -45,6 +49,7 @@ const emptyForm = (teamId: number | ''): FormState => ({
   id: null,
   team_id: teamId,
   referee_name: '',
+  referee_id: null,
   rating: null,
   categories: [],
   comments: '',
@@ -112,6 +117,7 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
       id: row.id,
       team_id: row.team_id,
       referee_name: row.referee_name,
+      referee_id: row.referee_id ?? null,
       rating: row.rating,
       categories: row.categories,
       comments: row.comments ?? '',
@@ -154,6 +160,7 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
 
     const shared = {
       referee_name: name,
+      referee_id: form.referee_id,
       rating: form.rating,
       categories,
       comments: form.comments.trim(),
@@ -272,15 +279,23 @@ const RefereeFeedbackModal: React.FC<Props> = ({ eventId, apiUrl, onClose, onSav
 
               <div>
                 <label htmlFor="ref-name" className="block text-sm font-medium text-gray-700">Referee name</label>
-                <input
-                  id="ref-name"
-                  type="text"
-                  value={form.referee_name}
-                  onChange={(e) => setForm({ ...form, referee_name: e.target.value })}
-                  maxLength={120}
-                  placeholder="As shown on the game card"
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
+                {/* Typeahead over the club's directory; a free-typed name still
+                    works. Retyping after a pick drops the pick — the stored
+                    referee_id must match the name the coach can see. */}
+                <div className="mt-1">
+                  <RefereeTypeahead
+                    id="ref-name"
+                    apiUrl={apiUrl}
+                    clubId={event?.club_id ?? null}
+                    value={form.referee_name}
+                    onChange={(text) => setForm({ ...form, referee_name: text, referee_id: null })}
+                    onPick={(hit) => setForm({ ...form, referee_name: hit.name, referee_id: hit.id })}
+                    placeholder="As shown on the game card"
+                  />
+                </div>
+                {form.referee_id !== null && (
+                  <p className="text-xs text-gray-500 mt-1" data-testid="referee-picked">From the club directory</p>
+                )}
               </div>
 
               <fieldset>

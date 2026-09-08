@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinancialPermissions } from '../contexts/FinancialPermissionsContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isRefereeOnly } from '../utils/landingRoute';
 
 interface ParentRedirectProps {
   children: React.ReactNode;
@@ -21,6 +22,13 @@ export const ParentRedirect: React.FC<ParentRedirectProps> = ({ children }) => {
 
     // Super admins always stay on dashboard
     if (user?.system_role === 'super_admin') return;
+
+    // A referee-only account (Referees, 2026-09-08) has no staff app to see:
+    // their games live at /referee. Read off the JWT roles, no API needed.
+    if (isRefereeOnly(user)) {
+      navigate('/referee', { replace: true });
+      return;
+    }
 
     // Check if user is parent-only (has parent role but no coach/admin roles)
     const isParentOnly = roles.is_parent && !roles.is_coach && !roles.is_club_admin && !roles.is_treasurer;
@@ -52,7 +60,7 @@ export const ParentRedirect: React.FC<ParentRedirectProps> = ({ children }) => {
 
   // Parent-only users will be redirected, but render nothing briefly
   const isParentOnly = user?.system_role !== 'super_admin' && roles.is_parent && !roles.is_coach && !roles.is_club_admin && !roles.is_treasurer;
-  if (isParentOnly) {
+  if (isParentOnly || (user?.system_role !== 'super_admin' && isRefereeOnly(user))) {
     return null;
   }
 

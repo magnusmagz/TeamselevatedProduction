@@ -87,7 +87,7 @@ class JWT {
             -- changed. Seven accounts hold two roles in one club.
             --
             -- Most privileged wins, so the answer is never a downgrade:
-            -- club_admin > treasurer > coach > volunteer > parent > player.
+            -- club_admin > treasurer > coach > volunteer > referee > parent > player.
             -- The frontend's OrgContext derives isClubAdmin (and therefore the
             -- whole admin nav) from this pick; backend authorization does NOT —
             -- AuthMiddleware::hasRole() checks every role and is unaffected.
@@ -99,8 +99,9 @@ class JWT {
                         WHEN 'treasurer'  THEN 2
                         WHEN 'coach'      THEN 3
                         WHEN 'volunteer'  THEN 4
-                        WHEN 'parent'     THEN 5
-                        WHEN 'player'     THEN 6
+                        WHEN 'referee'    THEN 5
+                        WHEN 'parent'     THEN 6
+                        WHEN 'player'     THEN 7
                         ELSE 99
                      END,
                      uca.club_profile_id

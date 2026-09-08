@@ -203,6 +203,8 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                 <option value="parent">Crew</option>
                 {/* Money only: payments, reports, revenue. Not athlete or crew data. */}
                 <option value="treasurer">Treasurer</option>
+                {/* Their own games and contact card only; not club staff (lib/referees.php). */}
+                <option value="referee">Referee</option>
               </select>
             </div>
 
@@ -239,6 +241,8 @@ export default function InviteUsersForm({ clubId, onSuccess }: InviteUsersFormPr
                 <option value="parent">Crew</option>
                 {/* Money only: payments, reports, revenue. Not athlete or crew data. */}
                 <option value="treasurer">Treasurer</option>
+                {/* Their own games and contact card only; not club staff (lib/referees.php). */}
+                <option value="referee">Referee</option>
               </select>
             </div>
 

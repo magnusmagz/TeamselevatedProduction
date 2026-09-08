@@ -98,6 +98,35 @@ class ActiveRolePrecedenceTest extends TestCase
         $this->assertSame('volunteer', $this->activeRole());
     }
 
+    /**
+     * `referee` (migration 099, 2026-09-08) sits after volunteer and before
+     * parent: a referee who is also a parent lands in the staff-side app where
+     * /referee lives, not the parent portal. The one approved edit to JWT.php
+     * for the Referees workstream is this single word in the ORDER BY.
+     */
+    public function testVolunteerBeatsReferee(): void
+    {
+        $this->grant([['referee', 51], ['volunteer', 51]]);
+
+        $this->assertSame('volunteer', $this->activeRole());
+    }
+
+    public function testRefereeBeatsParent(): void
+    {
+        $this->grant([['parent', 51], ['referee', 51]]);
+
+        $this->assertSame('referee', $this->activeRole());
+    }
+
+    /** Every value the CHECK constraint allows has a rank; ELSE 99 must never be reached. */
+    public function testEveryCheckValueIsOrdered(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../../lib/JWT.php');
+        foreach (['club_admin', 'treasurer', 'coach', 'volunteer', 'referee', 'parent', 'player'] as $role) {
+            $this->assertMatchesRegularExpression("/WHEN '{$role}'\s+THEN \d/", $src, "{$role} is not ranked in JWT::buildOrganizationalContext");
+        }
+    }
+
     public function testParentBeatsPlayer(): void
     {
         $this->grant([['player', 51], ['parent', 51]]);
@@ -109,7 +138,7 @@ class ActiveRolePrecedenceTest extends TestCase
     public function testTheWholeLadderHolds(): void
     {
         $this->grant([
-            ['player', 51], ['parent', 51], ['volunteer', 51],
+            ['player', 51], ['parent', 51], ['referee', 51], ['volunteer', 51],
             ['coach', 51], ['treasurer', 51], ['club_admin', 51],
         ]);
 

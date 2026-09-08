@@ -6,6 +6,8 @@ export interface RefereeFeedbackRow {
   team_id: number;
   submitted_by: number;
   referee_name: string;
+  /** Directory pick (Referees, migration 099); null for a free-typed name. */
+  referee_id?: number | null;
   rating: number;
   categories: string[];
   comments: string | null;
@@ -23,6 +25,8 @@ export interface RefereeFeedbackRow {
 
 export interface RefereeSummaryRow {
   referee_name: string;
+  /** Grouped by id when the rows were directory picks, else by name. */
+  referee_id?: number | null;
   count: number;
   average_rating: number;
   incident_count: number;
