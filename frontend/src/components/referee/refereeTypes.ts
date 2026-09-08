@@ -58,6 +58,8 @@ export interface GameRefereeAssignment {
   role: GameRefereeRole | string;
   self_assigned: boolean;
   grade_override: boolean;
+  /** Staff placed them on top of an overlapping game that day, knowingly. */
+  conflict_override?: boolean;
 }
 
 /** What the create form holds before the game exists. */
@@ -94,6 +96,9 @@ export interface RefereeGame {
   min_referee_grade?: string | null;
   referees?: { id: number; name: string; role: string; grade: string | null }[];
   open_roles?: string[];
+  /** open-games: overlaps a game they are already on — shown greyed, not hidden. */
+  conflict?: boolean;
+  conflict_reason?: string | null;
 }
 
 export interface RefereeClub {

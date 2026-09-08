@@ -92,6 +92,29 @@ describe('GameRefereesBlock', () => {
     expect(await screen.findByTestId('game-referee-1')).toHaveTextContent('Below minimum');
   });
 
+  it('warns when an assistant-only grade is picked as center, and shows the time-clash badge + warnings after assign', async () => {
+    const ar = { ...hit, id: 5, name: 'Ann Line', grade: 'National Assistant Referee' };
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('action=for-event')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, available: true, referees: [], roles: [] }) });
+      if (url.includes('action=search')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, available: true, referees: [ar] }) });
+      if (url.includes('action=assign')) return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, warnings: ['They are already on League match from 10:00, which overlaps this game. The assignment is marked.'], referees: [assigned({ id: 5, name: 'Ann Line', role: 'center', grade: 'National Assistant Referee', grade_override: true, conflict_override: true })] }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    render(<GameRefereesBlock apiUrl={API} clubId={100} eventId={500} canEdit minGrade={null} />);
+    await screen.findByTestId('game-referees-empty');
+    const input = screen.getByPlaceholderText('Add a referee…');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'ann' } });
+    fireEvent.click(await screen.findByRole('option', { name: /Ann Line/ }));
+    expect(screen.getByTestId('grade-warning')).toHaveTextContent('assistant referee grade');
+    fireEvent.change(screen.getByLabelText(/Referee role/), { target: { value: 'assistant' } });
+    expect(screen.queryByTestId('grade-warning')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Referee role/), { target: { value: 'center' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    expect(await screen.findByTestId('conflict-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('assign-warnings')).toHaveTextContent('already on League match');
+  });
+
   it('CREATE mode: holds picks locally and reports them to the parent, never calling assign', async () => {
     mockSearch([hit]);
     const onPendingChange = jest.fn();

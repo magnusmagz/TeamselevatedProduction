@@ -429,14 +429,24 @@ function referees_assign(PDO $pdo, $auth, array $body): array
 
     // Staff may place someone below the game's minimum grade — they may know
     // better — and the row and the audit row both say so.
-    $override = !te_referee_grade_meets($referee['grade'] ?? null, $event['min_referee_grade'] ?? null);
-    te_game_referee_assign($pdo, (int) $event['id'], $refereeId, $role, referees_actor($auth), false, $override);
+    $override = !te_referee_grade_qualifies($referee['grade'] ?? null, $event['min_referee_grade'] ?? null, $role);
+    // Same for a time clash: allowed, recorded, and the response carries the warning.
+    $conflict = te_referee_conflict_for($pdo, te_referee_row_ids_for_person($pdo, $referee), $event);
+    te_game_referee_assign($pdo, (int) $event['id'], $refereeId, $role, referees_actor($auth), false, $override, $conflict !== null);
     AuditLogger::log($pdo, referees_actor($auth), 'referee_assigned_to_game', 'calendar_event', (int) $event['id'], [
         'club_id' => $event['club_id'], 'referee_id' => $refereeId, 'role' => $role,
         'grade_override' => $override, 'referee_grade' => $referee['grade'] ?? null,
         'min_referee_grade' => $event['min_referee_grade'] ?? null,
+        'conflict_override' => $conflict !== null, 'conflicts_with_event_id' => $conflict['id'] ?? null,
     ]);
-    return ['status' => 200, 'body' => ['success' => true, 'referees' => te_game_referees_for_event($pdo, (int) $event['id'])]];
+    $warnings = [];
+    if ($override) {
+        $warnings[] = 'Placed below the game\'s requirements (grade); the assignment is marked.';
+    }
+    if ($conflict !== null) {
+        $warnings[] = te_referee_conflict_sentence($conflict, false) . ' The assignment is marked.';
+    }
+    return ['status' => 200, 'body' => ['success' => true, 'warnings' => $warnings, 'referees' => te_game_referees_for_event($pdo, (int) $event['id'])]];
 }
 
 function referees_unassign(PDO $pdo, $auth, array $body): array

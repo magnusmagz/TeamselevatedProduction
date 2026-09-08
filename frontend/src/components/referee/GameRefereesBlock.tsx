@@ -5,7 +5,7 @@ import {
   GAME_REFEREE_ROLES, GAME_REFEREE_ROLE_LABEL, GameRefereeAssignment, GameRefereeRole,
   PendingRefereeAssignment, RefereeSearchHit,
 } from './refereeTypes';
-import { refereeGradeMeets } from '../../constants/refereeGrades';
+import { refereeGradeQualifies, isAssistantOnlyGrade } from '../../constants/refereeGrades';
 
 /**
  * The Referees block on a game's event modal (Maggie, 2026-09-08).
@@ -49,6 +49,7 @@ const GameRefereesBlock: React.FC<Props> = ({
   const [picked, setPicked] = useState<RefereeSearchHit | null>(null);
   const [role, setRole] = useState<GameRefereeRole>('center');
   const [busy, setBusy] = useState(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const token = localStorage.getItem('auth_token');
   const editMode = eventId != null;
 
@@ -78,7 +79,8 @@ const GameRefereesBlock: React.FC<Props> = ({
     load();
   }, [load]);
 
-  const belowMinimum = picked ? !refereeGradeMeets(picked.grade, minGrade) : false;
+  const belowMinimum = picked ? !refereeGradeQualifies(picked.grade, minGrade, role) : false;
+  const assistantOnlyAsCenter = picked ? role === 'center' && isAssistantOnlyGrade(picked.grade) : false;
 
   const add = async () => {
     if (!picked) return;
@@ -103,6 +105,7 @@ const GameRefereesBlock: React.FC<Props> = ({
         return;
       }
       setAssigned(Array.isArray(data.referees) ? data.referees : []);
+      setWarnings(Array.isArray(data.warnings) ? data.warnings : []);
       setPicked(null);
       setQuery('');
       onChanged?.();
@@ -140,7 +143,7 @@ const GameRefereesBlock: React.FC<Props> = ({
     }
   };
 
-  const rows: Array<{ id: number; name: string; grade: string | null; role: string; self_assigned?: boolean; grade_override?: boolean }> =
+  const rows: Array<{ id: number; name: string; grade: string | null; role: string; self_assigned?: boolean; grade_override?: boolean; conflict_override?: boolean }> =
     editMode ? assigned : pending.map((p) => ({ id: p.referee_id, name: p.name, grade: p.grade, role: p.role }));
   const excludeIds = rows.map((r) => r.id);
   const roleLabel = (r: string) => GAME_REFEREE_ROLE_LABEL[r as GameRefereeRole] ?? r;
@@ -172,8 +175,13 @@ const GameRefereesBlock: React.FC<Props> = ({
                   <span className="ml-2 inline-block px-1.5 py-0.5 text-xs rounded bg-sky-100 text-sky-800">Self-assigned</span>
                 )}
                 {r.grade_override && (
-                  <span className="ml-2 inline-block px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-900" title="Placed below the game's minimum grade">
+                  <span className="ml-2 inline-block px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-900" title="Placed below the game's minimum grade, or an assistant grade as center">
                     Below minimum
+                  </span>
+                )}
+                {r.conflict_override && (
+                  <span className="ml-2 inline-block px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-900" title="On an overlapping game that day" data-testid="conflict-badge">
+                    Time clash
                   </span>
                 )}
               </span>
@@ -208,7 +216,10 @@ const GameRefereesBlock: React.FC<Props> = ({
             />
             {belowMinimum && picked && (
               <p className="mt-1 text-xs text-amber-900" data-testid="grade-warning">
-                {picked.name}&apos;s grade ({picked.grade || 'not set'}) is below this game&apos;s minimum ({minGrade}). You can still assign them; the assignment will be marked.
+                {assistantOnlyAsCenter
+                  ? `${picked.name}'s grade (${picked.grade}) is an assistant referee grade, not a center grade.`
+                  : `${picked.name}'s grade (${picked.grade || 'not set'}) is below this game's minimum (${minGrade}).`}
+                {' '}You can still assign them; the assignment will be marked.
               </p>
             )}
           </div>
@@ -228,6 +239,11 @@ const GameRefereesBlock: React.FC<Props> = ({
         </div>
       )}
 
+      {warnings.length > 0 && (
+        <ul className="mt-2 text-xs text-amber-900" data-testid="assign-warnings">
+          {warnings.map((w) => <li key={w}>{w}</li>)}
+        </ul>
+      )}
       {error && <p className="mt-2 text-xs text-red-700" role="alert">{error}</p>}
     </div>
   );

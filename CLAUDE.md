@@ -1208,6 +1208,19 @@ transaction, never fatal; `linked_referees` on the response).
   filters on the caller's grade IN THAT CLUB and `claim` re-checks it (422 with a
   sentence — the list is never trusted). Staff may place someone below it; the picker
   warns and the row + audit row record `grade_override`.
+- **Assistant-only grades** (`Regional Assistant Referee`, `National Assistant Referee`)
+  rank at their level for the minimum but NEVER qualify for `center`
+  (`te_referee_grade_qualifies(grade, min, role)` / `refereeGradeQualifies`): open-games
+  omits center for them (and the game entirely when center is the only open role); claim
+  as center is 422. **Per-game self-assign toggle** `calendar_events.allow_referee_self_assign`
+  (default TRUE — Maggie: self-assign is the norm; "Referees can claim this game" on the
+  game form): open-games hides closed games, claim re-checks (422), staff assignment is
+  unaffected. **Time conflicts**: same date and overlapping `start_time`/`end_time`
+  (NULL end = 2 h, NULL start = cannot clash), per PERSON across every club
+  (`te_referee_conflict_for` over all the user's directory rows). Claim → 409 naming the
+  game; open-games shows it greyed with `conflict_reason` rather than hiding it; staff
+  assign is allowed, warned (`warnings[]` in the response) and recorded as
+  `game_referees.conflict_override`.
 - **"Needs ref"** — `legacy/events-gateway.php`'s list gains `referee_status`
   (`covered` / `needs_ref`) + `referee_count` from two correlated subselects in the SAME
   query (`te_game_referee_status_columns`), absent until 099 is applied; only an

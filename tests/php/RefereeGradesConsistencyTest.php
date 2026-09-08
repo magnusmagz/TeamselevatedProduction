@@ -20,7 +20,7 @@ class RefereeGradesConsistencyTest extends TestCase
     {
         $src = file_get_contents(self::TS);
         $this->assertNotFalse($src);
-        preg_match_all("/\{\s*value:\s*'([^']+)',\s*label:\s*'[^']+',\s*group:\s*'(?:current|legacy)',\s*rank:\s*(\d)\s*\}/", $src, $m, PREG_SET_ORDER);
+        preg_match_all("/\{\s*value:\s*'([^']+)',\s*label:\s*'[^']+',\s*group:\s*'(?:current|legacy)',\s*rank:\s*(\d)(,\s*assistantOnly:\s*true)?\s*\}/", $src, $m, PREG_SET_ORDER);
         $this->assertNotEmpty($m, 'could not parse REFEREE_GRADE_OPTIONS');
         $out = [];
         foreach ($m as $row) {
@@ -39,6 +39,18 @@ class RefereeGradesConsistencyTest extends TestCase
         foreach ($this->tsRanks() as $value => $rank) {
             $this->assertSame($rank, te_referee_grade_rank($value), "rank of {$value} differs between PHP and TS");
         }
+    }
+
+    /** The assistant-only flag is on the same two grades on both sides. */
+    public function testAssistantOnlyGradesMatch(): void
+    {
+        $src = file_get_contents(self::TS);
+        preg_match_all("/value:\s*'([^']+)'[^}]*assistantOnly:\s*true/", $src, $m);
+        $this->assertSame(TE_REFEREE_ASSISTANT_ONLY_GRADES, array_map('strtolower', $m[1]));
+        foreach ($m[1] as $g) {
+            $this->assertTrue(te_referee_grade_is_assistant_only($g));
+        }
+        $this->assertFalse(te_referee_grade_is_assistant_only('National'));
     }
 
     public function testTheGameMinimumsAreTheFourNamedGrades(): void

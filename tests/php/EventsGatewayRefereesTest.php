@@ -58,6 +58,10 @@ class EventsGatewayRefereesTest extends TestCase
             $this->assertStringContainsString('te_min_referee_grade_column_present(', $branch, 'the column may not exist yet');
         }
         $this->assertStringContainsString("array_key_exists('min_referee_grade', \$data)", $this->putBranch(), 'an absent key must keep the stored value');
+        $this->assertStringContainsString("array_key_exists('allow_referee_self_assign', \$data)", $this->putBranch(), 'the toggle too');
+        $this->assertStringContainsString('te_game_self_assign_flag(', $this->postBranch());
+        $this->assertStringContainsString('allow_referee_self_assign', file_get_contents(self::MIGRATION));
+        $this->assertStringContainsString('conflict_override', file_get_contents(self::MIGRATION));
     }
 
     public function testTheListCarriesRefereeStatusFromOneQuery(): void

@@ -121,11 +121,23 @@ describe('RefereeHome — the referee\'s own page', () => {
     });
   });
 
+  it('greys a conflicting open game with the reason and disables Take', async () => {
+    mockApi({
+      open: [game({ id: 510, name: 'Morning clash', role: undefined, self_assigned: undefined, referees: [], open_roles: ['center'],
+        conflict: true, conflict_reason: 'You are already on League match from 10:00, which overlaps this game.' })],
+    });
+    render(<RefereeHome />);
+    const card = await screen.findByTestId('open-game-510');
+    expect(card).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('conflict-510')).toHaveTextContent('already on League match');
+    expect(screen.getByRole('button', { name: /Take this game/ })).toBeDisabled();
+  });
+
   it('edits the contact card through user-profile.php', async () => {
     mockApi({});
     render(<RefereeHome />);
-    await screen.findByTestId('contact-card');
-    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    // The Edit control appears once the profile has loaded, not when the card mounts.
+    fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }));
     fireEvent.change(screen.getByLabelText(/^Phone/), { target: { value: '316-555-0101' } });
     fireEvent.submit(screen.getByRole('button', { name: /^Save$/ }).closest('form') as HTMLFormElement);
 

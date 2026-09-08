@@ -49,6 +49,9 @@ Newest first. Times are Pacific.
 - Frontend: `/referees` (People, admin), `/referee` (the referee's page), Referees block +
   minimum-grade select on the game modal, "Needs ref" chip on staff game tiles, feedback
   typeahead. Referee is invitable (Invite form) and manageable on Club Settings → Users.
+- Refinements (same day): assistant-only grades (Regional/National Assistant Referee, never
+  center), per-game `allow_referee_self_assign` toggle (default TRUE), time-conflict check on
+  claim (409, game named) / open-games (greyed) / staff assign (allowed, `conflict_override`).
 - Deploy order when it ships: backend → `apply-migration.php 099_referees.sql` → fixture
   refresh + delete the PENDING entries → frontend.
 

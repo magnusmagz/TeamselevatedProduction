@@ -70,8 +70,18 @@ const TE_GAME_REFEREE_ROLES = ['referee', 'center', 'assistant', 'fourth'];
  */
 const TE_REFEREE_GRADES = [
     'Grassroots', 'Regional', 'National', 'Professional',
+    'Regional Assistant Referee', 'National Assistant Referee',
     'Grade 9', 'Grade 8', 'Grade 7', 'Grade 6', 'Grade 5', 'Grade 4', 'Grade 3', 'Grade 2', 'Grade 1',
 ];
+
+/**
+ * US Soccer assistant-only grades. They rank at their level for the
+ * minimum-grade comparison and qualify for assistant / fourth, NEVER center.
+ */
+const TE_REFEREE_ASSISTANT_ONLY_GRADES = ['regional assistant referee', 'national assistant referee'];
+
+/** Time-conflict rule: a game with no end_time is assumed to run this long. */
+const TE_GAME_DEFAULT_DURATION_MINUTES = 120;
 
 /**
  * Grade → rank. Higher is more qualified. Anything not here (free text, blank)
@@ -79,6 +89,7 @@ const TE_REFEREE_GRADES = [
  */
 const TE_REFEREE_GRADE_RANK = [
     'grassroots' => 1, 'regional' => 2, 'national' => 3, 'professional' => 4,
+    'regional assistant referee' => 2, 'national assistant referee' => 3,
     'grade 9' => 1, 'grade 8' => 1, 'grade 7' => 1,
     'grade 6' => 2, 'grade 5' => 2,
     'grade 4' => 3, 'grade 3' => 3,
@@ -258,6 +269,24 @@ function te_referee_grade_meets(?string $grade, ?string $minimum): bool
     }
     $have = te_referee_grade_rank($grade);
     return $have !== null && $have >= $min;
+}
+
+/** Is this an assistant-only grade (cannot take center)? */
+function te_referee_grade_is_assistant_only(?string $grade): bool
+{
+    return in_array(strtolower(trim((string) $grade)), TE_REFEREE_ASSISTANT_ONLY_GRADES, true);
+}
+
+/**
+ * Does a referee's grade qualify them for THIS ROLE on a game with this
+ * minimum? The minimum comparison plus the assistant-only rule.
+ */
+function te_referee_grade_qualifies(?string $grade, ?string $minimum, string $role): bool
+{
+    if ($role === 'center' && te_referee_grade_is_assistant_only($grade)) {
+        return false;
+    }
+    return te_referee_grade_meets($grade, $minimum);
 }
 
 /** Normalise a game's minimum-grade claim: null/'' → null, one of the four → canonical, else null-with-error. */
@@ -483,20 +512,35 @@ function te_referee_link_user_by_email(PDO $pdo, int $userId, string $email): in
 /** The game an assignment is about: id, club_id, type. Null when it does not exist. */
 function te_game_for_assignment(PDO $pdo, int $eventId): ?array
 {
-    $grade = te_min_referee_grade_column_present($pdo) ? 'min_referee_grade' : 'NULL AS min_referee_grade';
-    $stmt = $pdo->prepare("SELECT id, club_id, type, event_date, {$grade} FROM calendar_events WHERE id = ?");
+    $cols = te_min_referee_grade_column_present($pdo)
+        ? 'min_referee_grade, allow_referee_self_assign'
+        : 'NULL AS min_referee_grade, 1 AS allow_referee_self_assign';
+    $stmt = $pdo->prepare("SELECT id, club_id, name, type, event_date, start_time, end_time, {$cols} FROM calendar_events WHERE id = ?");
     $stmt->execute([$eventId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         return null;
     }
     return [
-        'id'                => (int) $row['id'],
-        'club_id'           => $row['club_id'] === null ? null : (int) $row['club_id'],
-        'type'              => (string) $row['type'],
-        'event_date'        => substr((string) $row['event_date'], 0, 10),
-        'min_referee_grade' => $row['min_referee_grade'] ?? null,
+        'id'                        => (int) $row['id'],
+        'club_id'                   => $row['club_id'] === null ? null : (int) $row['club_id'],
+        'name'                      => (string) $row['name'],
+        'type'                      => (string) $row['type'],
+        'event_date'                => substr((string) $row['event_date'], 0, 10),
+        'start_time'                => $row['start_time'],
+        'end_time'                  => $row['end_time'],
+        'min_referee_grade'         => $row['min_referee_grade'] ?? null,
+        'allow_referee_self_assign' => te_referee_is_true($row['allow_referee_self_assign'] ?? true),
     ];
+}
+
+/** Normalise the self-assign toggle: absent/null → null (leave alone), else a bool. */
+function te_game_self_assign_flag($raw): ?bool
+{
+    if ($raw === null || $raw === '') {
+        return null;
+    }
+    return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
 }
 
 /** Is calendar_events.min_referee_grade (migration 099) live? Memoised per PDO. */
@@ -543,24 +587,119 @@ function te_game_referee_assignability(array $event, ?array $referee): ?string
  * marks a referee's own claim; `$gradeOverride` records that staff placed
  * someone below the game's minimum grade, knowingly.
  */
-function te_game_referee_assign(PDO $pdo, int $eventId, int $refereeId, string $role, ?int $actorId, bool $selfAssigned = false, bool $gradeOverride = false): void
+function te_game_referee_assign(PDO $pdo, int $eventId, int $refereeId, string $role, ?int $actorId, bool $selfAssigned = false, bool $gradeOverride = false, bool $conflictOverride = false): void
 {
     $now = te_referees_now_sql($pdo);
+    $b = fn(bool $v) => te_referees_bool_param($pdo, $v);
     $stmt = $pdo->prepare('SELECT id FROM game_referees WHERE calendar_event_id = ? AND referee_id = ?');
     $stmt->execute([$eventId, $refereeId]);
     $existing = $stmt->fetchColumn();
     if ($existing !== false) {
         $stmt = $pdo->prepare(
-            'UPDATE game_referees SET role = ?, assigned_by = ?, self_assigned = ?, grade_override = ?, assigned_at = ' . $now . ' WHERE id = ?'
+            'UPDATE game_referees SET role = ?, assigned_by = ?, self_assigned = ?, grade_override = ?, conflict_override = ?, assigned_at = ' . $now . ' WHERE id = ?'
         );
-        $stmt->execute([$role, $actorId, te_referees_bool_param($pdo, $selfAssigned), te_referees_bool_param($pdo, $gradeOverride), (int) $existing]);
+        $stmt->execute([$role, $actorId, $b($selfAssigned), $b($gradeOverride), $b($conflictOverride), (int) $existing]);
         return;
     }
     $stmt = $pdo->prepare(
-        "INSERT INTO game_referees (calendar_event_id, referee_id, role, assigned_by, assigned_at, self_assigned, grade_override)
-         VALUES (?, ?, ?, ?, {$now}, ?, ?)"
+        "INSERT INTO game_referees (calendar_event_id, referee_id, role, assigned_by, assigned_at, self_assigned, grade_override, conflict_override)
+         VALUES (?, ?, ?, ?, {$now}, ?, ?, ?)"
     );
-    $stmt->execute([$eventId, $refereeId, $role, $actorId, te_referees_bool_param($pdo, $selfAssigned), te_referees_bool_param($pdo, $gradeOverride)]);
+    $stmt->execute([$eventId, $refereeId, $role, $actorId, $b($selfAssigned), $b($gradeOverride), $b($conflictOverride)]);
+}
+
+// ---------------------------------------------------------------------------
+// Time conflicts
+// ---------------------------------------------------------------------------
+
+/** 'HH:MM[:SS]' → minutes since midnight, or null. */
+function te_game_time_minutes($t): ?int
+{
+    if ($t === null || !preg_match('/^(\d{1,2}):(\d{2})/', (string) $t, $m)) {
+        return null;
+    }
+    return (int) $m[1] * 60 + (int) $m[2];
+}
+
+/**
+ * Do two games on the same day overlap? A missing end_time is assumed
+ * TE_GAME_DEFAULT_DURATION_MINUTES after the start; a missing start_time is
+ * "time to be confirmed" and cannot be shown to conflict with anything.
+ */
+function te_games_overlap(array $a, array $b): bool
+{
+    if (substr((string) ($a['event_date'] ?? ''), 0, 10) !== substr((string) ($b['event_date'] ?? ''), 0, 10)) {
+        return false;
+    }
+    $aStart = te_game_time_minutes($a['start_time'] ?? null);
+    $bStart = te_game_time_minutes($b['start_time'] ?? null);
+    if ($aStart === null || $bStart === null) {
+        return false;
+    }
+    $aEnd = te_game_time_minutes($a['end_time'] ?? null) ?? $aStart + TE_GAME_DEFAULT_DURATION_MINUTES;
+    $bEnd = te_game_time_minutes($b['end_time'] ?? null) ?? $bStart + TE_GAME_DEFAULT_DURATION_MINUTES;
+    return $aStart < $bEnd && $bStart < $aEnd;
+}
+
+/** Every game (any club) the given referee rows are on, on one date. */
+function te_referee_games_on_date(PDO $pdo, array $refereeRowIds, string $date, int $excludeEventId = 0): array
+{
+    $refereeRowIds = array_values(array_unique(array_map('intval', $refereeRowIds)));
+    if (empty($refereeRowIds)) {
+        return [];
+    }
+    // Bounded by one person's directory rows — one per club they referee for.
+    $marks = implode(',', array_fill(0, count($refereeRowIds), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT ce.id, ce.name, ce.event_date, ce.start_time, ce.end_time, ce.opponent_name, cp.name AS club_name, gr.role
+           FROM game_referees gr
+           JOIN calendar_events ce ON ce.id = gr.calendar_event_id
+           LEFT JOIN club_profile cp ON cp.id = ce.club_id
+          WHERE gr.referee_id IN ($marks) AND ce.event_date = ? AND ce.id <> ?
+          ORDER BY ce.start_time, ce.id"
+    );
+    $stmt->execute(array_merge($refereeRowIds, [$date, $excludeEventId]));
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/** The directory rows (every club) behind one referee row: by user id when linked, else the row alone. */
+function te_referee_row_ids_for_person(PDO $pdo, array $referee): array
+{
+    if (!empty($referee['user_id'])) {
+        $stmt = $pdo->prepare('SELECT id FROM referees WHERE user_id = ?');
+        $stmt->execute([(int) $referee['user_id']]);
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        return $ids ?: [(int) $referee['id']];
+    }
+    return [(int) $referee['id']];
+}
+
+/**
+ * The first game that overlaps this one for the given referee rows, or null.
+ * @return array{id:int,name:string,start_time:?string,end_time:?string,club_name:?string}|null
+ */
+function te_referee_conflict_for(PDO $pdo, array $refereeRowIds, array $event): ?array
+{
+    foreach (te_referee_games_on_date($pdo, $refereeRowIds, (string) $event['event_date'], (int) $event['id']) as $other) {
+        if (te_games_overlap($event, $other)) {
+            return [
+                'id' => (int) $other['id'], 'name' => (string) $other['name'],
+                'start_time' => $other['start_time'], 'end_time' => $other['end_time'],
+                'club_name' => $other['club_name'] ?? null,
+            ];
+        }
+    }
+    return null;
+}
+
+/** The one sentence that names a conflict. */
+function te_referee_conflict_sentence(array $conflict, bool $secondPerson = true): string
+{
+    $start = $conflict['start_time'] ? substr((string) $conflict['start_time'], 0, 5) : null;
+    $end = $conflict['end_time'] ? substr((string) $conflict['end_time'], 0, 5) : null;
+    $when = $start ? ($end ? "{$start}–{$end}" : "from {$start}") : 'that day';
+    $club = !empty($conflict['club_name']) ? " ({$conflict['club_name']})" : '';
+    return ($secondPerson ? 'You are' : 'They are') . " already on {$conflict['name']}{$club} {$when}, which overlaps this game.";
 }
 
 /** @return bool whether a row was removed */
@@ -575,7 +714,7 @@ function te_game_referee_unassign(PDO $pdo, int $eventId, int $refereeId): bool
 function te_game_referees_for_event(PDO $pdo, int $eventId): array
 {
     $stmt = $pdo->prepare(
-        'SELECT gr.id AS assignment_id, gr.role, gr.assigned_at, gr.self_assigned, gr.grade_override,
+        'SELECT gr.id AS assignment_id, gr.role, gr.assigned_at, gr.self_assigned, gr.grade_override, gr.conflict_override,
                 r.id, r.club_id, r.user_id, r.first_name, r.last_name, r.email, r.phone,
                 r.grade, r.certification_level, r.archived_at
            FROM game_referees gr
@@ -590,6 +729,7 @@ function te_game_referees_for_event(PDO $pdo, int $eventId): array
         $row['assignment_id'] = (int) $row['assignment_id'];
         $row['self_assigned'] = te_referee_is_true($row['self_assigned'] ?? false);
         $row['grade_override'] = te_referee_is_true($row['grade_override'] ?? false);
+        $row['conflict_override'] = te_referee_is_true($row['conflict_override'] ?? false);
         $out[] = $row;
     }
     return $out;
@@ -626,10 +766,12 @@ function te_game_referees_apply(PDO $pdo, array $event, array $list, ?int $actor
         if ($reason !== null) {
             throw new InvalidArgumentException($reason);
         }
-        // Staff may place someone below the minimum; the row says so.
+        // Staff may place someone below the minimum, or on top of an
+        // overlapping game; the row says so either way.
         $wanted[$refereeId] = [
             'role' => $role,
-            'override' => !te_referee_grade_meets($referee['grade'] ?? null, $event['min_referee_grade'] ?? null),
+            'override' => !te_referee_grade_qualifies($referee['grade'] ?? null, $event['min_referee_grade'] ?? null, $role),
+            'conflict' => te_referee_conflict_for($pdo, te_referee_row_ids_for_person($pdo, $referee), $event) !== null,
         ];
     }
 
@@ -641,7 +783,7 @@ function te_game_referees_apply(PDO $pdo, array $event, array $list, ?int $actor
         }
     }
     foreach ($wanted as $refereeId => $w) {
-        te_game_referee_assign($pdo, (int) $event['id'], $refereeId, $w['role'], $actorId, false, $w['override']);
+        te_game_referee_assign($pdo, (int) $event['id'], $refereeId, $w['role'], $actorId, false, $w['override'], $w['conflict']);
     }
     return count($wanted);
 }
@@ -797,7 +939,11 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
     // Bounded by the clubs the referee works for — a handful.
     $clubIds = array_keys($gradeByClub);
     $marks = implode(',', array_fill(0, count($clubIds), '?'));
-    $minGrade = te_min_referee_grade_column_present($pdo) ? 'ce.min_referee_grade' : 'NULL AS min_referee_grade';
+    $live = te_min_referee_grade_column_present($pdo);
+    $minGrade = $live ? 'ce.min_referee_grade' : 'NULL AS min_referee_grade';
+    // Closed games never appear; the toggle is per game, default on.
+    $selfAssignFilter = $live ? 'AND ce.allow_referee_self_assign = ' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '1' : 'TRUE') : '';
+    $myRowIds = array_values($myRefereeIdByClub);
 
     $stmt = $pdo->prepare(
         "SELECT ce.id, ce.club_id, ce.name, ce.event_date, ce.start_time, ce.end_time,
@@ -810,6 +956,7 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
           WHERE ce.type = 'game'
             AND ce.event_date >= ?
             AND ce.club_id IN ($marks)
+            {$selfAssignFilter}
             AND NOT EXISTS (
                 SELECT 1 FROM game_referees gr
                  WHERE gr.calendar_event_id = ce.id AND gr.role = 'center'
@@ -835,6 +982,17 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
         if ($onIt) {
             continue; // it is in My games already
         }
+        // Which positions THIS referee may take: unfilled, and never center for an assistant-only grade.
+        $myGrade = $gradeByClub[$clubId] ?? null;
+        $openRoles = array_values(array_filter(TE_GAME_REFEREE_ROLES, fn($role) =>
+            !te_game_role_filled($assigned, $role) && te_referee_grade_qualifies($myGrade, $r['min_referee_grade'] ?? null, $role)));
+        if (empty($openRoles)) {
+            continue; // e.g. an AR-graded referee and only center is open
+        }
+        // A game that clashes with one they are already on is shown, greyed, with the reason.
+        $conflict = te_referee_conflict_for($pdo, $myRowIds, [
+            'id' => (int) $r['id'], 'event_date' => $r['event_date'], 'start_time' => $r['start_time'], 'end_time' => $r['end_time'],
+        ]);
         $out[] = [
             'id'                => (int) $r['id'],
             'club_id'           => $clubId,
@@ -855,7 +1013,9 @@ function te_referee_open_games(PDO $pdo, int $userId, string $today): array
             'referees'          => array_map(fn($a) => [
                 'id' => $a['id'], 'name' => $a['name'], 'role' => $a['role'], 'grade' => $a['grade'],
             ], $assigned),
-            'open_roles'        => array_values(array_filter(TE_GAME_REFEREE_ROLES, fn($role) => !te_game_role_filled($assigned, $role))),
+            'open_roles'        => $openRoles,
+            'conflict'          => $conflict !== null,
+            'conflict_reason'   => $conflict !== null ? te_referee_conflict_sentence($conflict) : null,
         ];
     }
     return $out;
@@ -879,8 +1039,10 @@ function te_game_teams(PDO $pdo, int $eventId): array
  * never trusted.
  *
  *   403  the club is not one they referee for
- *   422  not a game / already played / grade below the minimum
- *   409  they are already on it / the role is already filled
+ *   422  not a game / already played / closed to self-assignment / grade below
+ *        the minimum / an assistant-only grade asking for center
+ *   409  they are already on it / the role is already filled / it overlaps a
+ *        game they are already on (named)
  *
  * @return array{0:int,1:string}|null
  */
@@ -901,6 +1063,12 @@ function te_referee_claim_refusal(PDO $pdo, int $userId, array $event, string $r
     if ($mine === null) {
         return [403, 'This game belongs to a club you do not referee for.'];
     }
+    if (array_key_exists('allow_referee_self_assign', $event) && !$event['allow_referee_self_assign']) {
+        return [422, 'This game is not open for referees to claim — the club assigns it.'];
+    }
+    if ($role === 'center' && te_referee_grade_is_assistant_only($mine['grade'] ?? null)) {
+        return [422, sprintf('Your grade with this club (%s) is an assistant referee grade, so you cannot take the center on this game.', (string) $mine['grade'])];
+    }
     if (!te_referee_grade_meets($mine['grade'] ?? null, $event['min_referee_grade'] ?? null)) {
         return [422, sprintf(
             'This game needs a %s referee or higher; your grade on file with this club is %s.',
@@ -916,6 +1084,11 @@ function te_referee_claim_refusal(PDO $pdo, int $userId, array $event, string $r
     }
     if (te_game_role_filled($assigned, $role)) {
         return [409, 'That position is already filled on this game.'];
+    }
+    $myRowIds = array_map(fn($c) => (int) $c['referee_id'], te_referee_clubs_for_user($pdo, $userId));
+    $conflict = te_referee_conflict_for($pdo, $myRowIds, $event);
+    if ($conflict !== null) {
+        return [409, te_referee_conflict_sentence($conflict)];
     }
     return null;
 }

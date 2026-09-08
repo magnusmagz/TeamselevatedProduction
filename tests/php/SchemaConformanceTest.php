@@ -59,6 +59,7 @@ class SchemaConformanceTest extends TestCase
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
         'referee_feedback.referee_id'        => '099_referees.sql',
         'calendar_events.min_referee_grade'  => '099_referees.sql',
+        'calendar_events.allow_referee_self_assign' => '099_referees.sql',
     ];
 
     /**

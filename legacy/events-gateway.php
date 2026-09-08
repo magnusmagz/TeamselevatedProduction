@@ -270,6 +270,8 @@ try {
                 exit;
             }
             $minGradeLive = te_min_referee_grade_column_present($pdo);
+            // Self-assign toggle: default TRUE (the norm); absent means the default.
+            $selfAssign = te_game_self_assign_flag($data['allow_referee_self_assign'] ?? null);
 
             $pdo->beginTransaction();
 
@@ -279,8 +281,8 @@ try {
                         club_id, name, type, event_date, start_time, end_time,
                         program_id, venue_id, location, description, status, opponent_name,
                         recurrence_group_id, recurrence_rule, series_original_date, series_original_time,
-                        min_referee_grade
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        min_referee_grade, allow_referee_self_assign
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 " : "
                     INSERT INTO calendar_events (
                         club_id, name, type, event_date, start_time, end_time,
@@ -317,6 +319,7 @@ try {
                     ];
                     if ($minGradeLive) {
                         $insertParams[] = $minGrade['value'];
+                        $insertParams[] = ($selfAssign ?? true) ? 'true' : 'false';
                     }
                     $stmt->execute($insertParams);
 
@@ -525,6 +528,9 @@ try {
                 exit;
             }
             $minGradeLive = $minGradeSent && te_min_referee_grade_column_present($pdo);
+            $selfAssign = array_key_exists('allow_referee_self_assign', $data)
+                ? te_game_self_assign_flag($data['allow_referee_self_assign']) : null;
+            $selfAssignLive = $selfAssign !== null && te_min_referee_grade_column_present($pdo);
 
             $pdo->beginTransaction();
 
@@ -543,6 +549,7 @@ try {
                         status = ?,
                         opponent_name = ?
                         " . ($minGradeLive ? ', min_referee_grade = ?' : '') . "
+                        " . ($selfAssignLive ? ', allow_referee_self_assign = ?' : '') . "
                     WHERE id = ?
                 ");
 
@@ -561,6 +568,9 @@ try {
                 ];
                 if ($minGradeLive) {
                     $updateParams[] = $minGrade['value'];
+                }
+                if ($selfAssignLive) {
+                    $updateParams[] = $selfAssign ? 'true' : 'false';
                 }
                 $updateParams[] = $_GET['id'];
                 $stmt->execute($updateParams);

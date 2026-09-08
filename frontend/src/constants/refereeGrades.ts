@@ -17,6 +17,8 @@ export interface RefereeGradeOption {
   label: string;
   group: 'current' | 'legacy';
   rank: number;
+  /** US Soccer assistant-only grade: qualifies for assistant / fourth at its level, never center. */
+  assistantOnly?: boolean;
 }
 
 export const REFEREE_GRADE_OPTIONS: RefereeGradeOption[] = [
@@ -24,6 +26,8 @@ export const REFEREE_GRADE_OPTIONS: RefereeGradeOption[] = [
   { value: 'Regional', label: 'Regional', group: 'current', rank: 2 },
   { value: 'National', label: 'National', group: 'current', rank: 3 },
   { value: 'Professional', label: 'Professional', group: 'current', rank: 4 },
+  { value: 'Regional Assistant Referee', label: 'Regional Assistant Referee', group: 'current', rank: 2, assistantOnly: true },
+  { value: 'National Assistant Referee', label: 'National Assistant Referee', group: 'current', rank: 3, assistantOnly: true },
   { value: 'Grade 9', label: 'Grade 9', group: 'legacy', rank: 1 },
   { value: 'Grade 8', label: 'Grade 8', group: 'legacy', rank: 1 },
   { value: 'Grade 7', label: 'Grade 7', group: 'legacy', rank: 1 },
@@ -55,6 +59,17 @@ export function refereeGradeMeets(grade: string | null | undefined, minimum: str
   if (min === null) return true;
   const have = refereeGradeRank(grade);
   return have !== null && have >= min;
+}
+
+export function isAssistantOnlyGrade(grade: string | null | undefined): boolean {
+  const k = (grade ?? '').trim().toLowerCase();
+  return REFEREE_GRADE_OPTIONS.some((o) => o.assistantOnly && o.value.toLowerCase() === k);
+}
+
+/** Mirrors te_referee_grade_qualifies(): the minimum, plus "an AR grade never takes center". */
+export function refereeGradeQualifies(grade: string | null | undefined, minimum: string | null | undefined, role: string): boolean {
+  if (role === 'center' && isAssistantOnlyGrade(grade)) return false;
+  return refereeGradeMeets(grade, minimum);
 }
 
 /** Is a stored grade one of the listed options (else it is "Other" free text)? */

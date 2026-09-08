@@ -38,8 +38,9 @@
 -- constraint: if the name it expects is wrong, it raises and the transaction
 -- rolls back. The name Postgres will have given it is user_club_access_role_check.
 --
--- Everything else is additive: two new tables, two nullable columns
--- (referee_feedback.referee_id, calendar_events.min_referee_grade).
+-- Everything else is additive: two new tables, three columns
+-- (referee_feedback.referee_id, calendar_events.min_referee_grade,
+-- calendar_events.allow_referee_self_assign).
 --
 -- calendar_events.min_referee_grade: the lowest grade a referee needs to take
 -- the game (NULL = any). The ordered scale and the legacy 9–1 mapping live in
@@ -55,6 +56,7 @@
 --   DROP TABLE IF EXISTS game_referees;
 --   ALTER TABLE referee_feedback DROP COLUMN IF EXISTS referee_id;
 --   ALTER TABLE calendar_events DROP COLUMN IF EXISTS min_referee_grade;
+--   ALTER TABLE calendar_events DROP COLUMN IF EXISTS allow_referee_self_assign;
 --   DROP TABLE IF EXISTS referees;
 --   ALTER TABLE user_club_access DROP CONSTRAINT user_club_access_role_check;
 --   ALTER TABLE user_club_access ADD CONSTRAINT user_club_access_role_check
@@ -99,6 +101,12 @@ ALTER TABLE calendar_events
 COMMENT ON COLUMN calendar_events.min_referee_grade IS
     'Lowest referee grade that may take this game (Grassroots/Regional/National/Professional); NULL = any.';
 
+-- Self-assignment is the norm (Maggie, 2026-09-08): default TRUE, a game can be closed.
+ALTER TABLE calendar_events
+    ADD COLUMN IF NOT EXISTS allow_referee_self_assign BOOLEAN NOT NULL DEFAULT TRUE;
+COMMENT ON COLUMN calendar_events.allow_referee_self_assign IS
+    'May a referee claim this game from /referee? Staff assignment is unaffected.';
+
 CREATE TABLE IF NOT EXISTS game_referees (
     id                  SERIAL PRIMARY KEY,
     calendar_event_id   INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
@@ -109,6 +117,7 @@ CREATE TABLE IF NOT EXISTS game_referees (
     assigned_at         TIMESTAMP NOT NULL DEFAULT NOW(),
     self_assigned       BOOLEAN NOT NULL DEFAULT FALSE,   -- claimed by the referee from /referee, not placed by staff
     grade_override      BOOLEAN NOT NULL DEFAULT FALSE,   -- staff placed a referee below the game's minimum grade, knowingly
+    conflict_override   BOOLEAN NOT NULL DEFAULT FALSE,   -- staff placed a referee who is on an overlapping game that day, knowingly
     UNIQUE (calendar_event_id, referee_id)
 );
 CREATE INDEX IF NOT EXISTS game_referees_referee_id_idx ON game_referees (referee_id);

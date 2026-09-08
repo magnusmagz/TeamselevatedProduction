@@ -40,6 +40,8 @@ interface Event {
   referee_count?: number;
   /** Lowest referee grade for this game; null / absent = any. */
   min_referee_grade?: string | null;
+  /** May a referee claim this game from /referee? Default true; absent before migration 099. */
+  allow_referee_self_assign?: boolean | null;
   /** CREATE only: sent with the game so it is saved with its referees in one request. */
   referees?: { referee_id: number; role: string }[];
 }
@@ -1618,6 +1620,16 @@ const TeamCalendarView: React.FC<TeamCalendarViewProps> = ({
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
+                    {/* Self-assignment is the norm: unchecked closes THIS game to
+                        claims from /referee. Staff assignment is unaffected. */}
+                    <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={eventFormData.allow_referee_self_assign !== false}
+                        onChange={(e) => setEventFormData({ ...eventFormData, allow_referee_self_assign: e.target.checked })}
+                      />
+                      Referees can claim this game
+                    </label>
                   </div>
                 )}
 

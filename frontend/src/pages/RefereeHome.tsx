@@ -187,7 +187,12 @@ const RefereeHome: React.FC = () => {
   };
 
   const gameCard = (g: RefereeGame, kind: 'open' | 'upcoming' | 'past') => (
-    <li key={`${kind}-${g.id}`} className="border border-brand-secondary rounded-md p-4 bg-white" data-testid={`${kind}-game-${g.id}`}>
+    <li
+      key={`${kind}-${g.id}`}
+      className={`border border-brand-secondary rounded-md p-4 bg-white ${kind === 'open' && g.conflict ? 'opacity-60' : ''}`}
+      data-testid={`${kind}-game-${g.id}`}
+      aria-disabled={kind === 'open' && g.conflict ? true : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="text-sm text-gray-500">
@@ -212,6 +217,9 @@ const RefereeHome: React.FC = () => {
                 : 'Nobody assigned yet.'}
             </div>
           )}
+          {kind === 'open' && g.conflict && (
+            <div className="text-xs text-amber-900 mt-1" data-testid={`conflict-${g.id}`}>{g.conflict_reason || 'Overlaps a game you are already on.'}</div>
+          )}
         </div>
         {kind === 'open' && (
           <div className="flex items-center gap-2">
@@ -225,7 +233,7 @@ const RefereeHome: React.FC = () => {
                 <option key={r} value={r}>{GAME_REFEREE_ROLE_LABEL[r as GameRefereeRole] ?? r}</option>
               ))}
             </select>
-            <Button size="sm" loading={busyGame === g.id} onClick={() => claim(g)}>Take this game</Button>
+            <Button size="sm" loading={busyGame === g.id} disabled={Boolean(g.conflict)} onClick={() => claim(g)}>Take this game</Button>
           </div>
         )}
         {kind === 'upcoming' && g.self_assigned && (

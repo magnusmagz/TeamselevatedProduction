@@ -82,7 +82,8 @@ class RefereesTest extends TestCase
             CREATE TABLE venues (id INTEGER PRIMARY KEY, name TEXT, address TEXT, city TEXT);
             CREATE TABLE calendar_events (id INTEGER PRIMARY KEY, club_id INTEGER, name TEXT, type TEXT,
                 event_date TEXT, start_time TEXT, end_time TEXT, venue_id INTEGER, location TEXT,
-                opponent_name TEXT, status TEXT, min_referee_grade TEXT);
+                opponent_name TEXT, status TEXT, min_referee_grade TEXT,
+                allow_referee_self_assign INTEGER NOT NULL DEFAULT 1);
             CREATE TABLE calendar_event_teams (id INTEGER PRIMARY KEY, event_id INTEGER, team_id INTEGER);
         ");
         return $pdo;
@@ -104,6 +105,7 @@ class RefereesTest extends TestCase
                 role TEXT NOT NULL DEFAULT 'referee' CHECK (role IN ('referee','center','assistant','fourth')),
                 assigned_by INTEGER, assigned_at TEXT, self_assigned INTEGER NOT NULL DEFAULT 0,
                 grade_override INTEGER NOT NULL DEFAULT 0,
+                conflict_override INTEGER NOT NULL DEFAULT 0,
                 UNIQUE (calendar_event_id, referee_id)
             );
         ");
@@ -547,6 +549,145 @@ class RefereesTest extends TestCase
         $this->assertFalse(te_referee_grade_meets(null, 'Grassroots'), 'blank never qualifies for a minimum');
         $this->assertTrue(te_referee_grade_meets(null, null), 'no minimum: anyone');
         $this->assertTrue(te_referee_grade_meets('Other', ''), 'no minimum: anyone');
+    }
+
+    // ---------------------------------------------------------------- assistant-only grades
+
+    public function testAssistantRefereeGradesRankAtTheirLevelButNeverQualifyForCenter(): void
+    {
+        $this->assertTrue(te_referee_grade_meets('Regional Assistant Referee', 'Regional'));
+        $this->assertTrue(te_referee_grade_meets('National Assistant Referee', 'National'));
+        $this->assertFalse(te_referee_grade_meets('Regional Assistant Referee', 'National'));
+        $this->assertTrue(te_referee_grade_qualifies('National Assistant Referee', 'National', 'assistant'));
+        $this->assertTrue(te_referee_grade_qualifies('National Assistant Referee', 'National', 'fourth'));
+        $this->assertFalse(te_referee_grade_qualifies('National Assistant Referee', null, 'center'), 'never center, even with no minimum');
+        $this->assertTrue(te_referee_grade_qualifies('National', null, 'center'));
+        $this->assertContains('Regional Assistant Referee', TE_REFEREE_GRADES, 'offered in the select');
+    }
+
+    public function testAnAssistantGradedRefereeIsNotOfferedCenterAndCannotClaimIt(): void
+    {
+        referees_update($this->pdo, $this->admin(), ['id' => 1, 'grade' => 'National Assistant Referee']);
+        $ref = $this->referee();
+        $open = referees_open_games($this->pdo, $ref, self::TODAY)['body']['games'];
+        $g500 = array_values(array_filter($open, fn($g) => $g['id'] === 500))[0];
+        $this->assertNotContains('center', $g500['open_roles']);
+        $this->assertContains('assistant', $g500['open_roles']);
+        // 504 needs National: an NAR meets that for assistant, and still no center.
+        $g504 = array_values(array_filter($open, fn($g) => $g['id'] === 504))[0];
+        $this->assertSame(['referee', 'assistant', 'fourth'], $g504['open_roles']);
+
+        $c = referees_claim($this->pdo, $ref, ['event_id' => 500, 'role' => 'center'], self::TODAY);
+        $this->assertSame(422, $c['status']);
+        $this->assertStringContainsString('assistant referee grade', $c['body']['error']);
+        $this->assertSame(200, referees_claim($this->pdo, $ref, ['event_id' => 500, 'role' => 'assistant'], self::TODAY)['status']);
+
+        // Staff placing an AR grade as center: allowed, flagged, warned.
+        $a = referees_assign($this->pdo, $this->admin(), ['event_id' => 504, 'referee_id' => 1, 'role' => 'center']);
+        $this->assertSame(200, $a['status']);
+        $this->assertTrue($a['body']['referees'][0]['grade_override']);
+        $this->assertNotEmpty($a['body']['warnings']);
+    }
+
+    /** When center is the only open position, an AR-graded referee does not see the game at all. */
+    public function testAGameOpenOnlyForCenterIsHiddenFromAnAssistantGradedReferee(): void
+    {
+        referees_update($this->pdo, $this->admin(), ['id' => 1, 'grade' => 'Regional Assistant Referee']);
+        foreach (['referee', 'assistant', 'fourth'] as $i => $role) {
+            $this->pdo->exec("INSERT INTO referees (id, club_id, first_name, last_name, created_at, updated_at) VALUES (" . (20 + $i) . ", 100, 'R', '$i', 'x', 'x')");
+            referees_assign($this->pdo, $this->admin(), ['event_id' => 500, 'referee_id' => 20 + $i, 'role' => $role]);
+        }
+        $ids = array_column(referees_open_games($this->pdo, $this->referee(), self::TODAY)['body']['games'], 'id');
+        $this->assertNotContains(500, $ids);
+    }
+
+    // ---------------------------------------------------------------- self-assign toggle
+
+    public function testAGameClosedToSelfAssignmentIsHiddenAndRefused(): void
+    {
+        $this->pdo->exec('UPDATE calendar_events SET allow_referee_self_assign = 0 WHERE id = 500');
+        $ids = array_column(referees_open_games($this->pdo, $this->referee(), self::TODAY)['body']['games'], 'id');
+        $this->assertNotContains(500, $ids);
+        $this->assertContains(503, $ids, 'other games unaffected');
+
+        $c = referees_claim($this->pdo, $this->referee(), ['event_id' => 500, 'role' => 'center'], self::TODAY);
+        $this->assertSame(422, $c['status']);
+        $this->assertStringContainsString('not open for referees to claim', $c['body']['error']);
+
+        // Staff assignment is unaffected by the toggle.
+        $this->assertSame(200, referees_assign($this->pdo, $this->admin(), ['event_id' => 500, 'referee_id' => 1, 'role' => 'center'])['status']);
+        $this->assertTrue(te_game_for_assignment($this->pdo, 503)['allow_referee_self_assign'], 'default is open');
+        $this->assertNull(te_game_self_assign_flag(null));
+        $this->assertFalse(te_game_self_assign_flag('false'));
+        $this->assertTrue(te_game_self_assign_flag('1'));
+    }
+
+    // ---------------------------------------------------------------- time conflicts
+
+    public function testOverlapDetectionAssumesTwoHoursWhenEndTimeIsMissing(): void
+    {
+        $a = ['event_date' => '2026-09-20', 'start_time' => '10:00', 'end_time' => null];
+        $this->assertTrue(te_games_overlap($a, ['event_date' => '2026-09-20', 'start_time' => '11:30', 'end_time' => '13:00']));
+        $this->assertFalse(te_games_overlap($a, ['event_date' => '2026-09-20', 'start_time' => '12:00', 'end_time' => '13:00']), 'ends exactly at 12:00');
+        $this->assertTrue(te_games_overlap(['event_date' => '2026-09-20', 'start_time' => '09:00', 'end_time' => '10:30'], $a));
+        $this->assertFalse(te_games_overlap($a, ['event_date' => '2026-09-21', 'start_time' => '10:00', 'end_time' => null]), 'different day');
+        $this->assertFalse(te_games_overlap($a, ['event_date' => '2026-09-20', 'start_time' => null, 'end_time' => null]), 'no start: cannot be shown to clash');
+        $this->assertTrue(te_games_overlap(['event_date' => '2026-09-20', 'start_time' => '10:00:00', 'end_time' => '12:00:00'], ['event_date' => '2026-09-20', 'start_time' => '11:59', 'end_time' => null]));
+    }
+
+    public function testClaimRefusesAnOverlappingGameNamingItAndOpenGamesMarksItInstead(): void
+    {
+        // Ray claims 500 (Sep 20 10:00, no end → until 12:00). A second club-100 game the same morning:
+        $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, end_time, opponent_name, status) VALUES
+            (510, 100, 'Morning clash', 'game', '2026-09-20', '11:00', '12:30', 'Clash FC', 'scheduled'),
+            (511, 100, 'Afternoon fine', 'game', '2026-09-20', '12:00', '13:30', 'Later FC', 'scheduled')");
+        referees_claim($this->pdo, $this->referee(), ['event_id' => 500, 'role' => 'center'], self::TODAY);
+
+        $c = referees_claim($this->pdo, $this->referee(), ['event_id' => 510, 'role' => 'center'], self::TODAY);
+        $this->assertSame(409, $c['status']);
+        $this->assertStringContainsString('League match', $c['body']['error'], 'the conflicting game is named');
+        $this->assertStringContainsString('from 10:00', $c['body']['error']);
+        $this->assertSame(200, referees_claim($this->pdo, $this->referee(), ['event_id' => 511, 'role' => 'center'], self::TODAY)['status'], 'back-to-back is fine');
+
+        $open = referees_open_games($this->pdo, $this->referee(), self::TODAY)['body']['games'];
+        $g510 = array_values(array_filter($open, fn($g) => $g['id'] === 510))[0] ?? null;
+        $this->assertNotNull($g510, 'shown, not hidden');
+        $this->assertTrue($g510['conflict']);
+        $this->assertStringContainsString('League match', $g510['conflict_reason']);
+        $g503 = array_values(array_filter($open, fn($g) => $g['id'] === 503))[0];
+        $this->assertFalse($g503['conflict']);
+    }
+
+    /** Conflicts are per PERSON: a game in club 200 counts against a club-100 claim. */
+    public function testConflictsSpanClubs(): void
+    {
+        $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, end_time, status) VALUES
+            (520, 200, 'Away same slot', 'game', '2026-09-20', '10:30', '12:00', 'scheduled')");
+        referees_assign($this->pdo, $this->otherAdmin(), ['event_id' => 520, 'referee_id' => 3, 'role' => 'center']);
+        $c = referees_claim($this->pdo, $this->referee(), ['event_id' => 500, 'role' => 'center'], self::TODAY);
+        $this->assertSame(409, $c['status']);
+        $this->assertStringContainsString('Away same slot (Away United)', $c['body']['error']);
+    }
+
+    public function testStaffAssigningOverAConflictIsAllowedWarnedAndFlagged(): void
+    {
+        $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, end_time, status) VALUES
+            (510, 100, 'Morning clash', 'game', '2026-09-20', '11:00', '12:30', 'scheduled')");
+        referees_assign($this->pdo, $this->admin(), ['event_id' => 500, 'referee_id' => 1, 'role' => 'center']);
+        $a = referees_assign($this->pdo, $this->admin(), ['event_id' => 510, 'referee_id' => 1, 'role' => 'center']);
+        $this->assertSame(200, $a['status']);
+        $this->assertTrue($a['body']['referees'][0]['conflict_override']);
+        $this->assertFalse($a['body']['referees'][0]['grade_override']);
+        $this->assertStringContainsString('They are already on League match', $a['body']['warnings'][0]);
+        $details = json_decode($this->audits('referee_assigned_to_game')[1]['details'], true);
+        $this->assertTrue($details['conflict_override']);
+        $this->assertSame(500, $details['conflicts_with_event_id']);
+
+        // The one-step create path flags it too.
+        $this->pdo->exec("INSERT INTO calendar_events (id, club_id, name, type, event_date, start_time, end_time, status) VALUES
+            (512, 100, 'Third clash', 'game', '2026-09-20', '10:15', '11:00', 'scheduled')");
+        te_game_referees_apply($this->pdo, te_game_for_assignment($this->pdo, 512), [['referee_id' => 1, 'role' => 'assistant']], 60, false);
+        $this->assertTrue(te_game_referees_for_event($this->pdo, 512)[0]['conflict_override']);
     }
 
     public function testClaimHappyPathThenReleaseOwnRow(): void
