@@ -28,12 +28,14 @@ class ClubPublicPageTest extends TestCase
     {
         $this->pdo = new PDO('sqlite::memory:');
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        // Postgres has md5(); the logo cache-buster uses it. SQLite gets PHP's.
+        $this->pdo->sqliteCreateFunction('md5', 'md5', 1);
         $this->pdo->exec("
             CREATE TABLE club_profile (id INTEGER PRIMARY KEY, name TEXT, slug TEXT, phone TEXT, email TEXT, website TEXT,
                 address_line1 TEXT, address_line2 TEXT, city TEXT, state TEXT, zip_code TEXT, description TEXT,
                 social_facebook TEXT, social_instagram TEXT, social_twitter TEXT, social_tiktok TEXT, social_youtube TEXT, social_linkedin TEXT,
                 logo_url TEXT, primary_color TEXT, secondary_color TEXT,
-                public_page_enabled INTEGER DEFAULT 1, public_page_tagline TEXT);
+                public_page_enabled INTEGER DEFAULT 1, public_page_tagline TEXT, logo_png TEXT);
             CREATE TABLE sponsors (id INTEGER PRIMARY KEY, club_id INTEGER, name TEXT, website TEXT,
                 contact_name TEXT, contact_email TEXT, contact_phone TEXT, logo_data TEXT,
                 display_order INTEGER, is_active INTEGER DEFAULT 1, deleted_at TEXT);
@@ -57,9 +59,11 @@ class ClubPublicPageTest extends TestCase
             INSERT INTO club_profile VALUES (51, 'Central Kansas United', 'central-kansas-united', '785-555-0100',
                 'admin@cku.org', 'centralkansassoccer.org', '123 Main St', 'Suite 2', 'Salina', 'KS', '67401', 'private notes',
                 'https://facebook.com/cku', 'https://instagram.com/cku', '', NULL, NULL, NULL,
-                'data:image/png;base64,AAAA', '#323c50', '919fba', 1, 'Youth soccer for Salina');
+                'data:image/png;base64,AAAA', '#323c50', '919fba', 1, 'Youth soccer for Salina', 'iVBORw0KGgo=');
             INSERT INTO club_profile VALUES (52, 'Hidden FC', 'hidden-fc', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL);
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL);
+            INSERT INTO club_profile VALUES (53, 'No Logo FC', 'no-logo-fc', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, NULL, NULL);
 
             INSERT INTO sponsors VALUES (1, 51, 'Salina Ford', 'salinaford.com', 'Bob Dealer', 'bob@salinaford.com', '785-555-0199',
                 'data:image/png;base64,BBBB', 1, 1, NULL);
@@ -144,6 +148,14 @@ class ClubPublicPageTest extends TestCase
         foreach (['email', 'address', 'address_line1', 'address_line2', 'zip', 'description', 'map_url'] as $k) {
             $this->assertArrayNotHasKey($k, $club, "$k must not be public");
         }
+    }
+
+    public function testOgImageIsTheRasterLogoUrlOrNull(): void
+    {
+        $club = te_club_public_club_payload(te_club_public_resolve($this->pdo, 'central-kansas-united'));
+        $this->assertMatchesRegularExpression('#^https://.+/api/club-logo\.php\?club_id=51&v=[0-9a-f]{8}$#', $club['og_image']);
+        $none = te_club_public_club_payload(te_club_public_resolve($this->pdo, 'no-logo-fc'));
+        $this->assertNull($none['og_image'], 'no cached PNG means no image, never a data: URI');
     }
 
     public function testAnUnreadableColourFallsBackToThePlatformColour(): void

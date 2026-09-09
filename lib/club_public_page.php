@@ -150,7 +150,8 @@ function te_club_public_resolve(PDO $pdo, string $slug): ?array
         SELECT id, name, slug, phone, website,
                city, state,
                social_facebook, social_instagram, social_twitter, social_tiktok, social_youtube, social_linkedin,
-               logo_url, primary_color, secondary_color
+               logo_url, primary_color, secondary_color,
+               CASE WHEN logo_png IS NOT NULL AND logo_png <> '' THEN substr(md5(logo_png), 1, 8) END AS logo_png_v
                {$extra}
           FROM club_profile
          WHERE LOWER(slug) = LOWER(?)
@@ -189,6 +190,23 @@ function te_club_public_url(?string $raw): ?string
     return filter_var($u, FILTER_VALIDATE_URL) ? $u : null;
 }
 
+/**
+ * The image a link preview shows. Crawlers need an absolute image URL, not a
+ * data: URI, and api/club-logo.php serves the club's rasterised PNG (migration
+ * 049) publicly for exactly this reason — it is what the emails embed. A club
+ * with no cached PNG gets null and the edge function falls back to the
+ * platform logo.
+ */
+function te_club_public_og_image(array $club): ?string
+{
+    $v = $club['logo_png_v'] ?? null;
+    if ($v === null || $v === '') {
+        return null;
+    }
+    $base = rtrim(getenv('BACKEND_URL') ?: 'https://teamselevated-backend-0485388bd66e.herokuapp.com', '/');
+    return $base . '/api/club-logo.php?club_id=' . (int) $club['id'] . '&v=' . rawurlencode((string) $v);
+}
+
 /** The club block of the page payload. */
 function te_club_public_club_payload(array $club): array
 {
@@ -217,6 +235,7 @@ function te_club_public_club_payload(array $club): array
         'state'           => trim((string) ($club['state'] ?? '')) ?: null,
         'socials'         => (object) $socials,
         'logo_url'        => $logo !== '' ? $logo : null,
+        'og_image'        => te_club_public_og_image($club),
         'primary_color'   => te_club_public_color($club['primary_color'] ?? null, '#12443e'),
         'secondary_color' => te_club_public_color($club['secondary_color'] ?? null, '#a3ebd1'),
     ];

@@ -7,6 +7,13 @@
   command = "npm run lint:ci && CI=false npm run build"
   publish = "build"
 
+# Link previews for the public club page: an edge function writes the club's
+# name, tagline and logo into <head> for crawlers that never run the SPA.
+# frontend/netlify/edge-functions/club-og.ts — fails open to the plain page.
+[[edge_functions]]
+  path = "/club/*"
+  function = "club-og"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
