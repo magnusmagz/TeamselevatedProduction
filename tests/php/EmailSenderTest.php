@@ -171,6 +171,9 @@ class EmailSenderTest extends TestCase
             'api/campaign-donations.php',
             'api/webhooks/stripe-connect.php',
             'api/portal-access.php',
+            // Club link page contact form (2026-09-09): the admin is mailed AS the
+            // club, with the visitor in Reply-To.
+            'api/club-public-gateway.php',
         ];
 
         foreach ($shouldBrand as $rel) {

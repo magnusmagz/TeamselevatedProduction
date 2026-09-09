@@ -58,7 +58,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (`notification_centre`) are the chat-notifications workstream and are **applied to Neon
    2026-08-25/26**. **075** (`support_ticket_role_and_trail`) belongs to the support-ticketing
    session and is applied. **078–081** (chat reactions, the reaction emoji set, polls,
-   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). **099** (`referees`, `game_referees`, `calendar_events.min_referee_grade` / `allow_referee_self_assign`, `referee_feedback.referee_id`; includes the approved non-additive `user_club_access` role CHECK swap adding `referee`) applied 2026-09-08 (Heroku v626). **100** (`calendar_events.field_id`) applied 2026-09-08 (Heroku v632). Next free number is **101**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
+   pinned messages) are applied. **082** (`canva_assets`) and **084** (`programs_order_archive`, applied 2026-09-02 via `scripts/apply-migration.php`) are applied. **083** (`broadcast_campaign_body`), **085** (`program_staff`), **086** (`athlete_evaluations`), **087** (`tryout_coach_invites`) **088** (`field_size`) and **090** (`org_units`) applied 2026-09-02. **089** `scale_indexes`, **091** `compliance`, **092** `user_email_signature_format` and **093** `compliance_default_reminder_stream` applied 2026-09-03 (Heroku v592). **095** (`referee_feedback`, slice 8.6 / R68) applied 2026-09-06 (Heroku v602). **094** (`import_jobs_org_unit`, G6 onboarding) is written and applied 2026-09-06 — see CHANGELOG. Next free number is **096** (claimed by the lineup builder spec). **097** (`users_password_set_by_admin`, coach access) applied 2026-09-06 (Heroku v609). **096** (`lineups`, slice 8.5) applied 2026-09-06 (Heroku v612). **098** (`compliance_intake`, G7) applied 2026-09-06 (Heroku v615). **099** (`referees`, `game_referees`, `calendar_events.min_referee_grade` / `allow_referee_self_assign`, `referee_feedback.referee_id`; includes the approved non-additive `user_club_access` role CHECK swap adding `referee`) applied 2026-09-08 (Heroku v626). **100** (`calendar_events.field_id`) applied 2026-09-08 (Heroku v632). **101** (`club_public_page`) is written on `feature/club-link-page` and NOT applied. Next free number is **102**. Apply migrations with `heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php NNN_name.sql` — it runs the file in one transaction and writes a `migration_applied` audit row, so CHANGELOG has something to cite.
 
    ⚠️ **The schema fixture drifts, and a parallel session can revert your refresh.** On
    2026-08-26 a fixture refresh for migration 076 was silently lost between the write and the
@@ -1258,6 +1258,47 @@ transaction, never fatal; `linked_referees` on the response).
   `RefereeFeedbackTest` / `CoachAccessTest`; jest `Referees.test`, `RefereeHome.test`,
   `GameRefereesBlock.test`, `Login.test`, `landingRoute.test`, and cases in
   `TeamCalendarView.test` / `RefereeFeedbackModal.test`.
+
+### The club link page is PUBLIC, and its allowlists are the whole contract — `lib/club_public_page.php` (2026-09-09)
+`/club/<slug>` (`pages/ClubLinkPage.tsx`, `api/club-public-gateway.php`) is a stranger's view of
+the club: logo, colours, tagline, phone, website, city/state, socials, sponsor banner, upcoming
+**games and tournaments only**, "Our coaches" (one entry per person — name, role, photo, teams —
+3×3, nine to a page), and a contact form. **No athlete anywhere.** Decided with Maggie 2026-09-09;
+on by default for every club, off per club on Club Profile → Public Page. Design:
+claude.ai/code/artifact/4082331d-65ae-4ee5-8dae-dc3ae127e84b.
+
+- **Every query is an explicit column list.** `SELECT *` on a public route is how `api/sponsors.php`
+  leaked sponsor contact details and `api/tournament-public-gateway.php` leaks venue gate codes.
+  Events never carry `description` (gate codes, "bring Emma's inhaler") or the free-text
+  `location` (a private residence); coaches never carry email, phone or bio; `team_members` is
+  joined for `assistant_coach` / `team_manager` only, so a player row cannot become a coach.
+  `ClubPublicPageTest` executes the queries against a fixture seeded with exactly those secrets
+  and asserts none reaches the payload, and scans the SQL for the forbidden names.
+- **`club_profile.slug` is now real** (migration 101): written by `legacy/club-profile-gateway.php`
+  (validated `^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$`, 409 on a taken one, generated from the name when
+  blank), unique case-insensitively, backfilled for every club. `te_club_slug_from_name()` and the
+  migration's PL/pgSQL use the same rule. The fundraiser URL `/donate/<slug>/…` reads the same column.
+- **The contact form stores, commits, THEN mails.** `club_contact_messages` is the record; the
+  email to every club admin (`te_club_admin_recipients`, `lib/club_admins.php` — active AND
+  unrevoked, never coaches) is a notification, and a failed send is `status='failed'` on the row,
+  never a failed submission. From is the club (`->forClub`), the visitor is `->replyTo()` — the
+  From must stay on the SendGrid-authenticated domain. **Rate limit 5/hour per IP FAILS CLOSED**
+  (the support-ticket limiter fails open; this one causes outbound mail). A filled honeypot
+  (`website_url`) is a silent 200. Behind `TE_FEATURE_PUBLIC_CLUB_CONTACT` — its own switch, not
+  `TRANSACTIONAL_EMAIL`. The response never names an admin. `ClubContactMessageTest` pins the order.
+- A switched-off page and an unknown slug answer the SAME 404. Absent 101 columns read as
+  "enabled, no tagline" (`te_club_public_page_columns_present`), and the admin tab greys the switch
+  and says why.
+- `?action=ics` is the roadmap's public iCal feed, scoped to the same games: floating local times,
+  all-day when there is no start time, `LOCATION` via `te_event_place_label(…, ', ')`.
+- Brand colours are set as CSS variables on the page WRAPPER, never `:root`, so an admin previewing
+  their page does not re-skin the staff app; `App.tsx` hides the staff chrome on `/club/` the way it
+  does on `/referee`.
+- `api/sponsors.php`: anonymous GET is `TE_SPONSOR_PUBLIC_COLUMNS`; the full row needs a club admin
+  of THAT club; every write is `te_sponsors_require_admin` before its SQL, attribution from the
+  token. `api/clubs.php` (public, by id) no longer returns email, phone or address.
+  `SponsorsGatewayScopeTest`. **Left alone on purpose:** the tournament public gateway's gate code /
+  medical / contact fields — `PublicTournament.tsx` renders them as the event-day microsite.
 
 ### Treasurer is the MONEY-ONLY role — `lib/financial_scope.php` (2026-09-03)
 Maggie asked whether to retire `treasurer` and make it a club admin. Kept, deliberately:

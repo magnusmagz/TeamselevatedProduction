@@ -1,15 +1,69 @@
 <?php
+/**
+ * Sponsors API.
+ *
+ * AUTH (2026-09-09). Until this date the file had no authentication at all:
+ * GET returned `SELECT *` — the sponsor's contact_name / contact_email /
+ * contact_phone — to anyone who guessed a club_id, and POST/PUT/DELETE were
+ * open to the world. Now:
+ *
+ *   GET  without a token   -> the PUBLIC projection (id, name, website, logo,
+ *                             links, display_order). This is what the parent
+ *                             portal marquee and the public club page need.
+ *   GET  with a token      -> the full row, but only for a club admin of that
+ *                             club (te_is_club_admin); anyone else gets the
+ *                             public projection. include_inactive is admin-only.
+ *   POST/PUT/DELETE        -> requireAuth + te_is_club_admin of the SPONSOR'S
+ *                             club, resolved from the row (or the body on POST),
+ *                             never trusted from the request.
+ */
 header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();
 
 
 require_once '../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/club_standing.php';
 
 $database = Database::getInstance();
 $db = $database->getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
+
+const TE_SPONSOR_PUBLIC_COLUMNS = 'id, club_id, name, website, logo_data, logo_filename, '
+    . 'link_1_label, link_1_url, link_2_label, link_2_url, link_3_label, link_3_url, display_order, is_active';
+
+/** A token is present -> authenticate it (a bad one is a 401, as everywhere else). */
+function te_sponsors_optional_auth() {
+    $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($hdr === '' && function_exists('apache_request_headers')) {
+        $h = apache_request_headers();
+        $hdr = $h['Authorization'] ?? $h['authorization'] ?? '';
+    }
+    return trim((string) $hdr) === '' ? null : AuthMiddleware::requireAuth();
+}
+
+/** The club a sponsor row belongs to, or null. */
+function te_sponsor_club_id(PDO $db, $sponsorId): ?int {
+    $stmt = $db->prepare('SELECT club_id FROM sponsors WHERE id = ?');
+    $stmt->execute([$sponsorId]);
+    $v = $stmt->fetchColumn();
+    return $v === false || $v === null ? null : (int) $v;
+}
+
+function te_sponsors_require_admin($auth, ?int $clubId): void {
+    if ($auth === null) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required']);
+        exit();
+    }
+    if ($clubId === null || !te_is_club_admin($auth, $clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Only a club administrator can manage sponsors']);
+        exit();
+    }
+}
 
 // Helper function to normalize URLs
 function normalizeUrl($url) {
@@ -26,10 +80,14 @@ function normalizeUrl($url) {
 try {
     switch ($method) {
         case 'GET':
+            $auth = te_sponsors_optional_auth();
             if (isset($_GET['id'])) {
                 // Get single sponsor by ID
+                $rowClub = te_sponsor_club_id($db, $_GET['id']);
+                $full = $auth !== null && $rowClub !== null && te_is_club_admin($auth, $rowClub);
+                $cols = $full ? '*' : TE_SPONSOR_PUBLIC_COLUMNS;
                 $stmt = $db->prepare("
-                    SELECT * FROM sponsors
+                    SELECT {$cols} FROM sponsors
                     WHERE id = ? AND deleted_at IS NULL
                 ");
                 $stmt->execute([$_GET['id']]);
@@ -43,10 +101,12 @@ try {
                 }
             } elseif (isset($_GET['club_id'])) {
                 // Get all sponsors for a club
-                $includeInactive = isset($_GET['include_inactive']) && $_GET['include_inactive'] === 'true';
+                $full = $auth !== null && te_is_club_admin($auth, (int) $_GET['club_id']);
+                $includeInactive = $full && isset($_GET['include_inactive']) && $_GET['include_inactive'] === 'true';
+                $cols = $full ? '*' : TE_SPONSOR_PUBLIC_COLUMNS;
 
                 $sql = "
-                    SELECT * FROM sponsors
+                    SELECT {$cols} FROM sponsors
                     WHERE club_id = ? AND deleted_at IS NULL
                 ";
 
@@ -75,6 +135,8 @@ try {
                 echo json_encode(['error' => 'club_id and name are required']);
                 break;
             }
+            $auth = te_sponsors_optional_auth();
+            te_sponsors_require_admin($auth, (int) $data['club_id']);
 
             // Get next display order
             $stmt = $db->prepare("
@@ -112,7 +174,7 @@ try {
                 normalizeUrl($data['link_3_url'] ?? null),
                 $displayOrder,
                 $data['is_active'] ?? true,
-                $data['created_by'] ?? null
+                $auth->getUserId()
             ]);
 
             $sponsorId = $db->lastInsertId();
@@ -126,6 +188,7 @@ try {
 
         case 'PUT':
             $data = json_decode(file_get_contents("php://input"), true);
+            $auth = te_sponsors_optional_auth();
 
             // Handle reorder action
             if (isset($_GET['action']) && $_GET['action'] === 'reorder') {
@@ -134,6 +197,23 @@ try {
                     echo json_encode(['error' => 'sponsors array is required']);
                     break;
                 }
+                // Every id in the list must belong to ONE club the caller administers.
+                $clubs = [];
+                foreach ($data['sponsors'] as $sponsorId) {
+                    $c = te_sponsor_club_id($db, $sponsorId);
+                    if ($c === null) {
+                        http_response_code(404);
+                        echo json_encode(['error' => 'Sponsor not found']);
+                        exit();
+                    }
+                    $clubs[$c] = true;
+                }
+                if (count($clubs) !== 1) {
+                    http_response_code(422);
+                    echo json_encode(['error' => 'Reorder one club\'s sponsors at a time']);
+                    break;
+                }
+                te_sponsors_require_admin($auth, (int) array_key_first($clubs));
 
                 $db->beginTransaction();
                 try {
@@ -160,6 +240,7 @@ try {
                 echo json_encode(['error' => 'id is required']);
                 break;
             }
+            te_sponsors_require_admin($auth, te_sponsor_club_id($db, $data['id']));
 
             $stmt = $db->prepare("
                 UPDATE sponsors SET
@@ -197,7 +278,7 @@ try {
                 $data['link_3_label'] ?? null,
                 normalizeUrl($data['link_3_url'] ?? null),
                 $data['is_active'] ?? true,
-                $data['updated_by'] ?? null,
+                $auth->getUserId(),
                 $data['id']
             ]);
 
@@ -214,7 +295,8 @@ try {
                 break;
             }
 
-            $data = json_decode(file_get_contents("php://input"), true);
+            $auth = te_sponsors_optional_auth();
+            te_sponsors_require_admin($auth, te_sponsor_club_id($db, $_GET['id']));
 
             // Soft delete
             $stmt = $db->prepare("
@@ -223,7 +305,7 @@ try {
                 WHERE id = ?
             ");
             $stmt->execute([
-                $data['deleted_by'] ?? null,
+                $auth->getUserId(),
                 $_GET['id']
             ]);
 

@@ -9,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import GooglePlacesAutocomplete from '../components/GooglePlacesAutocomplete';
 import PageHeader from '../components/ui/PageHeader';
 import Button, { LinkButton } from '../components/ui/Button';
+import PublicPageSettings from '../components/PublicPageSettings';
 
 interface ClubProfile {
   id?: number;
@@ -33,16 +34,22 @@ interface ClubProfile {
   social_tiktok?: string;
   social_youtube?: string;
   social_linkedin?: string;
+  slug?: string | null;
+  public_page_enabled?: boolean;
+  public_page_tagline?: string | null;
+  public_page_migration_pending?: boolean;
 }
 
 const ClubProfilePage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8889';
   const { updateTheme } = useTheme();
-  type ProfileTab = 'info' | 'branding' | 'documents' | 'users' | 'payments' | 'messaging' | 'imports';
+  type ProfileTab = 'info' | 'branding' | 'public' | 'documents' | 'users' | 'payments' | 'messaging' | 'imports';
   const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
     // Stripe onboarding return/refresh URLs land on /club-profile?tab=payments
     const tab = new URLSearchParams(window.location.search).get('tab');
-    return tab === 'payments' ? 'payments' : 'info';
+    if (tab === 'payments') return 'payments';
+    if (tab === 'public') return 'public';
+    return 'info';
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -147,6 +154,16 @@ const ClubProfilePage: React.FC = () => {
               }`}
             >
               Branding
+            </button>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm uppercase transition-colors ${
+                activeTab === 'public'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Public Page
             </button>
             <button
               onClick={() => setActiveTab('documents')}
@@ -470,6 +487,41 @@ const ClubProfilePage: React.FC = () => {
                     }
                   } else {
                     throw new Error('Failed to save brand settings');
+                  }
+                }}
+              />
+            )}
+
+            {activeTab === 'public' && (
+              <PublicPageSettings
+                key={`${formData.slug ?? ''}|${formData.public_page_enabled ?? true}|${formData.public_page_tagline ?? ''}`}
+                profile={formData}
+                clubName={formData.club_name}
+                saving={saving}
+                onSave={async (fields) => {
+                  setSaving(true);
+                  try {
+                    const token = localStorage.getItem('auth_token');
+                    const response = await fetch(`${API_URL}/legacy/club-profile-gateway.php`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify({ ...formData, ...fields }),
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                      return result.error || 'Could not save the public page settings.';
+                    }
+                    setFormData({
+                      ...formData,
+                      ...fields,
+                      slug: result.slug ?? fields.slug,
+                      public_page_migration_pending: result.public_page_migration_pending ?? formData.public_page_migration_pending,
+                    });
+                    return null;
+                  } catch {
+                    return 'Could not reach the server. Please try again.';
+                  } finally {
+                    setSaving(false);
                   }
                 }}
               />

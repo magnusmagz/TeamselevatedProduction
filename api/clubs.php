@@ -1,7 +1,12 @@
 <?php
 /**
- * Clubs API
- * Get club information including slug
+ * Clubs API — PUBLIC, unauthenticated.
+ *
+ * Its one live caller is FundraiserAdminWrapper (App.tsx), which needs the slug.
+ * Until 2026-09-09 it also returned the club's email, phone and both address
+ * lines to anyone who guessed an id; the projection is now the same public set
+ * lib/club_public_page.php serves, minus contact details. Anything a signed-in
+ * admin needs comes from legacy/club-profile-gateway.php.
  */
 
 header("Content-Type: application/json; charset=UTF-8");
@@ -28,8 +33,8 @@ try {
             }
 
             $stmt = $db->prepare("
-                SELECT id, name, slug, description, logo_url, primary_color, secondary_color,
-                       address_line1, address_line2, city, state, zip_code, phone, email, website
+                SELECT id, name, slug, logo_url, primary_color, secondary_color,
+                       city, state, website
                 FROM club_profile
                 WHERE id = ?
             ");

@@ -504,6 +504,55 @@ if ($parent) {
 }
 
 // ── Roster download ──────────────────────────────────────────────────────────
+// The club's public link page (2026-09-09). PUBLIC by design — the assertion
+// worth having is the shape of what comes back without a token: no coach email
+// or phone, no event description, no athlete anywhere. A club with its page
+// switched off answers 404, which the loop below tolerates.
+echo "\nClub link page (public)\n";
+$publicSlugs = $pdo->query("SELECT slug FROM club_profile WHERE slug IS NOT NULL AND slug <> '' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+foreach ($publicSlugs as $slug) {
+    $res = get($base, '/api/club-public-gateway.php?action=page&slug=' . rawurlencode($slug), null);
+    check("public page for $slug answers without a token", $res, [200, 404], function ($j) {
+        if (!isset($j['club'])) {
+            return $j['reason'] ?? null; // a 404 body has no club and that is fine
+        }
+        $bad = [];
+        foreach (['email', 'address', 'address_line1', 'description'] as $k) {
+            if (array_key_exists($k, $j['club'])) { $bad[] = "club.$k"; }
+        }
+        foreach ($j['coaches'] ?? [] as $c) {
+            foreach (['email', 'phone', 'coaching_background', 'id'] as $k) {
+                if (array_key_exists($k, $c)) { $bad[] = "coach.$k"; }
+            }
+        }
+        foreach ($j['events'] ?? [] as $e) {
+            foreach (['description', 'location', 'attendees', 'min_referee_grade'] as $k) {
+                if (array_key_exists($k, $e)) { $bad[] = "event.$k"; }
+            }
+        }
+        foreach ($j['sponsors'] ?? [] as $sp) {
+            foreach (['contact_name', 'contact_email', 'contact_phone'] as $k) {
+                if (array_key_exists($k, $sp)) { $bad[] = "sponsor.$k"; }
+            }
+        }
+        if (array_key_exists('teams', $j) || array_key_exists('athletes', $j)) { $bad[] = 'a roster key'; }
+        return $bad ? 'leaks ' . implode(', ', $bad) : null;
+    });
+}
+check('an unknown slug is a 404, not an error',
+    get($base, '/api/club-public-gateway.php?action=page&slug=no-such-club-' . time(), null), 404);
+check('the public sponsor list carries no contact details',
+    get($base, '/api/sponsors.php?club_id=51', null), 200, function ($j) {
+        foreach ((array) $j as $sp) {
+            foreach (['contact_name', 'contact_email', 'contact_phone'] as $k) {
+                if (is_array($sp) && array_key_exists($k, $sp)) { return "sponsor.$k leaks"; }
+            }
+        }
+        return null;
+    });
+check('public single-sponsor read answers',
+    get($base, '/api/sponsors.php?id=1', null), [200, 404]);
+
 // Staff only. The refusals matter more than the success here: the crew flavour
 // is a contact list for other people's families, and the team page's VIEW
 // predicate (which a parent passes) must not be what gates this.

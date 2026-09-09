@@ -15,6 +15,8 @@ class Email {
     private $fromEmail;
     private $fromName;
     private $apiKey;
+    /** ['email' => …, 'name' => …] or null. Set per send by replyTo(). */
+    private $replyTo = null;
 
     public function __construct() {
         $this->provider = Env::get('EMAIL_PROVIDER', 'mail'); // 'sendgrid' or 'mail'
@@ -43,6 +45,83 @@ class Email {
     public function forClub($pdo, $clubId) {
         $this->fromName = te_email_from_name($pdo, $clubId !== null ? (int) $clubId : null);
         return $this;
+    }
+
+    /**
+     * Route replies to someone other than the From address.
+     *
+     * The From MUST stay on the SendGrid-authenticated domain (lib/email_sender.php),
+     * so a message that is really from a visitor — the public club contact form —
+     * carries the visitor here instead. Chainable.
+     *
+     * @param string $email
+     * @param string|null $name
+     * @return $this
+     */
+    public function replyTo($email, $name = null) {
+        $email = trim((string) $email);
+        $this->replyTo = filter_var($email, FILTER_VALIDATE_EMAIL)
+            ? ['email' => $email, 'name' => trim((string) $name)]
+            : null;
+        return $this;
+    }
+
+    /**
+     * A message from the public club link page's contact form, to one club
+     * administrator. The visitor's text is escaped — it is a stranger's input
+     * rendered into an email the admin will open.
+     *
+     * @param string $to           the administrator's address
+     * @param string $adminFirst   their first name
+     * @param string $clubName
+     * @param array  $m            ['name','email','phone','message']
+     * @return bool
+     */
+    public function sendClubContactMessage($to, $adminFirst, $clubName, array $m) {
+        $safeAdmin = htmlspecialchars((string) $adminFirst, ENT_QUOTES, 'UTF-8');
+        $safeClub = htmlspecialchars((string) $clubName, ENT_QUOTES, 'UTF-8');
+        $safeName = htmlspecialchars((string) ($m['name'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $safeEmail = htmlspecialchars((string) ($m['email'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $safePhone = htmlspecialchars((string) ($m['phone'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $safeMessage = nl2br(htmlspecialchars((string) ($m['message'] ?? ''), ENT_QUOTES, 'UTF-8'));
+
+        $subject = "New message for {$clubName} from " . (string) ($m['name'] ?? 'a visitor');
+        $phoneRow = $safePhone !== ''
+            ? "<tr><td style=\"padding:4px 0;color:#6b7280;\">Phone</td><td style=\"padding:4px 0;\">{$safePhone}</td></tr>"
+            : '';
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:20px 12px;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+    <tr><td style="padding:28px 32px 8px;font-size:20px;font-weight:bold;color:#12443e;">Someone contacted {$safeClub}</td></tr>
+    <tr><td style="padding:0 32px 16px;font-size:15px;color:#374151;line-height:1.5;">Hi {$safeAdmin}, a visitor sent this through your club's public page. Replying to this email goes straight to them.</td></tr>
+    <tr><td style="padding:0 32px 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-size:14px;color:#111827;">
+        <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">From</td><td style="padding:4px 0;">{$safeName} &lt;{$safeEmail}&gt;</td></tr>
+        {$phoneRow}
+      </table>
+    </td></tr>
+    <tr><td style="padding:0 32px 28px;">
+      <div style="border-left:3px solid #a3ebd1;padding:12px 16px;background:#f9fafb;font-size:15px;color:#111827;line-height:1.6;">{$safeMessage}</div>
+    </td></tr>
+    <tr><td style="padding:0 32px 24px;font-size:12px;color:#9ca3af;line-height:1.5;">You are receiving this because you are an administrator of {$safeClub} on Teams Elevated. The sender's identity is not verified.</td></tr>
+  </table>
+</td></tr>
+</table>
+</body></html>
+HTML;
+
+        $textBody = "Hi {$adminFirst},\n\n"
+            . "A visitor sent this through {$clubName}'s public page. Reply to this email to answer them.\n\n"
+            . "From: " . ($m['name'] ?? '') . " <" . ($m['email'] ?? '') . ">\n"
+            . (($m['phone'] ?? '') !== '' && $m['phone'] !== null ? "Phone: " . $m['phone'] . "\n" : '')
+            . "\n" . ($m['message'] ?? '') . "\n\n"
+            . "The sender's identity is not verified.";
+
+        return $this->send($to, $subject, $htmlBody, $textBody);
     }
 
     /**
@@ -528,6 +607,11 @@ HTML;
                 ['type' => 'text/html', 'value' => $htmlBody]
             ]
         ];
+        if ($this->replyTo !== null) {
+            $payload['reply_to'] = $this->replyTo['name'] !== ''
+                ? ['email' => $this->replyTo['email'], 'name' => $this->replyTo['name']]
+                : ['email' => $this->replyTo['email']];
+        }
 
         $ch = curl_init('https://api.sendgrid.com/v3/mail/send');
         curl_setopt($ch, CURLOPT_POST, true);
@@ -559,7 +643,7 @@ HTML;
             'MIME-Version: 1.0',
             'Content-Type: text/html; charset=UTF-8',
             'From: ' . $this->fromName . ' <' . $this->fromEmail . '>',
-            'Reply-To: ' . $this->fromEmail,
+            'Reply-To: ' . ($this->replyTo['email'] ?? $this->fromEmail),
             'X-Mailer: PHP/' . phpversion()
         ];
 
@@ -848,7 +932,7 @@ HTML;
 
         $headers = [
             'From: ' . $this->fromName . ' <' . $this->fromEmail . '>',
-            'Reply-To: ' . $this->fromEmail,
+            'Reply-To: ' . ($this->replyTo['email'] ?? $this->fromEmail),
             'MIME-Version: 1.0',
             'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
             'X-Mailer: PHP/' . phpversion()

@@ -57,6 +57,8 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
+        'club_profile.public_page_enabled' => '101_club_public_page.sql',
+        'club_profile.public_page_tagline' => '101_club_public_page.sql',
     ];
 
     /**
@@ -68,6 +70,7 @@ class SchemaConformanceTest extends TestCase
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.
+        'club_contact_messages' => '101_club_public_page.sql',
     ];
 
     /** Is this column merely waiting on a migration that is already written? */

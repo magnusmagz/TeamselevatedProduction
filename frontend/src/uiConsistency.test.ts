@@ -115,6 +115,7 @@ const NOT_STAFF_APP: Record<string, string> = {
   'modules/registration/pages/PublicRegistration.tsx': 'public registration form',
   'modules/registration/pages/PublicTryoutRegistration.tsx': 'public tryout registration form',
   'modules/tournament/pages/PublicTournament.tsx': 'public tournament page',
+  'pages/ClubLinkPage.tsx': 'public club link page (/club/<slug>, mobile-first, no staff chrome)',
   'modules/tournament/pages/PublicLiveScoreboard.tsx': 'public scoreboard',
   // family-facing pages that are NOT in parent-portal/ but serve families
   'pages/AthletePaymentsDashboard.tsx': 'family payments view (parent-facing, legacy route)',
@@ -169,7 +170,7 @@ const BUTTON_ALLOWLIST: Record<string, { max: number; reason: string }> = {
   'components/communications/RecipientSelector.tsx': { max: 5, reason: 'chip-remove × inheriting the chip colour; typeahead listbox rows' },
   'components/communications/CommunicationHistory.tsx': { max: 1, reason: 'expandable entry header row' },
   'pages/ClubDocumentCenter.tsx': { max: 3, reason: 'Upload / Paste-link tab strip; assignment-chip ×' },
-  'pages/ClubProfilePage.tsx': { max: 7, reason: 'page tab strip' },
+  'pages/ClubProfilePage.tsx': { max: 8, reason: 'page tab strip (Public Page tab added 2026-09-09)' },
   'pages/ClubCompliance.tsx': { max: 2, reason: 'aria-pressed filter chips; person accordion header row' },
   'pages/ComplianceRequirements.tsx': { max: 1, reason: 'aria-pressed role pill toggles' },
   'pages/OrgCompliance.tsx': { max: 1, reason: 'SortHeader inside a DataTable th' },

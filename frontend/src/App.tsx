@@ -84,6 +84,7 @@ import TournamentList from './modules/tournament/pages/TournamentList';
 import TournamentCreate from './modules/tournament/pages/TournamentCreate';
 import TournamentDetail from './modules/tournament/pages/TournamentDetail';
 import PublicTournament from './modules/tournament/pages/PublicTournament';
+import ClubLinkPage from './pages/ClubLinkPage';
 import PublicLiveScoreboard from './modules/tournament/pages/PublicLiveScoreboard';
 // Player Cards
 import PlayerCards from './pages/PlayerCards';
@@ -291,7 +292,11 @@ function AppContent() {
   // referee-only account never sees the staff nav, the chat bubble or the
   // support button — their games are the whole page.
   const isRefereePage = location.pathname === '/referee' || location.pathname.startsWith('/referee/');
-  const isParentPortal = location.pathname.startsWith('/parent') || isRefereePage;
+  // The public club link page (/club/<slug>, 2026-09-09) is a stranger's view of
+  // the club: no staff nav, chat bubble or support button even when a signed-in
+  // admin opens it to preview their own page.
+  const isClubPublicPage = location.pathname.startsWith('/club/');
+  const isParentPortal = location.pathname.startsWith('/parent') || isRefereePage || isClubPublicPage;
 
   // Close mobile menu on route change
   React.useEffect(() => {
@@ -903,6 +908,8 @@ function AppContent() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/tournament/:slug" element={<PublicTournament />} />
+          {/* The club's public link page. Public: no token, the slug is the address. */}
+          <Route path="/club/:slug" element={<ClubLinkPage />} />
           <Route path="/tournament/:slug/live" element={<PublicLiveScoreboard />} />
           <Route path="/consent/confirm" element={<ConsentConfirm />} />
           <Route path="/register/:embedCode" element={<PublicRegistration />} />

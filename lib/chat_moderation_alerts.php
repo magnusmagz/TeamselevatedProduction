@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/club_admins.php';
 /**
  * Tell club admins that chat has been flagged.
  *
@@ -54,20 +55,9 @@ const TE_CHAT_MOD_ALERT_LOOKBACK_HOURS = 72;
  */
 function te_chat_club_admins(PDO $pdo, int $clubId): array
 {
-    $stmt = $pdo->prepare("
-        SELECT DISTINCT u.id, u.email, u.first_name
-          FROM users u
-          JOIN user_club_access uca ON uca.user_id = u.id
-         WHERE uca.club_profile_id = ?
-           AND uca.active = TRUE
-           AND uca.revoked_at IS NULL
-           AND uca.role IN ('club_admin', 'admin', 'owner')
-           AND u.email IS NOT NULL
-           AND u.email <> ''
-         ORDER BY u.id
-    ");
-    $stmt->execute([$clubId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // One query for "who administers this club", shared with the public
+    // contact form (lib/club_admins.php) since 2026-09-09.
+    return te_club_admin_recipients($pdo, $clubId);
 }
 
 /**

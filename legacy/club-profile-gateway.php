@@ -7,6 +7,8 @@ Cors::handle();
 // Use centralized database connection
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/club_public_page.php';
+require_once __DIR__ . '/../lib/AuditLogger.php';
 
 try {
     $db = Database::getInstance();
@@ -50,9 +52,17 @@ try {
     switch ($method) {
         case 'GET':
             // Get club profile for user's active club
+            // Public page fields (migration 101). Absent columns read as
+            // "enabled, no tagline" and the response says the migration is
+            // pending so the tab can say why the switch is greyed out.
+            $publicCols = te_club_public_page_columns_present($connection);
+            $publicSelect = $publicCols
+                ? ', public_page_enabled, public_page_tagline'
+                : ', TRUE AS public_page_enabled, NULL AS public_page_tagline';
             $stmt = $connection->prepare("
                 SELECT
                     id,
+                    slug,
                     name as club_name,
                     address_line1 as address,
                     city,
@@ -71,6 +81,7 @@ try {
                     social_tiktok,
                     social_youtube,
                     social_linkedin
+                    {$publicSelect}
                 FROM club_profile
                 WHERE id = ?
             ");
@@ -78,6 +89,8 @@ try {
             $club = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($club) {
+                $club['public_page_enabled'] = filter_var($club['public_page_enabled'], FILTER_VALIDATE_BOOLEAN);
+                $club['public_page_migration_pending'] = !$publicCols;
                 echo json_encode($club);
             } else {
                 // Return empty profile structure if none exists
@@ -109,6 +122,41 @@ try {
             }
 
             $data = json_decode(file_get_contents("php://input"), true);
+
+            // Public page fields ride on the same PUT but are written by their
+            // own statement: they are validated (a slug is a URL) and a bundle
+            // that does not send them must not blank them. Validation runs
+            // BEFORE the profile UPDATE so a 409 leaves nothing half-saved.
+            $publicCols = te_club_public_page_columns_present($connection);
+            $publicSet = [];
+            $publicParams = [];
+            if (array_key_exists('slug', $data)) {
+                $slug = strtolower(trim((string) $data['slug']));
+                if ($slug === '') {
+                    $stmtName = $connection->prepare('SELECT name FROM club_profile WHERE id = ?');
+                    $stmtName->execute([$clubId]);
+                    $slug = te_club_slug_generate($connection, (int) $clubId, (string) ($data['club_name'] ?? $stmtName->fetchColumn() ?? ''));
+                } elseif (!te_club_slug_valid($slug)) {
+                    http_response_code(422);
+                    echo json_encode(['error' => 'A link can only contain lowercase letters, numbers and dashes (3 to 60 characters).', 'field' => 'slug']);
+                    exit();
+                } elseif (te_club_slug_taken($connection, $slug, (int) $clubId)) {
+                    http_response_code(409);
+                    echo json_encode(['error' => 'That link is already taken by another club.', 'field' => 'slug', 'reason' => 'slug_taken']);
+                    exit();
+                }
+                $publicSet[] = 'slug = ?';
+                $publicParams[] = $slug;
+            }
+            if ($publicCols && array_key_exists('public_page_enabled', $data)) {
+                $publicSet[] = 'public_page_enabled = ?';
+                $publicParams[] = filter_var($data['public_page_enabled'], FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
+            }
+            if ($publicCols && array_key_exists('public_page_tagline', $data)) {
+                $tag = trim((string) ($data['public_page_tagline'] ?? ''));
+                $publicSet[] = 'public_page_tagline = ?';
+                $publicParams[] = $tag === '' ? null : mb_substr($tag, 0, 160);
+            }
 
             // Update existing profile
             $stmt = $connection->prepare("
@@ -154,9 +202,23 @@ try {
                 $clubId
             ]);
 
+            if ($publicSet) {
+                $publicParams[] = $clubId;
+                $stmtPub = $connection->prepare(
+                    'UPDATE club_profile SET ' . implode(', ', $publicSet) . ' WHERE id = ?'
+                );
+                $stmtPub->execute($publicParams);
+                AuditLogger::log($connection, (int) $auth->getUserId(), 'club_public_page_updated', 'club_profile', (int) $clubId, [
+                    'slug' => $publicParams[array_search('slug = ?', $publicSet, true)] ?? null,
+                    'fields' => array_map(fn($f) => explode(' ', $f)[0], $publicSet),
+                ]);
+            }
+
             echo json_encode([
                 'success' => true,
-                'message' => 'Club profile updated successfully'
+                'message' => 'Club profile updated successfully',
+                'slug' => $publicParams[array_search('slug = ?', $publicSet, true)] ?? null,
+                'public_page_migration_pending' => !$publicCols,
             ]);
             break;
 

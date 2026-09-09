@@ -72,6 +72,11 @@ class FeatureFlagsTest extends TestCase
         // taking the compliance screens with it.
         'api/compliance-streams.php' => 'COMPLIANCE',
         'api/compliance-intake.php' => ['COMPLIANCE', 'COMPLIANCE_INTAKE'],
+        // Club link page (2026-09-09) — the public contact form mails every club
+        // admin from an unauthenticated POST. Its own switch, not
+        // TRANSACTIONAL_EMAIL: a spam wave should be stoppable without taking
+        // receipts and invites down with it.
+        'api/club-public-gateway.php' => 'PUBLIC_CLUB_CONTACT',
     ];
 
     protected function setUp(): void

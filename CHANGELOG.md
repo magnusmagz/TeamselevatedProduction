@@ -30,6 +30,40 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-09
+
+### Club link page — /club/<slug> (branch `feature/club-link-page`, NOT deployed)
+- Maggie: a Linktree-style public page for every club — mobile-first, club logo and colours,
+  phone / website / socials, sponsor banner, upcoming games and tournaments, "Our coaches"
+  (3×3, nine to a page), a contact form that emails every club admin. No athlete data.
+  Design canvas: claude.ai/code/artifact/4082331d-65ae-4ee5-8dae-dc3ae127e84b.
+- Migration **101** `101_club_public_page.sql` written, NOT applied: `club_profile.public_page_enabled`
+  (default TRUE), `public_page_tagline`, a partial UNIQUE index on `lower(slug)`, a PL/pgSQL backfill
+  writing a slug for every club that has none (4 of 6 in Neon on 2026-09-09), and the new table
+  `club_contact_messages`. `PENDING_MIGRATION` / `PENDING_MIGRATION_TABLES` carry the entries until
+  the fixture refresh.
+- `api/club-public-gateway.php` (public): `page`, `ics` (text/calendar of the same games), `contact`
+  (POST; stored first, then mailed as the club with the visitor in Reply-To; 5/hour per IP, fails
+  closed; honeypot; `TE_FEATURE_PUBLIC_CLUB_CONTACT`). `lib/club_public_page.php` holds every
+  allowlist. `lib/club_admins.php` is the shared "who administers this club" query (chat alerts
+  now delegate to it). `Email::replyTo()` + `sendClubContactMessage()`.
+- **Pre-existing public leaks closed in the same branch:** `api/sponsors.php` returned `SELECT *`
+  (sponsor contact name/email/phone) to anyone and accepted anonymous POST/PUT/DELETE — GET is now
+  the public projection unless a club admin of that club is signed in, writes are admin-gated and
+  attributed from the token. `api/clubs.php` no longer returns the club's email, phone or street
+  address. NOT changed: `api/tournament-public-gateway.php` still serves venue gate code, medical
+  coordinator and tournament contact details — `PublicTournament.tsx` renders them on purpose as the
+  event-day microsite; a product call, flagged to Maggie.
+- Frontend: `pages/ClubLinkPage.tsx` (route `/club/:slug`, no staff chrome even for a signed-in
+  admin), Club Profile → **Public Page** tab (`components/PublicPageSettings.tsx`: on/off, slug,
+  tagline, copy link, calendar feed URL, QR code). `legacy/club-profile-gateway.php` now reads and
+  writes `slug` / `public_page_enabled` / `public_page_tagline` (422 on a bad slug, 409 on a taken one).
+- Tests: `ClubPublicPageTest` (36 with the two below), `ClubContactMessageTest`,
+  `SponsorsGatewayScopeTest`, `FeatureFlagsTest::GATED` + `EmailSenderTest` entries; jest
+  `ClubLinkPage.test`, `PublicPageSettings.test`. Smoke test walks every club's public page and
+  asserts the shape.
+- Deploy order: backend → apply 101 → fixture refresh + delete the PENDING entries → frontend.
+
 ## 2026-09-08
 
 ### Referee page shows the facility address + Directions (Heroku, then Netlify)
