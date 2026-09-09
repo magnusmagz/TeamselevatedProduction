@@ -581,6 +581,19 @@
     "last_read_message_id",
     "last_read_at"
   ],
+  "club_contact_messages": [
+    "id",
+    "club_id",
+    "name",
+    "email",
+    "phone",
+    "message",
+    "ip_address",
+    "user_agent",
+    "status",
+    "sent_to",
+    "created_at"
+  ],
   "club_media_assets": [
     "id",
     "club_profile_id",
@@ -642,7 +655,9 @@
     "logo_png",
     "logo_w",
     "logo_h",
-    "org_unit_id"
+    "org_unit_id",
+    "public_page_enabled",
+    "public_page_tagline"
   ],
   "club_staff_roles": [
     "user_id",
