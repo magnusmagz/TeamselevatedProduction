@@ -1271,7 +1271,13 @@
     "viewed_at",
     "paid_at",
     "created_at",
-    "updated_at"
+    "updated_at",
+    "scholarship_amount",
+    "scholarship_label",
+    "scholarship_reason",
+    "scholarship_id",
+    "scholarship_awarded_by",
+    "scholarship_awarded_at"
   ],
   "lineup_slots": [
     "id",

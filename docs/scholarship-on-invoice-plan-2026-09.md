@@ -1,6 +1,6 @@
 # Scholarship on an athlete's invoice — plan (2026-09-09)
 
-Status: DECIDED 2026-09-12 (Maggie agreed with all five decisions below). Building on `feature/stripe-payments`.
+Status: SHIPPED 2026-09-12 (Heroku v644, migration 102 applied). Maggie agreed with all five decisions below; built on `feature/stripe-payments`, commit 0e642e2.
 
 ## What already exists (verified in code + `tests/fixtures/production-schema.json`)
 

@@ -30,6 +30,20 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-12 — Scholarship on an invoice (migration 102, Heroku v644)
+
+- **Migration 102 `invoice_scholarship` applied to Neon 2026-09-12** via
+  `scripts/apply-migration.php` (audit row `migration_applied`). Adds
+  `invoices.scholarship_amount / _label / _reason / _id / _awarded_by / _awarded_at` and a
+  partial index on `scholarship_awarded_at`. Additive; no existing row changed
+  (`scholarship_amount` defaults to 0).
+- Backend Heroku **v644** (commit `0e642e2`); frontend Netlify deploy of the same commit
+  reached `ready` first. Schema fixture refreshed in the follow-up commit (7-line diff, the six
+  columns only).
+- Decisions (Maggie, 2026-09-12): award on the invoice, `paid` at zero balance, refuse an
+  award below what is paid, club admin + treasurer only, family sees label + amount only.
+  Plan: `docs/scholarship-on-invoice-plan-2026-09.md`.
+
 ## 2026-09-09
 
 ### Club link page — /club/<slug> (branch `feature/club-link-page`, NOT deployed)
