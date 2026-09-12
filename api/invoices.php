@@ -15,6 +15,7 @@ require_once __DIR__ . '/../lib/financial_scope.php';
 require_once __DIR__ . '/../lib/guardian_identity.php';
 require_once __DIR__ . '/../lib/feature_flags.php';
 require_once __DIR__ . '/../lib/email_invoice_and_registration.php';
+require_once __DIR__ . '/../lib/scholarship.php';
 
 try {
     $auth = AuthMiddleware::requireAuth();
@@ -100,6 +101,7 @@ try {
                     i.sent_at,
                     i.paid_at,
                     i.created_at,
+                    " . (te_scholarship_columns_present($pdo) ? "i.scholarship_amount, i.scholarship_label," : "0 AS scholarship_amount, NULL AS scholarship_label,") . "
                     a.first_name as athlete_first,
                     a.last_name as athlete_last,
                     p.name as program_name,
@@ -199,6 +201,11 @@ try {
             if (!$invoice) {
                 throw new Exception('Invoice not found');
             }
+
+            // The scholarship reason and who awarded it are staff data. A parent
+            // (or a coach) reading their invoice sees the label and amount only.
+            $invoiceClubId = te_club_for($pdo, 'invoice', $invoice_id);
+            $invoice = te_scholarship_shape_row($invoice, $invoiceClubId !== null && te_is_financial_admin($auth, $invoiceClubId));
 
             // Get line items
             $itemsQuery = "
@@ -495,6 +502,8 @@ try {
                         'total_amount'   => $invoice['total_amount'],
                         'amount_paid'    => $invoice['amount_paid'],
                         'amount_due'     => $amountDue,
+                        'scholarship_amount' => $invoice['scholarship_amount'] ?? 0,
+                        'scholarship_label'  => $invoice['scholarship_label'] ?? null,
                         'memo'           => $invoice['memo'],
                         'items'          => $invoiceItems,
                         'pay_url'        => te_invoice_pay_url($invoice_id),
@@ -551,6 +560,41 @@ try {
                     te_feature_disabled_response('TRANSACTIONAL_EMAIL')
                 ));
             }
+            break;
+
+        case 'award-scholarship':
+        case 'revoke-scholarship':
+            // Decided with Maggie 2026-09-12 (docs/scholarship-on-invoice-plan-2026-09.md).
+            // Gate is te_assert_financial_admin — club admin or treasurer of the
+            // invoice's club — not the wider club-access predicate, which a coach passes.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new Exception('POST method required');
+            }
+            $invoice_id = $_GET['id'] ?? null;
+            if (!$invoice_id || !ctype_digit((string) $invoice_id)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invoice ID is required']);
+                break;
+            }
+            te_assert_financial_admin($auth, $pdo, ['invoice' => (int) $invoice_id]);
+
+            if (!te_scholarship_columns_present($pdo)) {
+                http_response_code(503);
+                echo json_encode(['error' => 'Scholarships are not available yet: migration 102 has not been applied.']);
+                break;
+            }
+
+            $body = json_decode(file_get_contents('php://input'), true) ?: [];
+            try {
+                $result = $action === 'award-scholarship'
+                    ? te_scholarship_apply($pdo, (int) $invoice_id, $body, (int) $auth->getUserId())
+                    : te_scholarship_revoke($pdo, (int) $invoice_id, $body['reason'] ?? null, (int) $auth->getUserId());
+            } catch (ScholarshipException $e) {
+                http_response_code($e->status);
+                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+                break;
+            }
+            echo json_encode(['success' => true] + $result);
             break;
 
         case 'family':
@@ -624,7 +668,7 @@ try {
 
             $stmt = $pdo->prepare($invoicesQuery);
             $stmt->execute($athlete_ids);
-            $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $invoices = array_map(static fn($row) => te_scholarship_shape_row($row, false), $stmt->fetchAll(PDO::FETCH_ASSOC));
 
             // Calculate family summary
             $summary = [

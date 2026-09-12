@@ -12,6 +12,8 @@
  * Authorization lives in api/payment-reports.php — club_admin or treasurer.
  */
 
+require_once __DIR__ . '/../lib/scholarship.php';
+
 class PaymentReportService {
 
     private $pdo;
@@ -61,11 +63,17 @@ class PaymentReportService {
 
         $refunded = (float) $txn['refunded'];
 
+        // Scholarships are not money in or out — they are fees the club chose
+        // not to collect — so they sit beside collected/refunded, never inside net.
+        $scholarships = te_scholarship_awarded_total($this->pdo, $clubId, $from, $to);
+
         return [
             'collected' => round($collected, 2),
             'refunded' => round($refunded, 2),
             'net' => round($collected - $refunded, 2),
             'transaction_count' => (int) $txn['txn_count'],
+            'scholarships_awarded' => $scholarships['scholarships_awarded'],
+            'scholarship_count' => $scholarships['scholarship_count'],
         ];
     }
 

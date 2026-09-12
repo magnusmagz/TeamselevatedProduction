@@ -189,6 +189,12 @@ function te_invoice_email_content(array $ctx): array
     $total     = te_email_money($ctx['total_amount'] ?? 0);
     $paid      = te_email_money($ctx['amount_paid'] ?? 0);
     $hasPaid   = (float) ($ctx['amount_paid'] ?? 0) > 0;
+    // A scholarship shows as its label and amount, nothing more — the reason is
+    // staff data and is never passed in here (lib/scholarship.php rule 8).
+    $scholarshipAmt   = (float) ($ctx['scholarship_amount'] ?? 0);
+    $hasScholarship   = $scholarshipAmt > 0;
+    $scholarshipLabel = trim((string) ($ctx['scholarship_label'] ?? '')) !== '' ? (string) $ctx['scholarship_label'] : 'Scholarship';
+    $scholarship      = te_email_money($scholarshipAmt);
     $dueDate   = $dueRaw !== '' ? te_email_format_date_only($dueRaw) : '';
 
     $subject = $invoiceNumber !== ''
@@ -235,6 +241,9 @@ function te_invoice_email_content(array $ctx): array
         ? '                <div class="row"><span class="muted">Invoice total</span><span>' . $e($total) . '</span></div>'
             . '<div class="row"><span class="muted">Already paid</span><span>' . $e($paid) . "</span></div>\n"
         : '';
+    $scholarshipLine = $hasScholarship
+        ? '                <div class="row"><span class="muted">' . $e($scholarshipLabel) . '</span><span>&minus;' . $e($scholarship) . "</span></div>\n"
+        : '';
 
     $memoHtml = $memo !== ''
         ? '                <p class="muted">' . $e($memo) . "</p>\n"
@@ -257,8 +266,9 @@ function te_invoice_email_content(array $ctx): array
         . '                <p style="text-align: center; margin: 0;" class="muted">Amount due</p>' . "\n"
         . $dueLine
         . $invoiceLabel
-        . $paidLine
         . $itemsHtml
+        . $scholarshipLine
+        . $paidLine
         . $memoHtml
         . "            </div>\n"
         . $ctaHtml
@@ -291,6 +301,9 @@ function te_invoice_email_content(array $ctx): array
             $text .= '- ' . (string) ($item['description'] ?? 'Item') . ': '
                 . te_email_money($item['line_total'] ?? 0) . "\n";
         }
+    }
+    if ($hasScholarship) {
+        $text .= "- $scholarshipLabel: -$scholarship\n";
     }
     if ($memo !== '') {
         $text .= "\n$memo\n";

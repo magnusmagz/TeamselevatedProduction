@@ -16,6 +16,9 @@ interface ReportSummary {
   refunded: number;
   net: number;
   transaction_count: number;
+  /** Absent from an older backend; the tile is drawn only when it is a number. */
+  scholarships_awarded?: number;
+  scholarship_count?: number;
 }
 
 interface ReportTransaction {
@@ -267,7 +270,7 @@ const ClubPaymentsSettings: React.FC = () => {
         <div className="mt-8">
           <h3 className="text-base font-semibold text-brand-primary mb-3">Reporting</h3>
 
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className={`grid gap-3 mb-5 ${typeof summary.scholarships_awarded === 'number' ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
             <div className="rounded-md border border-brand-secondary p-4">
               <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Collected</p>
               <p className="text-xl font-bold text-gray-900 tabular-nums">${summary.collected.toFixed(2)}</p>
@@ -280,6 +283,15 @@ const ClubPaymentsSettings: React.FC = () => {
               <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Net</p>
               <p className="text-xl font-bold text-brand-primary tabular-nums">${summary.net.toFixed(2)}</p>
             </div>
+            {typeof summary.scholarships_awarded === 'number' && (
+              <div className="rounded-md border border-brand-secondary p-4" data-testid="scholarships-tile">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Scholarships</p>
+                <p className="text-xl font-bold text-gray-900 tabular-nums">${summary.scholarships_awarded.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">
+                  {summary.scholarship_count ?? 0} awarded. Fees the club chose not to collect; not part of net.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mb-5">

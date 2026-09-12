@@ -160,6 +160,7 @@ const BUTTON_ALLOWLIST: Record<string, { max: number; reason: string }> = {
   'pages/TemplateEditor.tsx': { max: 4, reason: 'Teams / Merge Tags panel toggles, JSON import/export segmented toggle' },
   'pages/HelpAdmin.tsx': { max: 1, reason: 'tab strip' },
   'pages/CommunicationLog.tsx': { max: 1, reason: 'channel filter segmented toggle' },
+  'components/ScholarshipModal.tsx': { max: 2, reason: '$ / % segmented toggle on the amount field' },
   'pages/EmailReporting.tsx': { max: 2, reason: 'email / SMS segmented toggle' },
   'pages/SmsInbox.tsx': { max: 2, reason: 'filter chip; conversation-list row with a selected state' },
   'components/help/HelpSidebar.tsx': { max: 2, reason: 'category accordion header; search-field lookalike that opens the palette' },

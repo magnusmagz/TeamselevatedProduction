@@ -3,7 +3,7 @@
  * Payment Reports API — treasurer-grade views (Phase 6, pulled forward).
  *
  * GET ?action=summary&club_id=N[&from=YYYY-MM-DD&to=YYYY-MM-DD]
- *   -> { success, summary: { collected, refunded, net, transaction_count } }
+ *   -> { success, summary: { collected, refunded, net, transaction_count, scholarships_awarded, scholarship_count } }
  * GET ?action=transactions&club_id=N[&from&to&limit]
  *   -> { success, transactions: [...] }
  * GET ?action=payouts&club_id=N

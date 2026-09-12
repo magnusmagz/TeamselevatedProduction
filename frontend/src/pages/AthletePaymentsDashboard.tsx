@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOrg } from '../contexts/OrgContext';
+import Button from '../components/ui/Button';
+import { ScholarshipModal } from '../components/ScholarshipModal';
 
 interface AthleteInfo {
   id: number;
@@ -35,6 +37,10 @@ interface Invoice {
   program_name: string;
   invoice_date: string;
   due_date: string;
+  subtotal?: string | null;
+  discount_amount?: string | null;
+  scholarship_amount?: string | number | null;
+  scholarship_label?: string | null;
   total_amount: string;
   amount_paid: string;
   amount_remaining: string;
@@ -49,15 +55,24 @@ interface Invoice {
 export const AthletePaymentsDashboard: React.FC = () => {
   const { athleteId } = useParams<{ athleteId: string }>();
   const navigate = useNavigate();
-  const { isClubAdmin } = useOrg();
+  const { isClubAdmin, activeContext } = useOrg();
   const [athlete, setAthlete] = useState<AthleteInfo | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'payments' | 'invoices'>('payments');
+  const [scholarshipFor, setScholarshipFor] = useState<Invoice | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Admins can always view amounts, others can view their own athletes
   const canViewAmounts = isClubAdmin || true; // For now, allow all authenticated users
+
+  // Scholarships are awarded by the money roles only (club admin / treasurer,
+  // te_is_financial_admin). The server gates on the same standing; this decides
+  // whether the button is drawn, nothing more.
+  const isFinancialAdmin =
+    activeContext?.scope_type === 'club' &&
+    (activeContext.role === 'club_admin' || activeContext.role === 'treasurer');
 
   useEffect(() => {
     if (!athleteId) return;
@@ -83,7 +98,7 @@ export const AthletePaymentsDashboard: React.FC = () => {
         console.error('Error fetching data:', err);
         setLoading(false);
       });
-  }, [athleteId]);
+  }, [athleteId, reloadKey]);
 
   const formatCurrency = (amount: string | number) => {
     return `$${parseFloat(amount.toString()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -359,6 +374,11 @@ export const AthletePaymentsDashboard: React.FC = () => {
                       <p className="text-xs text-gray-500 mt-1">
                         Issued: {new Date(invoice.invoice_date).toLocaleDateString()}
                       </p>
+                      {parseFloat(String(invoice.scholarship_amount ?? 0)) > 0 && (
+                        <p className="text-sm text-brand-primary mt-1" data-testid="scholarship-line">
+                          {invoice.scholarship_label || 'Scholarship'}: −{formatCurrency(invoice.scholarship_amount as string | number)}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       {canViewAmounts ? (
@@ -394,6 +414,14 @@ export const AthletePaymentsDashboard: React.FC = () => {
                           {new Date(invoice.due_date).toLocaleDateString()}
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {isFinancialAdmin && invoice.status !== 'cancelled' && (
+                    <div className="flex justify-end mb-2">
+                      <Button variant="secondary" size="sm" onClick={() => setScholarshipFor(invoice)}>
+                        {parseFloat(String(invoice.scholarship_amount ?? 0)) > 0 ? 'Edit scholarship' : 'Apply scholarship'}
+                      </Button>
                     </div>
                   )}
 
@@ -436,6 +464,17 @@ export const AthletePaymentsDashboard: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {scholarshipFor && (
+        <ScholarshipModal
+          invoice={scholarshipFor}
+          onClose={() => setScholarshipFor(null)}
+          onSaved={() => {
+            setScholarshipFor(null);
+            setReloadKey((k) => k + 1);
+          }}
+        />
       )}
     </div>
   );

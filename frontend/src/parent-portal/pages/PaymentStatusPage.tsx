@@ -43,6 +43,8 @@ interface InvoiceDetail {
   due_date?: string;
   subtotal?: number;
   discount_amount?: number;
+  scholarship_amount?: number;
+  scholarship_label?: string;
   total_amount: number;
   amount_paid: number;
   items: InvoiceLineItem[];
@@ -218,6 +220,8 @@ export const PaymentStatusPage: React.FC = () => {
           due_date: inv.due_date as string | undefined,
           subtotal: inv.subtotal != null ? parseFloat(String(inv.subtotal)) : undefined,
           discount_amount: inv.discount_amount != null ? parseFloat(String(inv.discount_amount)) : undefined,
+          scholarship_amount: inv.scholarship_amount != null ? parseFloat(String(inv.scholarship_amount)) : undefined,
+          scholarship_label: inv.scholarship_label ? String(inv.scholarship_label) : undefined,
           total_amount: parseFloat(String(inv.total_amount || 0)),
           amount_paid: parseFloat(String(inv.amount_paid || 0)),
           items: Array.isArray(inv.items)
@@ -474,6 +478,14 @@ export const PaymentStatusPage: React.FC = () => {
                             )}
                           </tbody>
                           <tfoot>
+                            {(detail.scholarship_amount ?? 0) > 0 && (
+                              <tr>
+                                <td className="pt-1 text-brand-primary">{detail.scholarship_label || 'Scholarship'}</td>
+                                <td className="pt-1 text-right text-brand-primary">
+                                  &minus;${(detail.scholarship_amount as number).toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
                             <tr className="border-t border-gray-200">
                               <td className="pt-2 font-semibold text-gray-900">Total</td>
                               <td className="pt-2 text-right font-semibold text-gray-900">

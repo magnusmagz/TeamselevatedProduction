@@ -1300,6 +1300,30 @@ claude.ai/code/artifact/4082331d-65ae-4ee5-8dae-dc3ae127e84b.
   `SponsorsGatewayScopeTest`. **Left alone on purpose:** the tournament public gateway's gate code /
   medical / contact fields — `PublicTournament.tsx` renders them as the event-day microsite.
 
+### A scholarship is awarded ON the invoice — `lib/scholarship.php` (2026-09-12, migration 102)
+Decided with Maggie 2026-09-12, all five decisions in `docs/scholarship-on-invoice-plan-2026-09.md`.
+A club admin or treasurer opens an athlete's invoice (`/athlete/:id/payments`, `ScholarshipModal`)
+and applies an amount or a percent; the API takes DOLLARS only, so what is stored is what was shown.
+`invoices.scholarship_amount` is its OWN column — `discount_amount` stays the sibling discount and
+the treasurer summary reports `scholarships_awarded` beside collected/refunded, never inside net.
+`total_amount = subtotal - discount_amount - scholarship_amount`, maintained by
+`te_scholarship_apply` / `te_scholarship_revoke`, the only writers (`ScholarshipAwardTest` scans).
+- **Gate is `te_assert_financial_admin`** (`invoices.php?action=award-scholarship` /
+  `revoke-scholarship`), never `te_assert_financial_scope`, which a coach passes.
+- **Never below what is paid**: a new total under `amount_paid` is a 422 naming the paid figure —
+  refund first, no credits. **Fully covered ⇒ `status='paid'`** with `paid_at`, the rule
+  `PaymentService` already applies at zero balance; there is no `waived`. Revoke restores the total
+  and derives `partial` / `sent` from whether anything was paid. One scholarship per invoice — a
+  second award replaces the first, and both are audited (`scholarship_awarded` / `_revoked`).
+- **The reason is staff data.** `te_scholarship_shape_row()` strips reason / awarded-by / fund from
+  every read a non-financial-admin makes (`get`, `family`); the family and the invoice email see the
+  label and amount only. `list` is an explicit column list and PROBES for the columns
+  (`te_scholarship_columns_present`) so it does not 500 before 102 lands; award/revoke answer 503.
+- Mirrored onto `athlete_payments` (`scholarship_amount`, `final_amount`, `amount_remaining`) so
+  the older payments dashboard and the demo processor agree. Contribution links and checkout read
+  the live balance and follow on their own. Fund/budget tracking (`scholarships` table, migration
+  001, still no writers) can attach later through the nullable `scholarship_id`.
+
 ### Treasurer is the MONEY-ONLY role — `lib/financial_scope.php` (2026-09-03)
 Maggie asked whether to retire `treasurer` and make it a club admin. Kept, deliberately:
 a treasurer is usually a volunteer parent, and club admin also means every child's
