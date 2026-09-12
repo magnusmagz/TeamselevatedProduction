@@ -18,6 +18,7 @@ import { useModerationOpenCount } from './hooks/useModerationOpenCount';
 import EnableNotificationsPrompt from './components/EnableNotificationsPrompt';
 import { SupportButton } from './components/support/SupportButton';
 import { recordPageVisit } from './components/support/pageHistory';
+import { useUsagePing } from './hooks/useUsagePing';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -310,6 +311,10 @@ function AppContent() {
   React.useEffect(() => {
     recordPageVisit(location.pathname + location.search);
   }, [location.pathname, location.search]);
+
+  // Daily-active ping for product usage metrics (lib/usage_activity.php). Same
+  // placement and reason as the page trail: one call covers every surface.
+  useUsagePing(user?.id, location.pathname);
 
   const [peopleDropdownOpen, setPeopleDropdownOpen] = React.useState(false);
   const peopleDropdownRef = React.useRef<HTMLDivElement>(null);

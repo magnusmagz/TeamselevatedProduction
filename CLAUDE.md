@@ -39,7 +39,7 @@ Multiple Claude sessions work this repo concurrently. Rules of the road:
    (contribution_links / comms_tables_baseline / series_invites) — three sessions numbering
    independently. All are applied; filenames differ so nothing clobbers. **Claim the next number
    by checking `ls database/migrations/ | sort` in EVERY checkout — the main one and the
-   te-stripe-payments / te-support-context worktrees — before creating one.** Next free as of 2026-07-30: **059**
+   te-stripe-payments / te-support-context worktrees — before creating one.** Next free as of 2026-09-12: **104** (102 invoice_scholarship applied; 103 user_activity_daily written, applied-or-not is in CHANGELOG). Older: 059
    (048–056 taken: athlete_gender_nullable, club_logo_png,
    emergency_contact_authorize_medical, athlete_medical, program_season_fields,
    users_tos_acceptance, athlete_jersey_size, registration_jersey_size_field,
@@ -1258,6 +1258,32 @@ transaction, never fatal; `linked_referees` on the response).
   `RefereeFeedbackTest` / `CoachAccessTest`; jest `Referees.test`, `RefereeHome.test`,
   `GameRefereesBlock.test`, `Login.test`, `landingRoute.test`, and cases in
   `TeamCalendarView.test` / `RefereeFeedbackModal.test`.
+
+### Product usage metrics: DAU / WAU / MAU by club and role — `lib/usage_activity.php` (2026-09-12, migration 103)
+Maggie: "we want daily active users, weekly, monthly and we want users bucketed into clubs and
+roles so we can see the usage rates for these roles." Super-admin only: Platform Admin → Usage
+(`components/superadmin/UsageMetrics.tsx`, `api/usage-metrics.php?action=summary|trend`).
+
+- **"Active" = the signed-in app loaded that local day.** `useUsagePing` (called once in
+  `AppContent`, so staff app, parent portal and referee page are one call) POSTs
+  `api/usage-ping.php` once per user per local date (localStorage-deduped, server idempotent),
+  and the server writes `user_activity_daily` — one row per (user, club, role, day). Nothing
+  else records daily presence: `login_success` fires only on a password login and a 24 h
+  token means most return visits never log in, so it is NOT a DAU signal.
+- **One rule sizes both sides of every rate.** `te_usage_population_sql()` is the denominator
+  (everyone holding the role: active unrevoked `user_club_access` ∪ coach by team standing ∪
+  parent by the guardian chain via `te_guardian_link_sql` ∪ `super_admin` at club **0**) and,
+  filtered to one user, the buckets a ping is recorded under. Roles are evaluated
+  INDEPENDENTLY — a coach-parent is in both role rows and once in the club's any-role line.
+  Rates are against CURRENT holders; history is not re-bucketed when a role changes hands.
+- Every (club, role) with holders appears even at zero — an absent row reads as "not
+  tracked". Client `local_date` is trusted only within a day of server UTC. The ping answers
+  202 (never 500) when the table is absent or the write fails; the metrics endpoint answers 503
+  with a sentence. `scripts/backfill-user-activity.php --days=90` seeds history from
+  `audit_log` / `chat_messages` / `conversation_participants.last_read_at` / `last_login_at`
+  as `surface='backfill'` — a floor, not a measurement. This is not Email Reporting and does
+  not live on `analytics-gateway.php`. `UsageActivityTest`, `useUsagePing.test`,
+  `UsageMetrics.test`.
 
 ### The club link page is PUBLIC, and its allowlists are the whole contract — `lib/club_public_page.php` (2026-09-09)
 `/club/<slug>` (`pages/ClubLinkPage.tsx`, `api/club-public-gateway.php`) is a stranger's view of

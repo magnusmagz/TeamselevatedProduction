@@ -72,6 +72,7 @@ class QueriedTablesExistTest extends TestCase
      * refresh.
      */
     private const PENDING_MIGRATION_TABLES = [
+        'user_activity_daily' => '103_user_activity_daily.sql',
         // Add an entry only for a migration that is written but not yet applied;
         // the self-check fails the moment it lands in the fixture, so an entry
         // cannot outlive its window. Delete it in the same commit as the fixture refresh.

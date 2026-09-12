@@ -30,6 +30,12 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-12 — Product usage metrics — DAU / WAU / MAU by club and role (branch `feature/usage-metrics`)
+- Migration **103** `103_user_activity_daily.sql` written; **apply status: see the line below**
+  (`heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php 103_user_activity_daily.sql`),
+  then `php scripts/backfill-user-activity.php --days=90` once, then refresh the fixture and
+  delete the `user_activity_daily` entry from `PENDING_MIGRATION_TABLES` in both scan tests.
+- Until 103 is applied the daily ping answers 202 `table_missing` and the Usage tab says so.
 ## 2026-09-12 — Scholarship on an invoice (migration 102, Heroku v644)
 
 - **Migration 102 `invoice_scholarship` applied to Neon 2026-09-12** via

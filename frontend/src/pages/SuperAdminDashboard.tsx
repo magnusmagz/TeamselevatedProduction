@@ -10,13 +10,14 @@ import AthletesList from '../components/superadmin/AthletesList';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationHealth from '../components/superadmin/NotificationHealth';
+import UsageMetrics from '../components/superadmin/UsageMetrics';
 import LoadMore from '../components/LoadMore';
 import PageHeader from '../components/ui/PageHeader';
 import { PageMeta, pageQuery, readPage } from '../utils/pagination';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
-type Tab = 'overview' | 'clubs' | 'users' | 'athletes' | 'templates' | 'notifications';
+type Tab = 'overview' | 'clubs' | 'users' | 'athletes' | 'templates' | 'notifications' | 'usage';
 
 interface Stats {
   total_clubs: number;
@@ -580,6 +581,7 @@ const SuperAdminDashboard: React.FC = () => {
     { key: 'athletes', label: 'Athletes' },
     { key: 'templates', label: 'Email Templates' },
     { key: 'notifications', label: 'Notifications' },
+    { key: 'usage', label: 'Usage' },
   ];
 
   return (
@@ -685,6 +687,12 @@ const SuperAdminDashboard: React.FC = () => {
       {activeTab === 'notifications' && (
         <div className="bg-white border border-brand-secondary rounded-md p-6">
           <NotificationHealth />
+        </div>
+      )}
+
+      {activeTab === 'usage' && (
+        <div className="bg-white border border-brand-secondary rounded-md p-6">
+          <UsageMetrics />
         </div>
       )}
 
