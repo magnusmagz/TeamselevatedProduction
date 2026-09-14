@@ -38,7 +38,7 @@ try {
     $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
 
     // Build WHERE clause
-    $where_conditions = ['ap.amount_remaining > 0'];
+    $where_conditions = ['ap.amount_remaining > 0', 'a.deleted_at IS NULL'];
     $params = [];
 
     if ($league_id) {
@@ -84,7 +84,7 @@ try {
             bool_or(ap.due_date < CURRENT_DATE) as has_overdue,
             json_agg(json_build_object(
                 'id', ap.id,
-                'item_name', pi.name,
+                'item_name', COALESCE(pi.name, p.name || ' Registration', 'Registration Fee'),
                 'program_name', p.name,
                 'amount', ap.amount_remaining,
                 'due_date', ap.due_date,
@@ -92,8 +92,12 @@ try {
             )) as payments
         FROM athlete_payments ap
         JOIN athletes a ON ap.athlete_id = a.id
-        JOIN payment_items pi ON ap.payment_item_id = pi.id
-        JOIN programs p ON ap.program_id = p.id
+        -- LEFT, not inner (2026-09-14): a registration billed from the program's own
+        -- registration_fee has NO payment_item_id (registrations-api.php writes NULL),
+        -- and the inner join silently dropped every such family from this page — 11
+        -- open balances worth $2,194 the day it was found, Molly Clune's among them.
+        LEFT JOIN payment_items pi ON ap.payment_item_id = pi.id
+        LEFT JOIN programs p ON ap.program_id = p.id
         -- A contact for the family. There is no primary guardian in this product
         -- (2026-09-02) — crew members are equal — so this is the FIRST crew member
         -- by link id rather than a ranked one. It used to join on
