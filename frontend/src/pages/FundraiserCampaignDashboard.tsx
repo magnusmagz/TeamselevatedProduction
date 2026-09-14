@@ -4,6 +4,9 @@ import { CampaignProgress } from '../components/CampaignProgress';
 import PageHeader from '../components/ui/PageHeader';
 import Button, { LinkButton } from '../components/ui/Button';
 
+// fundraiser-campaigns.php / campaign-donations.php staff actions are financial-admin gated (2026-09-14).
+const authHeaders = (): Record<string, string> => ({ Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}` });
+
 interface CampaignUpdate {
   id: number;
   title: string;
@@ -91,8 +94,8 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
     const fetchData = async () => {
       try {
         const [campaignRes, donationsRes] = await Promise.all([
-          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`),
-          fetch(`${API_URL}/api/campaign-donations.php?action=list&campaign_id=${id}&admin=true`)
+          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`, { headers: authHeaders() }),
+          fetch(`${API_URL}/api/campaign-donations.php?action=list&campaign_id=${id}&admin=true`, { headers: authHeaders() })
         ]);
 
         const campaignData = await campaignRes.json();
@@ -157,7 +160,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         `${API_URL}/api/fundraiser-campaigns.php?action=post-update`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             campaign_id: campaign.id,
             title: updateTitle.trim(),
@@ -174,7 +177,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         setUpdateContent('');
         setShowUpdateForm(false);
         // Refresh campaign data
-        const res = await fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`);
+        const res = await fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`, { headers: authHeaders() });
         const data = await res.json();
         setCampaign(data);
       }
@@ -194,7 +197,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         `${API_URL}/api/fundraiser-campaigns.php?action=end`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ id: campaign.id })
         }
       );
@@ -222,7 +225,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         `${API_URL}/api/fundraiser-campaigns.php?action=delete`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ id: campaign.id, deleted_by: userId })
         }
       );
@@ -248,7 +251,7 @@ export const FundraiserCampaignDashboard: React.FC<FundraiserCampaignDashboardPr
         `${API_URL}/api/campaign-donations.php?action=resend-receipt`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ donation_id: donationId })
         }
       );

@@ -29,4 +29,5 @@ require_once __DIR__ . '/../../lib/scholarship.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
 require_once __DIR__ . '/../../services/StripeCheckoutService.php';
 require_once __DIR__ . '/../../services/ContributionLinkService.php';
+require_once __DIR__ . '/../../services/CampaignDonationService.php';
 require_once __DIR__ . '/../../services/PaymentReportService.php';

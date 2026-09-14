@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
 import { DonorWall } from '../components/DonorWall';
 import { DonationForm } from '../components/DonationForm';
@@ -44,7 +44,9 @@ interface Campaign {
  */
 export const FundraiserCampaign: React.FC = () => {
   const { clubSlug, campaignSlug } = useParams<{ clubSlug: string; campaignSlug: string }>();
-  const navigate = useNavigate();
+  // Stripe sends the donor back here with ?donated=success | cancelled (campaign-donations.php checkout).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const donated = searchParams.get('donated');
   const API_URL = process.env.REACT_APP_API_URL || 'https://teamselevated-backend-0485388bd66e.herokuapp.com';
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -77,10 +79,6 @@ export const FundraiserCampaign: React.FC = () => {
       fetchCampaign();
     }
   }, [clubSlug, campaignSlug, API_URL]);
-
-  const handleDonationSuccess = (donationId: number) => {
-    navigate(`/donate/thank-you/${donationId}`);
-  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -311,12 +309,33 @@ export const FundraiserCampaign: React.FC = () => {
               </div>
             </div>
 
+            {donated === 'success' && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-5 text-green-800" role="status">
+                <p className="font-semibold text-lg">Thank you for your donation!</p>
+                <p className="text-sm mt-1">
+                  Your payment went through. A receipt is on its way to your email, and your gift will appear
+                  on the donor wall shortly.
+                </p>
+              </div>
+            )}
+            {donated === 'cancelled' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm" role="status">
+                Checkout was cancelled — nothing was charged. You can try again below whenever you're ready.
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({}, { replace: true })}
+                  className="ml-2 underline font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* Donation Form */}
             {campaign.is_active && (
               <DonationForm
                 campaignId={campaign.id}
                 campaignTitle={campaign.title}
-                onSuccess={handleDonationSuccess}
               />
             )}
 

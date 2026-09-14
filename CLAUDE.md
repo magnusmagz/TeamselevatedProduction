@@ -1350,6 +1350,28 @@ the treasurer summary reports `scholarships_awarded` beside collected/refunded, 
   the live balance and follow on their own. Fund/budget tracking (`scholarships` table, migration
   001, still no writers) can attach later through the nullable `scholarship_id`.
 
+### Fundraiser donations ride the Stripe Connect rail — `services/CampaignDonationService.php` (2026-09-14)
+The public campaign page (`/donate/<club_slug>/campaign/<slug>`) used to POST a raw card number
+to `campaign-donations.php?action=create`, which ran the demo processor and recorded a pretend
+donation. Now `action=checkout` mints a Stripe-hosted Checkout Session on the CLUB's connected
+account (same shape as `ContributionLinkService`) and returns the donor to the page with
+`?donated=success|cancelled`; **the `campaign_donations` row is written by the Connect webhook,
+never by the browser**, keyed on the PaymentIntent id in the legacy-named
+`maverick_transaction_id` column (replay-safe), and the trigger from migration 007 keeps
+`amount_raised` / `donor_count`. The receipt is sent AFTER commit. `action=create` answers 410.
+- **Fundraisers are money**: every staff action on `fundraiser-campaigns.php` and every donor-PII
+  read on `campaign-donations.php` gates on `te_is_financial_admin` of the CAMPAIGN's club
+  (resolved from the row, never the body); the gateway had no auth at all before this, and
+  the donor list was behind `canAccessClub`, which a parent passes. `get` is public — it
+  renders the donation page. Attribution comes from the token. `FundraiserGatewayScopeTest`,
+  `CampaignDonationServiceTest`.
+- A campaign whose club has not finished Stripe onboarding refuses checkout with a sentence
+  (409); the page can exist, the button cannot charge. `allow_exceed_goal=false` caps the
+  amount at the remainder; `end_date` is compared as a date STRING.
+- Nothing links a donor to a person: no user, guardian or `donors` row is created — the
+  campaign's donation rows are the only record (Maggie asked 2026-09-14; a donor entity is a
+  product decision, not a bug).
+
 ### Treasurer is the MONEY-ONLY role — `lib/financial_scope.php` (2026-09-03)
 Maggie asked whether to retire `treasurer` and make it a club admin. Kept, deliberately:
 a treasurer is usually a volunteer parent, and club admin also means every child's

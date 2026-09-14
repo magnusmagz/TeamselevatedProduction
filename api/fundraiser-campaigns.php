@@ -9,13 +9,45 @@ require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();
 
 
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
 
 $database = Database::getInstance();
 $db = $database->getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
+
+/**
+ * Fundraisers are MONEY: managed by a club admin or treasurer of the club
+ * (te_is_financial_admin — the same predicate as payment-reports.php and the
+ * frontend's ProtectedFinancialRoute "revenue"). This file had NO auth until
+ * 2026-09-14: anyone could create, edit, end or delete any club's campaign.
+ * `get` stays public — it renders the donation page.
+ */
+function fundraiser_requireFinancialAdmin(int $clubId): AuthMiddleware {
+    $auth = AuthMiddleware::requireAuth();
+    if ($clubId <= 0 || !te_is_financial_admin($auth, $clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Not authorized for this club']);
+        exit();
+    }
+    return $auth;
+}
+
+/** The campaign's club, or a 404 — the caller never names the club, the ROW does. */
+function fundraiser_clubOf(PDO $db, int $campaignId): int {
+    $stmt = $db->prepare("SELECT club_id FROM fundraiser_campaigns WHERE id = ? AND deleted_at IS NULL");
+    $stmt->execute([$campaignId]);
+    $clubId = (int) $stmt->fetchColumn();
+    if ($clubId <= 0) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Campaign not found']);
+        exit();
+    }
+    return $clubId;
+}
 
 /**
  * Generate a URL-friendly slug from title
@@ -71,6 +103,8 @@ try {
                 echo json_encode(['error' => 'club_id parameter is required']);
                 exit();
             }
+
+            fundraiser_requireFinancialAdmin((int) $clubId);
 
             $status = $_GET['status'] ?? null;
             $includeEnded = isset($_GET['include_ended']) && $_GET['include_ended'] === 'true';
@@ -222,6 +256,8 @@ try {
                 }
             }
 
+            $auth = fundraiser_requireFinancialAdmin((int) $data['club_id']);
+
             // Generate slug if not provided
             $slug = !empty($data['slug'])
                 ? generateSlug($data['slug'], $db, $data['club_id'])
@@ -260,7 +296,7 @@ try {
                 $data['allow_comments'] ?? true,
                 $data['allow_exceed_goal'] ?? true,
                 $data['status'] ?? 'draft',
-                $data['created_by'] ?? null
+                (int) $auth->getUserId()
             ]);
 
             $campaignId = $db->lastInsertId();
@@ -304,6 +340,8 @@ try {
             }
 
             // Get current campaign
+            fundraiser_requireFinancialAdmin(fundraiser_clubOf($db, (int) $data['id']));
+
             $stmt = $db->prepare("SELECT * FROM fundraiser_campaigns WHERE id = ? AND deleted_at IS NULL");
             $stmt->execute([$data['id']]);
             $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -430,6 +468,8 @@ try {
                 exit();
             }
 
+            fundraiser_requireFinancialAdmin(fundraiser_clubOf($db, (int) $data['id']));
+
             $stmt = $db->prepare("
                 UPDATE fundraiser_campaigns
                 SET status = 'ended', end_date = CURRENT_DATE
@@ -465,6 +505,8 @@ try {
                 echo json_encode(['error' => 'club_id parameter is required']);
                 exit();
             }
+
+            fundraiser_requireFinancialAdmin((int) $clubId);
 
             // Overall stats
             $stmt = $db->prepare("
@@ -515,13 +557,15 @@ try {
                 exit();
             }
 
+            $auth = fundraiser_requireFinancialAdmin(fundraiser_clubOf($db, (int) $id));
+
             $stmt = $db->prepare("
                 UPDATE fundraiser_campaigns
                 SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ?
                 WHERE id = ? AND deleted_at IS NULL
             ");
             $stmt->execute([
-                $data['deleted_by'] ?? null,
+                (int) $auth->getUserId(),
                 $id
             ]);
 
@@ -555,6 +599,8 @@ try {
                 exit();
             }
 
+            $auth = fundraiser_requireFinancialAdmin(fundraiser_clubOf($db, (int) $data['campaign_id']));
+
             $stmt = $db->prepare("
                 INSERT INTO campaign_updates (campaign_id, title, content, created_by)
                 VALUES (?, ?, ?, ?)
@@ -564,7 +610,7 @@ try {
                 $data['campaign_id'],
                 $data['title'],
                 $data['content'],
-                $data['created_by'] ?? null
+                (int) $auth->getUserId()
             ]);
 
             $updateId = $db->lastInsertId();

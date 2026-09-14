@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/ui/PageHeader';
 import Button, { LinkButton } from '../components/ui/Button';
 
+// fundraiser-campaigns.php / campaign-donations.php staff actions are financial-admin gated (2026-09-14).
+const authHeaders = (): Record<string, string> => ({ Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}` });
+
 interface CampaignFormData {
   title: string;
   slug: string;
@@ -87,7 +90,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
   useEffect(() => {
     const fetchCampaign = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`);
+        const response = await fetch(`${API_URL}/api/fundraiser-campaigns.php?action=get&id=${id}`, { headers: authHeaders() });
         const data = await response.json();
 
         if (data.error) {
@@ -233,7 +236,7 @@ export const FundraiserCampaignForm: React.FC<FundraiserCampaignFormProps> = ({
         `${API_URL}/api/fundraiser-campaigns.php?action=${action}`,
         {
           method: isEditing ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify(payload)
         }
       );

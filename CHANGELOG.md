@@ -30,6 +30,24 @@ Newest first. Times are Pacific.
 
 ---
 
+## 2026-09-14 — Fundraiser donations on Stripe (branch `feature/stripe-payments`)
+- Public campaign donations now go through a Stripe-hosted Checkout Session on the club's
+  connected account (`campaign-donations.php?action=checkout`, `services/CampaignDonationService.php`);
+  the donation row is written by the Connect webhook on `checkout.session.completed` and the
+  receipt mailed after commit. The demo path (`action=create`, raw card number from the
+  browser, `PAYMENT_MODE=demo`) answers 410. No migration: the PaymentIntent id is stored in
+  `campaign_donations.maverick_transaction_id`.
+- `fundraiser-campaigns.php` gained auth for the first time (financial admin of the campaign's
+  club on list / stats / create / update / end / delete / post-update; `get` stays public);
+  donor PII on `campaign-donations.php` moved from `canAccessClub` to `te_is_financial_admin`.
+- Prod data: club 53 (West Ham United Foundation) had `club_profile.slug` NULL — created after
+  101's backfill through `super-admin-gateway create-club`, which never set one. Set by hand to
+  `west-ham-united-foundation` (Heroku v647 makes both create paths generate it).
+- ⚠️ A donation can only be charged once the club's Stripe Express onboarding is complete
+  (`club_payment_accounts.charges_enabled`). As of 2026-07-23 no club had finished it.
+
+---
+
 ## 2026-09-12 — Product usage metrics — DAU / WAU / MAU by club and role (branch `feature/usage-metrics`)
 - Migration **103** `103_user_activity_daily.sql` written; **apply status: see the line below**
   (`heroku run --no-tty -a teamselevated-backend php scripts/apply-migration.php 103_user_activity_daily.sql`),

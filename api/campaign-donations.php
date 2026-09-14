@@ -9,10 +9,35 @@ require_once __DIR__ . '/../lib/Cors.php';
 Cors::handle();
 
 
-require_once '../config/database.php';
-require_once '../lib/PaymentProcessorFactory.php';
-require_once '../lib/AuthMiddleware.php';
-require_once '../lib/Email.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../lib/AuthMiddleware.php';
+require_once __DIR__ . '/../lib/Email.php';
+require_once __DIR__ . '/../lib/financial_scope.php';
+require_once __DIR__ . '/../lib/StripeGateway.php';
+require_once __DIR__ . '/../services/CampaignDonationService.php';
+
+/**
+ * Donor PII (list&admin=true, export, resend-receipt) is MONEY data: club admin
+ * or treasurer of the campaign's club (te_is_financial_admin), never club
+ * MEMBERSHIP — a parent row satisfies that (see lib/club_standing.php).
+ */
+function campaignDonations_requireFinancialAdmin(PDO $db, int $campaignId): AuthMiddleware {
+    $auth = AuthMiddleware::requireAuth();
+    $stmt = $db->prepare("SELECT club_id FROM fundraiser_campaigns WHERE id = ?");
+    $stmt->execute([$campaignId]);
+    $clubId = (int) $stmt->fetchColumn();
+    if ($clubId <= 0) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Campaign not found']);
+        exit();
+    }
+    if (!te_is_financial_admin($auth, $clubId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Not authorized for this campaign']);
+        exit();
+    }
+    return $auth;
+}
 
 $database = Database::getInstance();
 $db = $database->getConnection();
@@ -20,137 +45,88 @@ $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// Check if demo mode is enabled
-$demoMode = Env::get('PAYMENT_MODE', 'demo') === 'demo';
-
 try {
     switch ($action) {
         // ========================================
-        // CREATE: Process a new donation
+        // CHECKOUT: Stripe-hosted donation checkout (public)
         // ========================================
-        case 'create':
+        case 'checkout':
             if ($method !== 'POST') {
                 http_response_code(405);
                 echo json_encode(['error' => 'Method not allowed']);
                 exit();
             }
-
-            $data = json_decode(file_get_contents("php://input"), true);
-
-            // Validate required fields
-            $required = ['campaign_id', 'donor_name', 'donor_email', 'amount', 'payment_method'];
-            foreach ($required as $field) {
-                if (empty($data[$field])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => "$field is required"]);
-                    exit();
-                }
-            }
-
-            // Validate amount
-            $amount = floatval($data['amount']);
-            if ($amount < 1) {
+            $data = json_decode(file_get_contents("php://input"), true) ?: [];
+            $campaignId = (int) ($data['campaign_id'] ?? 0);
+            if ($campaignId <= 0) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Minimum donation amount is $1']);
+                echo json_encode(['error' => 'campaign_id is required']);
                 exit();
             }
 
-            // Verify campaign exists and is active
-            $stmt = $db->prepare("
-                SELECT fc.*, cp.name AS club_name
-                FROM fundraiser_campaigns fc
-                JOIN club_profile cp ON fc.club_id = cp.id
-                WHERE fc.id = ? AND fc.deleted_at IS NULL
-            ");
-            $stmt->execute([$data['campaign_id']]);
-            $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
+            $appUrl = rtrim(Env::get('APP_URL', ''), '/');
+            if ($appUrl === '') {
+                http_response_code(503);
+                echo json_encode(['error' => 'Payments are not configured']);
+                exit();
+            }
+            try {
+                $gateway = new StripeGateway();
+            } catch (RuntimeException $e) {
+                http_response_code(503);
+                echo json_encode(['error' => 'Payments are not configured']);
+                exit();
+            }
 
-            if (!$campaign) {
+            // The return URLs are the campaign page itself; a `donated` flag drives its banner.
+            $slugStmt = $db->prepare("
+                SELECT fc.slug, cp.slug AS club_slug FROM fundraiser_campaigns fc
+                JOIN club_profile cp ON cp.id = fc.club_id WHERE fc.id = ?
+            ");
+            $slugStmt->execute([$campaignId]);
+            $slugs = $slugStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$slugs) {
                 http_response_code(404);
                 echo json_encode(['error' => 'Campaign not found']);
                 exit();
             }
+            $pageUrl = $appUrl . '/donate/' . rawurlencode((string) $slugs['club_slug'])
+                . '/campaign/' . rawurlencode((string) $slugs['slug']);
 
-            if ($campaign['status'] !== 'active') {
+            try {
+                $service = new CampaignDonationService($db, $gateway, (int) Env::get('PLATFORM_FEE_BPS', '0'));
+                $result = $service->createCheckout(
+                    $campaignId,
+                    (float) ($data['amount'] ?? 0),
+                    [
+                        'name' => $data['donor_name'] ?? '',
+                        'email' => $data['donor_email'] ?? '',
+                        'phone' => $data['donor_phone'] ?? '',
+                        'anonymous' => !empty($data['is_anonymous']),
+                        'comment' => $data['comment'] ?? '',
+                    ],
+                    $pageUrl . '?donated=success',
+                    $pageUrl . '?donated=cancelled'
+                );
+                echo json_encode(['success' => true, 'url' => $result['url']]);
+            } catch (PaymentValidationException $e) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Campaign is not accepting donations']);
-                exit();
+                echo json_encode(['error' => $e->getMessage()]);
+            } catch (CampaignDonationException $e) {
+                http_response_code(409);
+                echo json_encode(['error' => $e->getMessage()]);
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                error_log('campaign checkout Stripe error: ' . $e->getMessage());
+                http_response_code(502);
+                echo json_encode(['error' => 'Payment provider request failed — please try again']);
             }
+            break;
 
-            if (strtotime($campaign['end_date']) < time()) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Campaign has ended']);
-                exit();
-            }
-
-            // Process payment
-            $processor = PaymentProcessorFactory::create();
-            $paymentResult = $processor->processPayment($amount, $data['payment_method']);
-
-            // Create donation record
-            $stmt = $db->prepare("
-                INSERT INTO campaign_donations (
-                    campaign_id, donor_name, donor_email, donor_phone,
-                    is_anonymous, amount, comment,
-                    maverick_transaction_id, maverick_charge_id, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $status = $paymentResult['success'] ? 'succeeded' : 'failed';
-
-            $stmt->execute([
-                $data['campaign_id'],
-                $data['donor_name'],
-                $data['donor_email'],
-                $data['donor_phone'] ?? null,
-                $data['is_anonymous'] ?? false,
-                $amount,
-                $data['comment'] ?? null,
-                $paymentResult['transaction_id'] ?? null,
-                $paymentResult['charge_id'] ?? null,
-                $status
-            ]);
-
-            $donationId = $db->lastInsertId();
-
-            if ($paymentResult['success']) {
-                // Send receipt email
-                try {
-                    $email = (new Email())->forClub($db, $campaign['club_id'] ?? null);
-                    $email->sendDonationReceipt(
-                        $data['donor_email'],
-                        $data['donor_name'],
-                        $amount,
-                        $campaign['title'],
-                        $campaign['club_name'],
-                        $donationId,
-                        $paymentResult['transaction_id']
-                    );
-
-                    // Mark receipt as sent
-                    $stmt = $db->prepare("UPDATE campaign_donations SET receipt_sent_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$donationId]);
-                } catch (Exception $e) {
-                    // Log email error but don't fail the donation
-                    error_log("Failed to send donation receipt: " . $e->getMessage());
-                }
-
-                echo json_encode([
-                    'success' => true,
-                    'donation_id' => $donationId,
-                    'transaction_id' => $paymentResult['transaction_id'],
-                    'message' => 'Thank you for your donation!',
-                    'demo_mode' => $demoMode
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'donation_id' => $donationId,
-                    'error' => $paymentResult['error_message'],
-                    'error_code' => $paymentResult['error_code'],
-                    'demo_mode' => $demoMode
-                ]);
-            }
+        // The pre-Stripe demo path took a raw card number from the browser.
+        // Gone: an old bundle that still posts here gets told so, not a fake receipt.
+        case 'create':
+            http_response_code(410);
+            echo json_encode(['error' => 'Donations are processed through secure checkout now — please reload the page']);
             break;
 
         // ========================================
@@ -175,15 +151,7 @@ try {
 
             // The admin view exposes donor PII — require auth + access to the campaign's club.
             if ($isAdmin) {
-                $auth = AuthMiddleware::requireAuth();
-                $cstmt = $db->prepare("SELECT club_id FROM fundraiser_campaigns WHERE id = ?");
-                $cstmt->execute([$campaignId]);
-                $campaignClubId = (int)$cstmt->fetchColumn();
-                if (!$auth->canAccessClub($campaignClubId)) {
-                    http_response_code(403);
-                    echo json_encode(['error' => 'Not authorized for this campaign']);
-                    exit();
-                }
+                campaignDonations_requireFinancialAdmin($db, (int) $campaignId);
             }
             $limit = intval($_GET['limit'] ?? 50);
             $offset = intval($_GET['offset'] ?? 0);
@@ -382,9 +350,6 @@ try {
                 exit();
             }
 
-            // Admin action (sends an email) — require authentication.
-            AuthMiddleware::requireAuth();
-
             $data = json_decode(file_get_contents("php://input"), true);
 
             if (empty($data['donation_id'])) {
@@ -392,6 +357,11 @@ try {
                 echo json_encode(['error' => 'donation_id is required']);
                 exit();
             }
+
+            // Sends mail to a donor on the club's behalf — financial admin of the campaign's club.
+            $dcStmt = $db->prepare("SELECT campaign_id FROM campaign_donations WHERE id = ?");
+            $dcStmt->execute([(int) $data['donation_id']]);
+            campaignDonations_requireFinancialAdmin($db, (int) $dcStmt->fetchColumn());
 
             // Get donation details
             $stmt = $db->prepare("
@@ -450,22 +420,11 @@ try {
                 exit();
             }
 
-            // Admin export of donor PII — require auth + access to the campaign's club.
-            $auth = AuthMiddleware::requireAuth();
+            // Admin export of donor PII — financial admin of the campaign's club.
+            campaignDonations_requireFinancialAdmin($db, (int) $campaignId);
             $stmt = $db->prepare("SELECT title, club_id FROM fundraiser_campaigns WHERE id = ?");
             $stmt->execute([$campaignId]);
             $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$campaign) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Campaign not found']);
-                exit();
-            }
-            if (!$auth->canAccessClub((int)$campaign['club_id'])) {
-                http_response_code(403);
-                echo json_encode(['error' => 'Not authorized for this campaign']);
-                exit();
-            }
 
             // Get all successful donations
             $stmt = $db->prepare("

@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import PageHeader from '../components/ui/PageHeader';
 import { LinkButton } from '../components/ui/Button';
 
+// fundraiser-campaigns.php / campaign-donations.php staff actions are financial-admin gated (2026-09-14).
+const authHeaders = (): Record<string, string> => ({ Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}` });
+
 interface Campaign {
   id: number;
   title: string;
@@ -52,8 +55,8 @@ export const FundraiserCampaignsList: React.FC<FundraiserCampaignsListProps> = (
       try {
         // Fetch campaigns and stats in parallel
         const [campaignsRes, statsRes] = await Promise.all([
-          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=list&club_id=${clubId}&include_ended=true`),
-          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=stats&club_id=${clubId}`)
+          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=list&club_id=${clubId}&include_ended=true`, { headers: authHeaders() }),
+          fetch(`${API_URL}/api/fundraiser-campaigns.php?action=stats&club_id=${clubId}`, { headers: authHeaders() })
         ]);
 
         const campaignsData = await campaignsRes.json();

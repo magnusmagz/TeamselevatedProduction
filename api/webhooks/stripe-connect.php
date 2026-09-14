@@ -22,6 +22,7 @@ require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../services/StripeConnectService.php';
 require_once __DIR__ . '/../../services/PaymentService.php';
 require_once __DIR__ . '/../../services/ContributionLinkService.php';
+require_once __DIR__ . '/../../services/CampaignDonationService.php';
 require_once __DIR__ . '/../../services/PaymentReportService.php';
 require_once __DIR__ . '/../../lib/Email.php';
 
@@ -96,6 +97,7 @@ try {
 
 $pdo = null;
 $receiptData = null;   // populated on a fresh successful payment; sent AFTER commit
+$donationReceipt = null; // fundraiser donation (CampaignDonationService) — receipt AFTER commit
 $overpayRefund = null; // populated on a race overpayment; refunded AFTER commit
 try {
     $pdo = Database::getInstance()->getConnection();
@@ -142,6 +144,17 @@ try {
             }
 
             $meta = $session['metadata'] ?? [];
+
+            // Fundraiser donation: no invoice, no ledger — the donation row IS the
+            // record (totals by trigger). Written here, never by the browser.
+            if (CampaignDonationService::isCampaignSession($meta)) {
+                $donationReceipt = (new CampaignDonationService($pdo))->recordDonation($meta, $session);
+                if ($donationReceipt === null) {
+                    error_log('stripe-connect webhook: donation ' . $session['payment_intent'] . ' already recorded — replay no-op');
+                }
+                break;
+            }
+
             $invoiceIds = array_values(array_filter(array_map('intval', explode(',', $meta['invoice_ids'] ?? ''))));
             if (empty($invoiceIds)) {
                 // Not one of our invoice sessions (or metadata lost) — log loudly, ack quietly.
@@ -253,6 +266,19 @@ try {
                 $receiptData['invoice_numbers'], $receiptData['club_name'], $receiptData['ref']);
         } catch (Exception $e) {
             error_log('stripe-connect webhook: receipt email failed: ' . $e->getMessage());
+        }
+    }
+
+    if ($donationReceipt !== null) {
+        try {
+            (new Email())->forClub($pdo, $donationReceipt['club_id'])->sendDonationReceipt(
+                $donationReceipt['to'], $donationReceipt['name'], $donationReceipt['amount'],
+                $donationReceipt['campaign_title'], $donationReceipt['club_name'],
+                $donationReceipt['donation_id'], $donationReceipt['transaction_id']);
+            $pdo->prepare("UPDATE campaign_donations SET receipt_sent_at = CURRENT_TIMESTAMP WHERE id = ?")
+                ->execute([$donationReceipt['donation_id']]);
+        } catch (Exception $e) {
+            error_log('stripe-connect webhook: donation receipt email failed: ' . $e->getMessage());
         }
     }
 
