@@ -94,11 +94,18 @@ try {
                     echo json_encode(['error' => 'Club not found']);
                     exit;
                 }
+                // Prefill Stripe with the club's address, else the admin doing the onboarding.
+                $onboardingEmail = trim((string) ($club['email'] ?? ''));
+                if ($onboardingEmail === '') {
+                    $uStmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+                    $uStmt->execute([(int) $auth->getUserId()]);
+                    $onboardingEmail = (string) ($uStmt->fetchColumn() ?: '');
+                }
                 $result = $service->startOnboarding(
                     $clubId,
                     $auth->getUserId(),
                     $club['name'] ?? '',
-                    $club['email'] ?? '',
+                    $onboardingEmail,
                     $refreshUrl,
                     $returnUrl
                 );
