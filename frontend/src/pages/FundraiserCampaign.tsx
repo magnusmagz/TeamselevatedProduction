@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CampaignProgress } from '../components/CampaignProgress';
 import { DonorWall } from '../components/DonorWall';
 import { DonationForm } from '../components/DonationForm';
+import { generateColorPalette } from '../utils/colorExtractor';
 
 interface CampaignUpdate {
   id: number;
@@ -32,6 +33,8 @@ interface Campaign {
   status: string;
   club_slug: string;
   club_name: string;
+  club_primary_color?: string | null;
+  club_secondary_color?: string | null;
   progress_percent: number;
   days_remaining: number;
   is_active: boolean;
@@ -85,6 +88,22 @@ export const FundraiserCampaign: React.FC = () => {
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2000);
   };
+
+  // The page wears the CLUB's colours, not the platform green: the club's palette is set as
+  // CSS variables on the page wrapper (same pattern as ClubLinkPage), so every brand-* class
+  // in the form, progress bar and donor wall resolves to it. Never on :root.
+  const brandVars = useMemo(() => {
+    const primary = campaign?.club_primary_color;
+    if (!primary || !/^#[0-9a-fA-F]{6}$/.test(primary)) return {} as React.CSSProperties;
+    const p = generateColorPalette(primary, campaign?.club_secondary_color || undefined);
+    return {
+      '--color-primary': p.primary,
+      '--color-primary-hover': p.primaryHover,
+      '--color-primary-dark': p.primaryDark,
+      '--color-secondary': p.secondary,
+      '--color-secondary-hover': p.secondaryHover,
+    } as React.CSSProperties;
+  }, [campaign?.club_primary_color, campaign?.club_secondary_color]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -172,7 +191,7 @@ export const FundraiserCampaign: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={brandVars} data-testid="fundraiser-campaign-page">
       {/* Hero Image */}
       {(campaign.image_data || campaign.image_url) ? (
         <div className="w-full h-64 md:h-96 bg-gray-200 relative">

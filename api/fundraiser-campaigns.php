@@ -171,7 +171,7 @@ try {
 
             if ($id) {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, cp.primary_color AS club_primary_color, cp.secondary_color AS club_secondary_color, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
@@ -180,7 +180,7 @@ try {
                 $stmt->execute([$id]);
             } else {
                 $stmt = $db->prepare("
-                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+                    SELECT fc.*, cp.slug as club_slug, cp.name as club_name, cp.primary_color AS club_primary_color, cp.secondary_color AS club_secondary_color, CONCAT(u.first_name, ' ', u.last_name) as created_by_name
                     FROM fundraiser_campaigns fc
                     JOIN club_profile cp ON fc.club_id = cp.id
                     LEFT JOIN users u ON fc.created_by = u.id
