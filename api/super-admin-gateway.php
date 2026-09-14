@@ -19,6 +19,7 @@ require_once __DIR__ . '/../lib/impersonation.php';
 require_once __DIR__ . '/../lib/org_scope.php';
 require_once __DIR__ . '/../lib/role_cache.php';
 require_once __DIR__ . '/../lib/pagination.php';
+require_once __DIR__ . '/../lib/club_public_page.php';
 
 // Require authentication
 $auth = AuthMiddleware::requireAuth();
@@ -115,7 +116,11 @@ try {
             if (!$name) { badRequest('Club name is required'); }
             $stmt = $pdo->prepare("INSERT INTO club_profile (name, city, state, website, primary_color) VALUES (?, ?, ?, ?, ?) RETURNING id");
             $stmt->execute([$name, $data['city'] ?? null, $data['state'] ?? null, $data['website'] ?? null, $data['primary_color'] ?? '#12443e']);
-            $id = $stmt->fetchColumn();
+            $id = (int) $stmt->fetchColumn();
+            // A club without a slug has no public page and no working /donate/<slug>/ URL —
+            // club 53 was created here on 2026-09-14 with NULL and its fundraiser rendered blank.
+            $pdo->prepare("UPDATE club_profile SET slug = ? WHERE id = ? AND slug IS NULL")
+                ->execute([te_club_slug_generate($pdo, $id, (string) $name), $id]);
             echo json_encode(['success' => true, 'id' => $id]);
             break;
 

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../lib/JWT.php';
 require_once __DIR__ . '/../lib/Email.php';
 require_once __DIR__ . '/../lib/role_cache.php';
+require_once __DIR__ . '/../lib/club_public_page.php';
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -152,7 +153,10 @@ function handleCreateOrganization($conn, $input) {
             'phone' => $phone
         ]);
         $result = $stmt->fetch();
-        $clubId = $result['id'];
+        $clubId = (int) $result['id'];
+        // Same rule as the super-admin create: a club always gets a slug at creation.
+        $conn->prepare('UPDATE club_profile SET slug = ? WHERE id = ? AND slug IS NULL')
+            ->execute([te_club_slug_generate($conn, $clubId, (string) $organizationName), $clubId]);
 
         // 4. Assign roles to user in user_club_access (single source of truth)
         $roleMapping = [
