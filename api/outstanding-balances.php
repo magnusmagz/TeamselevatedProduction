@@ -88,7 +88,9 @@ try {
                 'program_name', p.name,
                 'amount', ap.amount_remaining,
                 'due_date', ap.due_date,
-                'status', ap.status
+                'status', ap.status,
+                'scholarship_amount', ap.scholarship_amount,
+                'invoice_id', (SELECT i.id FROM invoices i WHERE i.athlete_payment_id = ap.id ORDER BY i.id LIMIT 1)
             )) as payments
         FROM athlete_payments ap
         JOIN athletes a ON ap.athlete_id = a.id

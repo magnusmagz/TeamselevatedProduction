@@ -119,3 +119,24 @@ test('the reason is required and never labelled as something the family sees', (
   expect(screen.getByLabelText(/Reason/)).toBeRequired();
   expect(screen.getByText(/the reason stays with the club/i)).toBeInTheDocument();
 });
+
+test('given only an invoice id, it loads the invoice first and then renders the form', async () => {
+  fetchMock().mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ success: true, invoice: { ...invoice, id: 19, invoice_number: 'INV-19' } }),
+  });
+  render(<ScholarshipModal invoiceId={19} onClose={() => {}} onSaved={() => {}} />);
+  expect(screen.getByText('Loading invoice…')).toBeInTheDocument();
+  expect(await screen.findByText(/Invoice INV-19\./)).toBeInTheDocument();
+  expect(fetchMock().mock.calls[0][0]).toContain('action=get&id=19');
+});
+
+test('a failed invoice load says so and offers Close, never an empty form', async () => {
+  fetchMock().mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ error: 'Not authorized for the requested scope' }) });
+  const onClose = jest.fn();
+  render(<ScholarshipModal invoiceId={19} onClose={onClose} onSaved={() => {}} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Not authorized');
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(onClose).toHaveBeenCalled();
+  expect(screen.queryByLabelText('Amount')).toBeNull();
+});

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Button from './ui/Button';
 
 /**
@@ -28,7 +28,9 @@ export interface ScholarshipInvoice {
 }
 
 interface Props {
-  invoice: ScholarshipInvoice;
+  /** Either the invoice row itself, or just its id — the modal then loads it. */
+  invoice?: ScholarshipInvoice;
+  invoiceId?: number;
   onClose: () => void;
   /** Called after a successful award or removal; the parent refetches. */
   onSaved: () => void;
@@ -52,7 +54,61 @@ export function scholarshipDollars(mode: 'dollars' | 'percent', raw: string, bas
   return Math.round(dollars * 100) / 100;
 }
 
-export const ScholarshipModal: React.FC<Props> = ({ invoice, onClose, onSaved }) => {
+/**
+ * Loads the invoice when only an id was given (Outstanding Balances knows the
+ * payment, not the invoice row), then renders the form.
+ */
+export const ScholarshipModal: React.FC<Props> = ({ invoice, invoiceId, onClose, onSaved }) => {
+  const [loaded, setLoaded] = useState<ScholarshipInvoice | null>(invoice ?? null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (invoice || invoiceId == null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/invoices.php?action=get&id=${invoiceId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok || !data.success || !data.invoice) {
+          setLoadError(data.error || 'The invoice could not be loaded.');
+          return;
+        }
+        setLoaded(data.invoice as ScholarshipInvoice);
+      } catch {
+        if (!cancelled) setLoadError('The invoice could not be loaded. Check your connection and try again.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoice, invoiceId]);
+
+  if (!loaded) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Apply scholarship">
+        <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+          {loadError ? (
+            <>
+              <p className="text-sm text-red-700" role="alert">{loadError}</p>
+              <div className="mt-4 flex justify-end">
+                <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-brand-primary-dark">Loading invoice…</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <ScholarshipForm key={loaded.id} invoice={loaded} onClose={onClose} onSaved={onSaved} />;
+};
+
+const ScholarshipForm: React.FC<{ invoice: ScholarshipInvoice; onClose: () => void; onSaved: () => void }> = ({ invoice, onClose, onSaved }) => {
   const subtotal = num(invoice.subtotal);
   const discount = num(invoice.discount_amount);
   const existing = num(invoice.scholarship_amount);

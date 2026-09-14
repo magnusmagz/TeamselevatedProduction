@@ -4,6 +4,7 @@ import { useOrg } from '../contexts/OrgContext';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import DataTable, { DataTableColumn } from '../components/ui/DataTable';
+import { ScholarshipModal } from '../components/ScholarshipModal';
 
 interface Payment {
   id: number;
@@ -12,6 +13,9 @@ interface Payment {
   amount: string;
   due_date: string | null;
   status: string;
+  /** Absent from an older backend; the scholarship control needs both. */
+  scholarship_amount?: string | number | null;
+  invoice_id?: number | null;
 }
 
 interface Balance {
@@ -49,6 +53,13 @@ export const OutstandingBalances: React.FC = () => {
   const [sortBy, setSortBy] = useState<'amount' | 'days_overdue' | 'name'>('amount');
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [sendingReminder, setSendingReminder] = useState<number | null>(null);
+  const [scholarshipInvoiceId, setScholarshipInvoiceId] = useState<number | null>(null);
+
+  // This page sits behind ProtectedFinancialRoute, but the button is still drawn
+  // only for the roles the server accepts (club_admin / treasurer).
+  const isFinancialAdmin =
+    activeContext?.scope_type === 'club' &&
+    (activeContext.role === 'club_admin' || activeContext.role === 'treasurer');
 
   useEffect(() => {
     fetchBalances();
@@ -129,8 +140,23 @@ export const OutstandingBalances: React.FC = () => {
     a.click();
   };
 
+  const hasScholarship = (payment: Payment) => parseFloat(String(payment.scholarship_amount ?? 0)) > 0;
+
   const paymentColumns: DataTableColumn<Payment>[] = [
-    { key: 'item_name', header: 'Item', render: (payment) => payment.item_name },
+    {
+      key: 'item_name',
+      header: 'Item',
+      render: (payment) => (
+        <span>
+          {payment.item_name}
+          {hasScholarship(payment) && (
+            <span className="ml-2 inline-block rounded bg-brand-light px-2 py-0.5 text-xs font-semibold text-brand-primary" data-testid="scholarship-chip">
+              Scholarship −{formatCurrency(payment.scholarship_amount as string | number)}
+            </span>
+          )}
+        </span>
+      ),
+    },
     { key: 'program_name', header: 'Program', render: (payment) => payment.program_name },
     {
       key: 'due_date',
@@ -146,6 +172,23 @@ export const OutstandingBalances: React.FC = () => {
       align: 'right',
       render: (payment) => <span className="font-semibold">{formatCurrency(payment.amount)}</span>,
     },
+    ...(isFinancialAdmin
+      ? [
+          {
+            key: 'scholarship',
+            header: '',
+            actions: true,
+            render: (payment: Payment) =>
+              payment.invoice_id ? (
+                <Button variant="secondary" size="sm" onClick={() => setScholarshipInvoiceId(payment.invoice_id as number)}>
+                  {hasScholarship(payment) ? 'Edit scholarship' : 'Apply scholarship'}
+                </Button>
+              ) : (
+                <span className="text-xs text-gray-400" title="This payment has no invoice yet">No invoice</span>
+              ),
+          } as DataTableColumn<Payment>,
+        ]
+      : []),
   ];
 
   if (loading) {
@@ -299,6 +342,17 @@ export const OutstandingBalances: React.FC = () => {
           </div>
         )}
       </div>
+
+      {scholarshipInvoiceId != null && (
+        <ScholarshipModal
+          invoiceId={scholarshipInvoiceId}
+          onClose={() => setScholarshipInvoiceId(null)}
+          onSaved={() => {
+            setScholarshipInvoiceId(null);
+            fetchBalances();
+          }}
+        />
+      )}
     </div>
   );
 };
