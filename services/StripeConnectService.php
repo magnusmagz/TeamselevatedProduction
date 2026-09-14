@@ -60,6 +60,13 @@ class StripeConnectService {
             $params = [
                 'business_profile' => ['name' => $clubName],
                 'metadata' => ['club_id' => (string) $clubId],
+                // Direct charges (hosted checkout on the club's account) need card_payments;
+                // without it the account onboards to charges_enabled=true with only
+                // `transfers`, and Stripe's checkout page 400s on confirm (club 53, 2026-09-14).
+                'capabilities' => [
+                    'card_payments' => ['requested' => true],
+                    'transfers' => ['requested' => true],
+                ],
             ];
             if (filter_var(trim((string) $clubEmail), FILTER_VALIDATE_EMAIL)) {
                 $params['email'] = trim((string) $clubEmail);

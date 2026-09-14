@@ -60,7 +60,9 @@ class StripeConnectServiceTest extends TestCase {
             ->method('createExpressAccount')
             ->with($this->callback(function ($params) {
                 return $params['business_profile']['name'] === 'Dynamo FC'
-                    && $params['metadata']['club_id'] === '7';
+                    && $params['metadata']['club_id'] === '7'
+                    && $params['capabilities']['card_payments']['requested'] === true
+                    && $params['capabilities']['transfers']['requested'] === true;
             }))
             ->willReturn(['id' => 'acct_test123']);
         $gateway->expects($this->once())
