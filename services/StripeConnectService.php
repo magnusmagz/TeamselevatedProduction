@@ -55,11 +55,23 @@ class StripeConnectService {
         if ($existing) {
             $accountId = $existing['stripe_account_id'];
         } else {
-            $account = $this->gateway->createExpressAccount([
+            // A club with no email must OMIT the key: stripe-php encodes null as '' and Stripe
+            // answers "Invalid email address:" — which is how club 53's first onboarding 502'd.
+            $params = [
                 'business_profile' => ['name' => $clubName],
-                'email' => $clubEmail ?: null,
                 'metadata' => ['club_id' => (string) $clubId],
-            ]);
+                // Direct charges (hosted checkout on the club's account) need card_payments;
+                // without it the account onboards to charges_enabled=true with only
+                // `transfers`, and Stripe's checkout page 400s on confirm (club 53, 2026-09-14).
+                'capabilities' => [
+                    'card_payments' => ['requested' => true],
+                    'transfers' => ['requested' => true],
+                ],
+            ];
+            if (filter_var(trim((string) $clubEmail), FILTER_VALIDATE_EMAIL)) {
+                $params['email'] = trim((string) $clubEmail);
+            }
+            $account = $this->gateway->createExpressAccount($params);
             $accountId = $account['id'];
 
             $stmt = $this->pdo->prepare("

@@ -60,7 +60,9 @@ class StripeConnectServiceTest extends TestCase {
             ->method('createExpressAccount')
             ->with($this->callback(function ($params) {
                 return $params['business_profile']['name'] === 'Dynamo FC'
-                    && $params['metadata']['club_id'] === '7';
+                    && $params['metadata']['club_id'] === '7'
+                    && $params['capabilities']['card_payments']['requested'] === true
+                    && $params['capabilities']['transfers']['requested'] === true;
             }))
             ->willReturn(['id' => 'acct_test123']);
         $gateway->expects($this->once())
@@ -81,6 +83,30 @@ class StripeConnectServiceTest extends TestCase {
         $this->assertNotNull($row);
         $this->assertSame('acct_test123', $row['stripe_account_id']);
         $this->assertEquals(42, $row['created_by']);
+    }
+
+    public function testAClubWithNoEmailOmitsTheKeyRatherThanSendingBlank(): void {
+        // stripe-php encodes null as '' and Stripe answers "Invalid email address:" —
+        // club 53's first onboarding 502'd on exactly this (2026-09-14).
+        $gateway = $this->mockGateway();
+        $gateway->expects($this->once())
+            ->method('createExpressAccount')
+            ->with($this->callback(fn($p) => !array_key_exists('email', $p)))
+            ->willReturn(['id' => 'acct_noemail']);
+        $gateway->method('createAccountLink')->willReturn(['url' => 'https://connect.stripe.com/setup/s/n']);
+
+        (new StripeConnectService($this->pdo, $gateway))->startOnboarding(9, 1, 'No Mail FC', '', 'https://r', 'https://x');
+    }
+
+    public function testAValidEmailIsPassedThrough(): void {
+        $gateway = $this->mockGateway();
+        $gateway->expects($this->once())
+            ->method('createExpressAccount')
+            ->with($this->callback(fn($p) => ($p['email'] ?? null) === 'admin@dynamo.test'))
+            ->willReturn(['id' => 'acct_mail']);
+        $gateway->method('createAccountLink')->willReturn(['url' => 'https://connect.stripe.com/setup/s/m']);
+
+        (new StripeConnectService($this->pdo, $gateway))->startOnboarding(9, 1, 'Dynamo', ' admin@dynamo.test ', 'https://r', 'https://x');
     }
 
     public function testStartOnboardingReusesExistingAccount(): void {
