@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrg } from '../contexts/OrgContext';
 import DataTable, { DataTableColumn } from './ui/DataTable';
@@ -288,7 +289,8 @@ const ClubPaymentsSettings: React.FC = () => {
                 <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Scholarships</p>
                 <p className="text-xl font-bold text-gray-900 tabular-nums">${summary.scholarships_awarded.toFixed(2)}</p>
                 <p className="text-xs text-gray-500">
-                  {summary.scholarship_count ?? 0} awarded. Fees the club chose not to collect; not part of net.
+                  {summary.scholarship_count ?? 0} awarded. Not part of net.{' '}
+                  <Link to="/payment/scholarships" className="text-brand-primary underline">View all</Link>
                 </p>
               </div>
             )}

@@ -562,6 +562,27 @@ try {
             }
             break;
 
+        case 'scholarships':
+            // The Scholarships report: every invoice in the club with a scholarship,
+            // reason and awarding user included — financial admins only.
+            $club_id = $_GET['club_id'] ?? null;
+            if (!$club_id || !ctype_digit((string) $club_id)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'club_id is required']);
+                break;
+            }
+            te_assert_financial_admin($auth, $pdo, ['club' => (int) $club_id]);
+            $rows = te_scholarship_list($pdo, (int) $club_id);
+            $total = 0.0;
+            foreach ($rows as $r) { $total += (float) $r['scholarship_amount']; }
+            echo json_encode([
+                'success' => true,
+                'available' => te_scholarship_columns_present($pdo),
+                'scholarships' => $rows,
+                'summary' => ['count' => count($rows), 'total_awarded' => round($total, 2)],
+            ]);
+            break;
+
         case 'award-scholarship':
         case 'revoke-scholarship':
             // Decided with Maggie 2026-09-12 (docs/scholarship-on-invoice-plan-2026-09.md).

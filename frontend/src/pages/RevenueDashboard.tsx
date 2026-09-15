@@ -142,6 +142,15 @@ export const RevenueDashboard: React.FC = () => {
               Roster Fees
             </Link>
             <Link
+              to="/payment/scholarships"
+              className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary-hover font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0121 12.5c0 2.5-1 4.5-3 6M12 14v7" />
+              </svg>
+              Scholarships
+            </Link>
+            <Link
               to="/payment/transactions"
               className="bg-brand-primary text-white border border-brand-secondary rounded-md px-4 py-2 hover:bg-brand-primary-hover font-semibold uppercase w-full sm:w-auto flex items-center justify-center gap-2"
             >

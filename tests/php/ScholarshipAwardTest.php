@@ -392,6 +392,34 @@ class ScholarshipAwardTest extends TestCase
         $this->assertSame(0.0, $s['scholarships_awarded']);
     }
 
+    // ---- the report --------------------------------------------------------
+
+    public function testTheListIsClubScopedNewestFirstAndCarriesTheStaffFields(): void
+    {
+        $this->pdo->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT)");
+        $this->pdo->exec("INSERT INTO users VALUES (9, 'Maggie', 'Mae')");
+        $this->award(102, ['amount' => 100]);
+        // Same-second awards tie on awarded_at; age the first one so the order is real.
+        $this->pdo->exec("UPDATE invoices SET scholarship_awarded_at = '2026-09-01 09:00:00' WHERE id = 102");
+        $this->award(101, ['amount' => 200, 'reason' => 'Second']);
+        $rows = te_scholarship_list($this->pdo, 32);
+        $this->assertCount(2, $rows);
+        $this->assertSame(101, (int) $rows[0]['invoice_id'], 'newest award first');
+        $this->assertSame('Second', $rows[0]['scholarship_reason']);
+        $this->assertSame('Maggie Mae', $rows[0]['awarded_by_name']);
+        $this->assertSame('Emma', $rows[0]['athlete_first']);
+        $this->assertSame([], te_scholarship_list($this->pdo, 44), 'club isolated');
+    }
+
+    public function testTheReportActionIsFinancialAdminOnly(): void
+    {
+        $src = file_get_contents(self::ROOT . '/api/invoices.php');
+        preg_match("/case 'scholarships':(.*?)case 'award-scholarship':/s", $src, $m);
+        $this->assertNotEmpty($m);
+        $this->assertStringContainsString("te_assert_financial_admin(\$auth, \$pdo, ['club' => (int) \$club_id])", $m[1]);
+        $this->assertStringContainsString('te_scholarship_list(', $m[1]);
+    }
+
     // ---- the gateway: WHICH predicate, and the read shaping ---------------
 
     public function testTheGatewayGatesBothActionsOnTheFinancialAdminPredicate(): void

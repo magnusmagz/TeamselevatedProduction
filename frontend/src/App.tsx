@@ -62,6 +62,7 @@ import { PaymentCheckout } from './pages/PaymentCheckout';
 import { PaymentReceipt } from './pages/PaymentReceipt';
 import { TransactionReport } from './pages/TransactionReport';
 import { OutstandingBalances } from './pages/OutstandingBalances';
+import { ScholarshipsReport } from './pages/ScholarshipsReport';
 import { RegistrationCart } from './pages/RegistrationCart';
 import { MultiPaymentCheckout } from './pages/MultiPaymentCheckout';
 import { RosterFeeStatus } from './pages/RosterFeeStatus';
@@ -1258,6 +1259,13 @@ function AppContent() {
             <ProtectedFinancialRoute requiredPermission="revenue">
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <OutstandingBalances />
+              </main>
+            </ProtectedFinancialRoute>
+          } />
+          <Route path="/payment/scholarships" element={
+            <ProtectedFinancialRoute requiredPermission="revenue">
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <ScholarshipsReport />
               </main>
             </ProtectedFinancialRoute>
           } />

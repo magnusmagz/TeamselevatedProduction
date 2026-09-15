@@ -346,3 +346,33 @@ function te_scholarship_awarded_total(PDO $pdo, int $clubId, ?string $from = nul
         'scholarship_count'    => (int) ($row['n'] ?? 0),
     ];
 }
+
+/**
+ * Every invoice in a club carrying a scholarship, newest award first, for the
+ * Scholarships report (financial admins only — the caller gates). Includes the
+ * reason and the awarding user: this is the staff view.
+ */
+function te_scholarship_list(PDO $pdo, int $clubId): array {
+    if (!te_scholarship_columns_present($pdo)) return [];
+    $sql = "
+        SELECT i.id AS invoice_id, i.invoice_number, i.athlete_id,
+               a.first_name AS athlete_first, a.last_name AS athlete_last,
+               p.name AS program_name,
+               i.subtotal, i.discount_amount, i.scholarship_amount, i.scholarship_label,
+               i.scholarship_reason, i.scholarship_id, i.total_amount, i.amount_paid, i.status,
+               i.scholarship_awarded_at,
+               u.first_name AS awarded_by_first, u.last_name AS awarded_by_last
+        FROM invoices i
+        JOIN athletes a ON a.id = i.athlete_id
+        LEFT JOIN programs p ON p.id = i.program_id
+        LEFT JOIN users u ON u.id = i.scholarship_awarded_by
+        WHERE i.scholarship_amount > 0
+          AND COALESCE(p.club_id, a.club_id) = " . (int) $clubId . "
+        ORDER BY i.scholarship_awarded_at DESC, i.id DESC";
+    $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as &$r) {
+        $r['awarded_by_name'] = trim(($r['awarded_by_first'] ?? '') . ' ' . ($r['awarded_by_last'] ?? '')) ?: null;
+        unset($r['awarded_by_first'], $r['awarded_by_last']);
+    }
+    return $rows;
+}
